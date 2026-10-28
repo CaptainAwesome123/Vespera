@@ -1,0 +1,153 @@
+'use strict';
+/* =====================================================================
+   LEISTUNG: Lichter-Pool, Sichtweiten für Details, adaptive Auflösung
+   ===================================================================== */
+// Punktlichter kosten auf jedem beleuchteten Material. Deshalb gibt es nur vier echte
+// Lichter, die jeweils zu den nächstgelegenen Lichtquellen wandern und weich einblenden.
+const LIGHTS = [], lightPool = [];
+function addLight(color, i, d, decay, x, y, z, inside = false) { LIGHTS.push({ p: new T.Vector3(x, y, z), c: color, i, d, decay, inside }); }
+function buildLightPool() {
+  for (let k = 0; k < 4; k++) { const l = new T.PointLight(0xffc27a, 0, 50, 1.6); l.userData = { a: null, w: 0 }; scene.add(l); lightPool.push(l); }
+}
+let lightTimer = 0;
+function updateLights(dt) {
+  if ((lightTimer -= dt) <= 0) {
+    lightTimer = 0.2;
+    const cp = camera.position, ins = playing && inBelmont(player.p.x, player.p.z, player.p.y);
+    const ranked = LIGHTS.filter(a => a.inside === ins).map(a => [a, cp.distanceTo(a.p) / a.d]).filter(x => x[1] < 1.5).sort((x, y) => x[1] - y[1]).slice(0, lightPool.length).map(x => x[0]);
+    for (const l of lightPool) if (l.userData.a && !ranked.includes(l.userData.a)) l.userData.a = null;
+    for (const a of ranked) if (!lightPool.some(l => l.userData.a === a)) {
+      const l = lightPool.find(l => !l.userData.a); if (!l) break;
+      l.userData.a = a; l.userData.w = 0; l.position.copy(a.p); l.color.set(a.c); l.distance = a.d; l.decay = a.decay;
+    }
+  }
+  for (const l of lightPool) { const u = l.userData; u.w = u.a ? Math.min(1, u.w + dt * 2.5) : 0; l.intensity = u.a ? u.a.i * u.w : 0; }
+}
+// Kleine Einzelteile (Schilder, Leuchten, Zierrat) werden in großer Entfernung ausgeblendet
+const detailCull = [];
+function collectDetails() {
+  const sp = new T.Sphere();
+  for (const o of scene.children) {
+    if (!o.isMesh || o.isInstancedMesh || o.frustumCulled === false) continue;
+    if (!o.geometry.boundingSphere) o.geometry.computeBoundingSphere();
+    o.updateMatrixWorld(); sp.copy(o.geometry.boundingSphere).applyMatrix4(o.matrixWorld);
+    if (sp.radius > 30) continue;
+    detailCull.push({ o, p: sp.center.clone(), d2: (320 + sp.radius * 30) ** 2 });
+  }
+}
+let cullTimer = 0;
+function updateDetails(dt) {
+  if ((cullTimer -= dt) > 0) return;
+  cullTimer = 0.3;
+  const cp = camera.position, k = 1 + Math.max(0, cp.y - 60) / 200;
+  for (const d of detailCull) d.o.visible = d.p.distanceToSquared(cp) < d.d2 * k * k;
+}
+// Auflösung passt sich der Bildrate an: unter etwa 42 Bildern pro Sekunde eine Stufe tiefer,
+// bei ruhigem Lauf langsam wieder höher, aber nie über eine Stufe, die schon zu langsam war.
+const PR_DEV = window.devicePixelRatio || 1, PR_MAX = MOBILE ? Math.min(1.5, PR_DEV) : Math.min(2, Math.max(PR_DEV, 1) * 1.6);
+const PR_LEVELS = [0.5, 0.6, 0.7, 0.8, 0.9, 1, 1.15, 1.3, 1.5, 1.75, 2].filter(v => v <= PR_MAX + 1e-6);
+const PR_START = MOBILE ? Math.min(PR_MAX, 0.9) : Math.min(PR_MAX, Math.max(PR_DEV, 1) * 1.3);
+let prIdx = PR_LEVELS.reduce((b, v, i) => Math.abs(v - PR_START) < Math.abs(PR_LEVELS[b] - PR_START) ? i : b, 0);
+let prCeil = PR_LEVELS.length - 1, ftAvg = 16.7, prTimer = 0, goodTime = 0, lastUp = -1e9, adaptOn = true;
+function setPR(v) { renderer.setPixelRatio(v); if (composer) composer.setPixelRatio(v); resize(); }
+function adaptResolution(raw, now) {
+  if (!adaptOn || raw > 0.25 || document.hidden) return;
+  ftAvg += (raw * 1000 - ftAvg) * 0.06;
+  if ((prTimer += raw) < 1.0) return;
+  // ganz unten und immer noch zu langsam: die echte Wasserspiegelung abschalten
+  if (ftAvg > 30 && prIdx === 0 && REFL.rt && !REFL.off) { REFL.off = true; ftAvg = 20; }
+  if (ftAvg > 24 && prIdx > 0) {
+    if (now - lastUp < 5000) prCeil = prIdx - 1;
+    prIdx--; setPR(PR_LEVELS[prIdx]); goodTime = 0; ftAvg = 18;
+  } else if (ftAvg < 18.5) {
+    goodTime += prTimer;
+    if (goodTime > 4 && prIdx < prCeil) { prIdx++; setPR(PR_LEVELS[prIdx]); lastUp = now; goodTime = 0; }
+  } else goodTime = 0;
+  prTimer = 0;
+}
+
+let last = performance.now(), hudTimer = 0, elapsed = 0;
+function frame(now) {
+  const raw = (now - last) / 1000, dt = Math.min(0.05, raw); last = now; elapsed += dt;
+  adaptResolution(raw, now);
+  const t = elapsed;
+  U.uTime.value = t;
+  updateWind(dt);
+  updateWaves(dt);
+  if (harborWater) harborWater.position.set(Math.round(camera.position.x / 4) * 4, WATER_Y, Math.round(camera.position.z / 4) * 4);
+  { // Sichtweite: in der Stadt dichter Dunst, von oben und vom Hang aus (Villa) klare Sicht auf die Lichter
+    const cp = camera.position, ss = (a, b, x) => { const k = Math.min(1, Math.max(0, (x - a) / (b - a))); return k * k * (3 - 2 * k); };
+    const k = Math.max(ss(60, 260, cp.y), ss(800, 1400, Math.hypot(cp.x, cp.z)));
+    scene.fog.density = U.uFogDensity.value = FOG_DENSITY * (0.85 - 0.56 * k);
+  }
+  updatePort(dt, t);
+  if (playing) carryPlayer();
+  if (playing && !paused) { if (DRIVE.on) updateDrive(dt); else if (BOAT.on) updateBoatInput(dt); else updatePlayer(dt); }
+  if (playing) updateVehicleWorld(dt);
+  if (playing && !paused) updateBoat(dt);
+  if (playing && DRIVE.on) driveCamera();
+  else if (playing && BOAT.on) boatCamera();
+  else if (playing) {
+    camera.position.set(player.p.x, player.p.y + (player.fly ? 0.8 : EYE), player.p.z);
+    camera.rotation.set(player.pitch, player.yaw, 0);
+  } else {
+    const a = t * 0.04 + 0.4;
+    camera.position.set(Math.sin(a) * 430, 150 + Math.sin(t * 0.07) * 30, Math.cos(a) * 430);
+    camera.lookAt(0, 210, 0);
+  }
+  U.uCam.value.copy(camera.position);
+  updateCars(dt);
+  updateTrucks(dt);
+  updateTrams(dt);
+  const inside = playing && inBelmont(player.p.x, player.p.z, player.p.y) ? 1 : 0;
+  U.uInside.value += (inside - U.uInside.value) * Math.min(1, dt * 4);
+  hemi.intensity = 0.9 - 0.65 * U.uInside.value; moonLight.intensity = 0.45 * (1 - U.uInside.value);
+  const nearBel = !playing || (Math.abs(camera.position.x) < 70 && Math.abs(camera.position.z) < 75 && camera.position.y < 45);
+  if (interiorCrowd) interiorCrowd.show(nearBel);
+  updateInterior(t, nearBel);
+  updateBelmontDoor(dt);
+  const nearVilla = Math.hypot(camera.position.x - VILLA.x, camera.position.z - VILLA.z) < 650;
+  if (VILLA.crowd) VILLA.crowd.show(nearVilla);
+  if (nearVilla) updateVilla(t);
+  updateLights(dt);
+  updateDetails(dt);
+  updateParked(dt);
+  updateLampLod(dt); updateTreeLod(dt);
+  updateInteract();
+  updateAudio(dt);
+  updatePedestrians(dt, t);
+  updateIndustry(t);
+  updateShips(t);
+  updateFountain(t);
+  updateVenues(dt);
+  updateShops(dt);
+  updateCarScenes(dt); updateCarReturns(dt);
+  updateFireworks(dt);
+  for (const s of searchlights) s.piv.rotation.set(Math.sin(t * 0.21 + s.ph) * s.tilt, t * 0.12 + s.ph, Math.cos(t * 0.17 + s.ph) * s.tilt);
+
+  if (playing) {
+    hudTimer -= dt;
+    if (hudTimer <= 0) {
+      hudTimer = 0.25;
+      const d = districtAt(player.p.x, player.p.z, player.p.y);
+      if (d[0] !== lastDistrict) { lastDistrict = d[0]; showDistrict(d); }
+      $('mode').innerHTML = '<b>' + (BOAT.on ? 'Am Ruder' : DRIVE.on ? 'Am Steuer' : player.fly ? 'Flugmodus' : 'Zu Fuß') + '</b>';
+      $('alt').textContent = BOAT.on ? Math.round(Math.abs(BOAT.u) * 1.944) + ' Knoten · Gas ' + Math.round(BOAT.thr * 100) + ' %' : DRIVE.on ? Math.round(Math.abs(DRIVE.v) * 3.6) + ' km/h · ' + (DRIVE.revMode ? 'R' : (DRIVE.gear + 1) + '. Gang') + (DRIVE.body && DRIVE.body.dmg.some(v => v > 0.05) ? ' · Zustand ' + Math.round(100 - (DRIVE.body.dmg[0] + DRIVE.body.dmg[1] + DRIVE.body.dmg[2] + DRIVE.body.dmg[3]) * 25) + ' %' : '') : 'Höhe ' + Math.max(0, Math.round(player.p.y)) + ' m';
+      const deg = ((-player.yaw * 180 / Math.PI) % 360 + 360) % 360;
+      $('head').textContent = 'Kurs ' + ['N', 'NO', 'O', 'SO', 'S', 'SW', 'W', 'NW'][Math.round(deg / 45) % 8] + ' · Wind ' + Math.round(WIND.s + WIND.gust * 6) + ' m/s aus ' + windName(WIND.a + Math.PI);
+      drawMap();
+      const hh = Math.floor(CLOCK.min / 60), mm = Math.floor(CLOCK.min % 60);
+      $('clock').textContent = String(hh).padStart(2, '0') + ':' + String(mm).padStart(2, '0') + ' Uhr';
+      const c = player.fly ? null : citizenNear(player.p, 8), card = $('npc');
+      if (c) { card.innerHTML = '<b></b><span></span><i></i>'; card.querySelector('b').textContent = c.name + ', ' + c.age; card.querySelector('span').textContent = c.job + ' · ' + c.trait.k; card.querySelector('i').textContent = citizenDoing(c); card.style.opacity = 1; }
+      else card.style.opacity = 0;
+    }
+    if (districtTimer > 0 && (districtTimer -= dt) <= 0) $('district').style.opacity = 0;
+  }
+  if (toastTimer > 0 && (toastTimer -= dt) <= 0) $('toast').style.opacity = 0;
+  if (sayTimer > 0 && (sayTimer -= dt) <= 0) $('say').style.opacity = 0;
+
+  renderReflection();
+  if (composer) { bloomPass.enabled = bloomOn; composer.render(); } else renderer.render(scene, camera);
+  requestAnimationFrame(frame);
+}
