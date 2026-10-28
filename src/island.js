@@ -4,7 +4,7 @@ import { STONES, addSeg, lamps, trees, addNeon, addGlow, NEON } from './facade-s
 import { BRICK, isFactoryZone, snapArrays, buildBlock, buildFactory } from './shops.js';
 import { pickW, DOORS } from './entrances.js';
 import { WATER_Y } from './dance.js';
-import { kit, ROAD_W, wuv, Bx } from './harbour.js';
+import { kit, ROAD_W, wuv, Bx, VIA } from './harbour.js';
 import { GRASS, streetDetail, slabTextures } from './serpentine.js';
 import { TRAM_LINES } from './traffic.js';
 
@@ -116,6 +116,7 @@ export function buildNetwork() {
   };
   const nearest = (p, filt) => { let best = null, bd = 1e18; for (const n of grid.values()) { if (!filt(n)) continue; const d = (n.x - p[0]) ** 2 + (n.z - p[1]) ** 2; if (d < bd) { bd = d; best = n; } } return best; };
   const dir = (a, b) => { const L = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1; return [(b[0] - a[0]) / L, (b[1] - a[1]) / L]; };
+  const northEnds = [];
   for (const sgn of [-1, 1]) {
     const pts = arc(sgn), hits = [];
     // Querstraßen: vom äußeren Rasterknoten geradeaus bis zum Ring
@@ -148,8 +149,36 @@ export function buildNetwork() {
     const nN = nearest(P[0], n => n.gj === 0 && Math.sign(n.x || sgn) === sgn && Math.abs(n.x) < Math.abs(P[0][0]) - 20);
     const nS = nearest(P[P.length - 1], n => n.gj === ST.length - 1 && Math.sign(n.x || sgn) === sgn && Math.abs(n.x) < Math.abs(P[P.length - 1][0]) - 20);
     if (nN) edge(nN, r0, bez([nN.x, nN.z], [sgn, 0], [r0.x, r0.z], dir(P[0], P[1]), 12), 14, 3.5, 'ring');
+    else northEnds.push({ sgn, n: r0 });
     if (nS) edge(r1, nS, bez([r1.x, r1.z], dir(P[P.length - 2], P[P.length - 1]), [nS.x, nS.z], [-sgn, 0], 12), 16, 4, 'ring');
     NET.arcs.push(P);
+  }
+  // V23: Nordstraße am Viadukt. Früher endete die große Allee 75 m vor der Rampe und beide Ringbögen liefen im Norden blind aus.
+  // Jetzt: eine Uferstraße vom westlichen zum östlichen Ringende, jede Avenue mit einem Stich nach Norden, die Allee als Auffahrt
+  // auf den Viadukt, und der Viadukt selbst ist eine Kante im Netz (Verkehr fährt bis in den Tunnel).
+  if (northEnds.length === 2) {
+    const zN = ST[0].z - 1, W0 = northEnds.find(q => q.sgn < 0).n, E0 = northEnds.find(q => q.sgn > 0).n;
+    const zAt = x => { let z = zN; for (let k = 0; k < 12 && landDist(x, z) < RING_OFF; k++) z += 3; return z; };
+    const top = new Map();   // nördlichster Rasterknoten je Avenue
+    for (const n of grid.values()) { const t = top.get(n.gi); if (!t || n.gj < t.gj) top.set(n.gi, n); }
+    const stops = [...top.values()].filter(n => n.x > W0.x + 30 && n.x < E0.x - 30 && !G(n.gi, n.gj - 1)).sort((a, b) => a.x - b.x);
+    if (!stops.some(n => n.x === 0)) stops.push({ x: 0, z: null }), stops.sort((a, b) => a.x - b.x);
+    let prev = W0;
+    const line = (a, b) => { const pts = []; const n = Math.max(2, Math.ceil(Math.abs(b.x - a.x) / 6)); for (let k = 0; k <= n; k++) { const x = a.x + (b.x - a.x) * k / n; pts.push([x, k === 0 ? a.z : k === n ? b.z : zAt(x)]); } return pts; };
+    for (const g of stops) {
+      const j = node(g.x, zAt(g.x), g.x === 0 ? 'via' : 'ring');
+      edge(prev, j, line(prev, j), 14, 3.5, 'north');
+      if (g.z !== null) edge(g, j, [[g.x, g.z], [j.x, j.z]], g.x === 0 ? 22 : 14, g.x === 0 ? 5.5 : 3.5, g.x === 0 ? 'link' : 'grid');
+      if (g.x === 0) NET.viaHead = j;
+      prev = j;
+    }
+    edge(prev, E0, line(prev, E0), 14, 3.5, 'north');
+    if (NET.viaHead) {
+      // der Viadukt bis kurz vor das Tunnelende (Fahrbahnhöhe deckY, siehe traffic.js)
+      const vt = node(0, VIA.end + 8, 'via'), h = NET.viaHead;
+      const pts = []; for (let z = h.z; z > vt.z; z -= 25) pts.push([0, z]); pts.push([0, vt.z]);
+      edge(h, vt, pts, ROAD_W, 3.5, 'via');
+    }
   }
   // Spatialer Index der Straßenstücke: Abstand eines Punktes zur nächsten Fahrbahn
   for (const e of NET.edges) for (let k = 1; k < e.pts.length; k++) {
@@ -271,7 +300,8 @@ export function buildOuter() {
       const free = sd => !blockAt(mx + n[0] * sd * (e.w / 2 + 14), mz + n[1] * sd * (e.w / 2 + 14), 0) && onIsland(mx + n[0] * sd * (e.w / 2 + 14), mz + n[1] * sd * (e.w / 2 + 14), 10);
       e.sides = [-1, 1].filter(free);
       if (!e.sides.length || mz > ST[ST.length - 1].z - 1 || mz < ST[0].z + 1) continue;
-    } else e.sides = [-1, 1];
+    } else if (e.kind === 'via') { e.sides = []; e.walkSides = []; continue; }
+    else e.sides = [-1, 1];
     const P = resample(e.pts, 2), s0 = setback(e, e.a), s1 = setback(e, e.b);
     e.walkSides = [];
     for (const sd of e.sides) {

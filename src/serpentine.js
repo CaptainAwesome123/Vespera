@@ -1,11 +1,11 @@
 import { shared, canvasTex, mulberry32, T, mergeGeos, scene, MOBILE, U, pick, R, rand, camera, ANISO } from './core.js';
 import { personGeoHi, personShare, HQ } from './people-model.js';
 import { stdMat, MAT, addCollider, glowTex, paintMat, mergeColored, PAINT, personLook } from './people-skeleton.js';
-import { lamps, trees, addGlow, NEON, addNeon, addSeg, shafts, spires, neons, segs, facadeMat, glowPts, roofs, curbs } from './facade-shader.js';
+import { lamps, trees, addGlow, NEON, addNeon, addSeg, shafts, spires, neons, segs, dedupeSegs, facadeMat, glowPts, roofs, curbs } from './facade-shader.js';
 import { buildGroundMask, groundGrass, COAST, ISL, buildSidewalks, blocks, inRect, PLAZA, MEDIAN, BRIDGE_LOOPS } from './island.js';
 import { buildHouseDoors } from './building-forms.js';
 import { IB, FACTORY_LOOPS, FACTORY_IDLERS } from './shops.js';
-import { makeSignTex, FAN_TEX, lathe, placeFurn, FURN, crownFins, caps, domes, buildEntrances, DOORS, TERRACE } from './entrances.js';
+import { makeSignTex, FAN_TEX, lathe, placeFurn, FURN, crownFins, caps, domes, buildEntrances, DOORS, TERRACE, CLOCKS } from './entrances.js';
 import { WATER_Y, setDance, placeCouple } from './dance.js';
 import { poolWaterMat, fountainJet } from './water.js';
 import { VILLA, deckY, TER, terrainHeight, ROAD_Z0, VIA, ROAD_W, terrainHeightRaw, terrainInfo, VALLEY_W, PORT_LOOPS, PORT_PEDS } from './harbour.js';
@@ -669,12 +669,41 @@ export function buildAccessRoad() {
   S(0, pz - 2, 12, 8, dp + 31, dp + 35);
   addNeon(0, dp + 12.75, pz + 4.05, 16.3, 0.3, 0.3, NEON.gold);
   const sign = makeSignTex('VESPERA', '#f6c76a', false);
-  const sm = new T.Mesh(new T.PlaneGeometry(14, 14 * sign.H / sign.W), new T.MeshBasicMaterial({ map: sign.t, color: new T.Color(1.3, 1.25, 1.15) }));
+  const sm = new T.Mesh(new T.PlaneGeometry(14, 14 * sign.H / sign.W), new T.MeshBasicMaterial({ map: sign.t, color: new T.Color(1.3, 1.25, 1.15), polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -4 }));
   sm.position.set(0, dp + 19, pz + 4.1); scene.add(sm);
   const fanM = new T.MeshBasicMaterial({ map: FAN_TEX, transparent: true, color: new T.Color(1.4, 1.2, 0.9), depthWrite: false });
   const fm = new T.Mesh(new T.PlaneGeometry(12, 6), fanM); fm.position.set(0, dp + 28.6 + 0, pz + 3.1); scene.add(fm);
   shafts.push({ x: 0, z: pz + 2, y: dp + 35, h: 260, w: 10, c: [1.0, 0.8, 0.45] });
+  buildCityGate();
 }
+// V23 · Stadttor am Ende des Viadukts: zwei Pylonen mit Goldkanneluren, ein Querbalken mit Schriftzug, Laternen
+export function buildCityGate() {
+  const z = ROAD_Z0 - 6, GR = [0.95, 0.72, 0.34], st = [0.78, 0.72, 0.6];
+  const S = (x, w, d, y0, y1, o = {}) => addSeg({ x, z: z + (o.dz || 0), w, d, y0, y1, tint: o.tint || st, seed: 862, style: 3, dens: 0, flood: o.flood ?? 0.9, rib: o.rib || GR });
+  for (const sd of [-1, 1]) {
+    const x = sd * 11;
+    S(x, 3.6, 3.6, 0, 1.2, { rib: [0, 0, 0], flood: 0.4 });
+    S(x, 3.0, 3.0, 1.2, 21, {});
+    S(x, 3.6, 3.6, 21, 21.6, { tint: [0.5, 0.42, 0.3] });
+    S(x, 2.2, 2.2, 21.6, 25.5, {});
+    S(x, 1.3, 1.3, 25.5, 27.5, { tint: [0.5, 0.42, 0.3] });
+    spires.push({ x, z, y0: 27.5, h: 6, b: 1.1 });
+    addGlow(x, 34, z, [1.4, 0.15, 0.1], 1.8, 0.2, 1);
+    for (const e of [-1, 1]) addNeon(x + e * 1.52, 11, z, 0.12, 19, 0.12, NEON.gold), addNeon(x, 11, z + e * 1.52, 0.12, 19, 0.12, NEON.gold);
+    addGlow(x, 3.2, z - 2.2, [1.35, 0.95, 0.55], 2.2); addGlow(x, 3.2, z + 2.2, [1.35, 0.95, 0.55], 2.2);
+    shafts.push({ x, z, y: 27.5, h: 180, w: 2.2, c: [0.35, 1.0, 0.95] });
+  }
+  S(0, 19.2, 1.6, 15.2, 18.4, { flood: 1 });
+  S(0, 20.2, 2.0, 18.4, 18.9, { tint: [0.5, 0.42, 0.3] });
+  addNeon(0, 15.1, z, 19.4, 0.14, 1.7, NEON.gold);
+  const sign = makeSignTex('VESPERA', '#f6c76a', false);
+  for (const flip of [0, 1]) {
+    const sm = new T.Mesh(new T.PlaneGeometry(13, 13 * sign.H / sign.W), new T.MeshBasicMaterial({ map: sign.t, color: new T.Color(1.3, 1.25, 1.15), polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -4 }));
+    sm.position.set(0, 16.8, z + (flip ? 0.81 : -0.81)); sm.rotation.y = flip ? 0 : Math.PI; scene.add(sm);
+  }
+  addGlow(0, 16.8, z - 2, [1.3, 0.95, 0.55], 6); addGlow(0, 16.8, z + 2, [1.3, 0.95, 0.55], 6);
+}
+export const VILLA_DOOR = { x: 7.5, w: 2.8, h: 5.0 };   // V23: Flügeltüren in der Rückwand der Villa (lokal ±x)
 export function buildVilla() {
   // Standort suchen: ein Hang im Nordosten, von dem der Blick zur Stadt möglichst frei ist
   let bestA = 0, bestR = 0, bestY = 0, bestBlock = 1e9;
@@ -737,7 +766,10 @@ export function buildVilla() {
   const cream = warm;
   // Der Mittelbau ist im Erdgeschoss hohl und begehbar: Salon, Bibliothek und Bar hinter der Loggia
   const IH = 9, FW = { style: 2, dens: 1, flood: 1, rib: GR, tint: cream, seed: 881 };
-  V(0, -22.7, 60, 0.6, by, by + IH, FW);
+  // V23: Rückwand mit zwei Flügeltüren zur Vorfahrt (links und rechts vom Kamin)
+  const DX = VILLA_DOOR.x, DW = VILLA_DOOR.w, DH = VILLA_DOOR.h;
+  for (const [a, b] of [[-30, -DX - DW / 2], [-DX + DW / 2, DX - DW / 2], [DX + DW / 2, 30]]) V((a + b) / 2, -22.7, b - a, 0.6, by, by + IH, { ...FW, seed: 881 + Math.round(a) });
+  for (const sd of [-1, 1]) V(sd * DX, -22.7, DW, 0.6, by + DH, by + IH, { ...FW, style: 3, dens: 0 });
   for (const sd of [-1, 1]) { V(sd * 29.7, -12, 0.6, 22, by, by + IH, FW); V(sd * 15.9, -1.3, 28.2, 0.6, by, by + IH, FW); }
   V(0, -1.3, 3.6, 0.6, by + 6.4, by + IH, FW);
   V(0, -12, 60, 22, by + IH, by + 16, FW);
@@ -818,6 +850,43 @@ export function buildVilla() {
   basin(-18, 82, 2.5, t3);
 
   // ---------- Vorfahrt hinter dem Haus mit Limousinen, Ankermast mit Privatluftschiff ----------
+  // V23: Eingang von der Vorfahrt: Vordach auf vier Säulen, roter Läufer, verglaste Flügeltüren in Goldrahmen, Laternen
+  {
+    const DX = VILLA_DOOR.x, DW = VILLA_DOOR.w, DH = VILLA_DOOR.h, zW = -23.0, zC = -31.5, cw = 2 * DX + 9;
+    V(0, (zW + zC) / 2 - 0.3, cw, zW - zC + 0.6, by + 6.2, by + 7.0, { tint: cream, flood: 1, rib: GR, col: false, seed: 886 });
+    V(0, (zW + zC) / 2 - 0.3, cw + 0.8, zW - zC + 1.4, by + 7.0, by + 7.35, { tint: [0.5, 0.42, 0.3], flood: 1, rib: GR, col: false, seed: 887 });
+    N(0, by + 7.45, zC - 1.0, cw + 0.9, 0.18, 0.18, NEON.gold); for (const sd of [-1, 1]) N(sd * (cw / 2 + 0.45), by + 7.45, (zW + zC) / 2 - 0.3, 0.18, 0.18, zW - zC + 1.4, NEON.gold);
+    for (const lx of [-cw / 2 + 1.2, -DX + 2.6, DX - 2.6, cw / 2 - 1.2]) {
+      put('stone', new T.CylinderGeometry(0.42, 0.48, 6.0, 16), lx, by + 3.1, zC); put('gold', new T.CylinderGeometry(0.7, 0.45, 0.45, 16), lx, by + 6.0, zC);
+      put('stone', new T.BoxGeometry(1.2, 0.35, 1.2), lx, by + 0.18, zC); put('gold', new T.TorusGeometry(0.47, 0.04, 6, 20).rotateX(Math.PI / 2), lx, by + 0.9, zC);
+      colL(lx - 0.5, by, zC - 0.5, lx + 0.5, by + 6.2, zC + 0.5);
+    }
+    // Sonnenfächer über dem Vordach, Lampen an der Unterseite
+    { const [x, z] = W(0, zC - 1.05); const fm = new T.Mesh(new T.PlaneGeometry(8, 4), new T.MeshBasicMaterial({ map: FAN_TEX, transparent: true, color: new T.Color(1.3, 1.05, 0.7), depthWrite: false, side: T.DoubleSide })); fm.position.set(x, by + 9.3, z); fm.rotation.y = ry + Math.PI; scene.add(fm); }
+    for (let lx = -cw / 2 + 3; lx <= cw / 2 - 3; lx += 4) { put('lamp', new T.CylinderGeometry(0.28, 0.28, 0.06, 14), lx, by + 6.15, (zW + zC) / 2); G(lx, by + 5.8, (zW + zC) / 2, [1.35, 0.95, 0.55], 1.6); }
+    for (const sd of [-1, 1]) {
+      const x0 = sd * DX;
+      // Türgewände, Sturz mit Oberlicht, zwei nach innen geöffnete Glasflügel
+      for (const e of [-1, 1]) put('gold', new T.BoxGeometry(0.22, DH + 0.2, 0.8), x0 + e * (DW / 2 + 0.05), by + DH / 2, zW + 0.25);
+      put('gold', new T.BoxGeometry(DW + 0.5, 0.3, 0.8), x0, by + DH + 0.1, zW + 0.25);
+      put('lamp', new T.PlaneGeometry(DW - 0.2, 0.9).rotateY(Math.PI), x0, by + DH - 0.55, zW - 0.02);
+      for (const e of [-1, 1]) {
+        const leaf = new T.BoxGeometry(DW / 2 - 0.08, DH - 1.25, 0.07).translate(-e * (DW / 4 - 0.04), 0, 0).rotateY(e * 1.35);
+        put('glassD', leaf, x0 + e * (DW / 2 - 0.05), by + (DH - 1.25) / 2 + 0.05, zW + 0.3);
+        put('gold', new T.BoxGeometry(DW / 2 - 0.04, 0.08, 0.1).translate(-e * (DW / 4 - 0.02), 0, 0).rotateY(e * 1.35), x0 + e * (DW / 2 - 0.05), by + 0.1, zW + 0.3);
+      }
+      // Wandlaternen neben den Türen
+      for (const e of [-1, 1]) { put('gold', new T.BoxGeometry(0.3, 0.55, 0.3), x0 + e * (DW / 2 + 0.8), by + 3.6, zW - 0.35); put('lamp', new T.BoxGeometry(0.2, 0.4, 0.2), x0 + e * (DW / 2 + 0.8), by + 3.6, zW - 0.45); G(x0 + e * (DW / 2 + 0.8), by + 3.6, zW - 0.6, [1.4, 0.95, 0.55], 1.4); }
+      // Läufer bis zur Vorfahrt, Schwelle aus Stein, Messingpfosten mit Kordel
+      put('stone', new T.BoxGeometry(DW + 0.6, 0.06, 0.9), x0, by + 0.06, zW - 0.3);
+      put('carpet', new T.BoxGeometry(2.0, 0.02, 9.0), x0, by + 0.09, zW - 5.2);
+      for (const e of [-1, 1]) for (const lz of [zW - 2.2, zW - 5.2, zW - 8.2]) { put('gold', new T.CylinderGeometry(0.04, 0.06, 0.95, 8), x0 + e * 1.35, by + 0.5, lz); put('gold', new T.SphereGeometry(0.07, 8, 6), x0 + e * 1.35, by + 1.0, lz); }
+      for (const e of [-1, 1]) for (const lz of [zW - 3.7, zW - 6.7]) put('carpet', new T.CylinderGeometry(0.025, 0.025, 3.0, 5).rotateX(Math.PI / 2), x0 + e * 1.35, by + 0.85, lz);
+      // Pflanzkübel mit Buchskugeln zu beiden Seiten
+      for (const e of [-1, 1]) { put('stone', new T.CylinderGeometry(0.6, 0.42, 0.85, 16), x0 + e * 2.6, by + 0.43, zW - 1.0); put('hedge', new T.SphereGeometry(0.72, 14, 10), x0 + e * 2.6, by + 1.4, zW - 1.0); colL(x0 + e * 2.6 - 0.6, by, zW - 1.6, x0 + e * 2.6 + 0.6, by + 1.2, zW - 0.4); }
+    }
+    VILLA.entry = (() => { const [x, z] = W(0, zC - 4); return { x, z, y: by }; })();
+  }
   V(0, -40, 110, 34, by - 3, by + 0.05, { tint: [0.3, 0.29, 0.28], flood: 0.2 });
   const parked = [];
   for (let k = 0; k < 8; k++) { const lx = -36 + k * 10, lz = -44 + (k % 2) * 7; parked.push([lx, lz, ry + Math.PI / 2 + (k % 2 ? Math.PI : 0)]); }
@@ -855,6 +924,9 @@ export function buildVilla() {
   for (let k = 0; k < 10; k++) guest(rand(-26, 26), t3, rand(74, 88));
   for (let k = 0; k < 8; k++) pl('livery', [0.9, 0.88, 0.82], rand(-40, 40), by, rand(4, 26), R() * 6);
   for (let k = 0; k < 4; k++) pl('livery', [0.32, 0.05, 0.07], -30 + k * 20, by, -50, 0);
+  // V23: Portiers am Eingang zur Vorfahrt, Gäste kommen an
+  for (const sd of [-1, 1]) for (const e of [-1, 1]) pl('livery', [0.32, 0.05, 0.07], sd * VILLA_DOOR.x + e * 1.9, by, -24.6, Math.PI);
+  for (let k = 0; k < 6; k++) guest(rand(-12, 12), by, rand(-35, -27));
   // Gäste drinnen: im Salon, an der Bar, in der Bibliothek; ein Barmann hinter dem Tresen
   for (let k = 0; k < 14; k++) guest(rand(-12, 12), by, rand(-19, -5));
   for (let k = 0; k < 6; k++) pl(R() < 0.5 ? 'tux' : 'gown', pick(GOWNS), 17 + k * 1.8, by, -15.6, Math.PI);
@@ -923,6 +995,8 @@ export function buildVilla() {
     lamp: new T.MeshBasicMaterial({ color: new T.Color(1.05, 0.78, 0.48), side: T.DoubleSide }), water,
     hedge: stdMat({ map: HEDGE_TEX.map, normalMap: HEDGE_TEX.normal, roughnessMap: HEDGE_TEX.rough, normalScale: new T.Vector2(1.2, 1.2), color: 0xb0c0a8, roughness: 1, envI: 0.15, emissive: 0x0a140a, emissiveMap: HEDGE_TEX.map }), trunk: stdMat({ color: 0x2e2216, roughness: 0.9, env: false }),
     velvet: stdMat({ color: 0xe9e1cf, roughness: 0.8, envI: 0.2 }), dark: MAT.black, ...villaInteriorMats(),
+    glassD: stdMat({ color: 0x0a0d10, metalness: 0.7, roughness: 0.12, envI: 1.4, emissive: 0x1a1006, transparent: true, opacity: 0.55 }),
+    carpet: stdMat({ color: 0x6a0d12, roughness: 0.85, envI: 0.15, emissive: 0x120202 }),
     sofa: stdMat({ color: 0x8a6a3e, roughness: 0.75, env: false, emissive: 0x140c05 }),
     statue: stdMat({ color: 0xf2ede4, roughness: 0.35, envI: 0.6, emissive: 0x1a1612 }),
     roseW: stdMat({ color: 0xf4f0ea, roughness: 0.7, emissive: 0x3a3634 }), roseR: stdMat({ color: 0x8a0e1a, roughness: 0.6, emissive: 0x2a0306 }),
@@ -966,7 +1040,10 @@ export function buildVillaInterior(put, colL, G, by, IH) {
   put('ceil', new T.PlaneGeometry(X1 - X0, D).rotateX(Math.PI / 2), 0, by + IH - 0.05, (Z0 + Z1) / 2);
   for (let x = X0 + 3.5; x < X1; x += 3.5) put('gold', new T.BoxGeometry(0.18, 0.3, D), x, by + IH - 0.2, (Z0 + Z1) / 2);
   for (let z = Z0 + 3.5; z < Z1; z += 3.5) put('gold', new T.BoxGeometry(X1 - X0, 0.3, 0.18), 0, by + IH - 0.2, z);
-  put('plaster', new T.BoxGeometry(X1 - X0, IH, 0.1), 0, by + IH / 2, Z0 + 0.05);
+  const DX = VILLA_DOOR.x, DW = VILLA_DOOR.w, DH = VILLA_DOOR.h;
+  const backRuns = [[X0, -DX - DW / 2], [-DX + DW / 2, DX - DW / 2], [DX + DW / 2, X1]];
+  for (const [a, b] of backRuns) put('plaster', new T.BoxGeometry(b - a, IH, 0.1), (a + b) / 2, by + IH / 2, Z0 + 0.05);
+  for (const sd of [-1, 1]) put('plaster', new T.BoxGeometry(DW, IH - DH, 0.1), sd * DX, by + DH + (IH - DH) / 2, Z0 + 0.05);
   for (const sd of [-1, 1]) {
     put('plaster', new T.BoxGeometry(0.1, IH, D), sd * (X1 - 0.05), by + IH / 2, (Z0 + Z1) / 2);
     put('plaster', new T.BoxGeometry(27.6, IH, 0.1), sd * 15.6, by + IH / 2, Z1 - 0.05);
@@ -982,9 +1059,11 @@ export function buildVillaInterior(put, colL, G, by, IH) {
     put('panel', new T.BoxGeometry(0.08, 1.3, D), sd * (X1 - 0.12), by + 0.65, (Z0 + Z1) / 2);
     put('wood', new T.BoxGeometry(0.14, 0.08, D), sd * (X1 - 0.12), by + 1.32, (Z0 + Z1) / 2);
   }
-  put('panel', new T.BoxGeometry(X1 - X0, 1.3, 0.08), 0, by + 0.65, Z0 + 0.12);
-  put('wood', new T.BoxGeometry(X1 - X0, 0.08, 0.14), 0, by + 1.32, Z0 + 0.12);
-  put('wood', new T.BoxGeometry(X1 - X0, 0.35, 0.12), 0, by + 0.18, Z0 + 0.12);
+  for (const [a, b] of backRuns) {
+    put('panel', new T.BoxGeometry(b - a, 1.3, 0.08), (a + b) / 2, by + 0.65, Z0 + 0.12);
+    put('wood', new T.BoxGeometry(b - a, 0.08, 0.14), (a + b) / 2, by + 1.32, Z0 + 0.12);
+    put('wood', new T.BoxGeometry(b - a, 0.35, 0.12), (a + b) / 2, by + 0.18, Z0 + 0.12);
+  }
   put('gold', new T.BoxGeometry(X1 - X0, 0.08, 0.12), 0, by + IH - 1.2, Z0 + 0.12);
   // Salon: Kamin an der Rückwand, Teppich, Sofas, Flügel, Kronleuchter
   put('stone', new T.BoxGeometry(5.2, 3.4, 1.0), 0, by + 1.7, Z0 + 0.6); put('dark', new T.BoxGeometry(3.0, 2.0, 0.6), 0, by + 1.1, Z0 + 0.9);
@@ -1614,15 +1693,17 @@ export function flushInstances() {
   // Gebäude
   const box = new T.BoxGeometry(1, 1, 1);
   const geo = box.clone();
-  const tint = new Float32Array(segs.length * 3), par = new Float32Array(segs.length * 4), rib = new Float32Array(segs.length * 3);
+  dedupeSegs();
+  const tint = new Float32Array(segs.length * 3), par = new Float32Array(segs.length * 4), rib = new Float32Array(segs.length * 3), flg = new Float32Array(segs.length);
   const im = new T.InstancedMesh(geo, facadeMat, segs.length);
   const m = new T.Matrix4();
   segs.forEach((s, i) => {
     if (s.ry) m.compose(_p.set(s.x, (s.y0 + s.y1) / 2, s.z), _q.setFromAxisAngle(_up, s.ry), _s.set(s.w, s.y1 - s.y0, s.d));
     else m.makeScale(s.w, s.y1 - s.y0, s.d).setPosition(s.x, (s.y0 + s.y1) / 2, s.z);
     im.setMatrixAt(i, m);
-    tint.set(s.tint, i * 3); par.set([s.seed, s.style, s.dens, s.flood], i * 4); if (s.rib) rib.set(s.rib, i * 3);
+    tint.set(s.tint, i * 3); par.set([s.seed, s.style, s.dens, s.flood], i * 4); if (s.rib) rib.set(s.rib, i * 3); flg[i] = s.fl || 0;
   });
+  geo.setAttribute('aFlag', new T.InstancedBufferAttribute(flg, 1));
   geo.setAttribute('aTint', new T.InstancedBufferAttribute(tint, 3));
   geo.setAttribute('aRib', new T.InstancedBufferAttribute(rib, 3));
   geo.setAttribute('aParams', new T.InstancedBufferAttribute(par, 4));
@@ -1642,11 +1723,25 @@ export function flushInstances() {
 
   // Walmdächer aus grüner Kupferpatina oder Blattgold, Kuppeln mit Laterne
   const roofCapGeo = new T.ConeGeometry(0.7071, 1, 4, 1); roofCapGeo.rotateY(Math.PI / 4); roofCapGeo.translate(0, 0.5, 0);
-  for (const gold of [false, true]) {
-    const list = caps.filter(c => !!c.gold === gold); if (!list.length) continue;
-    const cm = new T.InstancedMesh(roofCapGeo, gold ? MAT.gold : stdMat({ color: 0x3e8a7c, metalness: 0.35, roughness: 0.45, envI: 0.6 }), list.length);
-    list.forEach((c, i) => { cm.setMatrixAt(i, m.makeScale(c.w, c.h, c.d).setPosition(c.x, c.y, c.z)); addGlow(c.x, c.y + c.h + 0.6, c.z, [1.4, 0.15, 0.1], 1.4, R(), 1); });
+  // V23: dritte Sorte Dach: Schiefer auf den Arbeiter- und Reihenhäusern (ohne Warnlicht)
+  for (const kind of ['copper', 'gold', 'slate']) {
+    const list = caps.filter(c => (c.slate ? 'slate' : c.gold ? 'gold' : 'copper') === kind); if (!list.length) continue;
+    const cm = new T.InstancedMesh(roofCapGeo, kind === 'gold' ? MAT.gold : kind === 'slate' ? stdMat({ color: 0x3a3d44, metalness: 0.15, roughness: 0.6, envI: 0.45 }) : stdMat({ color: 0x3e8a7c, metalness: 0.35, roughness: 0.45, envI: 0.6 }), list.length);
+    list.forEach((c, i) => { cm.setMatrixAt(i, m.makeScale(c.w, c.h, c.d).setPosition(c.x, c.y, c.z)); if (!c.slate) addGlow(c.x, c.y + c.h + 0.6, c.z, [1.4, 0.15, 0.1], 1.4, R(), 1); });
     cm.frustumCulled = false; scene.add(cm);
+  }
+  // V23: Zifferblätter der Uhrtürme (vier Seiten, leuchtend)
+  if (CLOCKS.length) {
+    const faces = [], hands = [];
+    for (const c of CLOCKS) for (let k = 0; k < 4; k++) {
+      const a = k * Math.PI / 2, ox = Math.sin(a) * c.half, oz = Math.cos(a) * c.half;
+      faces.push(new T.CircleGeometry(c.r, 28).rotateY(a).translate(c.x + ox, c.y, c.z + oz));
+      hands.push(new T.TorusGeometry(c.r + 0.08, 0.09, 5, 28).rotateY(a).translate(c.x + ox * 1.01, c.y, c.z + oz * 1.01));
+      addGlow(c.x + ox * 1.15, c.y, c.z + oz * 1.15, [1.3, 1.1, 0.8], c.r * 1.6);
+    }
+    const fm = new T.Mesh(mergeGeos(faces), new T.MeshBasicMaterial({ map: CLOCK_TEX, color: new T.Color(1.25, 1.15, 0.95), polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -4 }));
+    const hm = new T.Mesh(mergeGeos(hands), MAT.gold);
+    fm.frustumCulled = hm.frustumCulled = false; scene.add(fm, hm);
   }
   if (domes.length) {
     const dg = mergeGeos([new T.SphereGeometry(1, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2), new T.CylinderGeometry(0.12, 0.16, 0.35, 10).translate(0, 1.12, 0), new T.ConeGeometry(0.1, 0.4, 8).translate(0, 1.48, 0)]);
@@ -1718,6 +1813,7 @@ export function buildRoofs() {
   const mast = new T.CylinderGeometry(0.12, 0.25, 1, 5).translate(0, 0.5, 0);
   const tanks = [], chims = [], masts = [];
   for (const r of roofs) {
+    if (r.crown) continue;
     if (r.H < 95 && r.w > 9 && r.d > 9 && R() < 0.4) tanks.push(m.makeScale(1, 1, 1).setPosition(r.x + rand(-r.w / 2 + 3, r.w / 2 - 3), r.H, r.z + rand(-r.d / 2 + 3, r.d / 2 - 3)).clone());
     if (r.worker || (r.H < 60 && R() < 0.5)) {
       const n = 1 + Math.floor(R() * 3);
@@ -1740,8 +1836,12 @@ export function buildAwnings() {
   const list = [], cols = [];
   const palette = [[0.35, 0.05, 0.08], [0.06, 0.22, 0.14], [0.06, 0.1, 0.26], [0.6, 0.52, 0.38], [0.3, 0.16, 0.06]];
   const m = new T.Matrix4(), q = new T.Quaternion(), e = new T.Euler();
+  // V23: keine Markise vor Türen, Portalen (Vordach bis 4,2 m zur Seite) oder Arkaden
+  const keep = DOORS.map(dd => ({ x: dd.x, z: dd.z, r: dd.kind === 'house' ? 4.2 : 6.8 }));
+  const kh = new Map(); for (const k of keep) { const key = Math.floor(k.x / 20) + ',' + Math.floor(k.z / 20); (kh.get(key) || kh.set(key, []).get(key)).push(k); }
+  const blocked = (x, z) => { for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) for (const k of kh.get((Math.floor(x / 20) + i) + ',' + (Math.floor(z / 20) + j)) || []) if ((k.x - x) ** 2 + (k.z - z) ** 2 < k.r * k.r) return true; return false; };
   for (const r of roofs) {
-    if (r.shop || r.dist > 560 || r.worker && R() < 0.5) continue;
+    if (r.shop || r.arcade || r.dist > 560 || r.worker && R() < 0.5) continue;
     const c = pick(palette);
     for (const side of Object.keys(r.edges)) {
       if (!r.edges[side] || R() < 0.45) continue;
@@ -1749,7 +1849,9 @@ export function buildAwnings() {
       const len = out[0] ? r.fd : r.fw;
       for (let u = -len / 2 + 6; u < len / 2 - 3; u += 7) {
         if (R() < 0.3) continue;
-        const px = r.x + out[0] * (r.fw / 2 + 0.9) + (out[0] ? 0 : u), pz = r.z + out[1] * (r.fd / 2 + 0.9) + (out[1] ? 0 : u);
+        const bx = r.fx ?? r.x, bz = r.fz ?? r.z;
+        const px = bx + out[0] * (r.fw / 2 + 0.9) + (out[0] ? 0 : u), pz = bz + out[1] * (r.fd / 2 + 0.9) + (out[1] ? 0 : u);
+        if (blocked(px, pz)) continue;
         e.set(0, Math.atan2(out[0], out[1]), 0); q.setFromEuler(e);
         m.compose(new T.Vector3(px, 3.7, pz), q, new T.Vector3(4.6, 0.25, 1.8));
         list.push(m.clone()); cols.push(c);

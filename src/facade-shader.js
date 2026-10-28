@@ -7,8 +7,8 @@ import { addCollider } from './people-skeleton.js';
    im Shader aus den echten Maßen, daher bleiben sie immer gleich groß.
    ===================================================================== */
 export const facadeVS = `
-attribute vec3 aTint; attribute vec4 aParams; attribute vec3 aRib;
-varying vec3 vWorld; varying vec3 vN; varying vec3 vLN; varying vec3 vT; varying vec3 vTint; varying vec4 vParams; varying vec3 vRib; varying vec3 vLocal; varying vec3 vScale; varying float vFogDepth;
+attribute vec3 aTint; attribute vec4 aParams; attribute vec3 aRib; attribute float aFlag;
+varying vec3 vWorld; varying vec4 vEdge; varying vec3 vN; varying vec3 vLN; varying vec3 vT; varying vec3 vTint; varying vec4 vParams; varying vec3 vRib; varying vec3 vLocal; varying vec3 vScale; varying float vFogDepth;
 void main(){
   vLN = normal;
   vT = normalize(mat3(modelMatrix * instanceMatrix) * (abs(normal.x) > 0.5 ? vec3(0.0, 0.0, 1.0) : vec3(1.0, 0.0, 0.0)));
@@ -19,11 +19,15 @@ void main(){
   vLocal = position; vTint = aTint; vParams = aParams; vRib = aRib;
   vec4 mv = viewMatrix * wp; vFogDepth = -mv.z;
   gl_Position = projectionMatrix * mv;
+  // V23: Bits aus aFlag (siehe FL): 1 kein Dach, 2 keine Unterseite (Fläche fällt aus dem Bild), 4/8/16/32 Kante -x/+x/-z/+z liegt innen (keine Brüstung)
+  float fb = aFlag;
+  if ((normal.y > 0.5 && mod(fb, 2.0) > 0.5) || (normal.y < -0.5 && mod(floor(fb / 2.0), 2.0) > 0.5)) gl_Position = vec4(0.0, 0.0, 2.0, 1.0);
+  vEdge = vec4(mod(floor(fb / 4.0), 2.0), mod(floor(fb / 8.0), 2.0), mod(floor(fb / 16.0), 2.0), mod(floor(fb / 32.0), 2.0)) * 1e4;
 }`;
 export const facadeFS = `
 #define BRICK_MEAN vec3(0.519, 0.287, 0.184)
-uniform float uTime; uniform vec3 uFogColor; uniform float uFogDensity; uniform vec3 uMoonDir; uniform vec3 uTeal; uniform vec3 uCam; uniform sampler2D uBrick; uniform float uBrickOn;
-varying vec3 vWorld; varying vec3 vN; varying vec3 vLN; varying vec3 vT; varying vec3 vTint; varying vec4 vParams; varying vec3 vRib; varying vec3 vLocal; varying vec3 vScale; varying float vFogDepth;
+uniform float uTime; uniform vec3 uFogColor; uniform float uFogDensity; uniform vec3 uMoonDir; uniform vec3 uTeal; uniform vec3 uCam; uniform sampler2D uBrick; uniform float uBrickOn; uniform sampler2D uStone; uniform float uStoneOn;
+varying vec3 vWorld; varying vec3 vN; varying vec3 vLN; varying vec3 vT; varying vec3 vTint; varying vec4 vParams; varying vec3 vRib; varying vec3 vLocal; varying vec3 vScale; varying float vFogDepth; varying vec4 vEdge;
 float hash(vec2 p){ p = fract(p*vec2(123.34, 456.21)); p += dot(p, p+45.32); return fract(p.x*p.y); }
 float vnoise(vec2 p){ vec2 i = floor(p), f = fract(p); f = f*f*(3.0 - 2.0*f); return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y); }
 void main(){
@@ -110,6 +114,10 @@ void main(){
     float plinth = step(hy, 1.1) * step(baseY, 0.6);
     surf = mix(surf, vTint*0.42*(0.9 + 0.2*hash(floor(wq*60.0))), plinth); gloss = mix(gloss, 0.6, plinth);
   }
+  // V23: Foto-Gestein als Feinstruktur auf Naturstein (nicht auf Fliesen, Terrakotta, Klinker); je Haus versetzt, in der Ferne weg
+  float stoneMat = 1.0 - step(2.5, matT) * step(matT, 4.5) - step(6.5, matT);
+  float psl = dot(texture2D(uStone, wq / 2.2 + vec2(seed*0.131, seed*0.071)).rgb, vec3(0.333)); psl = psl*psl / 0.094;
+  surf *= mix(1.0, 0.55 + 0.45*psl, uStoneOn * stoneMat * midFade * 0.8);
   vec3 tex = mix(mix(vTint, surf, midFade), brickWall, brick);
   gloss *= 1.0 - brick;
   // Verwitterung: Regenspuren nach unten, Ruß am Boden, große Farbflecken
@@ -411,7 +419,7 @@ void main(){
     roofC = mix(roofC, mix(vec3(0.03, 0.04, 0.06), vec3(0.9, 0.6, 0.3) * 0.5, step(0.5, hash(ski + 2.0))) * (0.6 + 0.4 * step(0.5, fract(sk.x * 12.0))), sky1);
     float pud = smoothstep(0.62, 0.7, vnoise(rq * 0.15 + seed));
     roofC = mix(roofC, uFogColor * 1.5 + vec3(0.02), pud * 0.6);
-    float edgeR = min(min(vLocal.x + 0.5, 0.5 - vLocal.x) * vScale.x, min(vLocal.z + 0.5, 0.5 - vLocal.z) * vScale.z);
+    float edgeR = min(min((vLocal.x + 0.5) * vScale.x + vEdge.x, (0.5 - vLocal.x) * vScale.x + vEdge.y), min((vLocal.z + 0.5) * vScale.z + vEdge.z, (0.5 - vLocal.z) * vScale.z + vEdge.w));
     roofC = mix(roofC, vTint * 0.35, step(edgeR, 0.6));
     col = roofC * (0.35 + 0.6 * moon) + vec3(0.012, 0.009, 0.022) + flood * vec3(0.08, 0.05, 0.02);
   }
@@ -437,9 +445,24 @@ export const steamPts = []; // Dampfquellen in den Gassen {x,z}
 export const roofs = [];    // Dachflächen {x,z,w,d,H,worker,dist}
 export const curbs = [];    // Bordsteinkanten für parkende Autos {ax,az,bx,bz}
 
+// V23: Schalter je Gebäudeabschnitt (Attribut aFlag): Dach/Unterseite weglassen, innere Kanten ohne Brüstung
+export const FL = { noTop: 1, noBot: 2, xN: 4, xP: 8, zN: 16, zP: 32, all: 60 };
 export function addSeg(s, collide = true) {
   segs.push(s);
   if (collide) addCollider(s.x - s.w / 2, s.y0, s.z - s.d / 2, s.x + s.w / 2, s.y1, s.z + s.d / 2);
+}
+// V23: exakt doppelte Quader (z. B. Eckpfeiler einer Arkade, die von zwei Seiten gesetzt werden) flackern gegeneinander: nur den ersten behalten
+export function dedupeSegs() {
+  const seen = new Set(), q = v => Math.round(v * 50);
+  let k = 0;
+  for (const s of segs) {
+    if (s.dead) continue;
+    const key = [s.x, s.z, s.w, s.d, s.y0, s.y1, s.ry || 0].map(q).join(',');
+    if (seen.has(key)) continue;
+    seen.add(key); segs[k++] = s;
+  }
+  segs.length = k;
+  k = 0; for (const n of neons) if (!n.dead) neons[k++] = n; neons.length = k;
 }
 export function addNeon(x, y, z, sx, sy, sz, c, ry = 0) { neons.push({ x, y, z, sx, sy, sz, c, ry }); }
 export function addGlow(x, y, z, c, s, ph = 0, bl = 0) { glowPts.push({ p: [x, y, z], c, s, ph, bl }); }
@@ -453,4 +476,5 @@ export const RIBS = [[0.2, 0.75, 0.8], [0.2, 0.75, 0.8], [0.3, 0.9, 0.95], [0.85
 export const STONES = [
   [0.86, 0.8, 0.68], [0.8, 0.7, 0.52], [0.5, 0.54, 0.64], [0.72, 0.5, 0.4],
   [0.24, 0.23, 0.29], [0.4, 0.58, 0.54], [0.9, 0.86, 0.8], [0.58, 0.46, 0.62],
+  [0.3, 0.46, 0.48], [0.84, 0.76, 0.6], [0.66, 0.44, 0.34],   // V23: Petrol, Champagner, Terrakotta
 ];

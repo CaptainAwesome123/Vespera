@@ -9,6 +9,7 @@ import { updateGuestFlow, updateDine } from './eating.js';
 import { VIEWS, toast } from './boat.js';
 import { isTouch, tryLock, locked } from './input.js';
 import { addLight } from './performance.js';
+import { ware } from './shops.js';
 
 /* =====================================================================
    LOKALE ZUM HINEINGEHEN: Bar „The Brass Lantern“ und „Restaurant Aurora“ an der Seepromenade.
@@ -77,7 +78,7 @@ export function venue(o) {
   const K = kit(), V = { ...o, x0, x1, z0, z1, F, seats: [], tables: [], waiters: [], station: null, staff: [], peds: [] };
   VENUES.push(V);
   // Boden: Parkett in der Bar, Teppich im Restaurant; vor der Tür eine Stufe
-  K.add(bar ? 'inWood' : 'carpet', Bx(w, F, d, x, F / 2, z, bar ? 1.5 : 3), bar ? [0.8, 0.62, 0.48] : [0.75, 0.45, 0.45]);
+  K.add(bar ? 'parquet' : 'carpet', Bx(w, F, d, x, F / 2, z, bar ? 2.2 : 3), bar ? [0.82, 0.62, 0.48] : [0.75, 0.45, 0.45]);
   addCollider(x0, 0, z0, x1, F, z1);
   // Wände mit hohen Fenstern; Eingang mittig zur Stadt, zum See hin fast ganz verglast
   const cols = [];
@@ -123,11 +124,16 @@ export function venue(o) {
   for (const sy of [1.55, 2.05, 2.55]) {
     K.add('varnish', Bx(0.35, 0.04, cz1 - cz0, x0 + 0.38, F + sy - 0.05, (cz0 + cz1) / 2, 1), [0.5, 0.26, 0.14]);
     for (let u = cz0 + 0.15; u < cz1 - 0.1; u += 0.13) {
+      // V23: echte Flaschen (Kenney, CC0) zwischen den gezeichneten
+      if (R() < 0.55) { ware(pick(bar ? ['wine-red', 'wine-white', 'bottle', 'bottle-large', 'soda-bottle'] : ['wine-red', 'wine-white', 'wine-red']), x0 + 0.38, F + sy - 0.03, u, R); continue; }
       const c = pick([[0.5, 1.0, 0.4], [1.4, 0.8, 0.3], [0.4, 0.8, 1.2], [1.2, 0.3, 0.3], [1.3, 1.2, 0.8], [0.9, 0.5, 0.2]]), hh = 0.2 + R() * 0.12;
       K.add('lit', lathe([[0.03, 0], [0.032, hh * 0.65], [0.012, hh * 0.85], [0.011, hh]], 8).translate(x0 + 0.38, F + sy - 0.03, u), c.map(v => v * 0.6));
     }
   }
   addLight(0xffa860, 1.6, 9, 1.8, x0 + 1.2, F + 2.6, (cz0 + cz1) / 2);
+  // auf der Theke: Gläser, Flaschen, im Restaurant Brotkorb und Obstschale
+  for (let u = cz0 + 0.5; u < cz1 - 0.4; u += 0.7 + R() * 0.6) ware(pick(bar ? ['cocktail', 'glass-wine', 'cocktail', 'bottle'] : ['glass-wine', 'wine-white', 'cake', 'pie']), cx - 0.12 + R() * 0.2, F + 1.125, u, R);
+  if (!bar) for (let i = 0; i < 5; i++) ware(pick(['apple', 'orange', 'pear']), cx + (R() - 0.5) * 0.18, F + 1.125, cz1 - 0.6 + (R() - 0.5) * 0.18, R);
   for (let u = cz0 + 0.6; u < cz1 - 0.3; u += 1.1) { placeFurn(FURN.barStool(), FMk, fadd, cx + 1.05, F, u); if (bar && R() < 0.5) V.seats.push({ x: cx + 1.05, z: u, y: F + 0.89, yaw: -Math.PI / 2, tx: cx + 0.3, tz: u, ty: F + 1.12, stool: true }); }
   V.station = { x: cx + 1.4, z: cz1 + 0.9 };
   // Barkeeper hinter der Theke
@@ -143,7 +149,8 @@ export function venue(o) {
     // Kerze mit Lichtpunkt
     K.add('cloth', new T.CylinderGeometry(0.018, 0.018, 0.1, 8).translate(tx, F + 0.82, rz), [0.95, 0.92, 0.85]);
     K.add('lit', new T.SphereGeometry(0.012, 6, 4).scale(1, 1.8, 1).translate(tx, F + 0.89, rz), [1.8, 1.2, 0.5]); addGlow(tx, F + 0.9, rz, [1.3, 0.75, 0.35], 0.35, Math.random(), 0);
-    if (!bar) K.add('gold', lathe([[0.03, 0], [0.012, 0.03], [0.008, 0.16], [0.02, 0.2]], 8).translate(tx + 0.18, F + 0.76, rz + 0.1));
+    if (!bar) { K.add('gold', lathe([[0.03, 0], [0.012, 0.03], [0.008, 0.16], [0.02, 0.2]], 8).translate(tx + 0.18, F + 0.76, rz + 0.1)); ware(pick(['wine-red', 'wine-white']), tx - 0.16, F + 0.76, rz - 0.12, R); if (R() < 0.6) ware(pick(['bread', 'loaf']), tx + 0.05, F + 0.76, rz - 0.22, R, 0); }
+    else if (R() < 0.45) ware('bottle', tx - 0.14, F + 0.76, rz + 0.1, R);
     const n = bar ? 3 : 4, seatsHere = [];
     for (let k = 0; k < n; k++) {
       const a = (k / n) * Math.PI * 2 + (bar ? 0.5 : Math.PI / 4), sx = tx + Math.sin(a) * (tr + 0.32), sz = rz + Math.cos(a) * (tr + 0.32);

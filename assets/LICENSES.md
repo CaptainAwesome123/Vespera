@@ -11,6 +11,7 @@ Alle Dateien in `assets/` sind frei nutzbar (CC0 oder MIT). Die Originale wurden
 | `lantern.glb` | [Khronos glTF-Sample-Assets: Lantern](https://github.com/KhronosGroup/glTF-Sample-Assets/tree/main/Models/Lantern) | Microsoft (2017), Draco-Variante Frank Galligan | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) |
 | `kenney-bench.glb` | Kenney „Graveyard Kit“ (`bench.glb`) | [Kenney](https://kenney.nl) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) |
 | `kenney-trashcan.glb` | Kenney „Furniture Kit“ 2.0 (`trashcan.glb`) | [Kenney](https://kenney.nl) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) |
+| `kenney-goods.glb` | Kenney „Food Kit“: 21 Stücke (`apple`, `bottle`, `bottle-large`, `bread`, `cake`, `cheese`, `cocktail`, `croissant`, `cup-saucer`, `cupcake`, `glass-wine`, `loaf`, `loaf-baguette`, `muffin`, `orange`, `pear`, `pie`, `soda-bottle`, `whole-ham`, `wine-red`, `wine-white`) aus dem Spiegel [`pmndrs/market-assets`](https://github.com/pmndrs/market-assets), mit gltf-transform zu einer Datei zusammengelegt (ein Knoten je Stück, Draco-Kompression entfernt) | [Kenney](https://kenney.nl) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) |
 | `deco-bollard.glb` | eigenes Beispielmodell (`tools/make-example-asset.py`) | Vespera | wie das Projekt |
 
 Die Kenney-Dateien stammen aus dem GitHub-Spiegel `ETdoFresh/kenney.nl` (Inhalt unverändert zu kenney.nl).
@@ -22,8 +23,11 @@ Die Kenney-Dateien stammen aus dem GitHub-Spiegel `ETdoFresh/kenney.nl` (Inhalt 
 | `brick-color.jpg`, `brick-bump.jpg`, `brick-rough.jpg` | three.js `examples/textures/brick_*.jpg` (r147) | three.js-Autoren | [MIT](https://github.com/mrdoob/three.js/blob/dev/LICENSE) |
 | `marble-color.jpg`, `marble-normal.jpg`, `marble-rough.jpg` | [ambientCG Marble006](https://ambientcg.com/view?id=Marble006) (1K) | ambientCG | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) |
 | `gold-color.jpg`, `gold-normal.jpg`, `gold-rough.jpg` | [ambientCG Metal007](https://ambientcg.com/view?id=Metal007) (1K) | ambientCG | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) |
+| `tiles-color.jpg`, `tiles-normal.jpg`, `tiles-rough.jpg` (V23) | [ambientCG Tiles036](https://ambientcg.com/view?id=Tiles036), 512 px | ambientCG | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) |
+| `stone-color.jpg`, `stone-normal.jpg` (V23) | [ambientCG Rock020](https://ambientcg.com/view?id=Rock020), 512 px | ambientCG | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) |
+| `parquet-color.jpg`, `parquet-normal.jpg`, `parquet-rough.jpg` (V23) | [ambientCG WoodFloor043](https://ambientcg.com/view?id=WoodFloor043), 512 px | ambientCG | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) |
 
-Die ambientCG-Dateien wurden über den Spiegel `pmndrs/market-assets` (GitHub) bezogen.
+Die ambientCG-Dateien wurden über den Spiegel `pmndrs/market-assets` (GitHub, dort als CC0 geführt) bezogen.
 
 ## Menschen (`assets/people/`, V22)
 

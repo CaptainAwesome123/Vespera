@@ -252,7 +252,7 @@ export function updateCars(dt) {
     let x, z, ly, yaw, hidden = false, pitch = 0, roll = 0;
     if (car.graph) {
       if (car.dyn) { const b = car.dyn; x = b.x; z = b.z; ly = b.y; yaw = b.h; pitch = b.pitch; roll = b.roll; }
-      else { x = car.wx; z = car.wz; ly = 0; yaw = car.yaw; pitch = Math.max(-0.03, Math.min(0.03, -(car.acc || 0) * 0.006)); }
+      else { x = car.wx; z = car.wz; ly = car.lane && car.lane.e.kind === 'via' ? Math.max(0, deckY(z) - 0.22) : 0; yaw = car.yaw; pitch = Math.max(-0.03, Math.min(0.03, -(car.acc || 0) * 0.006)); }
       if (car.gone) hidden = true;
     } else if (car.l.path) {
       if (!paused) serpCarStep(car, dt);
@@ -350,10 +350,7 @@ export function buildCarsV15() {
     lanes.push({ dx: ax ? 1 : 0, dz: ax ? 0 : 1, len, y: e.y, start: [ax ? e.from : e.at - 3.5, ax ? e.at + 3.5 : e.from] });
     lanes.push({ dx: ax ? -1 : 0, dz: ax ? 0 : -1, len, y: e.y, start: [ax ? e.to : e.at + 3.5, ax ? e.at - 3.5 : e.to] });
   }
-  // Auf dem Viadukt: aus dem Tunnel in die Stadt und zurück
-  const vl = ROAD_Z0 - VIA.end - 8;
-  lanes.push({ dx: 0, dz: 1, len: vl, yf: deckY, start: [-3.5, VIA.end + 4], n: 7 });
-  lanes.push({ dx: 0, dz: -1, len: vl, yf: deckY, start: [3.5, ROAD_Z0 - 4], n: 7 });
+  // V23: der Viadukt gehört jetzt zum Straßennetz (Kante 'via'); der Verkehr dort kommt aus spawnTraffic
   for (const l of lanes) for (let k = 0; k < (l.n || 4); k++) cars.push({ l, s: rand(0, l.len), v: rand(9, 15) });
   const body = carGeo();
   shared.carBodyGeo = body;

@@ -1,15 +1,17 @@
 import { registerLayer, chunkKey } from './chunks.js';
 import { shared, MOBILE, canvasTex, T, mulberry32, scene, pick, camera, R, rand, mergeGeos, U } from './core.js';
 import { addCollider, paintMat, mergeColored } from './people-skeleton.js';
-import { addSeg, addGlow, addNeon, NEON, curbs, lamps, trees, steamPts, segs, towers, shafts, neons, spires, glowPts, roofs } from './facade-shader.js';
+import { FL, addSeg, addGlow, addNeon, NEON, curbs, lamps, trees, steamPts, segs, towers, shafts, neons, spires, glowPts, roofs } from './facade-shader.js';
 import { BR_SPOTS } from './island.js';
-import { pickW, DOORS, lathe, placeFurn, FURN, decoBuilding, caps, domes, signDefs } from './entrances.js';
+import { bandC, pickW, DOORS, lathe, placeFurn, FURN, decoBuilding, caps, domes, signDefs } from './entrances.js';
 import { kit, Bx, wuv, benchGeo } from './harbour.js';
+import { DECO } from './building-forms.js';
 import { DRESSES, SHIRTS, setAct, _e } from './serpentine.js';
 import { _p, _q, _s, _m, _up } from './traffic.js';
 import { player } from './player.js';
 import { VENUE_PEDS } from './venues.js';
 import { toast } from './boat.js';
+import { goodsAt } from './assets.js';
 import { INTERACT } from './music.js';
 import { addLight } from './performance.js';
 
@@ -200,7 +202,7 @@ export function shopFloor(cx, cz, w, d, edges, tint, seed, rr) {
     // Boden, Decke, Lampen
     const tiles = kind.k === 'deli' || kind.k === 'apotheke' || kind.k === 'friseur' || kind.k === 'blumen';
     const fb = box(iu0, iu1, it0, it1, y0, FL);
-    K.add(tiles ? 'stone' : 'inWood', Bx(fb.w, FL - y0 + 0.02, fb.d, fb.x, (y0 + FL) / 2, fb.z, tiles ? 0.6 : 1.5), tiles ? [0.8, 0.78, 0.72] : [0.75, 0.55, 0.4]);
+    K.add(tiles ? 'tile' : 'parquet', Bx(fb.w, FL - y0 + 0.02, fb.d, fb.x, (y0 + FL) / 2, fb.z, tiles ? 1.6 : 2.2), tiles ? [0.92, 0.9, 0.86] : [0.95, 0.8, 0.66]);
     addCollider(fb.x - fb.w / 2, 0, fb.z - fb.d / 2, fb.x + fb.w / 2, FL, fb.z + fb.d / 2);
     const ceilC = [0.2, 0.17, 0.13].map(v => v * (0.9 + 0.2 * rr()));
     K.add('lit', Bx(fb.w, 0.1, fb.d, fb.x, CEIL + 0.05, fb.z), ceilC);
@@ -225,6 +227,9 @@ export function shopFloor(cx, cz, w, d, edges, tint, seed, rr) {
   }
 }
 // Einrichtung je Ladenart
+// V23: Größe der echten Waren (größte Ausdehnung in Metern), Kenney Food Kit
+export const GOODS_H = { 'wine-red': 0.31, 'wine-white': 0.31, bottle: 0.27, 'bottle-large': 0.33, 'soda-bottle': 0.24, cake: 0.27, pie: 0.25, cupcake: 0.085, muffin: 0.09, croissant: 0.15, cheese: 0.26, 'whole-ham': 0.36, bread: 0.26, loaf: 0.24, 'loaf-baguette': 0.52, apple: 0.08, orange: 0.085, pear: 0.095, cocktail: 0.15, 'glass-wine': 0.17, 'cup-saucer': 0.14 };
+export const ware = (m, x, y, z, rr, yaw = rr() * 6.283) => goodsAt(m, x, y, z, yaw, GOODS_H[m] * (0.92 + rr() * 0.16));
 export function shopInterior(K, S, kind, g) {
   const { cx, cz, iw, id, bx, bz, bo, ax, L, FL, CEIL, TH, wood, accent, rr, edges, back } = g;
   // Punkt im Laden: a entlang der Rückwand (−L/2..L/2), n Abstand von der Rückwand nach innen
@@ -290,6 +295,8 @@ export function shopInterior(K, S, kind, g) {
     K.add('lit', new T.SphereGeometry(0.012, 6, 4).scale(1, 1.8, 1).translate(x, FL + 0.86, z), [1.8, 1.2, 0.5]); K.add('cloth', new T.CylinderGeometry(0.016, 0.016, 0.09, 6).translate(x, FL + 0.8, z), [0.95, 0.92, 0.85]);
     const seats = [];
     for (const s of [-1, 1]) { const a = s * Math.PI / 2 + rot; const sx = x + Math.sin(a) * 0.72, sz = z + Math.cos(a) * 0.72; placeFurn(FURN.bistroChair(), FM, fadd, sx, FL, sz, a + Math.PI); seats.push({ x: sx, z: sz, yaw: a + Math.PI }); }
+    for (const s of seats) if (rr() < 0.75) { const tx = x + (s.x - x) * 0.42, tz = z + (s.z - z) * 0.42; ware(cloth ? 'cup-saucer' : pc(['cocktail', 'glass-wine']), tx, FL + 0.76, tz, rr); }
+    if (cloth && rr() < 0.5) ware(pc(['cake', 'pie', 'croissant']), x + alongA[1] * 0.14, FL + 0.76, z + alongA[0] * 0.14, rr);
     if (guests) for (const s of seats) if (rr() < 0.6) VENUE_PEDS.push({ st: 4, x: s.x, y: FL + 0.5, z: s.z, yaw: s.yaw, sc: 0.93 + rr() * 0.12, v: 0, sit: true, kind: pickW(rr, [['suit', 1], ['lady', 1], ['dress', 1], ['coat', 0.6]]), act: pickW(rr, [[7.8, 1], [11.4, 1], [10.4, 0.6]]) });
   };
   const GOODS = [[0.75, 0.5, 0.3], [0.3, 0.6, 0.6], [0.8, 0.25, 0.25], [0.9, 0.8, 0.5], [0.25, 0.3, 0.6], [0.4, 0.6, 0.3]];
@@ -316,17 +323,19 @@ export function shopInterior(K, S, kind, g) {
     for (const it of S.items) for (let i = 0; i < 6; i++) book(it.x + (it.ax ? (i % 2) * 0.25 - 0.1 : (i - 2.5) * 0.3), it.y, it.z + (it.ax ? (i - 2.5) * 0.3 : (i % 2) * 0.25 - 0.1), pc(GOODS), 0.26, 0.05);
   } else if (k === 'deli') {
     const sw = shelfWall(0.4, [1.3, 1.75, 2.2, 2.65]);
-    onShelf(sw, (x, y, z, a, yy) => { const r = rr(); if (r < 0.4) jar(x, y, z, pc([[1.0, 0.7, 0.2], [0.8, 0.3, 0.2], [0.4, 0.7, 0.3], [0.9, 0.5, 0.1]]), 0.14 + rr() * 0.1, 0.045); else if (r < 0.7) bottle(x, y, z, pc([[0.6, 0.9, 0.4], [0.9, 0.3, 0.3], [1.0, 0.8, 0.4]])); else box3(x, y, z, 0.16, 0.1, 0.12, pc([[0.85, 0.75, 0.5], [0.3, 0.5, 0.6], [0.7, 0.3, 0.25]])); }, 0.19);
+    onShelf(sw, (x, y, z, a, yy) => { const r = rr(); if (r < 0.14) ware('cheese', x, y, z, rr); else if (r < 0.24) ware(pc(['bread', 'loaf']), x, y, z, rr); else if (r < 0.36) ware(pc(['wine-red', 'wine-white', 'bottle']), x, y, z, rr); else if (r < 0.42) for (let i = 0; i < 3; i++) ware(pc(['apple', 'orange', 'pear']), x + (i - 1) * 0.06 * alongA[0], y, z + (i - 1) * 0.06 * alongA[1], rr); else if (r < 0.6) jar(x, y, z, pc([[1.0, 0.7, 0.2], [0.8, 0.3, 0.2], [0.4, 0.7, 0.3], [0.9, 0.5, 0.1]]), 0.14 + rr() * 0.1, 0.045); else if (r < 0.7) bottle(x, y, z, pc([[0.6, 0.9, 0.4], [0.9, 0.3, 0.3], [1.0, 0.8, 0.4]])); else box3(x, y, z, 0.16, 0.1, 0.12, pc([[0.85, 0.75, 0.5], [0.3, 0.5, 0.6], [0.7, 0.3, 0.25]])); }, 0.19);
     counter(1.7, Math.min(L - 2.6, 6.5), 'stone', [0.92, 0.9, 0.86]);
     // Glasvitrine mit Käse und Wurst auf der Theke
     const c = S.counter; K.add('glass', Bx(ax ? 0.6 : c.len * 0.6, 0.45, ax ? c.len * 0.6 : 0.6, c.x, c.top + 0.23, c.z, 1));
-    for (let a = -c.len * 0.28; a < c.len * 0.28; a += 0.36) { const q = P(a, c.n); const r = rr(); if (r < 0.5) K.add('cloth', new T.CylinderGeometry(0.13, 0.13, 0.08, 14).translate(q.x, c.top + 0.05, q.z), pc([[0.95, 0.8, 0.4], [0.9, 0.7, 0.35], [0.85, 0.85, 0.7]])); else K.add('leather', new T.SphereGeometry(0.09, 8, 6).scale(1.6, 0.7, 0.8).rotateY(rot).translate(q.x, c.top + 0.06, q.z), pc([[0.5, 0.12, 0.08], [0.6, 0.3, 0.15]])); }
+    for (let a = -c.len * 0.28; a < c.len * 0.28; a += 0.36) { const q = P(a, c.n); ware(rr() < 0.55 ? 'cheese' : 'whole-ham', q.x, c.top + 0.01, q.z, rr); }
+    // Brot und Baguettes im Korb am Thekenende
+    { const q = P(-c.len / 2 + 0.45, c.n); K.add('varnish', lathe([[0.2, 0], [0.24, 0.12]], 12).translate(q.x, c.top, q.z), [0.55, 0.36, 0.18]); for (let i = 0; i < 3; i++) ware(pc(['loaf-baguette', 'bread', 'loaf']), q.x + (rr() - 0.5) * 0.12, c.top + 0.05, q.z + (rr() - 0.5) * 0.12, rr); }
     // Hängende Würste und Schinken an einer Stange über der Theke
     const rail = P(0, c.n); K.add('gold', new T.CylinderGeometry(0.015, 0.015, c.len * 0.8, 6).rotateZ(ax ? 0 : Math.PI / 2).rotateY(ax ? 0 : 0).rotateX(ax ? Math.PI / 2 : 0).translate(rail.x, FL + 2.5, rail.z));
     for (let a = -c.len * 0.38; a < c.len * 0.38; a += 0.25) { const q = P(a, c.n); const h = 0.3 + rr() * 0.3; K.add('leather', new T.CylinderGeometry(0.03, 0.035, h, 7).translate(q.x, FL + 2.5 - h / 2 - 0.05, q.z), pc([[0.45, 0.12, 0.08], [0.55, 0.25, 0.15], [0.35, 0.1, 0.1]])); }
     merchant('waiter', [0.92, 0.9, 0.85], 29.6);
     customer(0.8, 2.6, yawIn + Math.PI, 'lady', 28.6); customer(-1.6, 2.7, yawIn + Math.PI, 'coat', 31.2);
-    for (const it of S.items) for (let i = 0; i < 5; i++) { const q = { x: it.x + (it.ax ? 0 : (i - 2) * it.w * 0.2), z: it.z + (it.ax ? (i - 2) * it.d * 0.2 : 0) }; if (i % 2) jar(q.x, it.y, q.z, pc([[1.0, 0.7, 0.2], [0.8, 0.3, 0.2]]), 0.18, 0.06); else K.add('cloth', new T.CylinderGeometry(0.14, 0.14, 0.1, 14).translate(q.x, it.y + 0.05, q.z), [0.95, 0.8, 0.4]); }
+    for (const it of S.items) for (let i = 0; i < 5; i++) { const q = { x: it.x + (it.ax ? 0 : (i - 2) * it.w * 0.2), z: it.z + (it.ax ? (i - 2) * it.d * 0.2 : 0) }; if (i % 2) ware(pc(['wine-red', 'wine-white']), q.x, it.y, q.z, rr); else ware(i === 2 ? 'whole-ham' : 'cheese', q.x, it.y, q.z, rr); }
   } else if (k === 'tabak') {
     const sw = shelfWall(0.34, [1.1, 1.45, 1.8, 2.15, 2.5, 2.85]);
     onShelf(sw, (x, y, z) => { const r = rr(); if (r < 0.5) box3(x, y, z, 0.2, 0.07, 0.14, pc([[0.45, 0.25, 0.1], [0.6, 0.4, 0.2], [0.3, 0.15, 0.08]]), 'varnish'); else if (r < 0.8) K.add('chrome', new T.CylinderGeometry(0.05, 0.05, 0.08, 10).translate(x, y + 0.04, z)); else K.add('gold', Bx(0.1, 0.12, 0.06, x, y + 0.06, z, 1)); }, 0.24);
@@ -425,25 +434,25 @@ export function shopInterior(K, S, kind, g) {
     // Flaschen- oder Kuchenregal mit Spiegel an der Rückwand
     const q = P(0, 0.08); K.add('glass', new T.PlaneGeometry(Math.min(L - 1.0, 7), 1.4).rotateY(ax ? (bo[0] > 0 ? -Math.PI / 2 : Math.PI / 2) : (bo[1] > 0 ? Math.PI : 0)).translate(q.x, FL + 2.1, q.z));
     const sw = shelfWall(0.3, bar ? [1.5, 2.0, 2.5] : [1.4, 1.9], -Math.min(L - 1.0, 7) / 2, Math.min(L - 1.0, 7) / 2);
-    onShelf(sw, (x, y, z) => { if (bar) bottle(x, y, z, pc([[0.5, 1.0, 0.4], [1.4, 0.8, 0.3], [0.4, 0.8, 1.2], [1.2, 0.3, 0.3], [1.3, 1.2, 0.8]]), 0.22 + rr() * 0.1, 0.03); else { K.add('chrome', new T.CylinderGeometry(0.1, 0.1, 0.03, 14).translate(x, y + 0.015, z)); K.add('cloth', new T.CylinderGeometry(0.085, 0.085, 0.07, 14).translate(x, y + 0.065, z), pc([[0.4, 0.2, 0.1], [0.9, 0.85, 0.75], [0.7, 0.3, 0.3], [0.95, 0.8, 0.4]])); } }, bar ? 0.13 : 0.32);
+    onShelf(sw, (x, y, z) => { if (bar) { if (rr() < 0.6) ware(pc(['wine-red', 'wine-white', 'bottle', 'bottle-large', 'soda-bottle']), x, y, z, rr); else bottle(x, y, z, pc([[0.5, 1.0, 0.4], [1.4, 0.8, 0.3], [0.4, 0.8, 1.2], [1.2, 0.3, 0.3], [1.3, 1.2, 0.8]]), 0.22 + rr() * 0.1, 0.03); } else if (rr() < 0.7) { K.add('chrome', new T.CylinderGeometry(0.13, 0.13, 0.02, 14).translate(x, y + 0.01, z)); const m = pc(['cake', 'pie', 'cupcake', 'muffin', 'croissant']); if (m === 'cupcake' || m === 'muffin') for (let i = 0; i < 3; i++) ware(m, x + Math.cos(i * 2.1) * 0.06, y + 0.02, z + Math.sin(i * 2.1) * 0.06, rr); else ware(m, x, y + 0.02, z, rr); } else { K.add('chrome', new T.CylinderGeometry(0.1, 0.1, 0.03, 14).translate(x, y + 0.015, z)); K.add('cloth', new T.CylinderGeometry(0.085, 0.085, 0.07, 14).translate(x, y + 0.065, z), pc([[0.4, 0.2, 0.1], [0.9, 0.85, 0.75], [0.7, 0.3, 0.3], [0.95, 0.8, 0.4]])); } }, bar ? 0.13 : 0.32);
     counter(bar ? 1.5 : 1.7, Math.min(L - 2.4, 7), bar ? 'varnish' : 'stone', bar ? [0.1, 0.08, 0.08] : [0.92, 0.9, 0.86]);
     const c = S.counter;
     if (bar) { K.add('gold', new T.CylinderGeometry(0.02, 0.02, c.len, 8).rotateZ(ax ? 0 : Math.PI / 2).rotateX(ax ? Math.PI / 2 : 0).translate(c.x - bo[0] * 0.48, FL + 0.22, c.z - bo[1] * 0.48)); addNeon(c.x - bo[0] * 0.41, FL + 0.98, c.z - bo[1] * 0.41, ax ? 0.02 : c.len, 0.02, ax ? c.len : 0.02, NEON.amber);
       const FM = { up: 'leather', frame: 'gold', wood: 'varnish', lamp: 'lit', cloth: 'cloth' };
       for (let a = -c.len / 2 + 0.5; a < c.len / 2 - 0.3; a += 0.95) { const p = P(a, c.n + 0.95); placeFurn(FURN.barStool(), FM, (kk, gg) => K.add(kk, gg, kk === 'leather' ? [0.45, 0.12, 0.08] : [1, 1, 1]), p.x, FL, p.z); if (rr() < 0.55) VENUE_PEDS.push({ st: 4, x: p.x, y: FL + 0.89, z: p.z, yaw: yawIn + Math.PI, sc: 0.94 + rr() * 0.1, v: 0, sit: true, kind: pickW(rr, [['suit', 1], ['coat', 0.8], ['lady', 0.8], ['tux', 0.5], ['gown', 0.4]]), act: pickW(rr, [[11.4, 1], [7.8, 1]]) }); }
       // Shaker, Gläser auf der Theke
-      for (let a = -c.len * 0.3; a < c.len * 0.3; a += 0.5) { const p = P(a, c.n); K.add('chrome', lathe([[0.03, 0], [0.035, 0.12], [0.02, 0.17]], 8).translate(p.x, c.top, p.z)); }
+      for (let a = -c.len * 0.3; a < c.len * 0.3; a += 0.5) { const p = P(a, c.n); if (rr() < 0.4) K.add('chrome', lathe([[0.03, 0], [0.035, 0.12], [0.02, 0.17]], 8).translate(p.x, c.top, p.z)); else ware(pc(['cocktail', 'glass-wine']), p.x, c.top, p.z, rr); }
     } else {
       // Espressomaschine aus Chrom und Messing, Kuchenvitrine
       const m = P(-c.len * 0.3, c.n); K.add('chrome', Bx(0.6, 0.4, 0.45, m.x, c.top + 0.2, m.z, 1).rotateY(rot)); K.add('gold', Bx(0.64, 0.05, 0.49, m.x, c.top + 0.42, m.z, 1).rotateY(rot)); K.add('gold', new T.SphereGeometry(0.1, 10, 8).translate(m.x, c.top + 0.52, m.z)); K.add('chrome', new T.CylinderGeometry(0.012, 0.012, 0.3, 6).rotateZ(1.0).rotateY(rot).translate(m.x + alongA[0] * 0.4, c.top + 0.45, m.z + alongA[1] * 0.4));
       K.add('glass', Bx(ax ? 0.6 : c.len * 0.4, 0.4, ax ? c.len * 0.4 : 0.6, c.x + alongA[0] * c.len * 0.2, c.top + 0.21, c.z + alongA[1] * c.len * 0.2, 1));
-      for (let a = c.len * 0.05; a < c.len * 0.38; a += 0.33) { const p = P(a, c.n); K.add('chrome', new T.CylinderGeometry(0.13, 0.13, 0.02, 14).translate(p.x, c.top + 0.01, p.z)); K.add('cloth', new T.CylinderGeometry(0.11, 0.11, 0.09, 14).translate(p.x, c.top + 0.065, p.z), pc([[0.4, 0.2, 0.1], [0.9, 0.85, 0.75], [0.7, 0.3, 0.3], [0.95, 0.8, 0.4]])); if (rr() < 0.5) K.add('lit', new T.SphereGeometry(0.03, 6, 5).translate(p.x, c.top + 0.13, p.z), [1.2, 0.3, 0.3]); }
+      for (let a = c.len * 0.05; a < c.len * 0.38; a += 0.33) { const p = P(a, c.n); K.add('chrome', new T.CylinderGeometry(0.13, 0.13, 0.02, 14).translate(p.x, c.top + 0.01, p.z)); ware(pc(['cake', 'pie', 'cake']), p.x, c.top + 0.02, p.z, rr); }
     }
     // Tische im Raum
     const rows = Math.max(1, Math.floor((iw > id ? id : iw) / 3.2));
     for (let a = -L / 2 + 1.5; a < L / 2 - 1.0; a += 3.0) for (let r = 0; r < rows; r++) { const n = c.n + 2.6 + r * 2.8; if (n > (ax ? iw : id) - 1.2) continue; const p = P(a, n); tableSet(p.x, p.z, !bar, true); }
     merchant(bar ? 'waiter' : 'waiter', bar ? [0.42, 0.08, 0.08] : [0.94, 0.92, 0.87], bar ? 13.3 : 29.4);
-    for (const it of S.items) if (bar) { for (let i = 0; i < 5; i++) bottle(it.x + (it.ax ? 0 : (i - 2) * it.w * 0.2), it.y, it.z + (it.ax ? (i - 2) * it.d * 0.2 : 0), pc([[0.5, 1.0, 0.4], [1.4, 0.8, 0.3], [0.4, 0.8, 1.2]]), 0.3, 0.045); } else for (let i = 0; i < 3; i++) { const x = it.x + (it.ax ? 0 : (i - 1) * it.w * 0.3), z = it.z + (it.ax ? (i - 1) * it.d * 0.3 : 0); K.add('chrome', new T.CylinderGeometry(0.16, 0.16, 0.02, 14).translate(x, it.y + 0.01, z)); K.add('cloth', new T.CylinderGeometry(0.14, 0.14, 0.1, 14).translate(x, it.y + 0.07, z), pc([[0.4, 0.2, 0.1], [0.9, 0.85, 0.75], [0.7, 0.3, 0.3]])); K.add('glass', new T.SphereGeometry(0.2, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2).translate(x, it.y + 0.02, z)); }
+    for (const it of S.items) if (bar) { for (let i = 0; i < 5; i++) bottle(it.x + (it.ax ? 0 : (i - 2) * it.w * 0.2), it.y, it.z + (it.ax ? (i - 2) * it.d * 0.2 : 0), pc([[0.5, 1.0, 0.4], [1.4, 0.8, 0.3], [0.4, 0.8, 1.2]]), 0.3, 0.045); } else for (let i = 0; i < 3; i++) { const x = it.x + (it.ax ? 0 : (i - 1) * it.w * 0.3), z = it.z + (it.ax ? (i - 1) * it.d * 0.3 : 0); K.add('chrome', new T.CylinderGeometry(0.16, 0.16, 0.02, 14).translate(x, it.y + 0.01, z)); ware(pc(['cake', 'pie']), x, it.y + 0.02, z, rr); K.add('glass', new T.SphereGeometry(0.2, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2).translate(x, it.y + 0.02, z)); }
   }
   // Regale an den fensterlosen Seitenwänden und Mitteltische, mit den Waren der Ladenart
   const fill = SHOP_FILL[k];
@@ -478,7 +487,7 @@ export function shopFillInit(K, rr) {
   const lit = (g, c) => K.add('lit', g, c);
   SHOP_FILL.hut = { step: 0.46, fn: (x, y, z) => { K.add('cloth', lathe([[0, 0], [0.19, 0], [0.19, 0.008], [0.105, 0.012], [0.1, 0.13], [0.08, 0.145], [0, 0.15]], 14).translate(x, y, z), pc([[0.08, 0.07, 0.07], [0.3, 0.2, 0.12], [0.5, 0.45, 0.4], [0.2, 0.1, 0.1], [0.7, 0.62, 0.5]])); K.add('cloth', new T.TorusGeometry(0.102, 0.012, 4, 9).rotateX(Math.PI / 2).translate(x, y + 0.03, z), [0.08, 0.07, 0.07]); } };
   SHOP_FILL.buch = { step: 0.062, fn: (x, y, z, ax) => { if (rr() < 0.08) return; const h = 0.2 + rr() * 0.1, w = 0.03 + rr() * 0.03; K.add('leather', Bx(ax ? 0.17 : w, h, ax ? w : 0.17, x, y + h / 2, z, 1), pc([[0.4, 0.1, 0.08], [0.1, 0.22, 0.14], [0.12, 0.14, 0.3], [0.5, 0.4, 0.25], [0.2, 0.08, 0.1], [0.6, 0.55, 0.45]])); } };
-  SHOP_FILL.deli = { step: 0.2, fn: (x, y, z) => { const r = rr(); if (r < 0.45) { const h = 0.14 + rr() * 0.1; lit(lathe([[0.05, 0], [0.05, h * 0.85], [0.04, h]], 7).translate(x, y, z), pc([[1.0, 0.7, 0.2], [0.8, 0.3, 0.2], [0.4, 0.7, 0.3], [0.9, 0.5, 0.1]]).map(v => v * 0.5)); K.add('gold', new T.CylinderGeometry(0.042, 0.042, 0.02, 10).translate(x, y + h, z)); } else if (r < 0.75) lit(lathe([[0.035, 0], [0.035, 0.16], [0.014, 0.2], [0.013, 0.26]], 6).translate(x, y, z), pc([[0.6, 0.9, 0.4], [0.9, 0.3, 0.3], [1.0, 0.8, 0.4]]).map(v => v * 0.55)); else K.add('cloth', Bx(0.14, 0.1, 0.12, x, y + 0.05, z, 1), pc([[0.85, 0.75, 0.5], [0.3, 0.5, 0.6], [0.7, 0.3, 0.25]])); } };
+  SHOP_FILL.deli = { step: 0.2, fn: (x, y, z) => { const r = rr(); if (r < 0.3) { ware(pc(['cheese', 'wine-red', 'wine-white', 'bread', 'loaf', 'apple', 'orange', 'pear', 'whole-ham']), x, y, z, rr); return; } if (r < 0.55) { const h = 0.14 + rr() * 0.1; lit(lathe([[0.05, 0], [0.05, h * 0.85], [0.04, h]], 7).translate(x, y, z), pc([[1.0, 0.7, 0.2], [0.8, 0.3, 0.2], [0.4, 0.7, 0.3], [0.9, 0.5, 0.1]]).map(v => v * 0.5)); K.add('gold', new T.CylinderGeometry(0.042, 0.042, 0.02, 10).translate(x, y + h, z)); } else if (r < 0.75) lit(lathe([[0.035, 0], [0.035, 0.16], [0.014, 0.2], [0.013, 0.26]], 6).translate(x, y, z), pc([[0.6, 0.9, 0.4], [0.9, 0.3, 0.3], [1.0, 0.8, 0.4]]).map(v => v * 0.55)); else K.add('cloth', Bx(0.14, 0.1, 0.12, x, y + 0.05, z, 1), pc([[0.85, 0.75, 0.5], [0.3, 0.5, 0.6], [0.7, 0.3, 0.25]])); } };
   SHOP_FILL.tabak = { step: 0.24, fn: (x, y, z) => { const r = rr(); if (r < 0.5) K.add('varnish', Bx(0.2, 0.07, 0.14, x, y + 0.035, z, 1), pc([[0.45, 0.25, 0.1], [0.6, 0.4, 0.2], [0.3, 0.15, 0.08]])); else if (r < 0.8) K.add('chrome', new T.CylinderGeometry(0.05, 0.05, 0.08, 10).translate(x, y + 0.04, z)); else K.add('gold', Bx(0.1, 0.12, 0.06, x, y + 0.06, z, 1)); } };
   SHOP_FILL.apotheke = { step: 0.14, fn: (x, y, z) => { const r = rr(); if (r < 0.6) { const h = 0.18 + rr() * 0.12, rr0 = 0.03 + rr() * 0.015; lit(lathe([[rr0, 0], [rr0, h * 0.62], [rr0 * 0.4, h * 0.78], [rr0 * 0.38, h]], 6).translate(x, y, z), pc([[0.6, 0.4, 0.2], [0.3, 0.6, 0.4], [0.5, 0.6, 0.9], [0.9, 0.85, 0.7]]).map(v => v * 0.55)); } else K.add('cloth', Bx(0.1, 0.12, 0.06, x, y + 0.06, z, 1), [0.9, 0.9, 0.86]); } };
   SHOP_FILL.spiel = { step: 0.32, fn: (x, y, z) => { const r = rr(); if (r < 0.3) { K.add('cloth', new T.SphereGeometry(0.09, 8, 6).translate(x, y + 0.14, z), [0.45, 0.3, 0.15]); K.add('cloth', new T.SphereGeometry(0.065, 8, 6).translate(x, y + 0.29, z), [0.45, 0.3, 0.15]); } else if (r < 0.55) lit(new T.SphereGeometry(0.08, 10, 8).translate(x, y + 0.08, z), pc([[1.0, 0.3, 0.2], [0.3, 0.5, 1.0], [1.0, 0.8, 0.2]]).map(v => v * 0.6)); else for (let i = 0; i < 3; i++) K.add('paint', Bx(0.06, 0.06, 0.06, x + (i - 1) * 0.07, y + 0.03, z, 1), pc([[0.9, 0.2, 0.15], [0.2, 0.4, 0.9], [0.9, 0.8, 0.2], [0.2, 0.7, 0.3]])); } };
@@ -556,8 +565,10 @@ export function buildBlock(b) {
   for (let k = 1; k < nx; k++) buildAlley(xs[k], iz0, iz1, b.d);
   const zs = [iz0]; for (let k = 1; k < nz; k++) zs.push(iz0 + D * k / nz + rand(-3, 3)); zs.push(iz1);
   for (let a = 0; a < nx; a++) for (let c = 0; c < nz; c++) {
-    const lx0 = xs[a] + (a > 0 ? ALLEY / 2 : 0), lx1 = xs[a + 1] - (a < nx - 1 ? ALLEY / 2 : 0);
+    let lx0 = xs[a] + (a > 0 ? ALLEY / 2 : 0), lx1 = xs[a + 1] - (a < nx - 1 ? ALLEY / 2 : 0);
     const lz0 = zs[c] + (c > 0 ? rand(0, 1.2) : 0), lz1 = zs[c + 1] - (c < nz - 1 ? rand(0, 1.2) : 0);
+    // V23: Häuser hinter-/nebeneinander in einer Spalte nie exakt gleich breit, sonst liegen ihre Gesimse deckungsgleich (Flackern)
+    if (c > 0) { const k = 0.45 + 0.6 * R(); lx0 += k; lx1 -= k; }
     let H = Hc * rand(tier === 'landmark' ? 0.9 : 0.7, 1.15);
     if (waterfront) H = Math.min(H, 60);
     H = Math.max(10, Math.min(H, 310));
@@ -755,26 +766,40 @@ export const BRICK = [[0.46, 0.27, 0.2], [0.38, 0.24, 0.2], [0.3, 0.22, 0.2], [0
 // Grundriss einer Turmstufe: Quader, Kreuz mit zurückgesetzten Ecken oder abgeschrägte Ecken (Achteck)
 export function tier(x, z, w, d, y0, y1, seg, corner = 'square', c = 0, collide = true) {
   if (corner === 'square' || c < 1.2) { addSeg({ ...seg, x, z, w, d, y0, y1 }, collide); return; }
+  // V23: Mittelstück und zwei Endkappen überlappen sich nicht mehr (früher zwei gekreuzte Quader mit deckungsgleichen
+  // Dächern und Unterseiten: das flackerte). Innere Kanten bekommen keine dunkle Dachbrüstung (fl-Bits, siehe facade-shader.js).
+  // Eckstücke (Fase, Rundung) liegen 12 cm tiefer bzw. höher, damit ihre Dächer nicht mit dem Kreuz kämpfen.
+  const cross = cc => {
+    addSeg({ ...seg, x, z, w, d: d - 2 * cc, y0, y1, fl: (seg.fl || 0) | FL.zN | FL.zP }, collide);
+    for (const sz of [-1, 1]) addSeg({ ...seg, x, z: z + sz * (d / 2 - cc / 2), w: w - 2 * cc, d: cc, y0, y1, seed: seg.seed + 17, fl: (seg.fl || 0) | (sz < 0 ? FL.zP : FL.zN) }, collide);
+  };
+  const lo = Math.min(0.12, (y1 - y0) * 0.2), cy0 = y0 + lo, cy1 = y1 - lo;
   if (corner === 'round') {
     // Gerundete Ecken (Stromlinie) oder ganz rund (c = halbe Breite): Viertelkreise aus schmalen Fassadenstücken
     c = Math.min(c, w / 2, d / 2);
-    if (d - 2 * c > 0.4) addSeg({ ...seg, x, z, w, d: d - 2 * c, y0, y1 }, collide);
-    if (w - 2 * c > 0.4) addSeg({ ...seg, x, z, w: w - 2 * c, d, y0, y1, seed: seg.seed + 17 }, collide);
+    if (d - 2 * c > 0.4 && w - 2 * c > 0.4) cross(c);
+    else if (d - 2 * c > 0.4) addSeg({ ...seg, x, z, w, d: d - 2 * c, y0, y1 }, collide);
+    else if (w - 2 * c > 0.4) addSeg({ ...seg, x, z, w: w - 2 * c, d, y0, y1, seed: seg.seed + 17 }, collide);
     if (collide) addCollider(x - w / 2 + c * 0.3, y0, z - d / 2 + c * 0.3, x + w / 2 - c * 0.3, y1, z + d / 2 - c * 0.3);
     const k = Math.max(2, Math.round(c * Math.PI / 2 / 3.4)), chord = 2 * c * Math.tan(Math.PI / 4 / k) + 0.06;
+    const full = w - 2 * c <= 0.4 && d - 2 * c <= 0.4;   // ganz rund: die Keile sind das ganze Dach
     for (const [sx, sz, a0] of [[1, 1, 0], [1, -1, Math.PI / 2], [-1, -1, Math.PI], [-1, 1, Math.PI * 1.5]]) {
       const ox = x + sx * (w / 2 - c), oz = z + sz * (d / 2 - c);
       for (let j = 0; j < k; j++) {
         const a = a0 + (j + 0.5) * Math.PI / 2 / k, dx = Math.sin(a), dz = Math.cos(a), r = c * Math.cos(Math.PI / 4 / k);
-        addSeg({ ...seg, x: ox + dx * r / 2, z: oz + dz * r / 2, w: chord, d: r, y0, y1, ry: a, seed: seg.seed + 31 + j }, false);
+        // Keile nebeneinander überlappen an der Spitze; ein ganz runder Bau bekommt eine eigene Dachscheibe
+        addSeg({ ...seg, x: ox + dx * r / 2, z: oz + dz * r / 2, w: chord, d: r, y0: cy0, y1: full ? cy1 - 0.02 * (j % 2) : cy1, ry: a, seed: seg.seed + 31 + j, fl: (seg.fl || 0) | FL.xN | FL.xP | FL.zN }, false);
       }
     }
+    if (full) addSeg({ ...seg, x, z, w: c * 1.41, d: c * 1.41, y0: y1 - 0.05, y1, ry: Math.PI / 4, seed: seg.seed + 30, fl: (seg.fl || 0) | FL.all | FL.noBot }, false);
     return;
   }
-  addSeg({ ...seg, x, z, w, d: d - 2 * c, y0, y1 }, collide);
-  addSeg({ ...seg, x, z, w: w - 2 * c, d, y0, y1, seed: seg.seed + 17 }, collide);
-  if (corner === 'chamfer') for (const [sx, sz] of [[-1, -1], [1, -1], [1, 1], [-1, 1]])
-    addSeg({ ...seg, x: x + sx * (w / 2 - c), z: z + sz * (d / 2 - c), w: c * 1.414, d: c * 1.414, y0, y1, ry: Math.PI / 4, seed: seg.seed + 29 }, false);
+  cross(c);
+  if (corner === 'chamfer') for (const [sx, sz] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) {
+    // nach 45° gedreht zeigt lokal +z nach (1,1), -z nach (-1,-1), +x nach (1,-1), -x nach (-1,1): nur diese Kante ist außen
+    const outer = sx > 0 ? (sz > 0 ? FL.zP : FL.xP) : (sz > 0 ? FL.xN : FL.zN);
+    addSeg({ ...seg, x: x + sx * (w / 2 - c), z: z + sz * (d / 2 - c), w: c * 1.414, d: c * 1.414, y0: cy0, y1: cy1, ry: Math.PI / 4, seed: seg.seed + 29, fl: (seg.fl || 0) | (FL.all & ~outer) }, false);
+  }
 }
 // Plastische Fassade: Pilaster zwischen den Fensterachsen (am Fensterraster des Shaders ausgerichtet) und Gurtgesimse
 export function facadeRelief(cx, cz, sw, sd, y0, y1, style, tint, seed, edges, rr, corner, c) {
@@ -788,12 +813,12 @@ export function facadeRelief(cx, cz, sw, sd, y0, y1, style, tint, seed, edges, r
       const u = -L / 2 + margin + k * cellW;
       if (corner !== 'square' && Math.abs(u) > L / 2 - c - 0.5) continue;
       const px = ax ? cx + out * (sw / 2 + deep / 2) : cx + u, pz = ax ? cz + u : cz + out * (sd / 2 + deep / 2);
-      addSeg({ x: px, z: pz, w: ax ? deep : 0.7, d: ax ? 0.7 : deep, y0, y1, tint: pt, seed, style: 3, dens: 0, flood: 0.0 }, false);
+      addSeg({ x: px, z: pz, w: ax ? deep : 0.7, d: ax ? 0.7 : deep, y0, y1, tint: pt, seed, style: 3, dens: 0, flood: 0.0, deco: DECO.g++ }, false);
     }
   }
   if (rr() < 0.7) {
     const stepF = 3 + Math.floor(rr() * 4);
     for (let yy = y0 + 3.6 * stepF - 0.3; yy < y1 - 3; yy += 3.6 * stepF)
-      tier(cx, cz, sw + 0.4, sd + 0.4, yy, yy + 0.3, { tint: pt, seed: seed + 3, style: 3, dens: 0, flood: 0.0 }, corner, c + 0.2, false);
+      tier(cx, cz, sw + 0.4, sd + 0.4, yy, yy + 0.3, { tint: pt, seed: seed + 3, style: 3, dens: 0, flood: 0.0, deco: DECO.g++ }, corner, bandC(corner, c, 0.4), false);
   }
 }

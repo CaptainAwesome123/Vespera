@@ -15,6 +15,7 @@ export function winGrid(L, style) {
   const cw = style < 0.5 ? 3.2 : 2.4, margin = 1.0, usable = Math.max(L - 2 * margin, 1), nc = Math.max(1, Math.floor(usable / cw));
   return { nc, cellW: usable / nc, margin };
 }
+export const DECO = { g: 1 };   // V23: Gruppennummer zusammengehöriger Zierteile (Erker mit Konsole und Dach, Balkon mit Brüstung)
 export const SIDE_O = { n: [0, -1], s: [0, 1], w: [-1, 0], e: [1, 0] };
 // Erker: vorspringende Fensterkästen über mehrere Geschosse, mit Konsole unten und Dach oben
 export function addOriels(cx, cz, sw, sd, y0, y1, style, dens, tint, seed, edges, rr, rib) {
@@ -30,11 +31,11 @@ export function addOriels(cx, cz, sw, sd, y0, y1, style, dens, tint, seed, edges
     for (let k = start; k < g.nc; k += every) {
       if (g.nc > 3 && (k === 0 || k === g.nc - 1)) continue;
       const u = -L / 2 + g.margin + (k + 0.5) * g.cellW;
-      const px = ax ? cx + o[0] * (sw / 2 + deep / 2) : cx + u, pz = ax ? cz + u : cz + o[1] * (sd / 2 + deep / 2);
-      addSeg({ x: px, z: pz, w: ax ? deep : wide, d: ax ? wide : deep, y0: yb, y1: yt, tint, seed: seed + 120 + k, style, dens, flood: 0, rib: [0, 0, 0] }, false);
+      const px = ax ? cx + o[0] * (sw / 2 + deep / 2) : cx + u, pz = ax ? cz + u : cz + o[1] * (sd / 2 + deep / 2), dg = DECO.g++;
+      addSeg({ x: px, z: pz, w: ax ? deep : wide, d: ax ? wide : deep, y0: yb, y1: yt, tint, seed: seed + 120 + k, style, dens, flood: 0, rib: [0, 0, 0], deco: dg }, false);
       // Konsole unten (abgeschrägt) und Dachplatte oben
-      addSeg({ x: px - o[0] * 0.15, z: pz - o[1] * 0.15, w: ax ? deep - 0.3 : wide - 0.4, d: ax ? wide - 0.4 : deep - 0.3, y0: yb - 0.7, y1: yb, tint: ct, seed: seed + 121, style: 3, dens: -1, flood: 0, rib: [0, 0, 0] }, false);
-      addSeg({ x: px, z: pz, w: ax ? deep + 0.3 : wide + 0.4, d: ax ? wide + 0.4 : deep + 0.3, y0: yt, y1: yt + 0.25, tint: ct, seed: seed + 122, style: 3, dens: -1, flood: 0, rib: [0, 0, 0] }, false);
+      addSeg({ x: px - o[0] * 0.15, z: pz - o[1] * 0.15, w: ax ? deep - 0.3 : wide - 0.4, d: ax ? wide - 0.4 : deep - 0.3, y0: yb - 0.7, y1: yb, tint: ct, seed: seed + 121, style: 3, dens: -1, flood: 0, rib: [0, 0, 0], deco: dg }, false);
+      addSeg({ x: px, z: pz, w: ax ? deep + 0.3 : wide + 0.4, d: ax ? wide + 0.4 : deep + 0.3, y0: yt, y1: yt + 0.25, tint: ct, seed: seed + 122, style: 3, dens: -1, flood: 0, rib: [0, 0, 0], deco: dg }, false);
     }
   }
 }
@@ -51,11 +52,11 @@ export function addBalconies(cx, cz, sw, sd, y0, y1, style, tint, seed, edges, r
     for (let yy = y0 + 3.6 * 2 - 0.05; yy < y1 - 3.0; yy += 7.2) {
       for (let k = off; k < g.nc; k += 2) {
         const u = -L / 2 + g.margin + (k + 0.5) * g.cellW;
-        const px = ax ? cx + o[0] * (sw / 2 + deep / 2) : cx + u, pz = ax ? cz + u : cz + o[1] * (sd / 2 + deep / 2);
-        addSeg({ x: px, z: pz, w: ax ? deep : wide, d: ax ? wide : deep, y0: yy, y1: yy + 0.18, tint: ct, seed: seed + 130, style: 3, dens: -1, flood: 0, rib: [0, 0, 0] }, false);
+        const px = ax ? cx + o[0] * (sw / 2 + deep / 2) : cx + u, pz = ax ? cz + u : cz + o[1] * (sd / 2 + deep / 2), dg = DECO.g++;
+        addSeg({ x: px, z: pz, w: ax ? deep : wide, d: ax ? wide : deep, y0: yy, y1: yy + 0.18, tint: ct, seed: seed + 130, style: 3, dens: -1, flood: 0, rib: [0, 0, 0], deco: dg }, false);
         const rx = ax ? cx + o[0] * (sw / 2 + deep - 0.06) : cx + u, rz = ax ? cz + u : cz + o[1] * (sd / 2 + deep - 0.06);
-        addSeg({ x: rx, z: rz, w: ax ? 0.12 : wide, d: ax ? wide : 0.12, y0: yy + 0.18, y1: yy + 1.05, tint: railT, seed: seed + 131, style: 3, dens: -1, flood: 0, rib: [0, 0, 0] }, false);
-        for (const s of [-1, 1]) addSeg({ x: ax ? px : cx + u + s * (wide / 2 - 0.06), z: ax ? cz + u + s * (wide / 2 - 0.06) : pz, w: ax ? deep : 0.12, d: ax ? 0.12 : deep, y0: yy + 0.18, y1: yy + 1.05, tint: railT, seed: seed + 132, style: 3, dens: -1, flood: 0, rib: [0, 0, 0] }, false);
+        addSeg({ x: rx, z: rz, w: ax ? 0.12 : wide - 0.05, d: ax ? wide - 0.05 : 0.12, y0: yy + 0.18, y1: yy + 1.05, tint: railT, seed: seed + 131, style: 3, dens: -1, flood: 0, rib: [0, 0, 0], deco: dg }, false);
+        for (const s of [-1, 1]) addSeg({ x: ax ? px : cx + u + s * (wide / 2 - 0.06), z: ax ? cz + u + s * (wide / 2 - 0.06) : pz, w: ax ? deep : 0.12, d: ax ? 0.12 : deep, y0: yy + 0.18, y1: yy + 1.05, tint: railT, seed: seed + 132, style: 3, dens: -1, flood: 0, rib: [0, 0, 0], deco: dg }, false);
       }
     }
   }
@@ -72,7 +73,7 @@ export function addArcade(cx, cz, sw, sd, edges, tint, seed, dens, rr) {
     for (let k = 0; k <= n; k++) {
       const u = -L / 2 + 0.5 + (L - 1.0) * k / n;
       const px = ax ? cx + o[0] * (sw / 2 - 0.5) : cx + u, pz = ax ? cz + u : cz + o[1] * (sd / 2 - 0.5);
-      addSeg({ x: px, z: pz, w: 1.0, d: 1.0, y0: 0.2, y1: 5.3, tint: ct, seed: seed + 141 + k, style: 3, dens: -1, flood: 0.4, rib: [0, 0, 0] }, true);
+      addSeg({ x: px, z: pz, w: 1.0, d: 1.0, y0: 0.2, y1: 4.9, tint: ct, seed: seed + 141 + k, style: 3, dens: -1, flood: 0.4, rib: [0, 0, 0] }, true);
       addSeg({ x: px, z: pz, w: 1.3, d: 1.3, y0: 4.9, y1: 5.3, tint: ct, seed: seed + 142, style: 3, dens: -1, flood: 0.4, rib: [0, 0, 0] }, false);
       addSeg({ x: px, z: pz, w: 1.2, d: 1.2, y0: 0.2, y1: 0.9, tint: ct.map(v => v * 0.8), seed: seed + 143, style: 3, dens: -1, flood: 0.2, rib: [0, 0, 0] }, false);
       if (k < n) { const um = u + (L - 1.0) / n / 2; const lx = ax ? cx + o[0] * (sw / 2 - A / 2) : cx + um, lz = ax ? cz + um : cz + o[1] * (sd / 2 - A / 2); addGlow(lx, 4.6, lz, [1.3, 0.9, 0.5], 1.2); lamps.push({ x: lx, z: lz, h: 0, wall: true }); }
@@ -87,9 +88,9 @@ export function houseDoor(cx, cz, sw, sd, edges, tint, rr, kind = 'house') {
   const u = (rr() - 0.5) * Math.max(0, L - 8);
   const fx = cx + o[0] * sw / 2 + (ax ? 0 : u), fz = cz + o[1] * sd / 2 + (ax ? u : 0);
   const ct = tint.map(v => v * 1.25);
-  const S = (a, b, y0, y1, off, t) => addSeg({ x: fx + o[0] * off + (ax ? 0 : 0), z: fz + o[1] * off, w: ax ? b : a, d: ax ? a : b, y0, y1, tint: t, seed: 995, style: 3, dens: -1, flood: 0.3, rib: [0, 0, 0] }, false);
-  for (const s of [-1, 1]) addSeg({ x: fx + o[0] * 0.2 + (ax ? 0 : s * 1.25), z: fz + o[1] * 0.2 + (ax ? s * 1.25 : 0), w: ax ? 0.4 : 0.4, d: 0.4, y0: 0.2, y1: 3.9, tint: ct, seed: 996, style: 3, dens: -1, flood: 0.3, rib: [0, 0, 0] }, false);
-  S(2.9, 0.45, 3.5, 4.1, 0.22, ct);
+  const S = (a, b, y0, y1, off, t) => addSeg({ x: fx + o[0] * off, z: fz + o[1] * off, w: ax ? b : a, d: ax ? a : b, y0, y1, tint: t, seed: 995, style: 3, dens: -1, flood: 0.3, rib: [0, 0, 0] }, false);
+  for (const s of [-1, 1]) addSeg({ x: fx + o[0] * 0.17 + (ax ? 0 : s * 1.25), z: fz + o[1] * 0.17 + (ax ? s * 1.25 : 0), w: 0.4, d: 0.4, y0: 0.2, y1: 3.9, tint: ct, seed: 996, style: 3, dens: -1, flood: 0.3, rib: [0, 0, 0] }, false);
+  S(3.1, 0.5, 3.5, 4.1, 0.2, ct);
   HOUSE_DOORS.push({ fx, fz, o, tint });
   addGlow(fx + o[0] * 0.5, 3.1, fz + o[1] * 0.5, [1.3, 0.9, 0.5], 1.0);
   DOORS.push({ x: fx + o[0] * 0.4, z: fz + o[1] * 0.4, nx: o[0], nz: o[1], kind });

@@ -1,6 +1,6 @@
 import { T, mergeGeos, scene, pick, R, rand, mulberry32, canvasTex } from './core.js';
 import { stdMat, MAT, addCollider } from './people-skeleton.js';
-import { addGlow, addSeg, addNeon, NEON, STONES, RIBS, spires, towers, roofs, neonPool, shafts, steamPts } from './facade-shader.js';
+import { addGlow, addSeg, addNeon, NEON, STONES, RIBS, spires, towers, roofs, neonPool, shafts, steamPts, segs, neons } from './facade-shader.js';
 import { BR_SPOTS } from './island.js';
 import { addArcade, addOriels, addBalconies, houseDoor } from './building-forms.js';
 import { BRICK, wantShop, shopFloor, tier, facadeRelief } from './shops.js';
@@ -57,9 +57,9 @@ export function portal(cx, cz, sw, sd, edges, tint, rr, kind) {
   const ax = o[0] !== 0, L = ax ? sd : sw, u = (rr() - 0.5) * Math.max(0, L - 16);
   const fx = cx + o[0] * sw / 2 + (ax ? 0 : u), fz = cz + o[1] * sd / 2 + (ax ? u : 0);
   const pt = tint.map(v => v * 1.3);
-  const S = (a, b, y0, y1, off, t, st = 3, fl = 0.6) => addSeg({ x: fx + o[0] * off + (ax ? 0 : 0), z: fz + o[1] * off, w: ax ? b : a, d: ax ? a : b, y0, y1, tint: t, seed: 990, style: st, dens: 0, flood: fl }, false);
-  for (const sd2 of [-1, 1]) addSeg({ x: fx + o[0] * 0.35 + (ax ? 0 : sd2 * 3.1), z: fz + o[1] * 0.35 + (ax ? sd2 * 3.1 : 0), w: ax ? 0.7 : 0.9, d: ax ? 0.9 : 0.7, y0: 0.2, y1: 8.2, tint: pt.map(v => v * 0.8), seed: 991, style: 3, dens: 0, flood: 0.1 }, false);
-  S(7.1, 0.7, 7.2, 8.6, 0.35, pt);
+  const S = (a, b, y0, y1, off, t, st = 3, fl = 0.6) => addSeg({ x: fx + o[0] * (off - 0.025), z: fz + o[1] * (off - 0.025), w: ax ? b + 0.05 : a, d: ax ? a : b + 0.05, y0, y1, tint: t, seed: 990, style: st, dens: 0, flood: fl }, false);
+  for (const sd2 of [-1, 1]) addSeg({ x: fx + o[0] * 0.325 + (ax ? 0 : sd2 * 3.1), z: fz + o[1] * 0.325 + (ax ? sd2 * 3.1 : 0), w: ax ? 0.75 : 0.9, d: ax ? 0.9 : 0.75, y0: 0.2, y1: 8.2, tint: pt.map(v => v * 0.8), seed: 991, style: 3, dens: 0, flood: 0.1 }, false);
+  S(7.5, 0.84, 7.2, 8.6, 0.42, pt);
   S(8.4, 2.6, 4.5, 4.85, 1.3, pt.map(v => v * 0.8), 3, 0.3);
   addNeon(fx + o[0] * 2.62, 4.68, fz + o[1] * 2.62, ax ? 0.08 : 8.4, 0.08, ax ? 8.4 : 0.08, NEON.gold);
   addGlow(fx + o[0] * 1.6, 4.3, fz + o[1] * 1.6, [1.2, 0.85, 0.45], 2.2);
@@ -164,8 +164,11 @@ export function buildTerraces() {
 }
 export const caps = [];   // Kupfer- und Golddächer {x,z,y,w,d,h,gold}
 export const domes = [];  // Kuppeln {x,z,y,r}
+// V23: Gesims um eine Stufe mit Fase/Kerbe: Eckmaß so wählen, dass auch die Kerbflächen vorstehen (sonst deckungsgleich mit dem Schaft)
+export const bandC = (corner, c, pad) => c + pad / 4;
 export function pickW(rr, opts) { let t = 0; for (const o of opts) t += o[1]; let u = rr() * t; for (const o of opts) if ((u -= o[1]) <= 0) return o[0]; return opts[0][0]; }
 export function decoBuilding(cx, cz, w, d, H, dist, edges, worker = false) {
+  const s0 = segs.length, n0 = neons.length; let c0 = 0;
   const tint = worker ? pick(BRICK) : pick(STONES);
   const seed = Math.floor(R() * 1000);
   const style = worker ? 0 : (R() < 0.55 ? 1 : 0);
@@ -178,11 +181,16 @@ export function decoBuilding(cx, cz, w, d, H, dist, edges, worker = false) {
   // Eigener Zufall für die Bauform, damit der Stadtplan derselbe bleibt
   const rr = mulberry32(seed * 7919 + Math.round(cx * 13 + cz * 7));
   let form = 'classic';
-  if (!worker && H > 70) form = pickW(rr, [['classic', 1.5], ['notch', 2], ['chamfer', 2], ['twin', w > 30 && d > 22 ? 1.2 : 0], ['zig', 1.2], ['buttress', 1.6], ['dome', Math.min(w, d) > 24 ? 0.9 : 0], ['rotunda', Math.min(w, d) > 24 ? 1.6 : 0], ['stream', 1.0]]);
-  else if (!worker && H > 26) form = pickW(rr, [['classic', 2.5], ['notch', 1.5], ['chamfer', 1.2], ['corner', w > 22 && d > 22 ? 1.6 : 0], ['buttress', 0.8], ['stream', 2.0]]);
-  else if (worker && H > 14) form = pickW(rr, [['classic', 4], ['stream', 1]]);
+  // V23: neue Bauformen: Scheibenhochhaus (blade), Krone aus gestaffelten Ringen (tiara), Uhrturm (clock), Stufenpyramide (zigtop), Häuserzeile (row)
+  if (!worker && H > 70) form = pickW(rr, [['classic', 1.2], ['notch', 1.8], ['chamfer', 1.8], ['twin', w > 30 && d > 22 ? 1.2 : 0], ['zig', 1.1], ['buttress', 1.4], ['dome', Math.min(w, d) > 24 ? 0.9 : 0], ['rotunda', Math.min(w, d) > 24 ? 1.5 : 0], ['stream', 1.0], ['blade', Math.max(w, d) > 26 ? 1.4 : 0], ['tiara', Math.min(w, d) > 20 ? 1.5 : 0]]);
+  else if (!worker && H > 26) form = pickW(rr, [['classic', 2.0], ['notch', 1.4], ['chamfer', 1.1], ['corner', w > 22 && d > 22 ? 1.6 : 0], ['buttress', 0.8], ['stream', 1.8], ['clock', Math.min(w, d) > 18 ? 1.0 : 0], ['zigtop', 1.1], ['blade', Math.max(w, d) > 30 ? 0.6 : 0]]);
+  else if (!worker && H <= 26 && Math.max(w, d) > 26) form = pickW(rr, [['classic', 3], ['row', 1.4]]);
+  else if (worker && H > 14) form = pickW(rr, [['classic', 2.6], ['stream', 0.8], ['row', Math.max(w, d) > 18 ? 2.4 : 0]]);
+  else if (worker) form = pickW(rr, [['classic', 2], ['row', Math.max(w, d) > 18 ? 2.2 : 0]]);
+  if (form === 'row') return rowHouses(cx, cz, w, d, H, dist, edges, worker, tint, rr);
   // Rundturm: kreisrunder Schaft auf quadratischer Grundfläche, nach oben gestaffelt
   if (form === 'rotunda') { w = d = Math.min(w, d); n = Math.max(n, 3); fr = n === 3 ? [0.5, 0.82, 1] : [0.42, 0.66, 0.86, 1]; sc = n === 3 ? [1, 0.8, 0.6] : [1, 0.82, 0.66, 0.5]; }
+  if (form === 'blade' || form === 'tiara') n = Math.max(n, 3);
   if (form === 'zig') { n = 8; fr = [0.6, 0.66, 0.72, 0.78, 0.84, 0.9, 0.95, 1]; sc = [1, 0.9, 0.8, 0.7, 0.6, 0.5, 0.42, 0.35]; }
   const corner = form === 'notch' ? 'notch' : (form === 'chamfer' || form === 'dome') ? 'chamfer' : (form === 'rotunda' || form === 'stream') ? 'round' : 'square';
   const cTint = tint.map(v => v * 1.15);
@@ -197,15 +205,16 @@ export function decoBuilding(cx, cz, w, d, H, dist, edges, worker = false) {
     let y1 = i === n - 1 ? towerTop : Math.max(y + 7.2, Math.round(towerTop * fr[i] / 3.6) * 3.6 + 0.2);
     if (form === 'twin') y1 = Math.round(towerTop * (i + 1) / n / 3.6) * 3.6 + 0.2;
     if (form === 'twin' && i > 0) break;
-    const sw = w * (form === 'twin' ? 1 : sc[i]), sd = d * (form === 'twin' ? 1 : (slab ? Math.min(1, sc[i] + 0.25) : sc[i]));
+    let sw = w * (form === 'twin' ? 1 : sc[i]), sd = d * (form === 'twin' ? 1 : (slab ? Math.min(1, sc[i] + 0.25) : sc[i]));
+    if (form === 'blade') { const k = Math.min(i, 3), L = [1, 0.95, 0.9, 0.86][k], S = [1, 0.6, 0.47, 0.4][k]; sw = w * (w >= d ? L : S); sd = d * (w >= d ? S : L); }
     const c = form === 'rotunda' ? (i === 0 ? Math.min(sw, sd) * 0.18 : Math.min(sw, sd) / 2) : form === 'stream' ? Math.max(2.4, Math.min(sw, sd) * 0.24) : Math.max(1.5, Math.min(sw, sd) * (corner === 'notch' ? 0.12 : 0.16));
     tier(cx, cz, sw, sd, y, form === 'twin' ? towerTop : y1, { tint, seed: seed + i, style, dens, flood: 0, rib }, corner, c);
     if (form === 'twin') y1 = towerTop;
-    if (!worker || i === n - 1) tier(cx, cz, sw + 0.9, sd + 0.9, y1 - 0.8, y1 + 0.3, { tint: cTint, seed: seed + 50, style: 3, dens: 0, flood: 0 }, corner, c + 0.45, false);
-    if (!worker && i === 0 && H > 20) tier(cx, cz, sw + 0.5, sd + 0.5, 4.6, 5.3, { tint: tint.map(v => v * 1.2), seed: seed + 51, style: 3, dens: 0, flood: 0.3 }, corner, c + 0.25, false);
+    if (!worker || i === n - 1) tier(cx, cz, sw + 0.9, sd + 0.9, y1 - 0.8, y1 + 0.26 + (seed % 5) * 0.035, { tint: cTint, seed: seed + 50, style: 3, dens: 0, flood: 0 }, corner, bandC(corner, c, 0.9), false);
+    if (!worker && i === 0 && H > 20) tier(cx, cz, sw + 0.5, sd + 0.5, 4.6, 5.38, { tint: tint.map(v => v * 1.2), seed: seed + 51, style: 3, dens: 0, flood: 0.3 }, corner, bandC(corner, c, 0.5), false);
     top = { x: cx, z: cz, w: sw, d: sd };
     if (i < n - 1 && rib[0] + rib[1] + rib[2] > 0 && form !== 'zig' && corner !== 'round') crownFins(cx, cz, sw, sd, y1, 3.5, rib);
-    if (i === 0) firstTop = y1;
+    if (i === 0) { firstTop = y1; c0 = corner === 'square' ? 0 : c; }
     if (i === 0 && !worker && H > 20 && form !== 'buttress' && form !== 'twin') { const rF = rr(); if (rF < 0.26 && corner === 'square' && style < 1.5) addOriels(cx, cz, sw, sd, 5.3, y1 - 0.8, style, dens, tint, seed, edges, rr, rib); else if (rF < 0.48 && corner === 'square' && style < 0.5 && H < 100) addBalconies(cx, cz, sw, sd, 5.3, y1 - 0.8, style, tint, seed, edges, rr); else if (rF < 0.93) facadeRelief(cx, cz, sw, sd, 5.3, y1 - 0.8, style, tint, seed + 61, edges, rr, corner, c); }
     if (i === 0 && !worker && !shopH && !arcade && H > 20 && dist < 700 && rr() < 0.45) { portal(cx, cz, sw, sd, edges, tint, rr, H > 90 ? 'hotel' : pickW(rr, [['shop', 3], ['restaurant', 2], ['cafe', 1.5], ['bar', 1]])); hasDoor = true; }
     if (i === 0 && worker && rr() < 0.35) { portal(cx, cz, sw, sd, edges, tint, rr, pickW(rr, [['pub', 2], ['workshop', 2], ['shop', 1]])); hasDoor = true; }
@@ -240,7 +249,7 @@ export function decoBuilding(cx, cz, w, d, H, dist, edges, worker = false) {
         const y1 = k === 2 ? HT : Math.round((towerTop + (HT - towerTop) * [0.62, 0.86][k]) / 3.6) * 3.6 + 0.2;
         const cc = Math.min(ww, dd) * 0.16;
         tier(tx, tz, ww, dd, yy, y1, { tint, seed: seed + 70 + k, style, dens, flood: 0, rib }, 'chamfer', cc);
-        tier(tx, tz, ww + 0.8, dd + 0.8, y1 - 0.7, y1 + 0.3, { tint: cTint, seed: seed + 50, style: 3, dens: 0, flood: 0 }, 'chamfer', cc + 0.4, false);
+        tier(tx, tz, ww + 0.8, dd + 0.8, y1 - 0.7, y1 + 0.3, { tint: cTint, seed: seed + 50, style: 3, dens: 0, flood: 0 }, 'chamfer', bandC('chamfer', cc, 0.8), false);
         if (rib[0] + rib[1] + rib[2] > 0) crownFins(tx, tz, ww, dd, y1, 3, rib);
         yy = y1; ww *= 0.78; dd *= 0.78;
       }
@@ -255,9 +264,9 @@ export function decoBuilding(cx, cz, w, d, H, dist, edges, worker = false) {
   // Eckturm mit Kupferhaube an der Straßenecke
   if (form === 'corner') {
     const sx = edges.e ? 1 : -1, sz = edges.s ? 1 : -1, a = Math.min(w, d) * 0.34;
-    const tx = cx + sx * (w / 2 - a / 2), tz = cz + sz * (d / 2 - a / 2), HT = Math.round(H * 1.4 / 3.6) * 3.6 + 0.2;
+    const tx = cx + sx * (w / 2 - a / 2 + 0.6), tz = cz + sz * (d / 2 - a / 2 + 0.6), HT = Math.round(H * 1.4 / 3.6) * 3.6 + 0.2;
     tier(tx, tz, a, a, 0.2, HT, { tint, seed: seed + 90, style, dens, flood: 0.2, rib }, 'chamfer', a * 0.2);
-    tier(tx, tz, a + 0.9, a + 0.9, HT - 0.8, HT + 0.3, { tint: cTint, seed: seed + 50, style: 3, dens: 0, flood: 0 }, 'chamfer', a * 0.2 + 0.45, false);
+    tier(tx, tz, a + 0.9, a + 0.9, HT - 0.8, HT + 0.3, { tint: cTint, seed: seed + 50, style: 3, dens: 0, flood: 0 }, 'chamfer', bandC('chamfer', a * 0.2, 0.9), false);
     caps.push({ x: tx, z: tz, y: HT + 0.3, w: a * 0.95, d: a * 0.95, h: a * 0.9, gold: rr() < 0.25 });
     addGlow(tx, HT + a * 0.9 + 0.8, tz, [1.4, 0.15, 0.1], 1.6, rr(), 1);
   }
@@ -273,11 +282,14 @@ export function decoBuilding(cx, cz, w, d, H, dist, edges, worker = false) {
     tier(cx, cz, r * 1.3, r * 1.3, H, H + 5, { tint: cTint, seed: seed + 96, style: 2, dens: 0.9, flood: 0.6 }, 'round', r * 0.65);
     domes.push({ x: cx, z: cz, y: H + 5, r: r * 0.64 });
   }
-  const tall = H > 70;
-  roofs.push({ x: top.x, z: top.z, w: top.w, d: top.d, H, worker, dist, edges, fw: w, fd: d, shop: shopH });
+  if (form === 'tiara') { tiaraCrown(top, H, tint, cTint, seed, rib, rr); top = { ...top, done: true }; }
+  if (form === 'clock') clockTower(top, H, tint, cTint, seed, rr);
+  if (form === 'zigtop') zigTop(top, H, tint, cTint, seed, rr);
+  const tall = H > 70 && !top.done;
+  roofs.push({ x: top.x, z: top.z, w: top.w, d: top.d, H, worker, dist, edges, fw: w, fd: d, shop: shopH, arcade, fx: cx, fz: cz, crown: form === 'tiara' || form === 'clock' || form === 'zigtop' });
   if (!worker && firstTop > 20 && dist < 760) BR_SPOTS.push({ x: cx, z: cz, w, d, top: firstTop });
   const nc = rib[0] + rib[1] + rib[2] > 0 ? rib.map(v => v * 1.5) : NEON[pick(neonPool)];
-  if (tall) towers.push({ x: top.x, z: top.z, w: top.w, d: top.d, H });
+  if (tall || top.done) towers.push({ x: top.x, z: top.z, w: top.w, d: top.d, H });
   if (tall && (rib[0] + rib[1] + rib[2] > 0)) {
     crownFins(top.x, top.z, top.w, top.d, H, 4 + H * 0.05, rib);
     if (R() < 0.6) shafts.push({ x: top.x, z: top.z, y: H, h: 260 + H * 1.2, w: Math.min(top.w, top.d) * 0.7, c: rib });
@@ -301,15 +313,90 @@ export function decoBuilding(cx, cz, w, d, H, dist, edges, worker = false) {
       neonFrame(tx, H + 0.3, tz, top.w + 0.9, top.d + 0.9, nc);
       addGlow(tx, H + 1, tz, [1.4, 0.15, 0.1], 2.5, R(), 1);
     }
-  } else if (!worker && H > 24 && form !== 'corner' && rr() < 0.3) {
+  } else if (!worker && H > 24 && form !== 'corner' && form !== 'clock' && form !== 'zigtop' && !top.done && rr() < 0.3) {
     caps.push({ x: cx, z: cz, y: H + 0.3, w: top.w * 0.7, d: top.d * 0.7, h: Math.min(top.w, top.d) * 0.32, gold: false });
   }
   if (H > 40 && dist < 650 && R() < 0.28) {
     const c = NEON[pick(neonPool)], y1 = firstTop;
-    if (corner !== 'round') for (const [sx, sz] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) addNeon(cx + sx * (w / 2 + 0.1), (0.2 + y1) / 2 + 2.3, cz + sz * (d / 2 + 0.1), 0.28, y1 - 4.6, 0.28, c);
+    if (corner !== 'round') for (const [sx, sz] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) { addNeon(cx + sx * (w / 2 + 0.1), (0.2 + y1) / 2 + 2.3, cz + sz * (d / 2 + 0.1), 0.28, y1 - 4.6, 0.28, c); neons[neons.length - 1].deco = true; }
   }
-  if (worker) { if (R() < 0.3) placeSign(cx, cz, w, d, edges, true); if (R() < 0.5) steamPts.push({ x: cx + (R() < 0.5 ? -1 : 1) * (w / 2 + 2), z: cz + rand(-d / 3, d / 3) }); }
-  else if (dist < 700 && R() < 0.42) placeSign(cx, cz, w, d, edges);
+  const sctx = { s0, n0, c: c0, top: firstTop };
+  if (worker && form === 'classic' && H < 22 && rr() < 0.4) caps.push({ x: top.x, z: top.z, y: H + 0.3, w: top.w + 0.6, d: top.d + 0.6, h: Math.min(top.w, top.d) * 0.28, slate: true });
+  if (worker) { if (R() < 0.3) placeSign(cx, cz, w, d, edges, true, sctx); if (R() < 0.5) steamPts.push({ x: cx + (R() < 0.5 ? -1 : 1) * (w / 2 + 2), z: cz + rand(-d / 3, d / 3) }); }
+  else if (dist < 700 && R() < 0.42) placeSign(cx, cz, w, d, edges, false, sctx);
+}
+// V23 · Tiara: fünf gestaffelte Kronenringe mit Goldkanten und Lichtflossen, darüber eine schlanke Nadel
+export function tiaraCrown(top, H, tint, cTint, seed, rib, rr) {
+  let w = top.w * 0.86, d = top.d * 0.86, y = H;
+  const gold = rr() < 0.55, col = rib[0] + rib[1] + rib[2] > 0 ? rib : NEON.gold;
+  for (let k = 0; k < 5; k++) {
+    const h = 4.4 - k * 0.45;
+    tier(top.x, top.z, w, d, y, y + h, { tint: k % 2 ? cTint : tint, seed: seed + 200 + k, style: 2, dens: 0.85, flood: 0.7, rib: col }, 'chamfer', Math.min(w, d) * 0.22);
+    neonFrame(top.x, y + h, top.z, w, d, gold ? NEON.gold : col);
+    crownFins(top.x, top.z, w, d, y + h, 2.2, col);
+    y += h; w *= 0.8; d *= 0.8;
+  }
+  const b = Math.min(w, d) * 0.9, sh = 18 + H * 0.12;
+  spires.push({ x: top.x, z: top.z, y0: y, h: sh, b });
+  addGlow(top.x, y + sh + 0.6, top.z, [1.4, 0.15, 0.1], 3, R(), 1);
+  shafts.push({ x: top.x, z: top.z, y: y, h: 220 + H, w: Math.min(top.w, top.d) * 0.5, c: gold ? [1.0, 0.8, 0.45] : col });
+}
+// V23 · Uhrturm: quadratischer Turm auf dem Dach mit vier beleuchteten Zifferblättern und Kupferhaube
+export const CLOCKS = [];
+export function clockTower(top, H, tint, cTint, seed, rr) {
+  const a = Math.max(5, Math.min(top.w, top.d) * 0.36), th = Math.max(12, H * 0.42);
+  tier(top.x, top.z, a, a, H, H + th, { tint, seed: seed + 210, style: 1, dens: 0.4, flood: 0.6 }, 'chamfer', a * 0.14);
+  tier(top.x, top.z, a + 0.8, a + 0.8, H + th - 0.6, H + th + 0.3, { tint: cTint, seed: seed + 211, style: 3, dens: 0, flood: 0.4 }, 'chamfer', bandC('chamfer', a * 0.14, 0.8), false);
+  tier(top.x, top.z, a * 0.86, a * 0.86, H + th + 0.3, H + th + 4.2, { tint: cTint, seed: seed + 212, style: 3, dens: 0, flood: 0.8 }, 'chamfer', a * 0.12);
+  CLOCKS.push({ x: top.x, z: top.z, y: H + th + 2.2, r: a * 0.3, half: a * 0.43 + 0.04 });
+  caps.push({ x: top.x, z: top.z, y: H + th + 4.2, w: a * 0.9, d: a * 0.9, h: a * 1.2, gold: rr() < 0.3 });
+  towers.push({ x: top.x, z: top.z, w: a, d: a, H: H + th });
+}
+// V23 · Stufenpyramide: drei Absätze mit Goldkante und Laterne obenauf
+export function zigTop(top, H, tint, cTint, seed, rr) {
+  let w = top.w * 0.78, d = top.d * 0.78, y = H + 0.3;
+  for (let k = 0; k < 3; k++) {
+    const h = 2.6 + k * 0.4;
+    addSeg({ x: top.x, z: top.z, w, d, y0: y - 0.3, y1: y + h, tint: k % 2 ? tint : cTint, seed: seed + 220 + k, style: 3, dens: 0, flood: 0.6 }, false);
+    neonFrame(top.x, y + h, top.z, w, d, NEON.gold);
+    y += h; w *= 0.7; d *= 0.7;
+  }
+  tier(top.x, top.z, Math.max(2, w), Math.max(2, d), y, y + 3.4, { tint: cTint, seed: seed + 224, style: 2, dens: 0.95, flood: 0.8 }, 'square');
+  addGlow(top.x, y + 4.2, top.z, [1.4, 0.15, 0.1], 2.2, rr(), 1);
+}
+// V23 · Häuserzeile: zwei bis fünf schmale Häuser nebeneinander, jedes mit eigener Höhe, Farbe, Flucht, Tür und Dach
+export function rowHouses(cx, cz, w, d, H, dist, edges, worker, tint0, rr) {
+  const alongX = w >= d, L = alongX ? w : d, D = alongX ? d : w;
+  const k = Math.max(2, Math.min(5, Math.round(L / (worker ? 8.5 : 10.5))));
+  const cuts = [0]; for (let i = 1; i < k; i++) cuts.push(L * i / k + (rr() - 0.5) * L / k * 0.35); cuts.push(L);
+  let lastH = -1;
+  for (let i = 0; i < k; i++) {
+    const u0 = cuts[i], u1 = cuts[i + 1], len = u1 - u0;
+    let h = Math.max(worker ? 7.4 : 11, Math.round((H + (rr() - 0.5) * 9) / 3.6) * 3.6 + 0.2);
+    if (Math.abs(h - lastH) < 1) h += rr() < 0.5 || h < 12 ? 3.6 : -3.6;
+    lastH = h;
+    const set = rr() * 1.1, dd = D - set, du = (u0 + u1) / 2 - L / 2, s0 = segs.length;
+    const tint = (worker ? pick(BRICK) : pick(STONES)).map(v => v * (0.9 + rr() * 0.2));
+    // Zurücksetzen von der Straßenseite (n bei alongX, sonst w); die Tiefe schrumpft dafür hinten
+    const sideA = alongX ? (edges.n ? -1 : 1) : (edges.w ? -1 : 1);
+    const px = alongX ? cx + du : cx - sideA * set / 2, pz = alongX ? cz - sideA * set / 2 : cz + du;
+    const sw = alongX ? len : dd, sd = alongX ? dd : len;
+    const e = { n: alongX ? edges.n : (i === 0 && edges.n), s: alongX ? edges.s : (i === k - 1 && edges.s), w: alongX ? (i === 0 && edges.w) : edges.w, e: alongX ? (i === k - 1 && edges.e) : edges.e };
+    const seed = Math.floor(rr() * 1000), style = worker ? 0 : (rr() < 0.4 ? 1 : 0);
+    const dens = worker ? 0.3 + rr() * 0.25 : 0.2 + rr() * 0.3;
+    addSeg({ x: px, z: pz, w: sw, d: sd, y0: 0.2, y1: h, tint, seed, style, dens, flood: 0, rib: [0, 0, 0] });
+    // Gesims (Breite leicht verschieden, damit Nachbargesimse nicht deckungsgleich liegen)
+    const pad = 0.5 + 0.08 * (i % 3);
+    addSeg({ x: px, z: pz, w: sw + pad, d: sd + pad, y0: h - 0.7, y1: h + 0.25, tint: tint.map(v => v * 1.18), seed: seed + 50, style: 3, dens: 0, flood: 0 }, false);
+    if (!worker && h > 14) addSeg({ x: px, z: pz, w: sw + 0.36 + 0.04 * (i % 2), d: sd + 0.36 + 0.04 * (i % 2), y0: 4.6, y1: 5.2, tint: tint.map(v => v * 1.2), seed: seed + 51, style: 3, dens: 0, flood: 0.3 }, false);
+    houseDoor(px, pz, sw, sd, e, tint, rr);
+    const roof = rr();
+    if (roof < 0.45) caps.push({ x: px, z: pz, y: h + 0.25, w: sw + 0.3, d: sd + 0.3, h: Math.min(sw, sd) * (0.3 + rr() * 0.15), slate: true });
+    else if (roof < 0.6 && !worker) caps.push({ x: px, z: pz, y: h + 0.25, w: sw * 0.8, d: sd * 0.8, h: Math.min(sw, sd) * 0.25, gold: false });
+    roofs.push({ x: px, z: pz, w: sw, d: sd, H: h + 0.25, worker: worker || roof < 0.45, dist, edges: e, fw: sw, fd: sd, shop: false, arcade: false, fx: px, fz: pz });
+    if (rr() < (worker ? 0.35 : 0.25)) placeSign(px, pz, sw, sd, e, worker, { s0, n0: neons.length, c: 0, top: h });
+    if (worker && rr() < 0.4) steamPts.push({ x: px + (alongX ? 0 : sideA * (sw / 2 + 1.5)), z: pz + (alongX ? sideA * (sd / 2 + 1.5) : 0) });
+  }
 }
 // Zinnen und Flossen an der Krone, in Art-Deco-Staffelung
 export function crownFins(x, z, w, d, y, h, c) {
@@ -353,42 +440,101 @@ export function makeSignTex(word, color, vertical) {
   });
   return signTex[key] = { t, W, H };
 }
-export function placeSign(cx, cz, w, d, edges, worker = false) {
+// V23: Schilder bekommen einen freien Platz an der Fassade. Früher hingen sie an fester Stelle und Portale, Pilaster,
+// Erker oder Balkone ragten durch die Schrift. Jetzt: Seite und Lage durchprobieren, bis nichts im Weg ist; nur reine
+// Zierteile (deco) dürfen weichen, Portale und Türen nie. Findet sich kein Platz, bleibt das Haus ohne Schild.
+export function signSize(word, vertical) {
+  const n = [...word].length, W = vertical ? 128 : 96 * n + 80, H = vertical ? 104 * n + 60 : 150;
+  return { W, H };
+}
+export function segBox(sg) {
+  if (!sg.ry) return [sg.x - sg.w / 2, sg.y0, sg.z - sg.d / 2, sg.x + sg.w / 2, sg.y1, sg.z + sg.d / 2];
+  const c = Math.abs(Math.cos(sg.ry)), sn = Math.abs(Math.sin(sg.ry)), hx = c * sg.w / 2 + sn * sg.d / 2, hz = sn * sg.w / 2 + c * sg.d / 2;
+  return [sg.x - hx, sg.y0, sg.z - hz, sg.x + hx, sg.y1, sg.z + hz];
+}
+export const boxHit = (a, b) => a[0] < b[3] && a[3] > b[0] && a[1] < b[4] && a[4] > b[1] && a[2] < b[5] && a[5] > b[2];
+export function placeSign(cx, cz, w, d, edges, worker = false, ctx = null) {
   const sides = Object.keys(edges).filter(k => edges[k]);
   if (!sides.length) return;
   const side = pick(sides), word = worker ? pick(WORKER_WORDS) : pick(SIGN_WORDS);
   const color = worker ? pick(['#f6c76a', '#ffb36b', '#ffd9a0']) : pick(['#f6c76a', '#f6c76a', '#7ff0e6', '#ffb36b', '#fff1cc']);
-  const vertical = worker ? false : R() < 0.55;
-  signDefs.push({ cx, cz, w, d, side, word, color, vertical });
+  let vertical = worker ? false : R() < 0.55;
+  const u0 = R();
+  if (!ctx) { signDefs.push({ cx, cz, w, d, side, word, color, vertical, off: 0, wd: null }); return; }
+  const blockers = [];
+  for (let i = ctx.s0; i < segs.length; i++) { const sg = segs[i]; if (!sg.dead) blockers.push({ b: segBox(sg), sg }); }
+  for (let i = ctx.n0; i < neons.length; i++) { const n = neons[i]; blockers.push({ b: [n.x - n.sx / 2, n.y - n.sy / 2, n.z - n.sz / 2, n.x + n.sx / 2, n.y + n.sy / 2, n.z + n.sz / 2], n }); }
+  // Schilderkasten in Weltkoordinaten: t = Abstand von der Fassade, u = Lage entlang der Fassade
+  const boxFor = (sd, u, vert, wd, h) => {
+    const out = SIDE_OUT[sd], ax = out[0] !== 0, fx = cx + out[0] * w / 2, fz = cz + out[1] * d / 2;
+    const t0 = vert ? 0.3 : 0.3, t1 = vert ? 0.3 + wd : 0.5, ua = vert ? u - 0.12 : u - wd / 2, ub = vert ? u + 0.12 : u + wd / 2;
+    const y0 = vert ? 6 : 4.65, y1 = vert ? 6 + h : 4.75 + h;
+    const p = (t, uu) => ax ? [fx + out[0] * t, cz + uu] : [cx + uu, fz + out[1] * t];
+    const A = p(t0, ua), B = p(t1, ub);
+    return [Math.min(A[0], B[0]), y0, Math.min(A[1], B[1]), Math.max(A[0], B[0]), y1, Math.max(A[1], B[1])];
+  };
+  const order = [side, ...sides.filter(q => q !== side)];
+  const tryPlace = (vert, allowDeco) => {
+    const { W, H } = signSize(word, vert);
+    for (const sd of order) {
+      const out = SIDE_OUT[sd], L = out[0] !== 0 ? d : w, flat = L / 2 - (ctx.c || 0);
+      let wd, h, lim;
+      if (vert) { h = 1.6 * H / 104; wd = h * W / H; lim = Math.min(L / 2 - 3, flat - 0.6) * 0.8; if (6 + h > ctx.top - 1.0) continue; }
+      else { wd = Math.min(Math.min(L, 2 * flat) - 4, W / 60); h = wd * H / W; lim = Math.min(L, 2 * flat) / 2 - 2 - wd / 2; if (wd < 2.5) continue; }
+      if (lim < 0) continue;
+      const cand = [(u0 * 2 - 1) * lim]; for (let k = 0; k <= 8; k++) cand.push(-lim + 2 * lim * k / 8);
+      if (!vert) cand.unshift(0);
+      for (const u of cand) {
+        const bx = boxFor(sd, u, vert, wd, h), hits = blockers.filter(q => boxHit(bx, q.b));
+        if (hits.some(q => !(q.sg && q.sg.deco) && !(q.n && q.n.deco))) continue;
+        if (hits.length && !allowDeco) continue;
+        const grp = new Set(hits.filter(q => q.sg).map(q => q.sg.deco));
+        for (const q of hits) if (q.n) q.n.dead = true;
+        for (const q of blockers) if (q.sg && q.sg.deco && grp.has(q.sg.deco)) q.sg.dead = true;
+        signDefs.push({ cx, cz, w, d, side: sd, word, color, vertical: vert, off: u, wd, h });
+        return true;
+      }
+    }
+    return false;
+  };
+  if (tryPlace(vertical, false) || tryPlace(!vertical && !worker, false) || tryPlace(vertical, true) || (!worker && tryPlace(!vertical, true))) return;
 }
+export const SIDE_OUT = { n: [0, -1], s: [0, 1], w: [-1, 0], e: [1, 0] };
 export function buildSigns() {
+  const frames = [];
   for (const s of signDefs) {
     const tex = makeSignTex(s.word, s.color, s.vertical);
-    const mat = new T.MeshBasicMaterial({ map: tex.t, color: new T.Color(1.35, 1.35, 1.35) });
+    const mat = new T.MeshBasicMaterial({ map: tex.t, color: new T.Color(1.35, 1.35, 1.35), polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -4 });
     const out = { n: [0, -1], s: [0, 1], w: [-1, 0], e: [1, 0] }[s.side];
     const fx = s.cx + out[0] * s.w / 2, fz = s.cz + out[1] * s.d / 2;
     if (s.vertical) {
       const h = 1.6 * tex.H / 104 * 1.0, wd = h * tex.W / tex.H;
       const geo = new T.PlaneGeometry(wd, h);
-      const along = out[0] !== 0 ? (s.d / 2 - 3) : (s.w / 2 - 3);
-      const off = rand(-along, along) * 0.8;
+      const off = s.off;
+      const px = out[0] !== 0 ? fx + out[0] * (wd / 2 + 0.3) : fx + off;
+      const pz = out[1] !== 0 ? fz + out[1] * (wd / 2 + 0.3) : fz + off;
+      const ry = out[0] !== 0 ? 0 : Math.PI / 2, nx = Math.sin(ry), nz = Math.cos(ry);
       for (const flip of [0, Math.PI]) {
-        const m = new T.Mesh(geo, mat);
-        const px = out[0] !== 0 ? fx + out[0] * (wd / 2 + 0.3) : fx + off;
-        const pz = out[1] !== 0 ? fz + out[1] * (wd / 2 + 0.3) : fz + off;
-        m.position.set(px, 6 + h / 2, pz);
-        m.rotation.y = (out[0] !== 0 ? 0 : Math.PI / 2) + flip;
+        const m = new T.Mesh(geo, mat), sg = flip ? -1 : 1;
+        m.position.set(px + nx * 0.065 * sg, 6 + h / 2, pz + nz * 0.065 * sg);
+        m.rotation.y = ry + flip;
         scene.add(m);
       }
-      addGlow(fx + out[0] * (wd / 2 + 0.3), 6 + h / 2, fz + out[1] * (wd / 2 + 0.3), hexToArr(s.color, 0.35), h * 1.3);
+      // V23: Rahmen aus dunkler Bronze, zwei Ausleger zur Wand
+      frames.push(new T.BoxGeometry(wd + 0.18, h + 0.18, 0.11).rotateY(ry).translate(px, 6 + h / 2, pz));
+      for (const yy of [6 + h - 0.35, 6 + 0.35]) frames.push(new T.BoxGeometry(0.34, 0.07, 0.07).rotateY(ry).translate(fx + out[0] * 0.17 + (out[0] !== 0 ? 0 : off), yy, fz + out[1] * 0.17 + (out[0] !== 0 ? off : 0)));
+      addGlow(px, 6 + h / 2, pz, hexToArr(s.color, 0.35), h * 1.3);
     } else {
-      const wd = Math.min((out[0] !== 0 ? s.d : s.w) - 4, tex.W / 60), h = wd * tex.H / tex.W;
+      const wd = s.wd || Math.min((out[0] !== 0 ? s.d : s.w) - 4, tex.W / 60), h = wd * tex.H / tex.W;
       const m = new T.Mesh(new T.PlaneGeometry(wd, h), mat);
-      m.position.set(fx + out[0] * 0.42, 4.5 + h / 2 + 0.2, fz + out[1] * 0.42);
-      m.rotation.y = Math.atan2(out[0], out[1]);
+      const px = fx + out[0] * 0.42 + (out[0] !== 0 ? 0 : s.off || 0), pz = fz + out[1] * 0.42 + (out[0] !== 0 ? s.off || 0 : 0), ry = Math.atan2(out[0], out[1]);
+      m.position.set(px, 4.5 + h / 2 + 0.2, pz);
+      m.rotation.y = ry;
       scene.add(m);
+      frames.push(new T.BoxGeometry(wd + 0.2, h + 0.2, 0.1).translate(0, 0, -0.1).rotateY(ry).translate(px, 4.5 + h / 2 + 0.2, pz));
     }
   }
+  if (frames.length) { const fm = new T.Mesh(mergeGeos(frames), stdMat({ color: 0x3a2a16, metalness: 0.7, roughness: 0.4, envI: 0.6 })); fm.frustumCulled = false; scene.add(fm); }
 }
 export function hexToArr(hex, k = 1) { const c = new T.Color(hex); return [c.r * k, c.g * k, c.b * k]; }
 
