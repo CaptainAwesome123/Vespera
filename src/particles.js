@@ -1,10 +1,11 @@
-'use strict';
+import { T, U, scene, MOBILE, renderer, camera } from './core.js';
+
 /* =====================================================================
    V16 · PARTIKEL: Rauch, Reifenqualm, Staub, Gischt (weich, normal gemischt)
    und Funken, Glut, Spritzer (leuchtend, additiv); Reifenspuren auf dem Pflaster
    ===================================================================== */
-const FX = { sets: {}, skid: null, t: 0 };
-function fxSet(name, max, additive) {
+export const FX = { sets: {}, skid: null, t: 0 };
+export function fxSet(name, max, additive) {
   const g = new T.BufferGeometry();
   const pos = new Float32Array(max * 3), col = new Float32Array(max * 4), sz = new Float32Array(max);
   g.setAttribute('position', new T.BufferAttribute(pos, 3).setUsage(T.DynamicDrawUsage));
@@ -30,7 +31,7 @@ function fxSet(name, max, additive) {
   return P;
 }
 // kind: smoke (grau, wächst), steam (weiß), dust (braun), spray (Gischt), spark (Funken), ember
-const FX_KIND = {
+export const FX_KIND = {
   smoke: { set: 'soft', col: [0.16, 0.16, 0.17, 0.55], s: [0.7, 4.2], life: [2.5, 4.2], grav: -0.6, drag: 0.6 },
   black: { set: 'soft', col: [0.04, 0.04, 0.045, 0.75], s: [0.9, 5.0], life: [3.0, 5.0], grav: -1.0, drag: 0.5 },
   tire: { set: 'soft', col: [0.55, 0.56, 0.58, 0.32], s: [0.6, 3.6], life: [1.4, 2.4], grav: -0.25, drag: 1.4 },
@@ -42,12 +43,12 @@ const FX_KIND = {
   ember: { set: 'glow', col: [2.0, 0.7, 0.15, 1], s: [0.12, 0.05], life: [0.8, 1.6], grav: -0.8, drag: 0.8 },
   glass: { set: 'glow', col: [0.6, 0.75, 0.8, 0.8], s: [0.06, 0.05], life: [0.5, 0.9], grav: 9.8, drag: 0.2 },
 };
-function buildFX() {
+export function buildFX() {
   fxSet('soft', MOBILE ? 500 : 1400, false);
   fxSet('glow', MOBILE ? 250 : 600, true);
   buildSkids();
 }
-function fxEmit(kind, x, y, z, vx = 0, vy = 0, vz = 0, n = 1, spread = 0.5, sizeK = 1) {
+export function fxEmit(kind, x, y, z, vx = 0, vy = 0, vz = 0, n = 1, spread = 0.5, sizeK = 1) {
   const K = FX_KIND[kind], P = FX.sets[K.set]; if (!P) return;
   for (let k = 0; k < n; k++) {
     const i = P.next; P.next = (P.next + 1) % P.max; if (P.n < P.max) P.n++;
@@ -59,7 +60,7 @@ function fxEmit(kind, x, y, z, vx = 0, vy = 0, vz = 0, n = 1, spread = 0.5, size
     P.c0.set(K.col, i * 4); P.s0[i * 2] = K.s[0] * sizeK; P.s0[i * 2 + 1] = K.s[1] * sizeK; P.grav[i] = K.grav; P.drag[i] = K.drag;
   }
 }
-function updateFX(dt) {
+export function updateFX(dt) {
   const wind = U.uWind ? U.uWind.value : null, wx = wind ? wind.x * wind.z * 0.5 : 0, wz = wind ? wind.y * wind.z * 0.5 : 0;
   const scale = renderer.domElement.height / (2 * Math.tan(camera.fov * Math.PI / 360));
   for (const name in FX.sets) {
@@ -88,7 +89,7 @@ function updateFX(dt) {
   updateSkids(dt);
 }
 /* ---------- Reifenspuren: schmale dunkle Streifen, Ringpuffer ---------- */
-function buildSkids() {
+export function buildSkids() {
   const N = MOBILE ? 400 : 1200;
   const g = new T.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
   const m = new T.MeshBasicMaterial({ color: 0x050505, transparent: true, opacity: 0.55, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 });
@@ -96,13 +97,13 @@ function buildSkids() {
   im.instanceMatrix.setUsage(T.DynamicDrawUsage); scene.add(im);
   FX.skid = { im, N, next: 0, dirty: false };
 }
-const _sk = new T.Matrix4(), _skq = new T.Quaternion(), _skp = new T.Vector3(), _sks = new T.Vector3(), _skY = new T.Vector3(0, 1, 0);
+export const _sk = new T.Matrix4(), _skq = new T.Quaternion(), _skp = new T.Vector3(), _sks = new T.Vector3(), _skY = new T.Vector3(0, 1, 0);
 // eine Spur von (x0,z0) nach (x1,z1) in Höhe y, Breite w
-function skidMark(x0, z0, x1, z1, y, w = 0.2) {
+export function skidMark(x0, z0, x1, z1, y, w = 0.2) {
   const S = FX.skid; if (!S) return;
   const dx = x1 - x0, dz = z1 - z0, L = Math.hypot(dx, dz); if (L < 0.05 || L > 3) return;
   _skq.setFromAxisAngle(_skY, Math.atan2(-dz, dx));
   _sk.compose(_skp.set((x0 + x1) / 2, y + 0.015, (z0 + z1) / 2), _skq, _sks.set(L + 0.04, 1, w));
   S.im.setMatrixAt(S.next, _sk); S.next = (S.next + 1) % S.N; S.im.count = Math.max(S.im.count, S.next === 0 ? S.N : S.next); S.dirty = true;
 }
-function updateSkids() { const S = FX.skid; if (S && S.dirty) { S.im.instanceMatrix.needsUpdate = true; S.dirty = false; } }
+export function updateSkids() { const S = FX.skid; if (S && S.dirty) { S.im.instanceMatrix.needsUpdate = true; S.dirty = false; } }

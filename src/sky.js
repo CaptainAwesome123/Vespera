@@ -1,8 +1,9 @@
-'use strict';
+import { T, U, scene } from './core.js';
+
 /* =====================================================================
    HIMMEL: Nachtverlauf, Sterne, Mond, Schein der Stadt am Horizont
    ===================================================================== */
-function buildSky() {
+export function buildSky() {
   const sky = new T.Mesh(new T.SphereGeometry(9000, 48, 24), new T.ShaderMaterial({
     uniforms: U, side: T.BackSide, depthWrite: false, fog: false,
     vertexShader: `varying vec3 vD; void main(){ vD = normalize(position); vec4 p = projectionMatrix*modelViewMatrix*vec4(position,1.0); gl_Position = p.xyww; }`,

@@ -1,21 +1,36 @@
-'use strict';
+import { shared, rand, MOBILE, T, pick, scene, camera, U, mergeGeos, R } from './core.js';
+import { MAT, mergeColored, paintMat, addCollider, PAINT, stdMat } from './people-skeleton.js';
+import { addSeg, addNeon, NEON, addGlow, steamPts } from './facade-shader.js';
+import { offsetPoly, resample, NET, bez, ELEVATED, AV, ST, blockAt, inRect, PLAZA, MEDIAN } from './island.js';
+import { IB, DEPOTS } from './shops.js';
+import { DOORS, makeSignTex } from './entrances.js';
+import { ROAD_Z0, VIA, deckY } from './harbour.js';
+import { carGeo, carGeoHi, lodCompactor, LOD_CAR2, Crowd, COATS, serpCarStep, COL, compactor, pedCrowd } from './serpentine.js';
+import { makeGlowPoints } from './ragdoll.js';
+import { cars } from './airships.js';
+import { carDamageAttr, glassFor } from './cars.js';
+import { DRIVE } from './eating.js';
+import { buildFX } from './particles.js';
+import { buildFlags, buildLeaves } from './wind.js';
+import { paused } from './input.js';
+
 /* =====================================================================
    V16 · VERKEHR: Autos fahren auf dem Straßennetz, biegen an Kreuzungen ab,
    halten an Ampeln, folgen dem Vordermann (IDM) und weichen dem Spielerwagen
    ===================================================================== */
-const TRF = { lanes: [], cars: [], turns: new Map(), lights: [], t: 0 };
-function lanePts(e, dir) {
+export const TRF = { lanes: [], cars: [], turns: new Map(), lights: [], t: 0 };
+export function lanePts(e, dir) {
   const P = dir > 0 ? e.pts : e.pts.slice().reverse();
   return offsetPoly(resample(P, 4), e.off);
 }
-function cumLen(P) { const c = [0]; for (let k = 1; k < P.length; k++) c.push(c[k - 1] + Math.hypot(P[k][0] - P[k - 1][0], P[k][1] - P[k - 1][1])); return c; }
-function trimPoly(P, s0, s1) {
+export function cumLen(P) { const c = [0]; for (let k = 1; k < P.length; k++) c.push(c[k - 1] + Math.hypot(P[k][0] - P[k - 1][0], P[k][1] - P[k - 1][1])); return c; }
+export function trimPoly(P, s0, s1) {
   const c = cumLen(P), L = c[c.length - 1], out = [];
   const at = s => { let k = 1; while (k < P.length - 1 && c[k] < s) k++; const t = Math.max(0, Math.min(1, (s - c[k - 1]) / (c[k] - c[k - 1] || 1))); return [P[k - 1][0] + (P[k][0] - P[k - 1][0]) * t, P[k - 1][1] + (P[k][1] - P[k - 1][1]) * t]; };
   out.push(at(s0)); for (let k = 0; k < P.length; k++) if (c[k] > s0 + 0.5 && c[k] < L - s1 - 0.5) out.push(P[k]); out.push(at(L - s1));
   return out;
 }
-function buildLanes() {
+export function buildLanes() {
   // Abstand der Haltelinie vom Knoten: halbe Breite der Querstraße plus Zebrastreifen
   const sb = (n, e) => { if (n.e.length <= 2 && n.kind === 'ring') return 0; let m = 0; for (const id of n.e) if (id !== e.id) m = Math.max(m, NET.edges[id].w / 2); return m + (n.e.length > 2 ? 2.5 : 0.5); };
   for (const e of NET.edges) for (const dir of [1, -1]) {
@@ -41,7 +56,7 @@ function buildLanes() {
   for (const n of NET.nodes) if (n.kind === 'grid' && n.e.length >= 3) { n.light = { ph: (n.gi * 7 + n.gj * 13) % 24 }; TRF.lights.push(n); }
 }
 // Abbiegebogen zwischen zwei Spuren (zwischengespeichert)
-function turnOf(A, B) {
+export function turnOf(A, B) {
   const key = A.id * 100000 + B.id; let t = TRF.turns.get(key);
   if (t) return t;
   const a = A.pts[A.pts.length - 1], b = B.pts[0], d = Math.hypot(b[0] - a[0], b[1] - a[1]);
@@ -51,29 +66,29 @@ function turnOf(A, B) {
   TRF.turns.set(key, t);
   return t;
 }
-function polyAt(P, c, s) {
+export function polyAt(P, c, s) {
   let lo = 1, hi = P.length - 1;
   while (lo < hi) { const m = (lo + hi) >> 1; if (c[m] < s) lo = m + 1; else hi = m; }
   const k = Math.max(1, Math.min(P.length - 1, lo)), seg = (c[k] - c[k - 1]) || 1, t = Math.max(0, Math.min(1, (s - c[k - 1]) / seg));
   const a = P[k - 1], b = P[k];
   return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, (b[0] - a[0]) / seg, (b[1] - a[1]) / seg];
 }
-function lightGreen(n, axis, t) {
+export function lightGreen(n, axis, t) {
   if (!n || !n.light) return true;
   const u = (t + n.light.ph) % 24;
   return axis === 0 ? u < 10.5 : (u >= 12 && u < 22.5);
 }
-function lightAmber(n, axis, t) {
+export function lightAmber(n, axis, t) {
   if (!n || !n.light) return false;
   const u = (t + n.light.ph) % 24;
   return axis === 0 ? (u >= 10.5 && u < 11.5) : (u >= 22.5 && u < 23.5);
 }
-function pickNext(L) { const o = L.out; if (!o.length) return null; const st = o.filter(x => x.startDir[0] * L.endDir[0] + x.startDir[1] * L.endDir[1] > 0.9); return Math.random() < 0.55 && st.length ? st[0] : o[Math.floor(Math.random() * o.length)]; }
-function placeTrafficCar(car, L, s) {
+export function pickNext(L) { const o = L.out; if (!o.length) return null; const st = o.filter(x => x.startDir[0] * L.endDir[0] + x.startDir[1] * L.endDir[1] > 0.9); return Math.random() < 0.55 && st.length ? st[0] : o[Math.floor(Math.random() * o.length)]; }
+export function placeTrafficCar(car, L, s) {
   car.lane = L; car.s = s; car.next = pickNext(L); car.turn = car.next ? turnOf(L, car.next) : null;
   L.cars.push(car);
 }
-function spawnTraffic(n) {
+export function spawnTraffic(n) {
   const lanes = TRF.lanes.filter(L => L.len > 25), total = lanes.reduce((a, L) => a + L.len, 0);
   for (let i = 0; i < n; i++) {
     let u = Math.random() * total, L = lanes[0];
@@ -85,7 +100,7 @@ function spawnTraffic(n) {
   }
 }
 // Abstand zum Vordermann auf demselben Weg (Spur + Bogen), sonst auf der nächsten Spur
-function leaderGap(car) {
+export function leaderGap(car) {
   const L = car.lane; let best = 1e9, bv = 0;
   for (const o of L.cars) if (o !== car && o.s > car.s && o.s - car.s < best) { best = o.s - car.s; bv = o.v; }
   if (best > 1e8 && car.next) {
@@ -94,8 +109,8 @@ function leaderGap(car) {
   }
   return [best - 5.2, bv];
 }
-const _tq = { x: 0, z: 0 };
-function updateTraffic(dt, t) {
+export const _tq = { x: 0, z: 0 };
+export function updateTraffic(dt, t) {
   TRF.t = t;
   for (const L of TRF.lanes) if (L.cars.length > 1) L.cars.sort((a, b) => a.s - b.s);
   for (const car of TRF.cars) {
@@ -146,11 +161,11 @@ function updateTraffic(dt, t) {
   }
 }
 // Hindernisse für den Verkehr: Spielerwagen, Unfallwagen (vom Physikmodul gefüllt)
-const OBSTACLES = [];
+export const OBSTACLES = [];
 
 /* ---------- Autos: Bau und Darstellung (ersetzt die geraden Spuren von V15; Hochstraßen und Viadukt bleiben) ---------- */
-let carGlass = null;
-function buildCars() {
+export let carGlass = null;
+export function buildCars() {
   buildLanes();
   const lanes = [];
   for (const e of ELEVATED) {
@@ -165,32 +180,32 @@ function buildCars() {
   spawnTraffic(MOBILE ? 150 : 260);
   cars.push(...TRF.cars);
   const body = carGeo();
-  carBodyGeo = body;
-  carMesh = new T.InstancedMesh(body, MAT.carPaint, cars.length);
+  shared.carBodyGeo = body;
+  shared.carMesh = new T.InstancedMesh(body, MAT.carPaint, cars.length);
   const paint = [[0.05, 0.05, 0.06], [0.28, 0.04, 0.06], [0.75, 0.68, 0.55], [0.05, 0.16, 0.1], [0.08, 0.1, 0.22], [0.5, 0.36, 0.16]];
   const c = new T.Color();
-  cars.forEach((car, i) => { const p = car.col = pick(paint).map(v => v + (Math.random() - 0.5) * 0.012); carMesh.setColorAt(i, c.setRGB(p[0], p[1], p[2])); });
-  carMeshHi = new T.InstancedMesh(carGeoHi({ driver: true }), MAT.carPaint, cars.length);
-  carMeshHi.setColorAt(0, c.setRGB(1, 1, 1));
-  carDamageAttr(carMeshHi); carDamageAttr(carMesh);
-  for (const im of [carMesh, carMeshHi]) { im.count = 0; im.instanceMatrix.setUsage(T.DynamicDrawUsage); im.frustumCulled = false; scene.add(im); }
-  carGlass = glassFor(carMeshHi);
-  carCmp = lodCompactor(carMeshHi, carMesh, LOD_CAR2);
+  cars.forEach((car, i) => { const p = car.col = pick(paint).map(v => v + (Math.random() - 0.5) * 0.012); shared.carMesh.setColorAt(i, c.setRGB(p[0], p[1], p[2])); });
+  shared.carMeshHi = new T.InstancedMesh(carGeoHi({ driver: true }), MAT.carPaint, cars.length);
+  shared.carMeshHi.setColorAt(0, c.setRGB(1, 1, 1));
+  carDamageAttr(shared.carMeshHi); carDamageAttr(shared.carMesh);
+  for (const im of [shared.carMesh, shared.carMeshHi]) { im.count = 0; im.instanceMatrix.setUsage(T.DynamicDrawUsage); im.frustumCulled = false; scene.add(im); }
+  carGlass = glassFor(shared.carMeshHi);
+  shared.carCmp = lodCompactor(shared.carMeshHi, shared.carMesh, LOD_CAR2);
   const pts = [];
   for (let i = 0; i < cars.length; i++) {
     pts.push({ p: [0, 0, 0], c: [1.4, 1.25, 0.95], s: 0.9, ph: 0, bl: 0 }, { p: [0, 0, 0], c: [1.4, 1.25, 0.95], s: 0.9, ph: 0, bl: 0 });
     pts.push({ p: [0, 0, 0], c: [1.4, 0.1, 0.06], s: 0.55, ph: 0, bl: 0 }, { p: [0, 0, 0], c: [1.4, 0.1, 0.06], s: 0.55, ph: 0, bl: 0 });
   }
-  carLights = makeGlowPoints(pts, true); scene.add(carLights);
+  shared.carLights = makeGlowPoints(pts, true); scene.add(shared.carLights);
   buildTrafficLights();
   buildFX();
   buildFlags();
   buildLeaves();
 }
-const _ce = new T.Euler();
+export const _ce = new T.Euler();
 // Fahrer und Fahrgäste in der Nähe der Kamera: eine kleine Menge, die den Wagen folgt
-const DRV = { crowd: null, slots: [], player: null };
-function buildDrivers() {
+export const DRV = { crowd: null, slots: [], player: null };
+export function buildDrivers() {
   const F = MOBILE ? 0.5 : 1, n = { suit: Math.round(9 * F), chauffeur: Math.round(5 * F), coat: Math.round(5 * F), lady: Math.round(7 * F) };
   DRV.crowd = new Crowd(Object.keys(n), 40);
   for (const k in n) for (let i = 0; i < n[k]; i++) {
@@ -200,15 +215,15 @@ function buildDrivers() {
   DRV.player = { a: DRV.crowd.add('suit', [0.08, 0.08, 0.1]), kind: 'suit', sc: 1, role: 'drv' };
   DRV.crowd.finish();
 }
-const drvH = (i, s) => { const v = Math.sin(i * 12.9898 + s * 78.233) * 43758.5453; return v - Math.floor(v); };
-function seatPerson(sl, X, Y, Z, yaw, lx, lz, steer) {
+export const drvH = (i, s) => { const v = Math.sin(i * 12.9898 + s * 78.233) * 43758.5453; return v - Math.floor(v); };
+export function seatPerson(sl, X, Y, Z, yaw, lx, lz, steer) {
   const a = sl.a, c = Math.cos(yaw), s = Math.sin(yaw), fem = sl.kind === 'lady';
   // Sitzfläche auf 1,1 m über dem Wagenboden; Hüfte darauf
   DRV.crowd.set(a, X + c * lx + s * lz, Y + 1.1 - (fem ? 0.8 : 0.87) * sl.sc, Z - s * lx + c * lz, yaw + Math.PI / 2, sl.sc);
   const g = a.gait, want = sl.role === 'drv' ? 32 + Math.round((0.5 + Math.max(-1.6, Math.min(1.6, steer)) / 3.4) * 48) / 48 : 7.2;
   if (g[1] !== want || g[2] !== 0) { g[1] = Math.min(want, 32.999); g[2] = 0; a.gv = (a.gv | 0) + 1; }
 }
-function updateDrivers(dt) {
+export function updateDrivers(dt) {
   if (!DRV.crowd) return;
   const cp = camera.position, R2 = 40 * 40, d2 = car => (car._x - cp.x) ** 2 + (car._y - cp.y) ** 2 + (car._z - cp.z) ** 2;
   for (const sl of DRV.slots) if (sl.car && (sl.car._hid || d2(sl.car) > R2 * 1.2)) { sl.car[sl.role] = null; sl.car = null; sl.a.on = false; }
@@ -229,10 +244,10 @@ function updateDrivers(dt) {
   else P.a.on = false;
   DRV.crowd.flag();
 }
-function updateCars(dt) {
+export function updateCars(dt) {
   updateTraffic(dt, U.uTime.value);
-  const pos = carLights.geometry.attributes.position.array, cp = camera.position;
-  carCmp.begin();
+  const pos = shared.carLights.geometry.attributes.position.array, cp = camera.position;
+  shared.carCmp.begin();
   cars.forEach((car, i) => {
     let x, z, ly, yaw, hidden = false, pitch = 0, roll = 0;
     if (car.graph) {
@@ -256,7 +271,7 @@ function updateCars(dt) {
     _p.set(x, 0.22 + ly, z);
     car._x = x; car._y = 0.22 + ly; car._z = z; car._yr = car._yaw === undefined ? 0 : Math.atan2(Math.sin(yaw - car._yaw), Math.cos(yaw - car._yaw)) / Math.max(dt, 1e-3); car._yaw = yaw; car._hid = hidden;
     const cd2 = (x - cp.x) ** 2 + (z - cp.z) ** 2 + (_p.y - cp.y) ** 2;
-    if (!hidden && cd2 < CAR_DIST2) carCmp.put(_m.compose(_p, _q, _s.setScalar(1)), car, car.col, cd2);
+    if (!hidden && cd2 < CAR_DIST2) shared.carCmp.put(_m.compose(_p, _q, _s.setScalar(1)), car, car.col, cd2);
     const fx = Math.cos(yaw), fz = -Math.sin(yaw), sx = -fz, sz = fx, y = hidden ? -50 : 0.95 + ly;
     const o = i * 12, dmg = car.dmg, hl0 = dmg && dmg[0] > 0.55 ? -60 : 0, hl1 = dmg && dmg[0] > 0.8 ? -60 : 0;
     pos[o] = x + fx * 2.62 + sx * 0.62; pos[o + 1] = y + 0.12 + hl0; pos[o + 2] = z + fz * 2.62 + sz * 0.62;
@@ -264,15 +279,15 @@ function updateCars(dt) {
     pos[o + 6] = x - fx * 2.35 + sx * 0.7; pos[o + 7] = y; pos[o + 8] = z - fz * 2.35 + sz * 0.7;
     pos[o + 9] = x - fx * 2.35 - sx * 0.7; pos[o + 10] = y; pos[o + 11] = z - fz * 2.35 - sz * 0.7;
   });
-  carCmp.end();
+  shared.carCmp.end();
   updateDrivers(dt);
-  if (carGlass) carGlass.count = carMeshHi.count;
-  carLights.geometry.attributes.position.needsUpdate = true;
+  if (carGlass) carGlass.count = shared.carMeshHi.count;
+  shared.carLights.geometry.attributes.position.needsUpdate = true;
   updateTrafficLights();
 }
 // Verkehrsampeln der Zwanziger: gusseiserner Mast mit vier Laternen (Rot, Gelb, Grün) an den großen Kreuzungen
-let TL_GLOW = null;
-function buildTrafficLights() {
+export let TL_GLOW = null;
+export function buildTrafficLights() {
   const big = TRF.lights.filter(n => n.e.length === 4 && NET.edges[n.e[0]] && n.e.some(id => NET.edges[id].w >= 22));
   const parts = [];
   const iron = [0.06, 0.07, 0.065], brass = [0.62, 0.46, 0.22];
@@ -301,7 +316,7 @@ function buildTrafficLights() {
   // Farbe wird je Bild gesetzt: Rot oben, Gelb Mitte, Grün unten
   TL_GLOW.col = TL_GLOW.pts.geometry.attributes.color || null;
 }
-function updateTrafficLights() {
+export function updateTrafficLights() {
   if (!TL_GLOW || (TL_GLOW.t -= 1 / 30) > 0) return;
   TL_GLOW.t = 0.25;
   const pos = TL_GLOW.pts.geometry.attributes.position.array, col = TL_GLOW.col && TL_GLOW.col.array, t = TRF.t;
@@ -315,8 +330,8 @@ function updateTrafficLights() {
 }
 
 
-const CAR_DIST2 = 750 * 750;
-function buildCarsV15() {
+export const CAR_DIST2 = 750 * 750;
+export function buildCarsV15() {
   const lanes = [];
   for (const a of AV) {
     if (Math.abs(a.x) > 900) continue;
@@ -341,25 +356,25 @@ function buildCarsV15() {
   lanes.push({ dx: 0, dz: -1, len: vl, yf: deckY, start: [3.5, ROAD_Z0 - 4], n: 7 });
   for (const l of lanes) for (let k = 0; k < (l.n || 4); k++) cars.push({ l, s: rand(0, l.len), v: rand(9, 15) });
   const body = carGeo();
-  carBodyGeo = body;
-  carMesh = new T.InstancedMesh(body, MAT.carPaint, cars.length);
+  shared.carBodyGeo = body;
+  shared.carMesh = new T.InstancedMesh(body, MAT.carPaint, cars.length);
   const paint = [[0.05, 0.05, 0.06], [0.28, 0.04, 0.06], [0.75, 0.68, 0.55], [0.05, 0.16, 0.1], [0.08, 0.1, 0.22], [0.5, 0.36, 0.16]];
   const c = new T.Color();
-  cars.forEach((car, i) => { const p = car.col = pick(paint).map(v => v + (Math.random() - 0.5) * 0.012); carMesh.setColorAt(i, c.setRGB(p[0], p[1], p[2])); });
-  carMeshHi = new T.InstancedMesh(carGeoHi(), MAT.carPaint, cars.length);
-  for (const im of [carMesh, carMeshHi]) { im.count = 0; im.instanceMatrix.setUsage(T.DynamicDrawUsage); im.frustumCulled = false; scene.add(im); }
-  carCmp = lodCompactor(carMeshHi, carMesh, LOD_CAR2);
+  cars.forEach((car, i) => { const p = car.col = pick(paint).map(v => v + (Math.random() - 0.5) * 0.012); shared.carMesh.setColorAt(i, c.setRGB(p[0], p[1], p[2])); });
+  shared.carMeshHi = new T.InstancedMesh(carGeoHi(), MAT.carPaint, cars.length);
+  for (const im of [shared.carMesh, shared.carMeshHi]) { im.count = 0; im.instanceMatrix.setUsage(T.DynamicDrawUsage); im.frustumCulled = false; scene.add(im); }
+  shared.carCmp = lodCompactor(shared.carMeshHi, shared.carMesh, LOD_CAR2);
   const pts = [];
   for (let i = 0; i < cars.length; i++) {
     pts.push({ p: [0, 0, 0], c: [1.4, 1.25, 0.95], s: 0.9, ph: 0, bl: 0 }, { p: [0, 0, 0], c: [1.4, 1.25, 0.95], s: 0.9, ph: 0, bl: 0 });
     pts.push({ p: [0, 0, 0], c: [1.4, 0.1, 0.06], s: 0.55, ph: 0, bl: 0 }, { p: [0, 0, 0], c: [1.4, 0.1, 0.06], s: 0.55, ph: 0, bl: 0 });
   }
-  carLights = makeGlowPoints(pts, true); scene.add(carLights);
+  shared.carLights = makeGlowPoints(pts, true); scene.add(shared.carLights);
 }
-const _m = new T.Matrix4(), _q = new T.Quaternion(), _s = new T.Vector3(), _p = new T.Vector3(), _up = new T.Vector3(0, 1, 0);
-function updateCarsV15(dt) {
-  const pos = carLights.geometry.attributes.position.array, cp = camera.position;
-  carCmp.begin();
+export const _m = new T.Matrix4(), _q = new T.Quaternion(), _s = new T.Vector3(), _p = new T.Vector3(), _up = new T.Vector3(0, 1, 0);
+export function updateCarsV15(dt) {
+  const pos = shared.carLights.geometry.attributes.position.array, cp = camera.position;
+  shared.carCmp.begin();
   cars.forEach((car, i) => {
     const { dx, dz, start } = car.l;
     // vor dem selbst gefahrenen Wagen anhalten
@@ -374,7 +389,7 @@ function updateCarsV15(dt) {
     _q.setFromAxisAngle(_up, yaw);
     _p.set(x, 0.22 + ly, z);
     const cd2 = (x - cp.x) ** 2 + (z - cp.z) ** 2 + (_p.y - cp.y) ** 2;
-    if (!hidden && cd2 < CAR_DIST2) carCmp.put(_m.compose(_p, _q, _s.setScalar(1)), car, car.col, cd2);
+    if (!hidden && cd2 < CAR_DIST2) shared.carCmp.put(_m.compose(_p, _q, _s.setScalar(1)), car, car.col, cd2);
     const fx = dx, fz = dz, sx = -dz, sz = dx, y = hidden ? -50 : 0.95 + ly;
     const o = i * 12;
     pos[o] = x + fx * 2.62 + sx * 0.62; pos[o + 1] = y + 0.12; pos[o + 2] = z + fz * 2.62 + sz * 0.62;
@@ -382,15 +397,15 @@ function updateCarsV15(dt) {
     pos[o + 6] = x - fx * 2.35 + sx * 0.7; pos[o + 7] = y; pos[o + 8] = z - fz * 2.35 + sz * 0.7;
     pos[o + 9] = x - fx * 2.35 - sx * 0.7; pos[o + 10] = y; pos[o + 11] = z - fz * 2.35 - sz * 0.7;
   });
-  carCmp.end();
-  carLights.geometry.attributes.position.needsUpdate = true;
+  shared.carCmp.end();
+  shared.carLights.geometry.attributes.position.needsUpdate = true;
 }
 
 
 /* ---------- Lieferverkehr: Lastwagen bringen Waren von den Fabriken zu Läden, Lokalen und Hotels ---------- */
-const trucks = [], TRUCK_N = 30, deliveryMen = [];
-let truckCmp = null, truckLights = null, parcelMesh = null;
-function truckGeo() {
+export const trucks = [], TRUCK_N = 30, deliveryMen = [];
+export let truckCmp = null, truckLights = null, parcelMesh = null;
+export function truckGeo() {
   const B = IB, C = (r, h, seg, x, y, z) => new T.CylinderGeometry(r, r, h, seg).rotateX(Math.PI / 2).translate(x, y, z);
   const cab = [0.035, 0.15, 0.16], gold = [0.85, 0.62, 0.28];
   const parts = [
@@ -410,14 +425,14 @@ function truckGeo() {
   }
   return mergeColored(parts);
 }
-const roadST = z => ST.reduce((a, s) => Math.abs(s.z - z) < Math.abs(a.z - z) ? s : a).z;
-const roadAV = x => AV.filter(a => a.x >= 110).reduce((a, v) => Math.abs(v.x - x) < Math.abs(a.x - x) ? v : a).x;
-function truckTarget() {
+export const roadST = z => ST.reduce((a, s) => Math.abs(s.z - z) < Math.abs(a.z - z) ? s : a).z;
+export const roadAV = x => AV.filter(a => a.x >= 110).reduce((a, v) => Math.abs(v.x - x) < Math.abs(a.x - x) ? v : a).x;
+export function truckTarget() {
   const ok = DOORS.filter(d => d.x > 120 && d.z < 480 && d.z > -960 && d.kind !== 'workshop' && (d.nx === 0 || d.nz === 0) && blockAt(d.x - d.nx * 2, d.z - d.nz * 2, 1));
   return ok[Math.floor(Math.random() * ok.length)];
 }
 // Mittellinie der Fahrt: Straße entlang, an einer Avenue abbiegen, bis vor die Tür
-function truckPath(dep, door) {
+export function truckPath(dep, door) {
   const zs = dep.roadZ, xs = dep.x, pts = [[xs, zs]];
   if (door.nz !== 0) {
     const zt = roadST(door.z + door.nz * 9), xt = door.x;
@@ -430,7 +445,7 @@ function truckPath(dep, door) {
   return pts.filter((p, i) => i === 0 || Math.hypot(p[0] - pts[i - 1][0], p[1] - pts[i - 1][1]) > 0.5);
 }
 // Rechtsverkehr: jede Ecke um die Spurbreite nach rechts versetzen
-function laneOf(pts, off = 3.5) {
+export function laneOf(pts, off = 3.5) {
   const n = pts.length, out = [];
   const dir = i => { const a = pts[i], b = pts[i + 1], L = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1; return [(b[0] - a[0]) / L, (b[1] - a[1]) / L]; };
   for (let i = 0; i < n; i++) {
@@ -444,12 +459,12 @@ function laneOf(pts, off = 3.5) {
   for (let i = 0; i < n - 1; i++) { const a = out[i], b = out[i + 1], L = Math.hypot(b[0] - a[0], b[1] - a[1]); segs.push({ a, b, L, s0: total }); total += L; }
   return { segs, total };
 }
-function truckPlan(tr) {
+export function truckPlan(tr) {
   tr.door = truckTarget();
   tr.center = truckPath(tr.dep, tr.door);
   tr.path = laneOf(tr.center); tr.s = 0; tr.st = 0;
 }
-function buildTrucks() {
+export function buildTrucks() {
   if (!DEPOTS.length) return;
   const geo = truckGeo(), m = new T.InstancedMesh(geo, MAT.carPaint, TRUCK_N);
   m.count = 0; m.instanceMatrix.setUsage(T.DynamicDrawUsage); m.frustumCulled = false; scene.add(m);
@@ -468,13 +483,13 @@ function buildTrucks() {
   }
   truckLights = makeGlowPoints(pts, true); scene.add(truckLights);
 }
-function pathAt(path, s) {
+export function pathAt(path, s) {
   let sg = path.segs[path.segs.length - 1];
   for (const g of path.segs) if (s <= g.s0 + g.L) { sg = g; break; }
   const k = Math.min(1, Math.max(0, (s - sg.s0) / (sg.L || 1)));
   return [sg.a[0] + (sg.b[0] - sg.a[0]) * k, sg.a[1] + (sg.b[1] - sg.a[1]) * k, (sg.b[0] - sg.a[0]) / (sg.L || 1), (sg.b[1] - sg.a[1]) / (sg.L || 1)];
 }
-function updateTrucks(dt) {
+export function updateTrucks(dt) {
   if (!truckCmp) return;
   const pos = truckLights.geometry.attributes.position.array, cp = camera.position;
   truckCmp.begin();
@@ -533,13 +548,13 @@ function updateTrucks(dt) {
 }
 
 /* ---------- Straßenbahnen: zwei Linien mit Gleisen, Oberleitung und Haltestellen ---------- */
-const TRAM_LINES = [
+export const TRAM_LINES = [
   { axis: 'x', at: -210, from: -985, to: 985, off: 1.4, pole: 8.4, name: 'LINIE 1 · BELMONT', n: 5 },
   { axis: 'z', at: -220, from: -975, to: 498, off: 2.0, pole: 12.2, name: 'LINIE 2 · HAFEN', n: 4 },
 ];
-const trams = [];
-let tramMesh, tramWin, tramLights;
-function tramGeos() {
+export const trams = [];
+export let tramMesh, tramWin, tramLights;
+export function tramGeos() {
   const B = IB;
   const petrol = [0.03, 0.2, 0.21], cream = [0.8, 0.73, 0.58], gold = [0.85, 0.62, 0.28], roof = [0.16, 0.16, 0.18];
   const half = (r, h, y, x, start) => new T.CylinderGeometry(r, r, h, 14, 1, false, start, Math.PI).translate(x, y, 0);
@@ -560,7 +575,7 @@ function tramGeos() {
   for (const sx of [-1, 1]) { win.push(B(0.03, 0.7, 1.2, sx * 7.12, 2.12, 0)); win.push(B(0.03, 0.26, 1.0, sx * 6.95, 2.66, 0)); }
   return { body: mergeColored(parts), win: mergeGeos(win) };
 }
-function buildTrams() {
+export function buildTrams() {
   const railM = stdMat({ color: 0x9aa0a6, metalness: 1, roughness: 0.22, envI: 1.2 });
   const bedM = stdMat({ color: 0x1b1f22, roughness: 0.7, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
   const rails = [], beds = [], poles = [], wire = [];
@@ -615,7 +630,7 @@ function buildTrams() {
   for (let i = 0; i < trams.length; i++) pts.push({ p: [0, 0, 0], c: [1.4, 1.3, 1.0], s: 1.4, ph: 0, bl: 0 }, { p: [0, 0, 0], c: [1.4, 0.15, 0.08], s: 0.8, ph: 0, bl: 0 }, { p: [0, 0, 0], c: [0.4, 1.2, 1.3], s: 0.9, ph: R(), bl: 1 });
   tramLights = makeGlowPoints(pts, true); scene.add(tramLights);
 }
-function updateTrams(dt) {
+export function updateTrams(dt) {
   if (!tramMesh) return;
   const pos = tramLights.geometry.attributes.position.array;
   trams.forEach((tr, i) => {
@@ -637,8 +652,8 @@ function updateTrams(dt) {
 }
 
 /* ---------- Goldstaub und Brunnenwasser ---------- */
-let dust, fountain, fountainData = [], steam;
-function buildParticles() {
+export let dust, fountain, fountainData = [], steam;
+export function buildParticles() {
   const n = 1400, pos = new Float32Array(n * 3), ph = new Float32Array(n);
   for (let i = 0; i < n; i++) { pos.set([rand(0, 140), rand(0, 140), rand(0, 140)], i * 3); ph[i] = R(); }
   const g = new T.BufferGeometry(); g.setAttribute('position', new T.BufferAttribute(pos, 3)); g.setAttribute('phase', new T.BufferAttribute(ph, 1));
@@ -679,7 +694,7 @@ function buildParticles() {
   }
   fountain = makeGlowPoints(fp, true); scene.add(fountain);
 }
-function updateFountain(t) {
+export function updateFountain(t) {
   const a = fountain.geometry.attributes.position.array;
   fountainData.forEach((f, i) => {
     const life = f.ring === 0 ? 2.4 : 1.6;

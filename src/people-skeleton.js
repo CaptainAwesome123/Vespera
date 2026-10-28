@@ -1,4 +1,6 @@
-'use strict';
+import { shared, U, canvasTex, T, renderer, mergeGeos } from './core.js';
+import { HL, FACE_ATLAS, FACE_MAT } from './people-model.js';
+
 /* =====================================================================
    V18 · SKELETT IM SHADER: weiche Gelenke (Schulter, Ellbogen, Handgelenk,
    Finger, Hüfte, Knie), Gang mit Fußzielen (die Füße bleiben am Boden
@@ -6,10 +8,10 @@
    Blick zur Kamera, Kopfformen und Statur je Person, Arbeitsbewegungen,
    Gesten, Tänze. Haare, Röcke, Fransen und Ketten schwingen nach
    ===================================================================== */
-const DANCE = { fox: 2.0, charl: 2.6, sway: 2.0 };   // Schläge pro Sekunde
+export const DANCE = { fox: 2.0, charl: 2.6, sway: 2.0 };   // Schläge pro Sekunde
 // Lenkräder und Steuerräder: Mitte (Körperraum), Radius, Neigung der Achse nach oben
-const WHEEL = { car: [0, 1.19, 0.47, 0.18, 0.5], boat: [0, 1.08, 0.42, 0.17, 0.5], ship: [0, 1.15, 0.52, 0.36, 0.0] };
-const HUM_VS_HEAD = `
+export const WHEEL = { car: [0, 1.19, 0.47, 0.18, 0.5], boat: [0, 1.08, 0.42, 0.17, 0.5], ship: [0, 1.15, 0.52, 0.36, 0.0] };
+export const HUM_VS_HEAD = () => `
 attribute vec2 aLimb; attribute vec4 aGait; attribute float aOpt; attribute vec3 aSoft;
 uniform float uTime; uniform vec4 uWind;
 varying vec2 vFaceUV; varying float vFaceId; varying vec3 vClP; varying float vPnt; varying vec3 vSoft; varying float vBlink; varying vec2 vGaze; varying vec4 vLook;
@@ -586,7 +588,7 @@ void humanShape(inout vec3 p, float L, float fem, float fid, float op) {
   }
 }
 `;
-const HUM_VS_RIG = `
+export const HUM_VS_RIG = `
   float hFemV = step(32.0, mod(aGait.w, 64.0)), hGs = fract(sin(aGait.x * 91.7) * 437.5);
   hFem = hFemV; hHip = mix(0.95, 0.88, hFemV); hHx = mix(0.1, 0.085, hFemV);
   float hHairI = mod(floor(aGait.w / 320.0), 6.0), hElder = step(3.5, hHairI) * step(hHairI, 4.5);
@@ -667,7 +669,7 @@ const HUM_VS_RIG = `
     vGaze = mix(idle, vec2(lookY, lookP), lookK); }
   vLook = vec4(hh(aGait.x * 1.37 + mod(aGait.w, 64.0) * 0.173), 0.0, 0.0, 0.0);
 `;
-const HUM_VS_POS = `
+export const HUM_VS_POS = `
         transformed = hP;
         // Varianten (Hut, Frisur, Krawatte) einer Figur: die übrigen fallen in einen Punkt zusammen
         float act = hAct, walking = step(0.01, aGait.z), actI = fract(aGait.y), tt = uTime * (0.9 + 0.2 * fract(aGait.x * 3.7)) + aGait.x * 7.0;
@@ -706,7 +708,7 @@ const HUM_VS_POS = `
         }
         vFaceUV = uv; vFaceId = mod(aGait.w, 7680.0); vClP = position; vPnt = step(2.97, color.r + color.g + color.b); vSoft = aSoft;`;
 
-const HUM_FS_HEAD = `uniform sampler2D uFaces, uFaceMat; uniform float uTime;
+export const HUM_FS_HEAD = `uniform sampler2D uFaces, uFaceMat; uniform float uTime;
 varying vec2 vFaceUV; varying float vFaceId; varying vec3 vClP; varying float vPnt; varying vec3 vSoft; varying float vBlink; varying vec2 vGaze; varying vec4 vLook;
 float clH(vec3 p){ return fract(sin(dot(p, vec3(12.9898, 78.233, 37.719))) * 43758.5453); }
 float vN3(vec3 p){ vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
@@ -717,7 +719,7 @@ vec3 hPerturb(vec3 surf_pos, vec3 surf_norm, vec2 dHdxy, float faceDirection) {
   return normalize(abs(fDet) * surf_norm - vGrad);
 }
 `;
-const HUM_FS_COLOR = `
+export const HUM_FS_COLOR = `
         float hRough = -1.0, hMetal = -1.0, hB = 0.0, hSpark = 0.0;
         {
           float idv = floor(vFaceId + 0.5), fid = mod(idv, 64.0), tone = mod(floor(idv / 64.0), 5.0), hairI = mod(floor(idv / 320.0), 6.0);
@@ -821,9 +823,9 @@ const HUM_FS_COLOR = `
           diffuseColor.rgb *= ao;
         }`;
 // Glanz, Metall und Relief nach den Stoffarten
-function humanShader(sh) {
+export function humanShader(sh) {
   sh.uniforms.uTime = U.uTime; sh.uniforms.uFaces = { value: FACE_ATLAS }; sh.uniforms.uFaceMat = { value: FACE_MAT }; sh.uniforms.uWind = U.uWind;
-  sh.vertexShader = HUM_VS_HEAD + sh.vertexShader
+  sh.vertexShader = HUM_VS_HEAD() + sh.vertexShader
     .replace('#include <beginnormal_vertex>', '#include <beginnormal_vertex>\n' + HUM_VS_RIG)
     .replace('#include <begin_vertex>', '#include <begin_vertex>\n' + HUM_VS_POS);
   sh.fragmentShader = HUM_FS_HEAD + 'float hFemF(float idv) { return step(32.0, mod(idv, 64.0)); }\n' + sh.fragmentShader
@@ -835,7 +837,7 @@ function humanShader(sh) {
 }
 
 // Aussehen einer Figur in einer Zahl: Gesicht (0-63), Hautton (5), Haarfarbe (6)
-function personLook(kind) {
+export function personLook(kind) {
   const female = kind === 'lady' || kind === 'gown' || kind === 'dress';
   const face = Math.floor(Math.random() * 32) + (female ? 32 : 0);
   const tone = [0, 0, 1, 1, 1, 2, 2, 3, 4][Math.floor(Math.random() * 9)], hair = Math.floor(Math.random() * 6);
@@ -846,7 +848,7 @@ function personLook(kind) {
   const acc = Math.floor(Math.random() * 4);
   return face + 64 * tone + 320 * hair + 1920 * pat + 7680 * hat + 23040 * style + 69120 * tie + 207360 * acc;
 }
-const glowTex = canvasTex(128, 128, (g, w, h) => {
+export const glowTex = canvasTex(128, 128, (g, w, h) => {
   const gr = g.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w / 2);
   gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.25, 'rgba(255,255,255,0.45)');
   gr.addColorStop(0.6, 'rgba(255,255,255,0.1)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
@@ -854,8 +856,8 @@ const glowTex = canvasTex(128, 128, (g, w, h) => {
 });
 
 /* ---------- Umgebungslicht für Spiegelungen (Gold, Chrom, polierter Marmor) ---------- */
-let ENV = null;
-function buildEnv() {
+export let ENV = null;
+export function buildEnv() {
   const es = new T.Scene();
   const sphere = new T.Mesh(new T.SphereGeometry(10, 32, 16), new T.ShaderMaterial({ side: T.BackSide,
     vertexShader: `varying vec3 vP; void main(){ vP = normalize(position); gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
@@ -870,9 +872,9 @@ function buildEnv() {
   ENV = pm.fromScene(es, 0.03).texture;
   pm.dispose();
 }
-const MAT = {};
-function stdMat(o) { const { env, envI, ...rest } = o; const m = new T.MeshStandardMaterial(rest); if (ENV && env !== false) { m.envMap = ENV; m.envMapIntensity = envI ?? 1; } return m; }
-function getMats() {
+export const MAT = {};
+export function stdMat(o) { const { env, envI, ...rest } = o; const m = new T.MeshStandardMaterial(rest); if (ENV && env !== false) { m.envMap = ENV; m.envMapIntensity = envI ?? 1; } return m; }
+export function getMats() {
   MAT.gold = stdMat({ color: 0xc9a258, metalness: 1, roughness: 0.4, emissive: 0x120b03, envI: 0.7 });
   MAT.brass = stdMat({ color: 0xb08a4a, metalness: 0.9, roughness: 0.38, emissive: 0x120a02 });
   MAT.chrome = stdMat({ color: 0xd8dde2, metalness: 1, roughness: 0.18 });
@@ -883,8 +885,8 @@ function getMats() {
   MAT.black = stdMat({ color: 0x0b0a0c, metalness: 0.2, roughness: 0.35, envI: 0.6 });
 }
 // Farbiges Zusammenfügen: jedes Teil bekommt eine Farbe; reines Weiß (1,1,1) wird später durch die Instanzfarbe ersetzt
-const PAINT = [1, 1, 1];
-function mergeColored(parts) {
+export const PAINT = [1, 1, 1];
+export function mergeColored(parts) {
   const geos = parts.map(([g]) => { const isFace = g.userData.face; g = g.index ? g.toNonIndexed() : g; if (!isFace) g.setAttribute('uv', new T.BufferAttribute(new Float32Array(g.attributes.position.count * 2).fill(-1), 2)); return g; });
   const merged = mergeGeos(geos);
   const col = new Float32Array(merged.attributes.position.count * 3);
@@ -902,7 +904,7 @@ function mergeColored(parts) {
   }
   return merged;
 }
-function paintMat(o) {
+export function paintMat(o) {
   const m = stdMat({ ...o, vertexColors: true });
   m.onBeforeCompile = sh => {
     sh.vertexShader = sh.vertexShader.replace('#include <color_vertex>', `
@@ -919,7 +921,7 @@ function paintMat(o) {
   return m;
 }
 // Autolack: Klarlack mit Glanzschicht, Chrom spiegelt, Reifen matt; dazu Türfugen, Zierlinie, Haubenschlitze und Straßenschmutz
-function carPaintMat() {
+export function carPaintMat() {
   const m = new T.MeshPhysicalMaterial({ color: 0xffffff, metalness: 0.35, roughness: 0.32, clearcoat: 1, clearcoatRoughness: 0.07, vertexColors: true });
   if (ENV) { m.envMap = ENV; m.envMapIntensity = 0.95; }
   m.onBeforeCompile = sh => {
@@ -1000,10 +1002,10 @@ function carPaintMat() {
 }
 
 /* ---------- Kollision: achsenparallele Quader in einem Raster ---------- */
-const CELL = 40;
-const colGrid = new Map();
-function addCollider(x0, y0, z0, x1, y1, z1) {
-  if (SINK) return;
+export const CELL = 40;
+export const colGrid = new Map();
+export function addCollider(x0, y0, z0, x1, y1, z1) {
+  if (shared.SINK) return;
   const b = { x0, y0, z0, x1, y1, z1 };
   for (let ix = Math.floor(x0 / CELL); ix <= Math.floor(x1 / CELL); ix++)
     for (let iz = Math.floor(z0 / CELL); iz <= Math.floor(z1 / CELL); iz++) {
@@ -1013,7 +1015,7 @@ function addCollider(x0, y0, z0, x1, y1, z1) {
     }
   return b;
 }
-function nearBoxes(x, z, r) {
+export function nearBoxes(x, z, r) {
   const out = new Set();
   for (let ix = Math.floor((x - r) / CELL); ix <= Math.floor((x + r) / CELL); ix++)
     for (let iz = Math.floor((z - r) / CELL); iz <= Math.floor((z + r) / CELL); iz++) {

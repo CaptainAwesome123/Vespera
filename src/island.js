@@ -1,22 +1,31 @@
-'use strict';
+import { shared, pick, R, rand, mulberry32, MOBILE, T, U, mergeGeos, scene } from './core.js';
+import { addCollider, stdMat } from './people-skeleton.js';
+import { STONES, addSeg, lamps, trees, addNeon, addGlow, NEON } from './facade-shader.js';
+import { BRICK, isFactoryZone, snapArrays, buildBlock, buildFactory } from './shops.js';
+import { pickW, DOORS } from './entrances.js';
+import { WATER_Y } from './dance.js';
+import { kit, ROAD_W, wuv, Bx } from './harbour.js';
+import { GRASS, streetDetail, slabTextures } from './serpentine.js';
+import { TRAM_LINES } from './traffic.js';
+
 /* =====================================================================
    STADTPLAN: Raster aus Avenuen (Nord–Süd) und Straßen (Ost–West),
    Belmont-Platz in der Mitte, Grande Promenade nach Süden zum Hafen.
    ===================================================================== */
-const AV = []; for (let x = -990; x <= 990; x += 110) AV.push({ x, w: x === 0 ? 44 : 22 });
-const ST = []; for (let z = -980; z <= 490; z += 70) ST.push({ z, w: z === 490 ? 30 : 14 });
-const PLAZA = { x0: -99, x1: 99, z0: -133, z1: 133 };
-const MEDIAN = { x0: -8, x1: 8, z0: 137, z1: 471 };
-const QUAY = { z0: 505, z1: 535 };
-const inRect = (x, z, r, m = 0) => x > r.x0 - m && x < r.x1 + m && z > r.z0 - m && z < r.z1 + m;
-const blocks = [];
+export const AV = []; for (let x = -990; x <= 990; x += 110) AV.push({ x, w: x === 0 ? 44 : 22 });
+export const ST = []; for (let z = -980; z <= 490; z += 70) ST.push({ z, w: z === 490 ? 30 : 14 });
+export const PLAZA = { x0: -99, x1: 99, z0: -133, z1: 133 };
+export const MEDIAN = { x0: -8, x1: 8, z0: 137, z1: 471 };
+export const QUAY = { z0: 505, z1: 535 };
+export const inRect = (x, z, r, m = 0) => x > r.x0 - m && x < r.x1 + m && z > r.z0 - m && z < r.z1 + m;
+export const blocks = [];
 /* =====================================================================
    V16 · DIE INSEL: geschwungene Uferlinie statt Rechteck, Ringstraße am Ufer,
    gebogene Häuserzeilen in den Randvierteln, Straßennetz für den Verkehr
    ===================================================================== */
-const ISL = { cx: 0, cz: -252, a: 1045, bn: 792, bs: 905, n: 3.0, quay: 535 };
+export const ISL = { cx: 0, cz: -252, a: 1045, bn: 792, bs: 905, n: 3.0, quay: 535 };
 // Uferradius je Richtung (0 = Norden): Superellipse mit sanften Buchten und Landzungen; der Norden am Viadukt bleibt gerade
-function coastR(th) {
+export function coastR(th) {
   const c = Math.sin(th), s = -Math.cos(th), b = s < 0 ? ISL.bn : ISL.bs;
   const r = 1 / Math.pow(Math.pow(Math.abs(c) / ISL.a, ISL.n) + Math.pow(Math.abs(s) / b, ISL.n), 1 / ISL.n);
   const k = 1 - Math.exp(-((th / 0.55) ** 2));
@@ -24,13 +33,13 @@ function coastR(th) {
   return r * (1 + nz * k);
 }
 // Abstand zum Ufer (positiv = an Land), näherungsweise radial; im Süden begrenzt die gerade Hafenkante
-function landDist(x, z) {
+export function landDist(x, z) {
   const dx = x - ISL.cx, dz = z - ISL.cz, th = Math.atan2(dx, -dz);
   return Math.min(coastR(th) - Math.hypot(dx, dz), ISL.quay - z);
 }
-const onIsland = (x, z, m = 0) => landDist(x, z) > m;
+export const onIsland = (x, z, m = 0) => landDist(x, z) > m;
 // Uferlinie als geschlossener Linienzug (von Süden über Westen, Norden, Osten), Punkte etwa alle step Meter
-function coastLine(step = 8) {
+export function coastLine(step = 8) {
   const pts = [];
   for (let th = -Math.PI; th < Math.PI;) {
     const r = coastR(th);
@@ -39,15 +48,15 @@ function coastLine(step = 8) {
   }
   return pts;
 }
-const COAST = coastLine(6);
-const QX = (() => { const q = COAST.filter(p => p[1] >= ISL.quay - 0.01); return [Math.min(...q.map(p => p[0])), Math.max(...q.map(p => p[0]))]; })();
-const KEEP = 118;   // Rasterblöcke bleiben nur, wenn alle Ecken so weit vom Ufer liegen
+export const COAST = coastLine(6);
+export const QX = (() => { const q = COAST.filter(p => p[1] >= ISL.quay - 0.01); return [Math.min(...q.map(p => p[0])), Math.max(...q.map(p => p[0]))]; })();
+export const KEEP = 118;   // Rasterblöcke bleiben nur, wenn alle Ecken so weit vom Ufer liegen
 
 /* ---------- Straßennetz: Raster, Ringstraße am Ufer und Querstraßen dazwischen ---------- */
-const NET = { nodes: [], edges: [], arcs: [], grid: new Map() };
-const RING_OFF = 25, RING_W = 16, WALK_W = 4.5;
-function polyLen(p) { let L = 0; for (let k = 1; k < p.length; k++) L += Math.hypot(p[k][0] - p[k - 1][0], p[k][1] - p[k - 1][1]); return L; }
-function resample(p, step) {
+export const NET = { nodes: [], edges: [], arcs: [], grid: new Map() };
+export const RING_OFF = 25, RING_W = 16, WALK_W = 4.5;
+export function polyLen(p) { let L = 0; for (let k = 1; k < p.length; k++) L += Math.hypot(p[k][0] - p[k - 1][0], p[k][1] - p[k - 1][1]); return L; }
+export function resample(p, step) {
   const out = [p[0]]; let acc = 0;
   for (let k = 1; k < p.length; k++) {
     let [ax, az] = p[k - 1]; const [bx, bz] = p[k]; let L = Math.hypot(bx - ax, bz - az);
@@ -59,24 +68,24 @@ function resample(p, step) {
   return out;
 }
 // kubische Bézierkurve zwischen zwei Punkten mit Richtungen (Anschlüsse, Abbiegebögen)
-function bez(a, ta, b, tb, n = 10, k = 0.4) {
+export function bez(a, ta, b, tb, n = 10, k = 0.4) {
   const L = Math.hypot(b[0] - a[0], b[1] - a[1]) * k, c1 = [a[0] + ta[0] * L, a[1] + ta[1] * L], c2 = [b[0] - tb[0] * L, b[1] - tb[1] * L], out = [];
   for (let i = 0; i <= n; i++) { const t = i / n, u = 1 - t; out.push([u * u * u * a[0] + 3 * u * u * t * c1[0] + 3 * u * t * t * c2[0] + t * t * t * b[0], u * u * u * a[1] + 3 * u * u * t * c1[1] + 3 * u * t * t * c2[1] + t * t * t * b[1]]); }
   return out;
 }
-function segHit(ax, az, dx, dz, p, q) {
+export function segHit(ax, az, dx, dz, p, q) {
   const ex = q[0] - p[0], ez = q[1] - p[1], den = dx * ez - dz * ex;
   if (Math.abs(den) < 1e-9) return -1;
   const s = ((p[0] - ax) * ez - (p[1] - az) * ex) / den, t = ((p[0] - ax) * dz - (p[1] - az) * dx) / den;
   return t >= 0 && t <= 1 && s > 0 ? s : -1;
 }
 // Seitenvektor eines Linienzugs an Punkt k (nach rechts in Fahrtrichtung)
-function polyNormal(P, k) {
+export function polyNormal(P, k) {
   const a = P[Math.max(0, k - 1)], b = P[Math.min(P.length - 1, k + 1)], L = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
   return [-(b[1] - a[1]) / L, (b[0] - a[0]) / L];
 }
-function offsetPoly(P, d) { return P.map((p, k) => { const n = polyNormal(P, k); return [p[0] + n[0] * d, p[1] + n[1] * d]; }); }
-function buildNetwork() {
+export function offsetPoly(P, d) { return P.map((p, k) => { const n = polyNormal(P, k); return [p[0] + n[0] * d, p[1] + n[1] * d]; }); }
+export function buildNetwork() {
   const keep = new Set(blocks.map(b => b.i + ',' + b.j)), has = (i, j) => keep.has(i + ',' + j);
   const grid = NET.grid;
   const node = (x, z, kind, o = {}) => { const n = { id: NET.nodes.length, x, z, kind, e: [], ...o }; NET.nodes.push(n); return n; };
@@ -151,19 +160,19 @@ function buildNetwork() {
       }
   }
 }
-const EDGE_HASH = new Map();
-function distSeg(x, z, a, b) {
+export const EDGE_HASH = new Map();
+export function distSeg(x, z, a, b) {
   const dx = b[0] - a[0], dz = b[1] - a[1], L2 = dx * dx + dz * dz || 1, t = Math.max(0, Math.min(1, ((x - a[0]) * dx + (z - a[1]) * dz) / L2));
   return Math.hypot(x - a[0] - dx * t, z - a[1] - dz * t);
 }
 // Abstand zum Fahrbahnrand (negativ = auf der Fahrbahn)
-function roadEdgeDist(x, z) {
+export function roadEdgeDist(x, z) {
   const l = EDGE_HASH.get(Math.floor(x / 30) + ',' + Math.floor(z / 30)); if (!l) return 1e9;
   let best = 1e9;
   for (const s of l) best = Math.min(best, distSeg(x, z, s.a, s.b) - s.e.w / 2);
   return best;
 }
-function ringEdgeDist(x, z) {
+export function ringEdgeDist(x, z) {
   const l = EDGE_HASH.get(Math.floor(x / 30) + ',' + Math.floor(z / 30)); if (!l) return 1e9;
   let best = 1e9;
   for (const s of l) if (s.e.kind !== 'grid') best = Math.min(best, distSeg(x, z, s.a, s.b) - s.e.w / 2);
@@ -171,13 +180,13 @@ function ringEdgeDist(x, z) {
 }
 
 /* ---------- Randviertel: Häuserzeilen folgen der Ringstraße, dahinter ein Gartenweg mit Villen, dazwischen Parks ---------- */
-const OUTER = { houses: [], paths: [], plots: [], walks: [] };
-function obbCorners(o, pad = 0) {
+export const OUTER = { houses: [], paths: [], plots: [], walks: [] };
+export function obbCorners(o, pad = 0) {
   const c = Math.cos(o.ry), s = Math.sin(o.ry), hw = o.w / 2 + pad, hd = o.d / 2 + pad;
   // lokales x (Breite) zeigt nach (cos, -sin), lokales z (Tiefe) nach (sin, cos)
   return [[-hw, -hd], [hw, -hd], [hw, hd], [-hw, hd]].map(([u, v]) => [o.x + u * c + v * s, o.z - u * s + v * c]);
 }
-function obbOverlap(A, B, pad = 0) {
+export function obbOverlap(A, B, pad = 0) {
   const ca = obbCorners(A, pad), cb = obbCorners(B, pad);
   for (const o of [A, B]) for (const ax of [[Math.cos(o.ry), -Math.sin(o.ry)], [Math.sin(o.ry), Math.cos(o.ry)]]) {
     const pa = ca.map(p => p[0] * ax[0] + p[1] * ax[1]), pb = cb.map(p => p[0] * ax[0] + p[1] * ax[1]);
@@ -185,8 +194,8 @@ function obbOverlap(A, B, pad = 0) {
   }
   return true;
 }
-const blockAt = (x, z, m = 0) => blocks.find(b => x > b.x0 - m && x < b.x1 + m && z > b.z0 - m && z < b.z1 + m);
-function plotFree(o, roadPad) {
+export const blockAt = (x, z, m = 0) => blocks.find(b => x > b.x0 - m && x < b.x1 + m && z > b.z0 - m && z < b.z1 + m);
+export function plotFree(o, roadPad) {
   const pts = obbCorners(o, 0.5);
   pts.push([o.x, o.z], [(pts[0][0] + pts[1][0]) / 2, (pts[0][1] + pts[1][1]) / 2], [(pts[2][0] + pts[3][0]) / 2, (pts[2][1] + pts[3][1]) / 2], [(pts[1][0] + pts[2][0]) / 2, (pts[1][1] + pts[2][1]) / 2], [(pts[3][0] + pts[0][0]) / 2, (pts[3][1] + pts[0][1]) / 2]);
   for (const [x, z] of pts) {
@@ -201,7 +210,7 @@ function plotFree(o, roadPad) {
   return true;
 }
 // Haus in gedrehter Lage: Fassadenquader, Gesims, Sockel, Dachaufbauten, Eingang mit Stufen und Vordach
-function rotHouse(o) {
+export function rotHouse(o) {
   const { x, z, w, d, ry, H, worker } = o, c = Math.cos(ry), s = Math.sin(ry);
   const L = (u, v) => [x + u * c + v * s, z - u * s + v * c];
   const tint = worker ? pick(BRICK) : pick(STONES), seed = Math.floor(R() * 1000), cT = tint.map(v => v * 1.15);
@@ -229,8 +238,8 @@ function rotHouse(o) {
   lamps.push({ x: ex + nx * 0.25 + c * 1.6, z: ez + nz * 0.25 - s * 1.6, h: 0, wall: true });
   OUTER.houses.push(o);
 }
-const ENTRANCES = [];
-function buildOuter() {
+export const ENTRANCES = [];
+export function buildOuter() {
   const rr = mulberry32(16016);
   const workerAt = (x, z) => (Math.hypot(x, z) > 650 && z < 420 && rr() < 0.75) || x > 650;
   // Rückt eine Häuserzeile entlang eines Linienzugs auf eine Seite; die Fassade schaut zur Linie
@@ -317,8 +326,8 @@ function buildOuter() {
 }
 
 /* ---------- Boden: Pflaster, Rasen und Kieswege aus einer Maske (Canvas), Form der Uferlinie ---------- */
-const MASK = { x0: -1110, z0: -1110, w: 2220, h: 1700, tex: null };
-function buildGroundMask() {
+export const MASK = { x0: -1110, z0: -1110, w: 2220, h: 1700, tex: null };
+export function buildGroundMask() {
   const W = MOBILE ? 1024 : 2048, H = Math.round(W * MASK.h / MASK.w), sx = W / MASK.w, sz = H / MASK.h;
   const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
   const g = cv.getContext('2d');
@@ -349,7 +358,7 @@ function buildGroundMask() {
   return t;
 }
 // Rasenanteil an einer Stelle (aus der Maske), für Gras, Blumen und Bäume
-function maskAt(x, z) {
+export function maskAt(x, z) {
   if (!MASK.cv) return [0, 0, 0];
   const g = MASK.ctx ||= MASK.cv.getContext('2d', { willReadFrequently: true });
   MASK.data ||= g.getImageData(0, 0, MASK.cv.width, MASK.cv.height).data;
@@ -358,7 +367,7 @@ function maskAt(x, z) {
   const o = (j * MASK.cv.width + i) * 4; return [MASK.data[o] / 255, MASK.data[o + 1] / 255, MASK.data[o + 2] / 255];
 }
 // Gras im Bodenshader: Rasen, Kies und Blumenbeete aus der Maske über das Pflaster gelegt
-function groundGrass(mat) {
+export function groundGrass(mat) {
   const prev = mat.onBeforeCompile;
   mat.onBeforeCompile = sh => {
     if (prev) prev(sh);
@@ -405,8 +414,8 @@ function groundGrass(mat) {
 }
 
 /* ---------- Bürgersteige mit gerundeten Ecken (Radius 5 m) und gebogene Gehwege an der Ringstraße ---------- */
-const CURB_R = 5, WALKS = [], WALK_HASH = new Map();
-function roundRectShape(x0, z0, x1, z1, r) {
+export const CURB_R = 5, WALKS = [], WALK_HASH = new Map();
+export function roundRectShape(x0, z0, x1, z1, r) {
   // Form im XY-System mit y = -z, damit nach dem Drehen +z nach Süden zeigt
   const s = new T.Shape(), a = x0, b = -z1, c = x1, d = -z0;
   s.moveTo(a + r, b); s.lineTo(c - r, b); s.absarc(c - r, b + r, r, -Math.PI / 2, 0, false);
@@ -415,7 +424,7 @@ function roundRectShape(x0, z0, x1, z1, r) {
   s.lineTo(a, b + r); s.absarc(a + r, b + r, r, Math.PI, Math.PI * 1.5, false);
   return s;
 }
-function walkMaterial(sl, mode) {
+export function walkMaterial(sl, mode) {
   const m = stdMat({ map: sl.map, roughnessMap: sl.rough, normalMap: sl.normal, normalScale: new T.Vector2(0.8, 0.8), color: 0x8e979c, roughness: 0.82, metalness: 0.05, envI: 0.4 });
   m.onBeforeCompile = sh => {
     sh.vertexShader = (mode === 'rect' ? 'attribute vec4 aRect;\n' : 'attribute float aCurb;\n') + 'varying vec2 vWq; varying float vTop, vCurbD;\n' + sh.vertexShader.replace('#include <uv_vertex>', `#include <uv_vertex>
@@ -434,7 +443,7 @@ function walkMaterial(sl, mode) {
   streetDetail(m, 'merged');
   return m;
 }
-function buildSidewalks() {
+export function buildSidewalks() {
   const sl = slabTextures();
   // Blöcke: gerundete Rechtecke, extrudiert
   const geos = [];
@@ -478,7 +487,7 @@ function buildSidewalks() {
   }
 }
 // Höhe des Bodens für Fahrzeuge und Fußgänger auf der Insel: Bürgersteig 22 cm, sonst Fahrbahn
-function curbHeight(x, z) {
+export function curbHeight(x, z) {
   const b = blockAt(x, z, 0.5);
   if (b) {
     const qx = Math.abs(x - (b.x0 + b.x1) / 2) - (b.x1 - b.x0) / 2 + CURB_R, qz = Math.abs(z - (b.z0 + b.z1) / 2) - (b.z1 - b.z0) / 2 + CURB_R;
@@ -496,7 +505,7 @@ function curbHeight(x, z) {
 }
 
 /* ---------- Ufer: Kaimauer aus Granit entlang der geschwungenen Linie, Brüstung mit Goldband, Laternen; Lücke für den Viadukt ---------- */
-function buildShoreV16() {
+export function buildShoreV16() {
   const K = kit(), gap = ROAD_W / 2 + 1;
   const P = COAST.filter(p => p[1] < ISL.quay - 0.05);
   // nur die gebogenen Ufer: der gerade Hafenkai im Süden hat seine eigene Mauer
@@ -542,10 +551,10 @@ function buildShoreV16() {
   }
   K.build(scene);
 }
-let SHORE_N = 0;
+export let SHORE_N = 0;
 
 
-function buildCity() {
+export function buildCity() {
   for (let i = 0; i < AV.length - 1; i++) for (let j = 0; j < ST.length - 1; j++) {
     const b = {
       x0: AV[i].x + AV[i].w / 2, x1: AV[i + 1].x - AV[i + 1].w / 2,
@@ -569,7 +578,7 @@ function buildCity() {
   for (const b of blocks) {
     if (isFactoryZone(b) && rf() < 0.7) {
       // normaler Aufbau ohne Wirkung (gleiche Zufallsfolge), dann die Fabrik an seiner Stelle
-      const snap = snapArrays(); SINK = true; buildBlock(b); SINK = false;
+      const snap = snapArrays(); shared.SINK = true; buildBlock(b); shared.SINK = false;
       for (const [a, n] of snap) a.length = n;
       b.factory = true; b.worker = true; buildFactory(b, rf, fi++);
     } else buildBlock(b);
@@ -577,8 +586,8 @@ function buildCity() {
 }
 
 // Hochstraßen auf Pfeilern, mit Laternen und eigenem Verkehr
-const ELEVATED = [{ axis: 'x', at: -350, y: 16, from: -900, to: 900 }, { axis: 'z', at: -440, y: 22, from: -973, to: 480 }];
-function buildElevated() {
+export const ELEVATED = [{ axis: 'x', at: -350, y: 16, from: -900, to: 900 }, { axis: 'z', at: -440, y: 22, from: -973, to: 480 }];
+export function buildElevated() {
   const gray = [0.3, 0.3, 0.33], rail = [0.42, 0.32, 0.18];
   for (const e of ELEVATED) {
     const len = e.to - e.from, mid = (e.from + e.to) / 2, ax = e.axis === 'x';
@@ -597,8 +606,8 @@ function buildElevated() {
 }
 
 // Verglaste Fußgängergalerien zwischen benachbarten Häusern; Passanten gehen hindurch und verschwinden in den Gebäuden
-const BR_SPOTS = [], BRIDGE_LOOPS = [];
-function buildBridges() {
+export const BR_SPOTS = [], BRIDGE_LOOPS = [];
+export function buildBridges() {
   const rb = mulberry32(5150), used = new Map();
   const pairs = [];
   for (let i = 0; i < BR_SPOTS.length; i++) for (let j = i + 1; j < BR_SPOTS.length; j++) {

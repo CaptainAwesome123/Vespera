@@ -1,10 +1,23 @@
-'use strict';
+import { shared, T, scene, camera, pick, R } from './core.js';
+import { stdMat, MAT, nearBoxes } from './people-skeleton.js';
+import { AV, ST, inRect, PLAZA } from './island.js';
+import { roadHeightAt, LAND } from './harbour.js';
+import { setAct, carGeoHi, parked } from './serpentine.js';
+import { cars } from './airships.js';
+import { _q, _up, _p, _m, _s } from './traffic.js';
+import { player, keys, touch } from './player.js';
+import { DINE, _dv, _dw, openMenu, freeSeatNear, sitDown, seatStandPoint, walkGait } from './venues.js';
+import { driveExit, driveEnter } from './driving.js';
+import { toast } from './boat.js';
+import { INTERACT } from './music.js';
+import { playing } from './input.js';
+
 /* =====================================================================
    V16 · ESSEN AUS DER ICH-SICHT: die eigene Hand im Frackärmel greift mit der Gabel
    einen Bissen vom Teller und führt ihn zum Mund; beim Trinken hält sie das Glas
    ===================================================================== */
-const FPH = { g: null, fork: null, bite: null, glassHold: null };
-function fpHandBuild() {
+export const FPH = { g: null, fork: null, bite: null, glassHold: null };
+export function fpHandBuild() {
   if (FPH.g) return;
   const g = new T.Group();
   const skin = stdMat({ color: 0xd8a07e, roughness: 0.55, envI: 0.25, emissive: 0x120806 });
@@ -33,9 +46,9 @@ function fpHandBuild() {
   g.traverse(o => { if (o.isMesh) { o.frustumCulled = false; o.userData.noRefl = true; } });
   scene.add(g); FPH.g = g;
 }
-const _fa = new T.Vector3(), _fb = new T.Vector3(), _fq = new T.Quaternion(), _fo = new T.Vector3();
+export const _fa = new T.Vector3(), _fb = new T.Vector3(), _fq = new T.Quaternion(), _fo = new T.Vector3();
 // Essen: t von 0 bis 1; base = Teller, tgt = Mund
-function fpEat(t, base) {
+export function fpEat(t, base) {
   fpHandBuild();
   const g = FPH.g, cam = camera;
   const off = _fo.set(0.3, -0.36, -0.32).applyQuaternion(cam.quaternion).add(cam.position);
@@ -56,7 +69,7 @@ function fpEat(t, base) {
   g.visible = t < 0.999;
 }
 // Trinken: die Hand umfasst das Glas
-function fpHold(it, on) {
+export function fpHold(it, on) {
   fpHandBuild();
   const g = FPH.g;
   if (!on) { g.visible = false; return; }
@@ -66,8 +79,8 @@ function fpHold(it, on) {
   g.visible = true;
 }
 
-function consume() { if (DINE.item && DINE.anim <= 0 && DINE.sips > 0) { DINE.animT = DINE.order && DINE.order[1] === 'food' ? 2.8 : 1.9; DINE.anim = DINE.animT; } }
-function updateDine(dt) {
+export function consume() { if (DINE.item && DINE.anim <= 0 && DINE.sips > 0) { DINE.animT = DINE.order && DINE.order[1] === 'food' ? 2.8 : 1.9; DINE.anim = DINE.animT; } }
+export function updateDine(dt) {
   const it = DINE.item; if (!it) return;
   const s = DINE.seat, base = _dv.set(s.tx, s.ty, s.tz);
   if (DINE.anim > 0) {
@@ -87,7 +100,7 @@ function updateDine(dt) {
     }
   }
 }
-function venueInteractions() {
+export function venueInteractions() {
   INTERACT.unshift(
     { test: () => !!(DINE.seat && DINE.item && DINE.order && DINE.order[1] === 'drink' && DINE.anim <= 0), label: 'Trinken', act: consume },
     { test: () => !!(DINE.seat && DINE.item && DINE.order && DINE.order[1] === 'food' && DINE.anim <= 0), label: 'Essen', act: consume },
@@ -98,19 +111,19 @@ function venueInteractions() {
 }
 
 /* ---------- Kommen und Gehen: Gäste betreten und verlassen die Lokale, Leute steigen in Autos ein und aus ---------- */
-function setSit(pd, on) { pd.sit = on; pd.yo = on ? (pd.fem ? 0.8 : 0.87) * pd.sc : 0; }
+export function setSit(pd, on) { pd.sit = on; pd.yo = on ? (pd.fem ? 0.8 : 0.87) * pd.sc : 0; }
 // Weg vom Platz zur Tür: über den Gang zwischen den Tischreihen und an der Wand entlang
-function exitPath(V, s) {
+export function exitPath(V, s) {
   const sp = seatStandPoint(s), lane = s.tz + (s.tz < (V.z0 + V.z1) / 2 ? 1.6 : -1.6), cx = V.x0 + 4.6, wz = V.z1 - 1.0;
   return s.stool ? [[sp.x, sp.z], [cx, s.z], [cx, wz], [V.x, wz], [V.x, V.z1 + 3.5]] : [[sp.x, sp.z], [sp.x, lane], [cx, lane], [cx, wz], [V.x, wz], [V.x, V.z1 + 3.5]];
 }
-function stepPath(pd, dt, sp = 1.25) {
+export function stepPath(pd, dt, sp = 1.25) {
   const [px, pz] = pd.path[0], dx = px - pd.x, dz = pz - pd.z, d = Math.hypot(dx, dz), st = sp * dt;
   if (d <= st) { pd.x = px; pd.z = pz; pd.path.shift(); }
   else { pd.x += dx / d * st; pd.z += dz / d * st; pd.yaw = Math.atan2(dx, dz); }
   return !pd.path.length;
 }
-function updateGuestFlow(V, dt) {
+export function updateGuestFlow(V, dt) {
   // ab und zu bricht jemand auf, kurz darauf kommt ein neuer Gast herein
   if ((V.flowT = (V.flowT ?? 6 + Math.random() * 8) - dt) <= 0) {
     V.flowT = 14 + Math.random() * 18;
@@ -147,18 +160,18 @@ function updateGuestFlow(V, dt) {
 }
 
 // Einsteigen und Aussteigen an geparkten Wagen in der Nähe der Kamera
-const CARSCENE = { peds: [], cars: [], t: 4 };
-function carScenePeds() {
+export const CARSCENE = { peds: [], cars: [], t: 4 };
+export function carScenePeds() {
   for (let k = 0; k < 6; k++) { const pd = { st: 6, x: 0, y: 0.22, z: 0, yaw: 0, sc: 0.94 + R() * 0.12, v: 0, act: 1.2, kind: pick(['coat', 'suit', 'lady', 'dress', 'coat', 'tux', 'gown', 'chauffeur']), carActor: true }; CARSCENE.peds.push(pd); }
   return CARSCENE.peds;
 }
-function carActor() {
+export function carActor() {
   let c = CARSCENE.cars.find(c => !c.busy);
   if (!c && CARSCENE.cars.length < 3) { const im = new T.InstancedMesh(carGeoHi(), MAT.carPaint, 1); im.frustumCulled = false; im.visible = false; scene.add(im); c = { im }; CARSCENE.cars.push(c); }
   return c;
 }
-function placeActor(c, x, y, z, h) { _q.setFromAxisAngle(_up, h); _p.set(x, y, z); c.im.setMatrixAt(0, _m.compose(_p, _q, _s.setScalar(1))); c.im.instanceMatrix.needsUpdate = true; }
-function startCarScene() {
+export function placeActor(c, x, y, z, h) { _q.setFromAxisAngle(_up, h); _p.set(x, y, z); c.im.setMatrixAt(0, _m.compose(_p, _q, _s.setScalar(1))); c.im.instanceMatrix.needsUpdate = true; }
+export function startCarScene() {
   const cp = camera.position, ped = CARSCENE.peds.find(p => p.st === 6 && p.a && !p.busy), car = carActor();
   if (!ped || !car || cp.y > 40) return;
   const cand = parked.filter(c => !c.hidden && !c.scene && c.ox !== undefined && (c.x - cp.x) ** 2 + (c.z - cp.z) ** 2 < 70 * 70 && (c.x - cp.x) ** 2 + (c.z - cp.z) ** 2 > 12 * 12);
@@ -175,11 +188,11 @@ function startCarScene() {
     S.mode = 'leave'; ped.x = S.walk[0]; ped.z = S.walk[1]; ped.path = [[S.door[0] - lx * side * 0.6, S.door[1] - lz * side * 0.6], S.door];
   } else {
     // Ankunft: der Wagen rollt heran und parkt ein, dann steigt jemand aus
-    S.mode = 'arrive'; pc.hidden = true; parkedTimer = 0; ped.st = 6; ped.a.on = false; S.d = 70;
+    S.mode = 'arrive'; pc.hidden = true; shared.parkedTimer = 0; ped.st = 6; ped.a.on = false; S.d = 70;
     car.im.visible = true;
   }
 }
-function updateCarScenes(dt) {
+export function updateCarScenes(dt) {
   if (!playing || DRIVE.on) return;
   if ((CARSCENE.t -= dt) <= 0) { CARSCENE.t = 9 + Math.random() * 10; startCarScene(); }
   for (const car of CARSCENE.cars) {
@@ -191,7 +204,7 @@ function updateCarScenes(dt) {
       if (S.t < 1.1) {
         // bücken und in den Wagen gleiten
         const k = S.t / 1.1; ped.x += (pc.x - ped.x) * dt * 1.2; ped.z += (pc.z - ped.z) * dt * 1.2; ped.y = 0.22 - 0.5 * k * k; ped.tilt = 0.5 * Math.sin(Math.min(1, k * 1.4) * Math.PI / 2);
-      } else if (ped.st !== 6) { ped.st = 6; ped.a.on = false; ped.tilt = 0; pc.hidden = true; parkedTimer = 0; car.im.visible = true; S.d = 0; S.v = 0; }
+      } else if (ped.st !== 6) { ped.st = 6; ped.a.on = false; ped.tilt = 0; pc.hidden = true; shared.parkedTimer = 0; car.im.visible = true; S.d = 0; S.v = 0; }
       if (S.t > 2.2) {
         // ausparken: anfahren, schräg auf die Fahrbahn, dann geradeaus davon
         S.v = Math.min(12, (S.v || 0) + 3.2 * dt); S.d += S.v * dt;
@@ -225,43 +238,43 @@ function updateCarScenes(dt) {
     }
   }
 }
-function endCarScene(car, hideFor) {
+export function endCarScene(car, hideFor) {
   const S = car.busy; if (!S) return;
   const { pc, ped } = S;
   ped.st = 6; ped.a.on = false; ped.path = null; ped.tilt = 0; ped.busy = false;
   car.busy = null; car.im.visible = S.mode === 'leave' ? false : car.im.visible;
-  if (S.mode === 'arrive') { pc.hidden = false; car.im.visible = false; parkedTimer = 0; pc.scene = null; }
+  if (S.mode === 'arrive') { pc.hidden = false; car.im.visible = false; shared.parkedTimer = 0; pc.scene = null; }
   else { pc.backT = hideFor; CARSCENE.gone = CARSCENE.gone || []; CARSCENE.gone.push(pc); }
 }
 // weggefahrene Wagen kommen später wieder (wenn man nicht hinsieht)
-function updateCarReturns(dt) {
+export function updateCarReturns(dt) {
   const L = CARSCENE.gone; if (!L) return;
-  for (let i = L.length - 1; i >= 0; i--) { const pc = L[i]; if ((pc.backT -= dt) > 0) continue; const cp = camera.position; if ((pc.x - cp.x) ** 2 + (pc.z - cp.z) ** 2 < 120 * 120) continue; pc.hidden = false; pc.scene = null; parkedTimer = 0; L.splice(i, 1); }
+  for (let i = L.length - 1; i >= 0; i--) { const pc = L[i]; if ((pc.backT -= dt) > 0) continue; const cp = camera.position; if ((pc.x - cp.x) ** 2 + (pc.z - cp.z) ** 2 < 120 * 120) continue; pc.hidden = false; pc.scene = null; shared.parkedTimer = 0; L.splice(i, 1); }
 }
 
 /* ---------- Selbst fahren: an einem geparkten Wagen E drücken, dann von hinten (Verfolgerkamera) durch die Stadt ---------- */
-const DRIVE = { on: false, mesh: null, src: null, x: 0, y: 0, z: 0, h: 0, v: 0, steer: 0, lookT: 0, col: null };
-const WHEELBASE = 2.9;
+export const DRIVE = { on: false, mesh: null, src: null, x: 0, y: 0, z: 0, h: 0, v: 0, steer: 0, lookT: 0, col: null };
+export const WHEELBASE = 2.9;
 // Fahrbahn oder Gehweg: auf den Blöcken liegt der Bürgersteig 22 cm höher
-function onStreet(x, z) {
+export function onStreet(x, z) {
   const ia = Math.round((x + 990) / 110), a = AV[Math.max(0, Math.min(AV.length - 1, ia))];
   if (Math.abs(x - a.x) < a.w / 2) return true;
   for (const s of ST) if (Math.abs(z - s.z) < s.w / 2) return true;
   return z > 490 || z < -973 || Math.abs(x) > 979 || inRect(x, z, PLAZA);
 }
-function nearestParked(p, r) {
+export function nearestParked(p, r) {
   let best = null, bd = r * r;
   for (const c of parked) { if (c.hidden || Math.abs(c.m.elements[13] - 0.22 - p.y) > 1.5) continue; const d = (c.x - p.x) ** 2 + (c.z - p.z) ** 2; if (d < bd) { bd = d; best = c; } }
   return best;
 }
-function driveEnterV15(c) {
+export function driveEnterV15(c) {
   if (!DRIVE.mesh) {
     DRIVE.mesh = new T.InstancedMesh(carGeoHi(), MAT.carPaint, 1);
     DRIVE.mesh.frustumCulled = false; scene.add(DRIVE.mesh);
   }
   if (c) {
     // den geparkten Wagen übernehmen: Lage, Richtung und Farbe
-    c.hidden = true; parkedTimer = 0;
+    c.hidden = true; shared.parkedTimer = 0;
     const e = c.m.elements;
     DRIVE.x = e[12]; DRIVE.z = e[14]; DRIVE.h = Math.atan2(e[8], e[0]); DRIVE.col = c.c;
     DRIVE.mesh.setColorAt(0, new T.Color(...c.c)); DRIVE.mesh.instanceColor.needsUpdate = true;
@@ -271,7 +284,7 @@ function driveEnterV15(c) {
   player.yaw = DRIVE.h - Math.PI / 2; player.pitch = -0.16;
   toast('Am Steuer · E zum Aussteigen');
 }
-function driveExitV15() {
+export function driveExitV15() {
   if (!DRIVE.on) return;
   DRIVE.on = false; DRIVE.v = 0;
   // links neben der Fahrertür aussteigen
@@ -280,7 +293,7 @@ function driveExitV15() {
   player.v.set(0, 0, 0); player.pitch = 0;
   toast('Ausgestiegen');
 }
-function driveInteractions() {
+export function driveInteractions() {
   INTERACT.unshift({ test: () => DRIVE.on, label: 'Aussteigen', act: driveExit });
   INTERACT.push({
     test: p => {
@@ -291,8 +304,8 @@ function driveInteractions() {
     label: 'Einsteigen und fahren', act: () => driveEnter(DRIVE.pick),
   });
 }
-const _dpV15 = { x: 0, y: 0, z: 0 };
-function updateDriveV15(dt) {
+export const _dpV15 = { x: 0, y: 0, z: 0 };
+export function updateDriveV15(dt) {
   if (player.fly) { driveExit(); return; }
   const thr = (keys.KeyW || keys.ArrowUp ? 1 : 0) - (keys.KeyS || keys.ArrowDown ? 1 : 0) + touch.my;
   const st = (keys.KeyD || keys.ArrowRight ? 1 : 0) - (keys.KeyA || keys.ArrowLeft ? 1 : 0) + touch.mx;
@@ -351,7 +364,7 @@ function updateDriveV15(dt) {
     player.pitch += (-0.16 - player.pitch) * Math.min(1, dt * 1.5);
   }
 }
-function driveCameraV15() {
+export function driveCameraV15() {
   const yaw = player.yaw, pitch = Math.max(-0.7, Math.min(0.35, player.pitch)), back = 7.2 + Math.abs(DRIVE.v) * 0.06;
   const fx = -Math.sin(yaw) * Math.cos(pitch), fz = -Math.cos(yaw) * Math.cos(pitch), fy = Math.sin(pitch);
   camera.position.set(DRIVE.x - fx * back, DRIVE.y + 2.3 - fy * back, DRIVE.z - fz * back);

@@ -1,0 +1,18 @@
+{
+  "comment": "Verzeichnis der echten Modelle und Texturen. Pfade relativ zu assets/. Modelle: glTF/GLB (optional mit KTX2-Texturen), Texturen: PNG/JPG/KTX2. placements: Objekte je Modell in Weltkoordinaten (x, y, z in Metern, ry in Radiant, scale).",
+  "models": {
+    "deco-bollard": { "url": "models/deco-bollard.glb", "scale": 1 }
+  },
+  "textures": {},
+  "placements": [],
+  "demo": {
+    "comment": "nur mit ?demo=props in der Adresse: zeigt die Pipeline (Modell laden, in Chunks stellen, in der Ferne ausblenden)",
+    "placements": [
+      { "model": "deco-bollard", "x": -8, "y": 0.26, "z": 104, "ry": 0 },
+      { "model": "deco-bollard", "x": -4, "y": 0.26, "z": 104, "ry": 0.3 },
+      { "model": "deco-bollard", "x": 0, "y": 0.26, "z": 104, "ry": 0.6 },
+      { "model": "deco-bollard", "x": 4, "y": 0.26, "z": 104, "ry": 0.9 },
+      { "model": "deco-bollard", "x": 8, "y": 0.26, "z": 104, "ry": 1.2 }
+    ]
+  }
+}

@@ -1,4 +1,25 @@
-'use strict';
+import { shared, canvasTex, mulberry32, T, mergeGeos, scene, MOBILE, U, pick, R, rand, camera, ANISO } from './core.js';
+import { personGeoHi, personShare, HQ } from './people-model.js';
+import { stdMat, MAT, addCollider, glowTex, paintMat, mergeColored, PAINT, personLook } from './people-skeleton.js';
+import { lamps, trees, addGlow, NEON, addNeon, addSeg, shafts, spires, neons, segs, facadeMat, glowPts, roofs, curbs } from './facade-shader.js';
+import { buildGroundMask, groundGrass, COAST, ISL, buildSidewalks, blocks, inRect, PLAZA, MEDIAN, BRIDGE_LOOPS } from './island.js';
+import { buildHouseDoors } from './building-forms.js';
+import { IB, FACTORY_LOOPS, FACTORY_IDLERS } from './shops.js';
+import { makeSignTex, FAN_TEX, lathe, placeFurn, FURN, crownFins, caps, domes, buildEntrances, DOORS, TERRACE } from './entrances.js';
+import { WATER_Y, setDance, placeCouple } from './dance.js';
+import { poolWaterMat, fountainJet } from './water.js';
+import { VILLA, deckY, TER, terrainHeight, ROAD_Z0, VIA, ROAD_W, terrainHeightRaw, terrainInfo, VALLEY_W, PORT_LOOPS, PORT_PEDS } from './harbour.js';
+import { makeGlowPoints, buildCitizens } from './ragdoll.js';
+import { cars } from './airships.js';
+import { carDamageAttr, carCabin } from './cars.js';
+import { OBSTACLES, _m, _p, _q, _up, _s, TRUCK_N, deliveryMen, buildDrivers } from './traffic.js';
+import { dishModel, VENUE_PEDS } from './venues.js';
+import { carScenePeds } from './eating.js';
+import { fxEmit } from './particles.js';
+import { impulse, crashDamage } from './driving.js';
+import { windPatch } from './wind.js';
+import { addLight } from './performance.js';
+
 /* =====================================================================
    V16 · SERPENTINE ZUR VILLA: vom Viadukt zweigt eine gepflasterte Bergstraße ab
    und windet sich in neun Kehren den Hang hinauf; Stützmauern bergseitig, Brüstung
@@ -6,12 +27,12 @@
    ein Prunktor mit Goldfächer und ein Rondell mit Springbrunnen vor der Vorfahrt.
    Das Gelände wird in Bänke und Böschungen geformt, ein feines Netz zeigt es.
    ===================================================================== */
-const SERP = { on: false, roads: [], hash: new Map(), cell: 8, tp: [], th: new Map(), tc: 12, XA: 85, XB: 420, zJ: -1395, gap: 30, legs: 9, HW: 3.5, box: null, lanes: [], cars: [] };
-const sstep = (a, b, v) => { const t = Math.max(0, Math.min(1, (v - a) / (b - a))); return t * t * (3 - 2 * t); };
-const serpWig = x => 6 * Math.sin(0.011 * x + 0.5) + 3 * Math.sin(0.029 * x + 1.7);
-function serpW(lx, lz) { const cs = Math.cos(VILLA.ry), sn = Math.sin(VILLA.ry); return [VILLA.x + lx * cs + lz * sn, VILLA.z - lx * sn + lz * cs]; }
+export const SERP = { on: false, roads: [], hash: new Map(), cell: 8, tp: [], th: new Map(), tc: 12, XA: 85, XB: 420, zJ: -1395, gap: 30, legs: 9, HW: 3.5, box: null, lanes: [], cars: [] };
+export const sstep = (a, b, v) => { const t = Math.max(0, Math.min(1, (v - a) / (b - a))); return t * t * (3 - 2 * t); };
+export const serpWig = x => 6 * Math.sin(0.011 * x + 0.5) + 3 * Math.sin(0.029 * x + 1.7);
+export function serpW(lx, lz) { const cs = Math.cos(VILLA.ry), sn = Math.sin(VILLA.ry); return [VILLA.x + lx * cs + lz * sn, VILLA.z - lx * sn + lz * cs]; }
 // eine Straße aus Punkten [x, z, Steigungsgewicht]: Bogenlänge, Normale (+n = rechts in Fahrtrichtung)
-function serpRoad(P, closed, walls) {
+export function serpRoad(P, closed, walls) {
   const p = P.map(([x, z, w]) => ({ x, z, y: 0, w, s: 0, nx: 0, nz: 0 }));
   for (let i = 1; i < p.length; i++) p[i].s = p[i - 1].s + Math.hypot(p[i].x - p[i - 1].x, p[i].z - p[i - 1].z);
   const n = p.length;
@@ -24,7 +45,7 @@ function serpRoad(P, closed, walls) {
   SERP.roads.push(R);
   return R;
 }
-function planSerpentine() {
+export function planSerpentine() {
   const { XA, XB, zJ, gap } = SERP, by = VILLA.y, w4 = serpWig(4);
   const legZ = (k, x) => zJ - gap * k + serpWig(x) - w4;
   const P = [];
@@ -87,8 +108,8 @@ function planSerpentine() {
   SERP.on = true;
 }
 // Gelände: Bänke für die Fahrbahn, dazwischen gleichmäßige Hänge; außen Böschung (Damm) oder Felseinschnitt
-const _sc = [];
-function serpTerrain(x, z, h) {
+export const _sc = [];
+export function serpTerrain(x, z, h) {
   const B = SERP.box;
   if (!SERP.on || x < B.x0 || x > B.x1 || z < B.z0 || z > B.z1) return h;
   const x0 = 9 + 21 * sstep(-1405, -1432, z), f = sstep(x0, x0 + 18, x);
@@ -127,12 +148,12 @@ function serpTerrain(x, z, h) {
   return h + (out - h) * f;
 }
 // das grobe Bergnetz sinkt unter dem feinen Netz weg
-function serpSink(x, z) {
+export function serpSink(x, z) {
   const P = SERP.patch; if (!P) return 0;
   const d = Math.min(x - P.x0, P.x1 - x, z - P.z0, P.z1 - z);
   return d <= 0 ? 0 : 45 * sstep(0, 40, d);
 }
-function serpNear(x, z, r) {
+export function serpNear(x, z, r) {
   const B = SERP.box; if (!SERP.on || x < B.x0 || x > B.x1 || z < B.z0 || z > B.z1) return false;
   const tp = SERP.tp, tc = SERP.tc, gx = Math.floor(x / tc), gz = Math.floor(z / tc), n = Math.ceil(r / tc);
   for (let a = gx - n; a <= gx + n; a++) for (let b = gz - n; b <= gz + n; b++) {
@@ -142,7 +163,7 @@ function serpNear(x, z, r) {
   return false;
 }
 // Lage auf der Straße: nächster Abschnitt, Querabstand, Höhe
-function serpProject(x, z, y, maxLat) {
+export function serpProject(x, z, y, maxLat) {
   const B = SERP.box; if (!SERP.on || x < B.x0 || x > B.x1 || z < B.z0 || z > B.z1) return null;
   const l = SERP.hash.get(Math.floor(x / SERP.cell) * 100003 + Math.floor(z / SERP.cell)); if (!l) return null;
   let best = null, bl = maxLat;
@@ -157,12 +178,12 @@ function serpProject(x, z, y, maxLat) {
   }
   return best;
 }
-function villaRoadAt(x, z, y) {
+export function villaRoadAt(x, z, y) {
   const q = serpProject(x, z, y, SERP.HW + 0.45);
   return q ? { y: q.y + 0.06, mu: 1, road: true, serp: q } : null;
 }
 // Stützmauer und Brüstung: Wagen prallen ab, schrammen entlang
-function serpWallHit(B) {
+export function serpWallHit(B) {
   const q = serpProject(B.x, B.z, B.y, 7); if (!q || !q.R.walls) return;
   const side = q.lat > 0 ? 0 : 1, sg = q.lat > 0 ? 1 : -1;
   const i = q.t < 0.5 ? q.i : Math.min(q.R.p.length - 1, q.i + 1);
@@ -181,7 +202,7 @@ function serpWallHit(B) {
 
 /* ---------- Bau ---------- */
 // Bogenpflaster aus Granit: Fächer aus kleinen Steinen
-function settTex() {
+export function settTex() {
   const t = canvasTex(512, 512, (g, W, H) => {
     const rr = mulberry32(4711);
     g.fillStyle = '#26272a'; g.fillRect(0, 0, W, H);
@@ -205,7 +226,7 @@ function settTex() {
   return t;
 }
 // Querschnitt längs der Straße ziehen (lat seitlich, dy in der Höhe); prof darf je Punkt anders sein
-function serpSweep(R, i0, i1, sg, prof, uS, out) {
+export function serpSweep(R, i0, i1, sg, prof, uS, out) {
   const pos = [], uv = [], idx = [], n = R.p.length;
   let np = 0;
   for (let i = i0; i <= i1; i++) {
@@ -224,7 +245,7 @@ function serpSweep(R, i0, i1, sg, prof, uS, out) {
   g.computeVertexNormals();
   out.push(g);
 }
-function buildSerpentine() {
+export function buildSerpentine() {
   if (!SERP.on) return;
   const M = SERP.roads[0], by = VILLA.y, HW = SERP.HW;
   // Mauer oder Brüstung: Gelände neben der Fahrbahn entscheidet
@@ -427,7 +448,7 @@ function buildSerpentine() {
 }
 
 /* ---------- feines Geländenetz über der Serpentine (gleiches Material wie das Gebirge) ---------- */
-function buildSerpTerrain(mat) {
+export function buildSerpTerrain(mat) {
   const P = SERP.patch; if (!P) return;
   const step = MOBILE ? 5 : 3, nx = Math.ceil((P.x1 - P.x0) / step), nz = Math.ceil((P.z1 - P.z0) / step);
   const g = new T.PlaneGeometry(P.x1 - P.x0, P.z1 - P.z0, nx, nz); g.rotateX(-Math.PI / 2);
@@ -441,7 +462,7 @@ function buildSerpTerrain(mat) {
 }
 
 /* ---------- Verkehr: Gäste fahren zur Villa hinauf und wieder hinunter ---------- */
-function buildSerpTraffic() {
+export function buildSerpTraffic() {
   const M = SERP.roads[0], zJ = SERP.zJ, pts = [];
   const add = (x, z, y) => { const l = pts[pts.length - 1]; if (l && Math.hypot(x - l[0], z - l[2]) < 0.5) return; pts.push([x, y, z]); };
   const bez = (a, da, b, db, k) => { const n = Math.ceil(Math.hypot(b[0] - a[0], b[2] - a[2]) / 1.5) + 2; for (let i = 1; i < n; i++) { const t = i / n, u = 1 - t; const c1 = [a[0] + da[0] * k, a[2] + da[1] * k], c2 = [b[0] - db[0] * k, b[2] - db[1] * k]; add(u * u * u * a[0] + 3 * u * u * t * c1[0] + 3 * u * t * t * c2[0] + t * t * t * b[0], u * u * u * a[2] + 3 * u * u * t * c1[1] + 3 * u * t * t * c2[1] + t * t * t * b[2], a[1] + (b[1] - a[1]) * t); } };
@@ -478,7 +499,7 @@ function buildSerpTraffic() {
   const N = MOBILE ? 4 : 7;
   for (let k = 0; k < N; k++) { const car = { l: L, s: (k + Math.random() * 0.4) / N * L.len, v: 6, yaw: 0, k: 0.88 + Math.random() * 0.16, serpCar: true }; cars.push(car); SERP.cars.push(car); }
 }
-function serpLaneAt(L, s) {
+export function serpLaneAt(L, s) {
   s = ((s % L.len) + L.len) % L.len;
   const n = L.pts.length;
   if (s >= L.cum[n - 1]) { const a = L.pts[n - 1], b = L.pts[0], t = (s - L.cum[n - 1]) / 7; return [a[0] + (b[0] - a[0]) * t, a[1], a[2] + (b[2] - a[2]) * t, 0, -1, 0, 4]; }
@@ -487,7 +508,7 @@ function serpLaneAt(L, s) {
   const a = L.pts[lo - 1], b = L.pts[lo], d = (L.cum[lo] - L.cum[lo - 1]) || 1, t = (s - L.cum[lo - 1]) / d;
   return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t, (b[0] - a[0]) / d, (b[2] - a[2]) / d, (b[1] - a[1]) / d, L.v[lo - 1] + (L.v[lo] - L.v[lo - 1]) * t];
 }
-function serpCarStep(car, dt) {
+export function serpCarStep(car, dt) {
   const L = car.l, q = serpLaneAt(L, car.s);
   let vt = q[6] * car.k;
   // Spielerwagen, Unfallwagen und andere Gäste vor der Haube
@@ -507,14 +528,14 @@ function serpCarStep(car, dt) {
   car.pitch = Math.atan(p[5]);
 }
 // R am Steuer: auf der Serpentine zurück auf die eigene Spur
-function serpReset(B) {
+export function serpReset(B) {
   const q = serpProject(B.x, B.z, undefined, 60); if (!q) return false;
   const fwd = Math.cos(B.h) * q.tx - Math.sin(B.h) * q.tz >= 0 ? 1 : -1;
   B.x = q.px + q.nx * 1.75 * fwd; B.z = q.pz + q.nz * 1.75 * fwd; B.h = Math.atan2(-q.tz * fwd, q.tx * fwd);
   return q.y + 0.06;
 }
 
-function stoneTex() {
+export function stoneTex() {
   return canvasTex(512, 512, (g, W, H) => {
     const rr = mulberry32(99);
     g.fillStyle = '#16191c'; g.fillRect(0, 0, W, H);
@@ -527,7 +548,7 @@ function stoneTex() {
     }
   });
 }
-function buildAccessRoad() {
+export function buildAccessRoad() {
   const z0 = ROAD_Z0, pz = VIA.portalZ;
   const groundAt = z => z > -1040 ? 0 : terrainHeight(0, z);
   const st = stoneTex(); st.wrapS = st.wrapT = T.RepeatWrapping; st.repeat.set(1 / 7, 1 / 3.5);
@@ -654,7 +675,7 @@ function buildAccessRoad() {
   const fm = new T.Mesh(new T.PlaneGeometry(12, 6), fanM); fm.position.set(0, dp + 28.6 + 0, pz + 3.1); scene.add(fm);
   shafts.push({ x: 0, z: pz + 2, y: dp + 35, h: 260, w: 10, c: [1.0, 0.8, 0.45] });
 }
-function buildVilla() {
+export function buildVilla() {
   // Standort suchen: ein Hang im Nordosten, von dem der Blick zur Stadt möglichst frei ist
   let bestA = 0, bestR = 0, bestY = 0, bestBlock = 1e9;
   for (let a = Math.PI * 0.12; a <= Math.PI * 0.42; a += Math.PI * 0.03) {
@@ -912,7 +933,7 @@ function buildVilla() {
   { const [x, z] = W(0, -12); addLight(0xffd29a, 0.7, 30, 1.6, x, by + 6.5, z); }
 }
 // Innenräume der Villa: Marmorboden, Kassettendecke, Kronleuchter, Kamin, Bücherwände, Bar
-function villaInteriorMats() {
+export function villaInteriorMats() {
   const MB = marbleFloorTextures(), PQ = parquetTextures(), WP = wallpaperTex('#3a2a20', 'rgba(222,178,96,0.24)'), PN = woodPanelTextures(), RG = rugTex();
   WP.wrapS = WP.wrapT = T.RepeatWrapping;
   const books = canvasTex(512, 256, (g, W, H) => {
@@ -936,7 +957,7 @@ function villaInteriorMats() {
     bottle: new T.MeshBasicMaterial({ color: new T.Color(0.9, 0.55, 0.22) }),
   };
 }
-function buildVillaInterior(put, colL, G, by, IH) {
+export function buildVillaInterior(put, colL, G, by, IH) {
   const X0 = -28.8, X1 = 28.8, Z0 = -22.4, Z1 = -1.6, D = Z1 - Z0;
   // Boden, Decke, Wandverkleidung innen
   // Salon mit Marmor, Bibliothek und Bar mit Fischgrätparkett; die Texturen laufen in Weltkoordinaten
@@ -1027,14 +1048,14 @@ function buildVillaInterior(put, colL, G, by, IH) {
   for (let k = 0; k < 7; k++) placeFurn(FURN.barStool(), VR, vadd, 16.6 + k * 1.75, by, -16.55);
   for (const lx of [17.5, 26]) { placeFurn(FURN.roundTable(0.45, 1.05), VM, vadd, lx, by, -7); for (let k = 0; k < 2; k++) placeFurn(FURN.barStool(), VR, vadd, lx + (k ? 0.75 : -0.75), by, -7.3); colL(lx - 0.5, by, -7.5, lx + 0.5, by + 1.1, -6.5); }
 }
-function crownFinsR(x, z, w, d, y, h, c, ry) {
+export function crownFinsR(x, z, w, d, y, h, c, ry) {
   const n0 = neons.length; crownFins(0, 0, w, d, y, h, c);
   const cs = Math.cos(ry), sn = Math.sin(ry);
   for (let i = n0; i < neons.length; i++) { const n = neons[i], lx = n.x, lz = n.z; n.x = x + lx * cs + lz * sn; n.z = z - lx * sn + lz * cs; n.ry = ry; }
 }
 /* ---------- Feuerwerk über der Villa: aufsteigende Raketen, goldene, türkise und weiße Sterne, die langsam fallen ---------- */
-const FW = { n: 1400, pts: null, p: null, v: null, life: null, col: null, rockets: [], t: 3, head: 0 };
-function buildFireworks() {
+export const FW = { n: 1400, pts: null, p: null, v: null, life: null, col: null, rockets: [], t: 3, head: 0 };
+export function buildFireworks() {
   const n = FW.n, g = new T.BufferGeometry();
   FW.p = new Float32Array(n * 3); FW.v = new Float32Array(n * 3); FW.life = new Float32Array(n); FW.c0 = new Float32Array(n * 3);
   FW.col = new Float32Array(n * 3);
@@ -1048,8 +1069,8 @@ function buildFireworks() {
   });
   FW.pts = new T.Points(g, m); FW.pts.frustumCulled = false; FW.pts.renderOrder = 4; scene.add(FW.pts);
 }
-const FW_COLS = [[1.6, 1.15, 0.45], [0.45, 1.5, 1.45], [1.6, 1.55, 1.4], [1.6, 0.55, 0.6], [1.3, 0.9, 1.6]];
-function fwBurst(x, y, z) {
+export const FW_COLS = [[1.6, 1.15, 0.45], [0.45, 1.5, 1.45], [1.6, 1.55, 1.4], [1.6, 0.55, 0.6], [1.3, 0.9, 1.6]];
+export function fwBurst(x, y, z) {
   const c = pick(FW_COLS), c2 = Math.random() < 0.4 ? pick(FW_COLS) : c, k = 160 + Math.floor(Math.random() * 90), sp = 32 + Math.random() * 22, ring = Math.random() < 0.25;
   for (let j = 0; j < k; j++) {
     const i = FW.head; FW.head = (FW.head + 1) % FW.n;
@@ -1061,7 +1082,7 @@ function fwBurst(x, y, z) {
     FW.c0.set(j % 2 ? c : c2, i * 3);
   }
 }
-function updateFireworks(dt) {
+export function updateFireworks(dt) {
   if (!FW.pts) return;
   const cp = camera.position, far = (cp.x - VILLA.x) ** 2 + (cp.z - VILLA.z) ** 2 > 4200 * 4200;
   if (!far && (FW.t -= dt) <= 0) {
@@ -1087,8 +1108,8 @@ function updateFireworks(dt) {
   }
   FW.pts.geometry.attributes.position.needsUpdate = true; FW.pts.geometry.attributes.color.needsUpdate = true;
 }
-const VILLA_F = { cx: 14, cz: 16, rx: 8, rz: 5.6 };
-function updateVilla(t) {
+export const VILLA_F = { cx: 14, cz: 16, rx: 8, rz: 5.6 };
+export function updateVilla(t) {
   const C = VILLA.crowd; if (!C) return;
   const cs = Math.cos(VILLA.ry), sn = Math.sin(VILLA.ry), by = VILLA.y;
   const rot = (lx, lz) => [VILLA.x + lx * cs + lz * sn, VILLA.z - lx * sn + lz * cs]; rot.ry = VILLA.ry;
@@ -1096,7 +1117,7 @@ function updateVilla(t) {
   VILLA.sway.forEach((a, i) => C.set(a, a.x, a.y, a.z, a.yaw + Math.sin(t * 2.2 + i) * 0.12, 1, Math.sin(t * 4.4 + i) * 0.05));
   C.flag();
 }
-function buildMountains() {
+export function buildMountains() {
   // Ein Netz bis an den Horizont: in der Mitte dicht (etwa 18 m), nach außen immer gröber
   const N = 440, HALF = 13000;
   const geo = new T.PlaneGeometry(2, 2, N, N); geo.rotateX(-Math.PI / 2);
@@ -1216,7 +1237,7 @@ function buildMountains() {
 }
 
 // UVs aus Weltkoordinaten: Böden von oben, Wände entlang ihrer Fläche, damit Muster nicht gestreckt werden
-function worldUV(g, sc) {
+export function worldUV(g, sc) {
   const p = g.attributes.position.array, n = g.attributes.normal.array, uv = g.attributes.uv.array;
   for (let i = 0, j = 0; i < p.length; i += 3, j += 2) {
     if (Math.abs(n[i + 1]) > 0.7) { uv[j] = p[i] / sc; uv[j + 1] = p[i + 2] / sc; }
@@ -1225,7 +1246,7 @@ function worldUV(g, sc) {
   g.attributes.uv.needsUpdate = true;
 }
 // Marmorboden: polierte Platten im Schachbrett, Adern, feine Fugen, Messingeinlagen
-function marbleFloorTextures() {
+export function marbleFloorTextures() {
   const rr = mulberry32(6262);
   return texSet(512, (g, gr, gh, W) => {
     const n = 4, s = W / n;
@@ -1252,7 +1273,7 @@ function marbleFloorTextures() {
   }, 1.2);
 }
 // Teppich: Art-Déco-Muster mit Bordüre, Mittelmedaillon und Flor
-function rugTex() {
+export function rugTex() {
   return canvasTex(512, 512, (g, W, H) => {
     const rr = mulberry32(8181);
     g.fillStyle = '#4e1216'; g.fillRect(0, 0, W, H);
@@ -1267,7 +1288,7 @@ function rugTex() {
   });
 }
 // Holzvertäfelung: Füllungen mit Rahmen und Maserung
-function woodPanelTextures() {
+export function woodPanelTextures() {
   const rr = mulberry32(7373);
   return texSet(256, (g, gr, gh, W) => {
     g.fillStyle = '#3a2214'; g.fillRect(0, 0, W, W); gr.fillStyle = '#6a6a6a'; gr.fillRect(0, 0, W, W); gh.fillStyle = 'rgb(120,0,0)'; gh.fillRect(0, 0, W, W);
@@ -1283,7 +1304,7 @@ function woodPanelTextures() {
 /* ---------- Boden ---------- */
 // Farbe, Rauheit und Relief (Normalenkarte aus einer Höhenkarte) aus einer Zeichenfunktion
 // Unscharfmaskierung (nahtlos): Farbe + k * (Farbe - 3x3-Mittel) lässt Fugen und Körnung schärfer wirken
-function sharpen(g, N, k) {
+export function sharpen(g, N, k) {
   const im = g.getImageData(0, 0, N, N), d = im.data, src = new Uint8ClampedArray(d);
   for (let y = 0; y < N; y++) {
     const ym = ((y + N - 1) % N) * N, y0 = y * N, yp = ((y + 1) % N) * N;
@@ -1297,7 +1318,7 @@ function sharpen(g, N, k) {
   }
   g.putImageData(im, 0, 0);
 }
-function texSet(W, draw, strength = 2.2, S = 0) {
+export function texSet(W, draw, strength = 2.2, S = 0) {
   // am PC feiner: kleine Kacheln dreifach, große zweieinhalbfach aufgelöst (S = 0); S fest vorgegeben gilt nur am PC
   if (MOBILE) S = 1; else if (!S) S = W <= 256 ? 3 : 2.5;
   const N = W * S;
@@ -1318,7 +1339,7 @@ function texSet(W, draw, strength = 2.2, S = 0) {
   return { map, rough, normal };
 }
 // Gehwegplatten: Betonplatten mit Fugen, Körnung, Rissen, Flecken und nassen Stellen
-function slabTextures() {
+export function slabTextures() {
   const rr = mulberry32(4242);
   return texSet(512, (g, gr, gh, W) => {
     g.fillStyle = '#2a2e31'; g.fillRect(0, 0, W, W); gr.fillStyle = '#404040'; gr.fillRect(0, 0, W, W); gh.fillStyle = '#000'; gh.fillRect(0, 0, W, W);
@@ -1340,7 +1361,7 @@ function slabTextures() {
   }, 2.0);
 }
 // Stabparkett für Innenräume: versetzte Eichendielen mit Maserung, Astlöchern, Fugen und Glanz
-function parquetTextures() {
+export function parquetTextures() {
   const rr = mulberry32(5151);
   return texSet(512, (g, gr, gh, W) => {
     g.fillStyle = '#1a0f08'; g.fillRect(0, 0, W, W); gr.fillStyle = '#707070'; gr.fillRect(0, 0, W, W); gh.fillStyle = '#000'; gh.fillRect(0, 0, W, W);
@@ -1368,7 +1389,7 @@ function parquetTextures() {
   }, 1.4);
 }
 // Tapete mit Art-Déco-Fächermuster
-function wallpaperTex(base = '#3b2c22', ink = 'rgba(214,170,90,0.35)') {
+export function wallpaperTex(base = '#3b2c22', ink = 'rgba(214,170,90,0.35)') {
   return canvasTex(256, 256, (g, W, H) => {
     g.fillStyle = base; g.fillRect(0, 0, W, H);
     g.strokeStyle = ink; g.lineWidth = 2;
@@ -1380,7 +1401,7 @@ function wallpaperTex(base = '#3b2c22', ink = 'rgba(214,170,90,0.35)') {
     g.fillStyle = 'rgba(255,255,255,0.03)'; for (let x = 0; x < W; x += 8) g.fillRect(x, 0, 3, H);
   });
 }
-function cobbleTextures() {
+export function cobbleTextures() {
   // Kleinpflaster mit Fugen, nassen Glanzflecken und einem Relief (Normalenkarte) aus einer Höhenkarte
   return texSet(512, (g, gr, gh, W) => {
     g.fillStyle = '#10181b'; g.fillRect(0, 0, W, W);
@@ -1408,7 +1429,7 @@ function cobbleTextures() {
 }
 // Straßendetails im Shader, damit keine Stelle der anderen gleicht: Farbchargen der Steine, ausgebesserte Flecken,
 // Pfützen mit Spiegelglanz, Kanaldeckel und Gitterroste, Laub, Zeitungsfetzen, Ölflecken; auf dem Gehweg Kaugummi und Versorgungsdeckel
-function streetDetail(mat, walk) {
+export function streetDetail(mat, walk) {
   const prev = mat.onBeforeCompile;
   mat.onBeforeCompile = sh => {
     if (prev) prev(sh);
@@ -1473,7 +1494,7 @@ function streetDetail(mat, walk) {
         normal = normalize(mix(normal, normalize(vNormal), sdPud * 0.9));`);
   };
 }
-function buildGround() {
+export function buildGround() {
   const cob = cobbleTextures();
   cob.map.repeat.set(2080 / 5, 1575 / 5); cob.rough.repeat.copy(cob.map.repeat); cob.normal.repeat.copy(cob.map.repeat);
   const roadMat = stdMat({ map: cob.map, roughnessMap: cob.rough, normalMap: cob.normal, normalScale: new T.Vector2(0.9, 0.9), color: 0xc4ccd0, roughness: 0.85, metalness: 0.08, envI: 0.45 });
@@ -1520,8 +1541,8 @@ function buildGround() {
 }
 
 // Laternen-Modelle nur in der Nähe zeichnen; in der Ferne bleibt der Lichtpunkt
-const LAMP_SETS = []; let lampTimer = 0;
-function updateLampLod(dt) {
+export const LAMP_SETS = []; export let lampTimer = 0;
+export function updateLampLod(dt) {
   if ((lampTimer -= dt) > 0) return;
   lampTimer = 0.25;
   const cp = camera.position, D2 = (260 + Math.max(0, cp.y) * 1.5) ** 2;
@@ -1533,7 +1554,7 @@ function updateLampLod(dt) {
   }
 }
 /* ---------- Licht in der feuchten Nachtluft: Lichtkegel unter den Laternen, Spiegelungen auf dem nassen Pflaster ---------- */
-function buildLampFx(heads) {
+export function buildLampFx(heads) {
   const n = heads.length, attr = new Float32Array(n * 4);
   heads.forEach((h, i) => attr.set([h[0], h[4], h[2], h[1] - h[4]], i * 4));
   // Spiegelstreifen: liegen flach auf dem Boden und zeigen immer vom Laternenfuß zum Betrachter
@@ -1587,7 +1608,7 @@ function buildLampFx(heads) {
 }
 
 /* ---------- Instanzen erzeugen ---------- */
-function flushInstances() {
+export function flushInstances() {
   // Gebäude
   const box = new T.BoxGeometry(1, 1, 1);
   const geo = box.clone();
@@ -1690,7 +1711,7 @@ function flushInstances() {
 }
 
 /* ---------- Dachaufbauten: Wassertürme, Schornsteine, Antennen ---------- */
-function buildRoofs() {
+export function buildRoofs() {
   const m = new T.Matrix4();
   const tank = mergeGeos([
     new T.CylinderGeometry(1.6, 1.6, 2.6, 10).translate(0, 3.9, 0),
@@ -1720,7 +1741,7 @@ function buildRoofs() {
 }
 
 /* ---------- Markisen über den Schaufenstern ---------- */
-function buildAwnings() {
+export function buildAwnings() {
   const list = [], cols = [];
   const palette = [[0.35, 0.05, 0.08], [0.06, 0.22, 0.14], [0.06, 0.1, 0.26], [0.6, 0.52, 0.38], [0.3, 0.16, 0.06]];
   const m = new T.Matrix4(), q = new T.Quaternion(), e = new T.Euler();
@@ -1749,7 +1770,7 @@ function buildAwnings() {
 }
 
 /* ---------- Stadtmobiliar: Litfaßsäulen, Bänke, Briefkästen, Hydranten, Papierkörbe, Kioske, Straßenuhren, Pflanzkübel ---------- */
-const POSTER_TEX = canvasTex(1536, 384, (g, W, H) => {
+export const POSTER_TEX = canvasTex(1536, 384, (g, W, H) => {
   const rr = mulberry32(2626);
   g.fillStyle = '#3a3226'; g.fillRect(0, 0, W, H);
   const P = [
@@ -1780,7 +1801,7 @@ const POSTER_TEX = canvasTex(1536, 384, (g, W, H) => {
   for (let k = 0; k < 3000; k++) { g.fillStyle = `rgba(${rr() < 0.5 ? '0,0,0' : '255,240,210'},${rr() * 0.06})`; g.fillRect(rr() * W, rr() * H, 2, 2); }
 });
 POSTER_TEX.wrapS = T.RepeatWrapping;
-const CLOCK_TEX = canvasTex(256, 256, (g, W) => {
+export const CLOCK_TEX = canvasTex(256, 256, (g, W) => {
   g.fillStyle = '#efe6cf'; g.beginPath(); g.arc(128, 128, 124, 0, 7); g.fill();
   g.strokeStyle = '#b08a4a'; g.lineWidth = 10; g.stroke();
   g.fillStyle = '#1a1612'; g.font = '28px Limelight, Georgia, serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
@@ -1789,7 +1810,7 @@ const CLOCK_TEX = canvasTex(256, 256, (g, W) => {
   g.strokeStyle = '#1a1612'; g.lineCap = 'round'; g.lineWidth = 7; g.beginPath(); g.moveTo(128, 128); g.lineTo(128 + 40, 128 - 30); g.stroke();
   g.lineWidth = 4; g.beginPath(); g.moveTo(128, 128); g.lineTo(128 - 20, 128 - 85); g.stroke();
 });
-function buildStreetFurniture() {
+export function buildStreetFurniture() {
   const rr = mulberry32(31337), mat = paintMat({ color: 0xffffff, metalness: 0.35, roughness: 0.55, envI: 0.5, emissive: 0x080604 });
   const W = (geos) => mergeColored(geos);
   const C = (rt, rb, h, seg, x, y, z) => new T.CylinderGeometry(rt, rb, h, seg).translate(x, y + h / 2, z);
@@ -1854,7 +1875,7 @@ function buildStreetFurniture() {
 
 /* ---------- Bäume und Pflanzen: Platanen, Linden, Zypressen mit Blattkarten, Rinde und Wind ---------- */
 // Blätteratlas: viele einzelne Blätter mit Stiel und Mittelrippe auf transparentem Grund
-const LEAF_TEX = (() => {
+export const LEAF_TEX = (() => {
   const t = canvasTex(512, 512, (g, W) => {
     const rr = mulberry32(5577);
     g.clearRect(0, 0, W, W);
@@ -1873,7 +1894,7 @@ const LEAF_TEX = (() => {
   return t;
 })();
 // Rinde: Längsfurchen, Borke, bei Platanen helle Flecken
-const BARK = texSet(256, (g, gr, gh, W) => {
+export const BARK = texSet(256, (g, gr, gh, W) => {
   const rr = mulberry32(6688);
   g.fillStyle = '#3a2c20'; g.fillRect(0, 0, W, W); gr.fillStyle = '#c0c0c0'; gr.fillRect(0, 0, W, W); gh.fillStyle = 'rgb(120,0,0)'; gh.fillRect(0, 0, W, W);
   for (let k = 0; k < 90; k++) {
@@ -1887,7 +1908,7 @@ const BARK = texSet(256, (g, gr, gh, W) => {
 }, 3.0);
 BARK.map.repeat.set(2, 3); BARK.normal.repeat.set(2, 3); BARK.rough.repeat.set(2, 3);
 // Wind: Stamm steht, Krone schwingt mit der Höhe, Blattkarten flattern; jede Pflanze mit eigener Phase
-function windPatchV15(mat, strength = 1, flutter = 0) {
+export function windPatchV15(mat, strength = 1, flutter = 0) {
   mat.onBeforeCompile = sh => {
     sh.uniforms.uTime = U.uTime;
     sh.vertexShader = 'uniform float uTime;\n' + sh.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
@@ -1908,7 +1929,7 @@ function windPatchV15(mat, strength = 1, flutter = 0) {
   };
   return mat;
 }
-function treeGeos(sp) {
+export function treeGeos(sp) {
   const rr = mulberry32(sp === 'plane' ? 11 : sp === 'linden' ? 22 : 33);
   const bark = [], blobs = [], cards = [];
   const limb = (r0, r1, a, b) => { const A = new T.Vector3(...a), B = new T.Vector3(...b), L = A.distanceTo(B); const g = new T.CylinderGeometry(r1, r0, L, 7, 3); g.translate(0, L / 2, 0); g.applyQuaternion(new T.Quaternion().setFromUnitVectors(new T.Vector3(0, 1, 0), B.clone().sub(A).normalize())); bark.push(g.translate(A.x, A.y, A.z)); };
@@ -1948,7 +1969,7 @@ function treeGeos(sp) {
   return { bark: mergeGeos(bark), blobs: mergeGeos(blobs), cards: mergeGeos(cards), lo: mergeGeos([...blobs.map(g => g.clone()), new T.CylinderGeometry(0.15, 0.3, crownBase + 1, 5).translate(0, (crownBase + 1) / 2, 0)]) };
 }
 // Laub für Hecken und Buchs: dichte kleine Blätter mit Licht und Schatten
-const HEDGE_TEX = texSet(256, (g, gr, gh, W) => {
+export const HEDGE_TEX = texSet(256, (g, gr, gh, W) => {
   const rr = mulberry32(4455);
   g.fillStyle = '#0c1c10'; g.fillRect(0, 0, W, W); gr.fillStyle = '#b0b0b0'; gr.fillRect(0, 0, W, W); gh.fillStyle = '#000'; gh.fillRect(0, 0, W, W);
   for (let k = 0; k < 2600; k++) {
@@ -1960,7 +1981,7 @@ const HEDGE_TEX = texSet(256, (g, gr, gh, W) => {
   }
 }, 2.5);
 // Rasen: Halme in Büscheln, Klee, kahle Stellen
-const GRASS = texSet(256, (g, gr, gh, W) => {
+export const GRASS = texSet(256, (g, gr, gh, W) => {
   const rr = mulberry32(3344);
   g.fillStyle = '#18301a'; g.fillRect(0, 0, W, W); gr.fillStyle = '#d0d0d0'; gr.fillRect(0, 0, W, W); gh.fillStyle = 'rgb(90,0,0)'; gh.fillRect(0, 0, W, W);
   for (let k = 0; k < 9000; k++) {
@@ -1971,7 +1992,7 @@ const GRASS = texSet(256, (g, gr, gh, W) => {
   for (let k = 0; k < 30; k++) { g.fillStyle = 'rgba(60,50,30,0.25)'; g.beginPath(); g.ellipse(rr() * W, rr() * W, 4 + rr() * 10, 3 + rr() * 8, 0, 0, 7); g.fill(); }
 }, 1.5);
 // Grasbüschel und Blumen als gekreuzte Karten, die sich im Wind wiegen
-const TUFT_TEX = (() => { const t = canvasTex(256, 256, (g, W) => {
+export const TUFT_TEX = (() => { const t = canvasTex(256, 256, (g, W) => {
   const rr = mulberry32(2233); g.clearRect(0, 0, W, W);
   for (let k = 0; k < 120; k++) { const x = 20 + rr() * 216, h = 70 + rr() * 170, bend = (rr() - 0.5) * 60, v = 0.5 + rr() * 0.7;
     g.strokeStyle = `rgb(${Math.round(45 * v)},${Math.round(100 * v)},${Math.round(42 * v)})`; g.lineWidth = 2 + rr() * 2.5; g.beginPath(); g.moveTo(x, W); g.quadraticCurveTo(x + bend * 0.3, W - h * 0.6, x + bend, W - h); g.stroke(); }
@@ -1979,7 +2000,7 @@ const TUFT_TEX = (() => { const t = canvasTex(256, 256, (g, W) => {
     if (rr() < 0.25) continue; g.strokeStyle = '#2a5a2a'; g.lineWidth = 2; g.beginPath(); g.moveTo(x, W); g.lineTo(x, y); g.stroke();
     g.fillStyle = c[0]; for (let p = 0; p < 6; p++) { const a = p / 6 * 6.28; g.beginPath(); g.ellipse(x + Math.cos(a) * 7, y + Math.sin(a) * 7, 6, 3.5, a, 0, 7); g.fill(); } g.fillStyle = c[1]; g.beginPath(); g.arc(x, y, 4, 0, 7); g.fill(); }
 }); t.generateMipmaps = true; t.minFilter = T.LinearMipmapLinearFilter; return t; })();
-function worldUVMat(mat, sc) {
+export function worldUVMat(mat, sc) {
   const prev = mat.onBeforeCompile;
   mat.onBeforeCompile = sh => {
     if (prev) prev(sh);
@@ -1992,7 +2013,7 @@ function worldUVMat(mat, sc) {
   };
   return mat;
 }
-function buildParkPlants(parks) {
+export function buildParkPlants(parks) {
   if (MOBILE || !parks.length) return;
   const rr = mulberry32(7766), list = [], m = new T.Matrix4(), q = new T.Quaternion(), up = new T.Vector3(0, 1, 0);
   for (const b of parks) {
@@ -2011,8 +2032,8 @@ function buildParkPlants(parks) {
   im.frustumCulled = false; scene.add(im); LAMP_SETS.push({ im, pts: list, near: 90 });
 }
 
-const TREE_SETS = []; let treeTimer = 0;
-function buildTrees() {
+export const TREE_SETS = []; export let treeTimer = 0;
+export function buildTrees() {
   if (!trees.length) return;
   const barkMat = windPatch(stdMat({ map: BARK.map, normalMap: BARK.normal, roughnessMap: BARK.rough, roughness: 1, color: 0x9a8a78, envI: 0.2, emissive: 0x0a0806 }), 0.5);
   const leafMat = windPatch(stdMat({ map: LEAF_TEX, alphaTest: 0.45, side: T.DoubleSide, roughness: 0.75, metalness: 0, envI: 0.35, emissive: 0x0b1408, emissiveMap: LEAF_TEX }), 1, 0.05);
@@ -2031,7 +2052,7 @@ function buildTrees() {
   }
   updateTreeLod(1);
 }
-function updateTreeLod(dt) {
+export function updateTreeLod(dt) {
   if ((treeTimer -= dt) > 0) return;
   treeTimer = 0.3;
   const cp = camera.position, D2 = ((MOBILE ? 110 : 230) + Math.max(0, cp.y) * 0.5) ** 2, F2 = (2600) ** 2;
@@ -2047,8 +2068,8 @@ function updateTreeLod(dt) {
 }
 
 /* ---------- Parkende Limousinen am Bordstein ---------- */
-let carBodyGeo;
-function buildParkedCars() {
+shared.carBodyGeo = undefined;
+export function buildParkedCars() {
   const m = new T.Matrix4(), q = new T.Quaternion(), e = new T.Euler(), list = [];
   for (const c of curbs) {
     const L = Math.hypot(c.bx - c.ax, c.bz - c.az), dx = (c.bx - c.ax) / L, dz = (c.bz - c.az) / L;
@@ -2064,7 +2085,7 @@ function buildParkedCars() {
   // zwei Roadster am Rondell der Villa, bereit für die Fahrt hinunter
   if (SERP.on) for (const lz of [-50, -30]) { const [x, z] = serpW(-47, lz), cs = Math.cos(VILLA.ry), sn = Math.sin(VILLA.ry); e.set(0, Math.atan2(-sn, -cs), 0); q.setFromEuler(e); const mm = m.compose(new T.Vector3(x, VILLA.y + 0.27, z), q, new T.Vector3(1, 1, 1)).clone(); mm.ox = 0; mm.oz = 0; list.push(mm); }
   if (!list.length) return;
-  const im = new T.InstancedMesh(carBodyGeo, MAT.carPaint, list.length), imHi = new T.InstancedMesh(carGeoHi(), MAT.carPaint, list.length);
+  const im = new T.InstancedMesh(shared.carBodyGeo, MAT.carPaint, list.length), imHi = new T.InstancedMesh(carGeoHi(), MAT.carPaint, list.length);
   const paint = [[0.05, 0.05, 0.06], [0.22, 0.04, 0.06], [0.05, 0.14, 0.1], [0.08, 0.1, 0.22], [0.45, 0.33, 0.15], [0.12, 0.12, 0.13]];
   const col = new T.Color();
   list.forEach((mm, i) => { im.setMatrixAt(i, mm); const p = pick(paint).map(v => v + (Math.random() - 0.5) * 0.012); im.setColorAt(i, col.setRGB(p[0], p[1], p[2])); parked.push({ m: mm, c: p, x: mm.elements[12], z: mm.elements[14], ox: mm.ox, oz: mm.oz }); });
@@ -2072,10 +2093,10 @@ function buildParkedCars() {
   carDamageAttr(imHi); carDamageAttr(im);
   parkedCmp = lodCompactor(imHi, im, LOD_CAR2);
 }
-const parked = []; let parkedCmp = null, parkedTimer = 0;
-function updateParked(dt) {
-  if (!parkedCmp || (parkedTimer -= dt) > 0) return;
-  parkedTimer = 0.15;
+export const parked = []; export let parkedCmp = null; shared.parkedTimer = 0;
+export function updateParked(dt) {
+  if (!parkedCmp || (shared.parkedTimer -= dt) > 0) return;
+  shared.parkedTimer = 0.15;
   const cp = camera.position, D2 = (420 + Math.max(0, cp.y)) ** 2;
   parkedCmp.begin();
   for (const c of parked) { if (c.hidden) continue; const d2 = (c.x - cp.x) ** 2 + (c.z - cp.z) ** 2 + cp.y * cp.y; if (d2 < D2) parkedCmp.put(c.m, c, c.c, d2); }
@@ -2084,8 +2105,8 @@ function updateParked(dt) {
 
 
 /* ---------- Modelle: Limousine, Menschen, Straßenbahn (je ein farbiges Netz) ---------- */
-const COL = { skin: [0.88, 0.58, 0.42], hair: [0.07, 0.05, 0.04], blond: [0.62, 0.5, 0.3], tux: [0.025, 0.025, 0.03], shirt: [0.92, 0.9, 0.86], dark: [0.04, 0.04, 0.045], chrome: [0.85, 0.86, 0.88], glass: [0.03, 0.045, 0.06], tyre: [0.03, 0.03, 0.03], wall: [0.85, 0.83, 0.78], gold: [0.9, 0.66, 0.3] };
-function carGeo() {
+export const COL = { skin: [0.88, 0.58, 0.42], hair: [0.07, 0.05, 0.04], blond: [0.62, 0.5, 0.3], tux: [0.025, 0.025, 0.03], shirt: [0.92, 0.9, 0.86], dark: [0.04, 0.04, 0.045], chrome: [0.85, 0.86, 0.88], glass: [0.03, 0.045, 0.06], tyre: [0.03, 0.03, 0.03], wall: [0.85, 0.83, 0.78], gold: [0.9, 0.66, 0.3] };
+export function carGeo() {
   const B = IB;
   const C = (rt, rb, h, seg, x, y, z, rx = 0, rz = 0) => { const g = new T.CylinderGeometry(rt, rb, h, seg); if (rx) g.rotateX(rx); if (rz) g.rotateZ(rz); return g.translate(x, y, z); };
   const parts = [
@@ -2114,7 +2135,7 @@ function carGeo() {
   return mergeColored(parts);
 }
 // Figuren schauen nach +z. Weiß = Instanzfarbe (Mantel, Kleid, Livree)
-function personGeo(kind) {
+export function personGeo(kind) {
   const P = []; let LB = [0, 0]; const push0 = P.push.bind(P); P.push = e => push0([e[0], e[1], LB[0], LB[1]]);
   const cyl = (rt, rb, h, x, y, z, c, seg = 8) => P.push([new T.CylinderGeometry(rt, rb, h, seg).translate(x, y + h / 2, z), c]);
   const sph = (r, x, y, z, c, sy = 1) => P.push([new T.SphereGeometry(r, 10, 8).scale(1, sy, 1).translate(x, y, z), c]);
@@ -2151,7 +2172,7 @@ function personGeo(kind) {
 }
 
 // Feine Modelle für die Nähe (unter etwa 60 m bei Personen, 130 m bei Autos)
-function carGeoHi(opts = {}) {
+export function carGeoHi(opts = {}) {
   // Varianten: 1 Limousine, 2 Cabriolet mit offenem Verdeck, 3 Taxi; 4 = Dach für Limousine und Taxi
   const P = []; let OPT = 0; const push0 = P.push.bind(P); P.push = e => push0([e[0], e[1], 0, 0, OPT]);
   const B = (w, h, d, x, y, z, c) => P.push([new T.BoxGeometry(w, h, d).translate(x, y, z), c]);
@@ -2220,7 +2241,7 @@ function carGeoHi(opts = {}) {
   return mergeColored(P);
 }
 // Ein Menschen-Satz: mehrere Kleidungsarten, jede eine InstancedMesh mit Farben pro Person
-class Crowd {
+export class Crowd {
   constructor(kinds, max) { this.nr = {}; this.hi = {}; this.lo = {}; this.list = []; this.max = max; this.kinds = kinds; this.vis = true; this.far = 320; }
   // Statur: jede Figur etwas schmaler oder kräftiger
   add(kind, color, face) { const fem = kind === 'lady' || kind === 'gown' || kind === 'dress'; this.list.push({ kind, color, m: new T.Matrix4(), on: false, bw: fem ? 0.9 + Math.random() * 0.16 : 0.9 + Math.random() * 0.26, gait: [Math.random() * 6.28, 0, 0, face ?? personLook(kind)] }); return this.list[this.list.length - 1]; }
@@ -2256,14 +2277,14 @@ class Crowd {
   }
   show(v) { this.vis = v; for (const k in this.hi) { this.nr[k].im.visible = v; this.hi[k].im.visible = v; this.lo[k].im.visible = v; } }
 }
-const LOD_PERSON2 = 45 * 45, LOD_CAR2 = 90 * 90;
+export const LOD_PERSON2 = 45 * 45, LOD_CAR2 = 90 * 90;
 // Zwei Detailstufen hinter einer Schnittstelle: put() entscheidet nach Abstand
-function lodCompactor(hi, lo, near2) {
+export function lodCompactor(hi, lo, near2) {
   const H = compactor(hi), L = compactor(lo);
   return { begin() { H.begin(); L.begin(); }, put(m, k, c, d2) { (d2 < near2 ? H : L).put(m, k, c); }, end() { H.end(); L.end(); } };
 }
-const _cc = new T.Color();
-function compactor(im) {
+export const _cc = new T.Color();
+export function compactor(im) {
   const key = new Array(im.count).fill(null), gv = new Int32Array(im.count); let DA = null;
   return {
     n: 0, dirty: false,
@@ -2276,16 +2297,16 @@ function compactor(im) {
     end() { im.count = this.n; im.instanceMatrix.needsUpdate = true; if (this.dDirty && DA) { DA.needsUpdate = true; this.dDirty = false; } if (this.dirty && im.instanceColor) { im.instanceColor.needsUpdate = true; if (im.geometry.attributes.aGait) im.geometry.attributes.aGait.needsUpdate = true; this.dirty = false; } },
   };
 }
-const _e = new T.Euler();
-const WORKWEAR = [[0.1, 0.14, 0.24], [0.14, 0.18, 0.28], [0.2, 0.15, 0.1], [0.12, 0.12, 0.13]];
-const SHIRTS = [[0.82, 0.8, 0.74], [0.55, 0.62, 0.72], [0.7, 0.66, 0.56], [0.42, 0.48, 0.58], [0.78, 0.74, 0.66]];
-const DRESSES = [[0.62, 0.12, 0.16], [0.08, 0.32, 0.34], [0.78, 0.66, 0.42], [0.5, 0.48, 0.6], [0.12, 0.12, 0.14], [0.72, 0.5, 0.45], [0.3, 0.42, 0.28], [0.85, 0.8, 0.7]];
-const COATS = [[0.06, 0.05, 0.05], [0.1, 0.08, 0.07], [0.16, 0.12, 0.09], [0.08, 0.08, 0.12], [0.3, 0.26, 0.2], [0.22, 0.07, 0.08], [0.05, 0.14, 0.15], [0.35, 0.3, 0.24]];
-const GOWNS = [[0.75, 0.6, 0.35], [0.85, 0.78, 0.62], [0.6, 0.62, 0.66], [0.45, 0.05, 0.08], [0.04, 0.22, 0.24], [0.06, 0.06, 0.07], [0.7, 0.45, 0.4], [0.9, 0.86, 0.8]];
+export const _e = new T.Euler();
+export const WORKWEAR = [[0.1, 0.14, 0.24], [0.14, 0.18, 0.28], [0.2, 0.15, 0.1], [0.12, 0.12, 0.13]];
+export const SHIRTS = [[0.82, 0.8, 0.74], [0.55, 0.62, 0.72], [0.7, 0.66, 0.56], [0.42, 0.48, 0.58], [0.78, 0.74, 0.66]];
+export const DRESSES = [[0.62, 0.12, 0.16], [0.08, 0.32, 0.34], [0.78, 0.66, 0.42], [0.5, 0.48, 0.6], [0.12, 0.12, 0.14], [0.72, 0.5, 0.45], [0.3, 0.42, 0.28], [0.85, 0.8, 0.7]];
+export const COATS = [[0.06, 0.05, 0.05], [0.1, 0.08, 0.07], [0.16, 0.12, 0.09], [0.08, 0.08, 0.12], [0.3, 0.26, 0.2], [0.22, 0.07, 0.08], [0.05, 0.14, 0.15], [0.35, 0.3, 0.24]];
+export const GOWNS = [[0.75, 0.6, 0.35], [0.85, 0.78, 0.62], [0.6, 0.62, 0.66], [0.45, 0.05, 0.08], [0.04, 0.22, 0.24], [0.06, 0.06, 0.07], [0.7, 0.45, 0.4], [0.9, 0.86, 0.8]];
 /* ---------- Passanten auf den Gehsteigen ---------- */
-const peds = [];
-let pedCrowd;
-function buildPedestrians() {
+export const peds = [];
+export let pedCrowd;
+export function buildPedestrians() {
   const loops = [];
   for (const b of blocks) {
     if (b.d > 640) continue;
@@ -2379,7 +2400,7 @@ function buildPedestrians() {
   buildDrivers();
 }
 // Eingänge, die an einem Gehweg-Rundweg liegen: Position auf dem Weg (t) und Tür
-function loopDoors(lp) {
+export function loopDoors(lp) {
   const out = [];
   for (const d of DOORS) {
     let acc = 0, best = null;
@@ -2395,10 +2416,10 @@ function loopDoors(lp) {
   return out;
 }
 // Wie lange Leute drinnen bleiben, je nach Lokal (Sekunden)
-const STAY = { hotel: [20, 60], shop: [8, 25], restaurant: [30, 80], cafe: [15, 45], bar: [25, 70], pub: [25, 70], workshop: [20, 50] };
+export const STAY = { hotel: [20, 60], shop: [8, 25], restaurant: [30, 80], cafe: [15, 45], bar: [25, 70], pub: [25, 70], workshop: [20, 50] };
 // Handlung einer Figur ändern (der Shader liest sie aus der Gangart)
 // Position auf der Runde mit gerundeten Ecken (Bogen von 1,2 m): Ort und Blickrichtung
-function loopRound(lp, t, sgn) {
+export function loopRound(lp, t, sgn) {
   const S = lp.segs; let u = t, i = 0;
   for (; i < S.length - 1; i++) { if (u <= S[i].L) break; u -= S[i].L; }
   const sg = S[i], R = Math.min(1.2, sg.L * 0.45), dx = (sg.b[0] - sg.a[0]) / sg.L, dz = (sg.b[1] - sg.a[1]) / sg.L;
@@ -2411,23 +2432,23 @@ function loopRound(lp, t, sgn) {
   let tx = m * (C[0] - P0[0]) + s * (P2[0] - C[0]), tz = m * (C[1] - P0[1]) + s * (P2[1] - C[1]); const L = Math.hypot(tx, tz) || 1;
   return [x, z, tx / L * sgn, tz / L * sgn];
 }
-function setAct(pd, v) { const g = pd.a.gait; if (g[1] !== v || g[2] !== 0) { g[1] = v; g[2] = 0; pd.a.gv = (pd.a.gv | 0) + 1; } }
-function loopPos(lp, t) {
+export function setAct(pd, v) { const g = pd.a.gait; if (g[1] !== v || g[2] !== 0) { g[1] = v; g[2] = 0; pd.a.gv = (pd.a.gv | 0) + 1; } }
+export function loopPos(lp, t) {
   let u = t, sg = lp.segs[0];
   for (const sgm of lp.segs) { if (u <= sgm.L) { sg = sgm; break; } u -= sgm.L; }
   const k = u / sg.L; return [sg.a[0] + (sg.b[0] - sg.a[0]) * k, sg.a[1] + (sg.b[1] - sg.a[1]) * k];
 }
-function startMeet(A, B, d) {
+export function startMeet(A, B, d) {
   const lp = A.lp, sgn = Math.sign(A.v), mid = A.t + d / 2, wrap = t => ((t % lp.total) + lp.total) % lp.total;
   A.t = wrap(mid - 0.46 * sgn); B.t = wrap(mid + 0.46 * sgn);
   const [ax, az] = loopPos(lp, A.t), [bx, bz] = loopPos(lp, B.t);
   for (const [P, Q, x, z, ox, oz] of [[A, B, ax, az, bx, bz], [B, A, bx, bz, ax, az]]) { P.st = 7; P.mp = Q; P.mx = x; P.mz = z; P.myaw = Math.atan2(ox - x, oz - z); P.gw = [P.a.gait[1], P.a.gait[2]]; }
   A.lead = true; B.lead = false; A.mt = 0; A.md = 9 + Math.random() * 16; A.seed = Math.random();
 }
-function endMeet(P) { P.st = 0; P.lead = false; P.a.gait[1] = P.gw[0]; P.a.gait[2] = P.gw[1]; P.a.gv = (P.a.gv | 0) + 1; P.mcool = 45 + Math.random() * 60; }
-let meetTimer = 0;
-const CHATS = [];
-function pedSocial(dt) {
+export function endMeet(P) { P.st = 0; P.lead = false; P.a.gait[1] = P.gw[0]; P.a.gait[2] = P.gw[1]; P.a.gv = (P.a.gv | 0) + 1; P.mcool = 45 + Math.random() * 60; }
+export let meetTimer = 0;
+export const CHATS = [];
+export function pedSocial(dt) {
   // Gesprächsrunden: einer erzählt, die anderen nicken, manchmal lachen alle oder jemand nimmt einen Schluck
   const cp = camera.position;
   for (const c of CHATS) {

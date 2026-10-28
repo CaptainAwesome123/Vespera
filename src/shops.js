@@ -1,12 +1,26 @@
-'use strict';
+import { registerLayer, chunkKey } from './chunks.js';
+import { shared, MOBILE, canvasTex, T, mulberry32, scene, pick, camera, R, rand, mergeGeos, U } from './core.js';
+import { addCollider, paintMat, mergeColored } from './people-skeleton.js';
+import { addSeg, addGlow, addNeon, NEON, curbs, lamps, trees, steamPts, segs, towers, shafts, neons, spires, glowPts, roofs } from './facade-shader.js';
+import { BR_SPOTS } from './island.js';
+import { pickW, DOORS, lathe, placeFurn, FURN, decoBuilding, caps, domes, signDefs } from './entrances.js';
+import { kit, Bx, wuv, benchGeo } from './harbour.js';
+import { DRESSES, SHIRTS, setAct, _e } from './serpentine.js';
+import { _p, _q, _s, _m, _up } from './traffic.js';
+import { player } from './player.js';
+import { VENUE_PEDS } from './venues.js';
+import { toast } from './boat.js';
+import { INTERACT } from './music.js';
+import { addLight } from './performance.js';
+
 /* =====================================================================
    V19 · BEGEHBARE LÄDEN: Erdgeschosse mit 60 cm dicken Mauern, Schaufenstern mit
    Auslage, offener Ladentür, Innenraum (Boden, Decke, Lampen, Theke, Regale mit
    Waren), Händler hinter der Theke, Kundschaft; Namen auf Messingschildern
    ===================================================================== */
-const SHOPS = [];
-const SHOP_MAX = MOBILE ? 14 : 44;
-const SHOP_KINDS = [
+export const SHOPS = [];
+export const SHOP_MAX = MOBILE ? 14 : 44;
+export const SHOP_KINDS = [
   { k: 'hut', w: 1.2, names: ['CHAPEAU ROYAL', 'HUTSALON FALK', 'HÜTE & MÜTZEN LANG', 'MODISTIN MARGOT'], ware: 'einen Filzhut mit Seidenband', col: [0.35, 0.08, 0.1] },
   { k: 'buch', w: 1.2, names: ['BUCHHANDLUNG SEIDEL', 'ANTIQUARIAT NOVAK', 'BÜCHER & KARTEN', 'LESEZIRKEL WINTER'], ware: 'einen in Leder gebundenen Roman', col: [0.08, 0.2, 0.14] },
   { k: 'deli', w: 1.3, names: ['DELIKATESSEN MARCHETTI', 'FEINKOST DUBOIS', 'KÄSE · WURST · WEIN', 'KOLONIALWAREN ROTH'], ware: 'ein Stück Bergkäse und Oliven', col: [0.08, 0.14, 0.3] },
@@ -22,7 +36,7 @@ const SHOP_KINDS = [
   { k: 'cafe', w: 1.3, names: ['CAFÉ VESPER', 'KAFFEEHAUS BRANDT', 'CAFÉ LUNA', 'KONDITOREI WAGNER'], ware: 'Mokka und ein Stück Torte', col: [0.6, 0.52, 0.38] },
   { k: 'bar', w: 1.0, names: ['BAR AZUR', 'COCKTAIL-SALON', 'ZUR GOLDENEN NACHT'], ware: 'einen Gin Fizz', col: [0.06, 0.1, 0.26] },
 ];
-const SHOP_SAY = {
+export const SHOP_SAY = {
   hut: ['Der steht Ihnen ausgezeichnet. Fünf Mark, mit Hutschachtel.', 'Ein Homburg für den Herrn? Oder lieber etwas Verwegenes?'],
   buch: ['Frisch aus der Druckerei. Lesen Sie es nicht in einer Nacht, es lohnt sich.', 'Die Erstausgabe habe ich hinten im Regal, wenn Sie Zeit haben.'],
   deli: ['Der Käse kommt von den Almen über dem Tunnel. Probieren Sie!', 'Oliven, Schinken, ein Glas Wein dazu? Ich packe es Ihnen ein.'],
@@ -38,9 +52,9 @@ const SHOP_SAY = {
   cafe: ['Ein Mokka, dazu Schwarzwälder. Setzen Sie sich ans Fenster.', 'Der Kaffee kommt direkt vom Luftschiffhafen, noch warm geröstet.'],
   bar: ['Gin Fizz, kalt wie der Gletscher. Wohl bekomm’s.', 'Die Band kommt um elf. Bis dahin: noch einen?'],
 };
-const SHOP_NAMES_USED = new Set();
+export const SHOP_NAMES_USED = new Set();
 // Ladenschild: Messingschrift auf dunklem Grund, Schriftgröße passt sich der Länge an
-function shopSign(text, w, h) {
+export function shopSign(text, w, h) {
   const t = canvasTex(1024, 160, (g, W, H) => {
     g.fillStyle = '#1a1410'; g.fillRect(0, 0, W, H);
     g.strokeStyle = '#c9a258'; g.lineWidth = 6; g.strokeRect(10, 10, W - 20, H - 20);
@@ -51,21 +65,22 @@ function shopSign(text, w, h) {
   return new T.Mesh(new T.PlaneGeometry(w, h), new T.MeshBasicMaterial({ map: t, color: new T.Color(1.25, 1.25, 1.25) }));
 }
 // Welche Bauten einen begehbaren Laden bekommen: nah am Zentrum, breit genug, mit Straßenseite
-function wantShop(dist, w, d, edges, worker, H, rr) {
+export function wantShop(dist, w, d, edges, worker, H, rr) {
   if (worker || SHOPS.length >= SHOP_MAX || dist > (MOBILE ? 420 : 560) || H < 20) return false;
   if (Math.min(w, d) < 13) return false;
   if (!Object.values(edges).some(v => v)) return false;
   return rr() < (MOBILE ? 0.1 : 0.16);
 }
 // Bausätze je Stadtviertel (500-m-Zellen): wenige Meshes, aber in der Ferne abschaltbar
-const SHOP_KITS = {};
-let SK = null;
-function shopKit(x = 0, z = 0) {
-  const key = Math.floor((x + 1000) / 500) + ',' + Math.floor((z + 1000) / 500);
-  return (SHOP_KITS[key] ||= { K: kit(), x: (Math.floor((x + 1000) / 500) + 0.5) * 500 - 1000, z: (Math.floor((z + 1000) / 500) + 0.5) * 500 - 1000, g: null }).K;
+export const SHOP_CELL = 500;
+export const SHOP_KITS = {};
+export let SK = null;
+export function shopKit(x = 0, z = 0) {
+  const cx = Math.floor(x / SHOP_CELL), cz = Math.floor(z / SHOP_CELL), key = chunkKey(cx, cz);
+  return (SHOP_KITS[key] ||= { K: kit(), cx, cz, x: (cx + 0.5) * SHOP_CELL, z: (cz + 0.5) * SHOP_CELL, g: null }).K;
 }
-const shopRR = mulberry32(19260);
-function shopFloor(cx, cz, w, d, edges, tint, seed, rr) {
+export const shopRR = mulberry32(19260);
+export function shopFloor(cx, cz, w, d, edges, tint, seed, rr) {
   const K = shopKit(cx, cz); shopFillInit(K, shopRR);
   const y0 = 0.2, TOP = 5.3, TH = 0.6, PT = 0.3, FL = 0.3, CEIL = 4.3;
   const x0 = cx - w / 2, x1 = cx + w / 2, z0 = cz - d / 2, z1 = cz + d / 2;
@@ -210,7 +225,7 @@ function shopFloor(cx, cz, w, d, edges, tint, seed, rr) {
   }
 }
 // Einrichtung je Ladenart
-function shopInterior(K, S, kind, g) {
+export function shopInterior(K, S, kind, g) {
   const { cx, cz, iw, id, bx, bz, bo, ax, L, FL, CEIL, TH, wood, accent, rr, edges, back } = g;
   // Punkt im Laden: a entlang der Rückwand (−L/2..L/2), n Abstand von der Rückwand nach innen
   const P = (a, n) => ({ x: bx - bo[0] * n + (ax ? 0 : a), z: bz - bo[1] * n + (ax ? a : 0) });
@@ -456,8 +471,8 @@ function shopInterior(K, S, kind, g) {
   S.kindName = kind.k;
 }
 // Waren je Ladenart für Seitenregale und Tische
-const SHOP_FILL = {};
-function shopFillInit(K, rr) {
+export const SHOP_FILL = {};
+export function shopFillInit(K, rr) {
   if (SHOP_FILL.K === K) return; SHOP_FILL.K = K;
   const pc = arr => arr[Math.floor(rr() * arr.length)];
   const lit = (g, c) => K.add('lit', g, c);
@@ -474,9 +489,18 @@ function shopFillInit(K, rr) {
   SHOP_FILL.schneider = { step: 0.5, fn: (x, y, z, ax) => K.add('cloth', new T.CylinderGeometry(0.07, 0.07, 0.4, 10).rotateZ(ax ? 0 : Math.PI / 2).rotateX(ax ? Math.PI / 2 : 0).translate(x, y + 0.07, z), pc([[0.3, 0.3, 0.35], [0.5, 0.45, 0.4], [0.12, 0.14, 0.2], [0.4, 0.3, 0.2], [0.6, 0.6, 0.6]])) };
 }
 // Nach dem Stadtbau: alle Läden zu wenigen Meshes verschmelzen, Interaktion an den Theken
-function finishShops() {
-  for (const k in SHOP_KITS) { const c = SHOP_KITS[k]; c.g = new T.Group(); c.K.build(c.g); scene.add(c.g); c.K = null; }
-  for (const k in SHOP_FILL) delete SHOP_FILL[k];   // Bausätze und Einzelteile freigeben, nur die verschmolzenen Meshes bleiben
+export function finishShops() {
+  // Die Läden einer Zelle werden erst zu Meshes verschmolzen, wenn der Spieler in die Nähe kommt (Welt-Chunks),
+  // und wieder vom Grafikspeicher gelöst, wenn er sich entfernt. Sichtweite wie bisher: 650 m plus Flughöhe.
+  registerLayer({
+    name: 'shops', size: SHOP_CELL, radius: cam => 650 + Math.max(0, cam.position.y),
+    build(cx, cz) {
+      const c = SHOP_KITS[chunkKey(cx, cz)]; if (!c) return null;
+      if (!c.g) { c.g = new T.Group(); c.K.build(c.g); c.K = null; }
+      return c.g;
+    },
+  });
+  for (const k in SHOP_FILL) delete SHOP_FILL[k];   // Einzelteile der Planung freigeben
   const FIRSTS = ['Herr Falk', 'Frau Seidel', 'Herr Marchetti', 'Frau Dubois', 'Herr Lorenz', 'Herr Stein', 'Frau Rosa', 'Herr Adler', 'Frau Vera', 'Herr König', 'Herr Ziegler', 'Herr Keller', 'Herr O’Hara', 'Frau Brandt', 'Herr Graf', 'Frau Sommer', 'Herr Novak', 'Frau Weiß'];
   SHOPS.forEach((S, i) => {
     S.host = FIRSTS[i % FIRSTS.length];
@@ -490,10 +514,8 @@ function finishShops() {
   // Begrüßung beim Betreten
   SHOPS.forEach(S => { S.greet = 0; });
 }
-let shopCullT = 0;
-function updateShops(dt) {
+export function updateShops(dt) {
   const p = player.p;
-  if ((shopCullT -= dt) <= 0) { shopCullT = 0.4; const cp = camera.position; for (const k in SHOP_KITS) { const c = SHOP_KITS[k]; if (c.g) c.g.visible = Math.hypot(cp.x - c.x, cp.z - c.z) < 650 + Math.max(0, cp.y); } }
   for (const S of SHOPS) {
     const inS = p.x > S.x0 + 0.6 && p.x < S.x1 - 0.6 && p.z > S.z0 + 0.6 && p.z < S.z1 - 0.6 && p.y < 4;
     if (inS && !S.inside) { S.inside = true; if (S.greetCool === undefined || S.greetCool <= 0) { toast(`${S.name} · ${S.host}: „Guten Abend, treten Sie ein!“`); S.greetCool = 60; if (S.merchant && S.merchant.a) { setAct(S.merchant, 1.6); setTimeout(() => { if (S.merchant.a) setAct(S.merchant, S.merchant.act); }, 2000); } } }
@@ -502,7 +524,7 @@ function updateShops(dt) {
   }
 }
 
-function buildBlock(b) {
+export function buildBlock(b) {
   const SW = 4.5;
   addCollider(b.x0, 0, b.z0, b.x1, 0.22, b.z1);
   // Laternen am Bordstein
@@ -546,7 +568,7 @@ function buildBlock(b) {
 }
 
 // Gasse zwischen zwei Häusern: Laternen, eiserne Stege, Dampf
-function buildAlley(x, z0, z1, dist) {
+export function buildAlley(x, z0, z1, dist) {
   const iron = [0.22, 0.2, 0.2];
   for (let z = z0 + 6; z < z1 - 4; z += 11) {
     const side = R() < 0.5 ? -1 : 1;
@@ -564,14 +586,14 @@ function buildAlley(x, z0, z1, dist) {
 }
 
 /* ---------- Industriegebiet Ost: Fabrikhallen mit Sheddach, Schlote, Laufkräne, Förderbänder ---------- */
-let SINK = false;           // Block wird zur Fabrik: der normale Aufbau läuft ins Leere, damit der Zufall gleich bleibt
-const FACTORIES = [], FACTORY_LOOPS = [], FACTORY_IDLERS = [], DEPOTS = [], SMOKE = [];
-const IND_STATIC = [], IND_GLASS = [];
-const FACTORY_NAMES = ['STAHLWERK', 'GIESSEREI', 'TURBINENBAU', 'LUFTSCHIFFWERFT', 'MASCHINENFABRIK', 'BRAUEREI', 'DRUCKEREI', 'KABELWERK', 'GLASHÜTTE', 'RADIOWERK', 'LOKOMOTIVBAU', 'MÜHLE'];
-const isFactoryZone = b => (b.tier || 'fabric') === 'fabric' && !b.park && b.d > 650 && (b.x0 + b.x1) / 2 > 700 && (b.z0 + b.z1) / 2 < 420;
-function snapArrays() { return [segs, towers, shafts, neons, spires, glowPts, lamps, trees, steamPts, roofs, curbs, DOORS, caps, domes, signDefs, BR_SPOTS].map(a => [a, a.length]); }
-const IB = (w, h, d, x, y, z) => new T.BoxGeometry(w, h, d).translate(x, y, z);
-function buildFactory(b, rf, idx) {
+shared.SINK = false;           // Block wird zur Fabrik: der normale Aufbau läuft ins Leere, damit der Zufall gleich bleibt
+export const FACTORIES = [], FACTORY_LOOPS = [], FACTORY_IDLERS = [], DEPOTS = [], SMOKE = [];
+export const IND_STATIC = [], IND_GLASS = [];
+export const FACTORY_NAMES = ['STAHLWERK', 'GIESSEREI', 'TURBINENBAU', 'LUFTSCHIFFWERFT', 'MASCHINENFABRIK', 'BRAUEREI', 'DRUCKEREI', 'KABELWERK', 'GLASHÜTTE', 'RADIOWERK', 'LOKOMOTIVBAU', 'MÜHLE'];
+export const isFactoryZone = b => (b.tier || 'fabric') === 'fabric' && !b.park && b.d > 650 && (b.x0 + b.x1) / 2 > 700 && (b.z0 + b.z1) / 2 < 420;
+export function snapArrays() { return [segs, towers, shafts, neons, spires, glowPts, lamps, trees, steamPts, roofs, curbs, DOORS, caps, domes, signDefs, BR_SPOTS].map(a => [a, a.length]); }
+export const IB = (w, h, d, x, y, z) => new T.BoxGeometry(w, h, d).translate(x, y, z);
+export function buildFactory(b, rf, idx) {
   addCollider(b.x0, 0, b.z0, b.x1, 0.22, b.z1);
   const per = [[b.x0 + 1, b.z0 + 1, b.x1 - 1, b.z0 + 1], [b.x1 - 1, b.z0 + 1, b.x1 - 1, b.z1 - 1], [b.x1 - 1, b.z1 - 1, b.x0 + 1, b.z1 - 1], [b.x0 + 1, b.z1 - 1, b.x0 + 1, b.z0 + 1]];
   for (const [ax, az, bx, bz] of per) {
@@ -667,8 +689,8 @@ function buildFactory(b, rf, idx) {
   FACTORY_IDLERS.push({ x: wallX + dir * (cL - 2), z: cz1 + 1.4, yaw: Math.PI }, { x: wallX + dir * (cL * 0.5), z: cz1 - 1.4, yaw: 0 }, { x: ex + dir * 2.4, z: ez, yaw: dir > 0 ? -Math.PI / 2 : Math.PI / 2 });
   FACTORIES.push({ b, gx: ycx, hx0, hx1, rx0, rx1, rz0, rz1, CH, wallX, dir, cz1, cL, ex, ez, ph: rf() * 100, cx: ycx, cz: (iz0 + iz1) / 2 });
 }
-let indMeshes = null;
-function buildIndustry() {
+export let indMeshes = null;
+export function buildIndustry() {
   if (!FACTORIES.length) return;
   const mat = paintMat({ color: 0xffffff, metalness: 0.25, roughness: 0.78, envI: 0.35 });
   const st = new T.Mesh(mergeColored(IND_STATIC), paintMat({ color: 0xffffff, metalness: 0.2, roughness: 0.82, envI: 0.3, side: T.DoubleSide })); scene.add(st);
@@ -704,7 +726,7 @@ function buildIndustry() {
   }));
   smoke.frustumCulled = false; smoke.renderOrder = 3; scene.add(smoke);
 }
-function updateIndustry(t) {
+export function updateIndustry(t) {
   if (!indMeshes) return;
   const M = indMeshes, cp = camera.position;
   FACTORIES.forEach((f, i) => {
@@ -729,9 +751,9 @@ function updateIndustry(t) {
   for (const k in M) M[k].instanceMatrix.needsUpdate = true;
 }
 
-const BRICK = [[0.46, 0.27, 0.2], [0.38, 0.24, 0.2], [0.3, 0.22, 0.2], [0.5, 0.36, 0.26]];
+export const BRICK = [[0.46, 0.27, 0.2], [0.38, 0.24, 0.2], [0.3, 0.22, 0.2], [0.5, 0.36, 0.26]];
 // Grundriss einer Turmstufe: Quader, Kreuz mit zurückgesetzten Ecken oder abgeschrägte Ecken (Achteck)
-function tier(x, z, w, d, y0, y1, seg, corner = 'square', c = 0, collide = true) {
+export function tier(x, z, w, d, y0, y1, seg, corner = 'square', c = 0, collide = true) {
   if (corner === 'square' || c < 1.2) { addSeg({ ...seg, x, z, w, d, y0, y1 }, collide); return; }
   if (corner === 'round') {
     // Gerundete Ecken (Stromlinie) oder ganz rund (c = halbe Breite): Viertelkreise aus schmalen Fassadenstücken
@@ -755,7 +777,7 @@ function tier(x, z, w, d, y0, y1, seg, corner = 'square', c = 0, collide = true)
     addSeg({ ...seg, x: x + sx * (w / 2 - c), z: z + sz * (d / 2 - c), w: c * 1.414, d: c * 1.414, y0, y1, ry: Math.PI / 4, seed: seg.seed + 29 }, false);
 }
 // Plastische Fassade: Pilaster zwischen den Fensterachsen (am Fensterraster des Shaders ausgerichtet) und Gurtgesimse
-function facadeRelief(cx, cz, sw, sd, y0, y1, style, tint, seed, edges, rr, corner, c) {
+export function facadeRelief(cx, cz, sw, sd, y0, y1, style, tint, seed, edges, rr, corner, c) {
   const cw = style < 0.5 ? 3.2 : 2.4, margin = 1.0, pt = tint.map(v => v * 1.12);
   const every = rr() < 0.5 ? 2 : 3, deep = 0.35 + rr() * 0.25;
   for (const [side, ax, out] of [['n', 0, -1], ['s', 0, 1], ['w', 1, -1], ['e', 1, 1]]) {

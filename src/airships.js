@@ -1,9 +1,15 @@
-'use strict';
+import { shared, mulberry32, canvasTex, T, R, scene, U } from './core.js';
+import { stdMat, MAT } from './people-skeleton.js';
+import { shafts } from './facade-shader.js';
+import { BEL } from './belmont.js';
+import { texSet } from './serpentine.js';
+import { makeGlowPoints } from './ragdoll.js';
+
 /* =====================================================================
    LUFTSCHIFFE
    ===================================================================== */
 // Hülle: Stoffbahnen zwischen Längsträgern und Ringspanten, leicht gewölbt, mit Nähten, Nieten, Flicken und Regenspuren
-const HULL = texSet(512, (g, gr, gh, W) => {
+export const HULL = texSet(512, (g, gr, gh, W) => {
   const rr = mulberry32(9090), NG = 24, NR = 18, gw = W / NG, rh = W / NR;
   g.fillStyle = '#8f8a84'; g.fillRect(0, 0, W, W); gr.fillStyle = '#9a9a9a'; gr.fillRect(0, 0, W, W); gh.fillStyle = '#000'; gh.fillRect(0, 0, W, W);
   for (let i = 0; i < NG; i++) for (let j = 0; j < NR; j++) {
@@ -30,11 +36,11 @@ const HULL = texSet(512, (g, gr, gh, W) => {
   for (let k = 0; k < 40; k++) { const rg = g.createRadialGradient(0, 0, 0, 0, 0, 1); rg.addColorStop(0, 'rgba(60,54,46,0.14)'); rg.addColorStop(1, 'rgba(0,0,0,0)'); g.save(); g.translate(rr() * W, rr() * W); g.scale(8 + rr() * 30, 6 + rr() * 24); g.fillStyle = rg; g.fillRect(-1, -1, 2, 2); g.restore(); }
 }, 2.4);
 HULL.map.repeat.set(1, 1);
-const SHIP_NAMES = ['AURORA', 'CELESTE', 'MERIDIAN', 'ORPHEA', 'SOLSTICE', 'ASTRAEA', 'LUMINA', 'VESPERTINE'];
-let shipNo = 0;
-const nameTex = n => canvasTex(1024, 128, (g, W, H) => { g.fillStyle = '#f0cf86'; g.shadowColor = 'rgba(0,0,0,0.5)'; g.shadowBlur = 4; g.font = '84px Limelight, Georgia, serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(`V-${12 + n * 3}  ${SHIP_NAMES[n % SHIP_NAMES.length]}`, W / 2, H / 2 + 4); });
+export const SHIP_NAMES = ['AURORA', 'CELESTE', 'MERIDIAN', 'ORPHEA', 'SOLSTICE', 'ASTRAEA', 'LUMINA', 'VESPERTINE'];
+export let shipNo = 0;
+export const nameTex = n => canvasTex(1024, 128, (g, W, H) => { g.fillStyle = '#f0cf86'; g.shadowColor = 'rgba(0,0,0,0.5)'; g.shadowBlur = 4; g.font = '84px Limelight, Georgia, serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(`V-${12 + n * 3}  ${SHIP_NAMES[n % SHIP_NAMES.length]}`, W / 2, H / 2 + 4); });
 // Gondel: Kabinenfenster mit Rahmen, beleuchtet, dazwischen genietete Bleche
-const GOND = (() => {
+export const GOND = (() => {
   const draw = glow => (g, W, H) => {
     g.fillStyle = glow ? '#000' : '#2c2a2e'; g.fillRect(0, 0, W, H);
     if (!glow) { g.strokeStyle = 'rgba(120,110,100,0.35)'; g.lineWidth = 1; for (let y = 0; y < H; y += 32) { g.beginPath(); g.moveTo(0, y); g.lineTo(W, y); g.stroke(); } for (let x = 0; x < W; x += 32) for (let y = 4; y < H; y += 8) { g.fillStyle = 'rgba(190,170,130,0.35)'; g.fillRect(x, y, 1, 1); } }
@@ -49,12 +55,12 @@ const GOND = (() => {
   for (const t of [m, e]) t.wrapS = t.wrapT = T.RepeatWrapping;
   return { m, e };
 })();
-const SHIP_MAT = {};
-const adTex = [
+export const SHIP_MAT = {};
+export const adTex = [
   canvasTex(1024, 140, (g, W, H) => { g.fillStyle = '#0f2a2e'; g.fillRect(0, 0, W, H); g.strokeStyle = '#f2c46d'; g.lineWidth = 6; g.strokeRect(8, 8, W - 16, H - 16); g.fillStyle = '#ffe2a6'; g.shadowColor = '#f2b55a'; g.shadowBlur = 16; g.font = '86px Limelight, Georgia, serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('VESPERA', W / 2, H / 2 + 6); }),
   canvasTex(1024, 140, (g, W, H) => { g.fillStyle = '#2a1030'; g.fillRect(0, 0, W, H); g.strokeStyle = '#f2c46d'; g.lineWidth = 6; g.strokeRect(8, 8, W - 16, H - 16); g.fillStyle = '#ffe2a6'; g.shadowColor = '#f2b55a'; g.shadowBlur = 16; g.font = '58px Limelight, Georgia, serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('GRAND BALL · THE BELMONT', W / 2, H / 2 + 4); }),
 ];
-function buildAirship(L, R0, adIndex, beam, opts = {}) {
+export function buildAirship(L, R0, adIndex, beam, opts = {}) {
   const grp = new T.Group();
   if (!SHIP_MAT.hull) {
     SHIP_MAT.hull = stdMat({ map: HULL.map, roughnessMap: HULL.rough, normalMap: HULL.normal, normalScale: new T.Vector2(1, 1), color: 0xb8aea4, roughness: 1, metalness: 0.15, emissive: 0x1c140c, emissiveMap: HULL.map, envI: 0.5 });
@@ -139,7 +145,7 @@ function buildAirship(L, R0, adIndex, beam, opts = {}) {
 }
 
 /* ---------- Lichtsäulen: Lichtkegel, die aus den Kronen in den Himmel steigen ---------- */
-function buildShafts() {
+export function buildShafts() {
   const n = shafts.length; if (!n) return;
   const geo = new T.PlaneGeometry(1, 1).translate(0, 0.5, 0);
   const g2 = geo.clone().rotateY(Math.PI / 2);
@@ -159,7 +165,7 @@ function buildShafts() {
     im.frustumCulled = false; im.renderOrder = 2; scene.add(im);
   }
 }
-function buildGroundFog() {
+export function buildGroundFog() {
   const mat = new T.ShaderMaterial({
     uniforms: U, transparent: true, depthWrite: false, blending: T.AdditiveBlending, side: T.DoubleSide,
     vertexShader: `varying vec3 vW; varying float vD; void main(){ vec4 w = modelMatrix*vec4(position,1.0); vW = w.xyz; vec4 mv = viewMatrix*w; vD = -mv.z; gl_Position = projectionMatrix*mv; }`,
@@ -181,19 +187,19 @@ function buildGroundFog() {
 }
 
 /* ---------- Suchscheinwerfer ---------- */
-const beamMat = (alpha) => new T.ShaderMaterial({
+export const beamMat = (alpha) => new T.ShaderMaterial({
   uniforms: { uA: { value: alpha }, uLen: { value: 1 } }, transparent: true, depthWrite: false, blending: T.AdditiveBlending, side: T.DoubleSide,
   vertexShader: `varying float vT; varying vec3 vN; varying vec3 vV; uniform float uLen; void main(){ vT = position.y/uLen; vN = normalize(normalMatrix*normal); vec4 mv = modelViewMatrix*vec4(position,1.0); vV = normalize(-mv.xyz); gl_Position = projectionMatrix*mv; }`,
   fragmentShader: `uniform float uA; varying float vT; varying vec3 vN; varying vec3 vV; void main(){ float e = pow(abs(dot(normalize(vN), normalize(vV))), 1.5); float a = uA*pow(1.0 - vT, 1.6)*e; gl_FragColor = vec4(vec3(1.0, 0.86, 0.62)*a, 1.0); }`,
 });
-function makeBeam(len, radius, alpha) {
+export function makeBeam(len, radius, alpha) {
   const g = new T.ConeGeometry(radius, len, 32, 1, true); g.translate(0, -len / 2, 0); g.rotateX(Math.PI);
   const mt = beamMat(alpha); mt.uniforms.uLen.value = len;
   const m = new T.Mesh(g, mt); m.frustumCulled = false; m.renderOrder = 3;
   return m;
 }
-const searchlights = [];
-function buildSearchlights() {
+export const searchlights = [];
+export function buildSearchlights() {
   for (let i = 0; i < 4; i++) {
     const piv = new T.Group(); piv.position.set((i % 2 ? 1 : -1) * 8, BEL.s5 + 1, (i < 2 ? 1 : -1) * 8);
     const b = makeBeam(1100, 46, 0.055); piv.add(b);
@@ -202,5 +208,5 @@ function buildSearchlights() {
 }
 
 /* ---------- Automobile ---------- */
-const cars = [];
-let carMesh, carMeshHi, carLights, carCmp;
+export const cars = [];
+shared.carMesh = undefined; shared.carMeshHi = undefined; shared.carLights = undefined; shared.carCmp = undefined;

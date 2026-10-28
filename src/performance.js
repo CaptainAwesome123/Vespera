@@ -1,16 +1,37 @@
-'use strict';
+import { updateChunks } from './chunks.js';
+import { shared, T, scene, camera, MOBILE, renderer, U, FOG_DENSITY, hemi, moonLight, $ } from './core.js';
+import { updateIndustry, updateShops } from './shops.js';
+import { inBelmont, interiorCrowd, updateBelmontDoor } from './belmont.js';
+import { WATER_Y, updateInterior } from './dance.js';
+import { REFL, updateWaves, harborWater, renderReflection } from './water.js';
+import { updatePort, carryPlayer, VILLA } from './harbour.js';
+import { updateVilla, updateParked, updateLampLod, updateTreeLod, updateFireworks } from './serpentine.js';
+import { updatePedestrians, CLOCK, citizenNear, citizenDoing } from './ragdoll.js';
+import { searchlights } from './airships.js';
+import { updateCars, updateTrucks, updateTrams, updateFountain } from './traffic.js';
+import { player, updatePlayer, EYE } from './player.js';
+import { updateVenues } from './venues.js';
+import { DRIVE, updateCarScenes, updateCarReturns } from './eating.js';
+import { updateDrive, updateVehicleWorld, driveCamera } from './driving.js';
+import { updateWind, WIND, windName } from './wind.js';
+import { BOAT, updateBoatInput, updateBoat, boatCamera, districtAt, showDistrict, drawMap } from './boat.js';
+import { updateInteract, updateAudio } from './music.js';
+import { composer, resize, bloomPass } from './bloom.js';
+import { playing, paused } from './input.js';
+import { updateShips } from './main.js';
+
 /* =====================================================================
    LEISTUNG: Lichter-Pool, Sichtweiten für Details, adaptive Auflösung
    ===================================================================== */
 // Punktlichter kosten auf jedem beleuchteten Material. Deshalb gibt es nur vier echte
 // Lichter, die jeweils zu den nächstgelegenen Lichtquellen wandern und weich einblenden.
-const LIGHTS = [], lightPool = [];
-function addLight(color, i, d, decay, x, y, z, inside = false) { LIGHTS.push({ p: new T.Vector3(x, y, z), c: color, i, d, decay, inside }); }
-function buildLightPool() {
+export const LIGHTS = [], lightPool = [];
+export function addLight(color, i, d, decay, x, y, z, inside = false) { LIGHTS.push({ p: new T.Vector3(x, y, z), c: color, i, d, decay, inside }); }
+export function buildLightPool() {
   for (let k = 0; k < 4; k++) { const l = new T.PointLight(0xffc27a, 0, 50, 1.6); l.userData = { a: null, w: 0 }; scene.add(l); lightPool.push(l); }
 }
-let lightTimer = 0;
-function updateLights(dt) {
+export let lightTimer = 0;
+export function updateLights(dt) {
   if ((lightTimer -= dt) <= 0) {
     lightTimer = 0.2;
     const cp = camera.position, ins = playing && inBelmont(player.p.x, player.p.z, player.p.y);
@@ -24,8 +45,8 @@ function updateLights(dt) {
   for (const l of lightPool) { const u = l.userData; u.w = u.a ? Math.min(1, u.w + dt * 2.5) : 0; l.intensity = u.a ? u.a.i * u.w : 0; }
 }
 // Kleine Einzelteile (Schilder, Leuchten, Zierrat) werden in großer Entfernung ausgeblendet
-const detailCull = [];
-function collectDetails() {
+export const detailCull = [];
+export function collectDetails() {
   const sp = new T.Sphere();
   for (const o of scene.children) {
     if (!o.isMesh || o.isInstancedMesh || o.frustumCulled === false) continue;
@@ -35,8 +56,8 @@ function collectDetails() {
     detailCull.push({ o, p: sp.center.clone(), d2: (320 + sp.radius * 30) ** 2 });
   }
 }
-let cullTimer = 0;
-function updateDetails(dt) {
+export let cullTimer = 0;
+export function updateDetails(dt) {
   if ((cullTimer -= dt) > 0) return;
   cullTimer = 0.3;
   const cp = camera.position, k = 1 + Math.max(0, cp.y - 60) / 200;
@@ -44,13 +65,13 @@ function updateDetails(dt) {
 }
 // Auflösung passt sich der Bildrate an: unter etwa 42 Bildern pro Sekunde eine Stufe tiefer,
 // bei ruhigem Lauf langsam wieder höher, aber nie über eine Stufe, die schon zu langsam war.
-const PR_DEV = window.devicePixelRatio || 1, PR_MAX = MOBILE ? Math.min(1.5, PR_DEV) : Math.min(2, Math.max(PR_DEV, 1) * 1.6);
-const PR_LEVELS = [0.5, 0.6, 0.7, 0.8, 0.9, 1, 1.15, 1.3, 1.5, 1.75, 2].filter(v => v <= PR_MAX + 1e-6);
-const PR_START = MOBILE ? Math.min(PR_MAX, 0.9) : Math.min(PR_MAX, Math.max(PR_DEV, 1) * 1.3);
-let prIdx = PR_LEVELS.reduce((b, v, i) => Math.abs(v - PR_START) < Math.abs(PR_LEVELS[b] - PR_START) ? i : b, 0);
-let prCeil = PR_LEVELS.length - 1, ftAvg = 16.7, prTimer = 0, goodTime = 0, lastUp = -1e9, adaptOn = true;
-function setPR(v) { renderer.setPixelRatio(v); if (composer) composer.setPixelRatio(v); resize(); }
-function adaptResolution(raw, now) {
+export const PR_DEV = window.devicePixelRatio || 1, PR_MAX = MOBILE ? Math.min(1.5, PR_DEV) : Math.min(2, Math.max(PR_DEV, 1) * 1.6);
+export const PR_LEVELS = [0.5, 0.6, 0.7, 0.8, 0.9, 1, 1.15, 1.3, 1.5, 1.75, 2].filter(v => v <= PR_MAX + 1e-6);
+export const PR_START = MOBILE ? Math.min(PR_MAX, 0.9) : Math.min(PR_MAX, Math.max(PR_DEV, 1) * 1.3);
+export let prIdx = PR_LEVELS.reduce((b, v, i) => Math.abs(v - PR_START) < Math.abs(PR_LEVELS[b] - PR_START) ? i : b, 0);
+export let prCeil = PR_LEVELS.length - 1, ftAvg = 16.7, prTimer = 0, goodTime = 0, lastUp = -1e9, adaptOn = true;
+export function setPR(v) { renderer.setPixelRatio(v); if (composer) composer.setPixelRatio(v); resize(); }
+export function adaptResolution(raw, now) {
   if (!adaptOn || raw > 0.25 || document.hidden) return;
   ftAvg += (raw * 1000 - ftAvg) * 0.06;
   if ((prTimer += raw) < 1.0) return;
@@ -66,9 +87,9 @@ function adaptResolution(raw, now) {
   prTimer = 0;
 }
 
-let last = performance.now(), hudTimer = 0, elapsed = 0;
-function frame(now) {
-  const raw = (now - last) / 1000, dt = Math.min(0.05, raw); last = now; elapsed += dt;
+export let hudTimer = 0, elapsed = 0; shared.last = performance.now();
+export function frame(now) {
+  const raw = (now - shared.last) / 1000, dt = Math.min(0.05, raw); shared.last = now; elapsed += dt;
   adaptResolution(raw, now);
   const t = elapsed;
   U.uTime.value = t;
@@ -111,6 +132,7 @@ function frame(now) {
   if (nearVilla) updateVilla(t);
   updateLights(dt);
   updateDetails(dt);
+  updateChunks(dt);
   updateParked(dt);
   updateLampLod(dt); updateTreeLod(dt);
   updateInteract();
@@ -130,7 +152,7 @@ function frame(now) {
     if (hudTimer <= 0) {
       hudTimer = 0.25;
       const d = districtAt(player.p.x, player.p.z, player.p.y);
-      if (d[0] !== lastDistrict) { lastDistrict = d[0]; showDistrict(d); }
+      if (d[0] !== shared.lastDistrict) { shared.lastDistrict = d[0]; showDistrict(d); }
       $('mode').innerHTML = '<b>' + (BOAT.on ? 'Am Ruder' : DRIVE.on ? 'Am Steuer' : player.fly ? 'Flugmodus' : 'Zu Fuß') + '</b>';
       $('alt').textContent = BOAT.on ? Math.round(Math.abs(BOAT.u) * 1.944) + ' Knoten · Gas ' + Math.round(BOAT.thr * 100) + ' %' : DRIVE.on ? Math.round(Math.abs(DRIVE.v) * 3.6) + ' km/h · ' + (DRIVE.revMode ? 'R' : (DRIVE.gear + 1) + '. Gang') + (DRIVE.body && DRIVE.body.dmg.some(v => v > 0.05) ? ' · Zustand ' + Math.round(100 - (DRIVE.body.dmg[0] + DRIVE.body.dmg[1] + DRIVE.body.dmg[2] + DRIVE.body.dmg[3]) * 25) + ' %' : '') : 'Höhe ' + Math.max(0, Math.round(player.p.y)) + ' m';
       const deg = ((-player.yaw * 180 / Math.PI) % 360 + 360) % 360;
@@ -142,12 +164,12 @@ function frame(now) {
       if (c) { card.innerHTML = '<b></b><span></span><i></i>'; card.querySelector('b').textContent = c.name + ', ' + c.age; card.querySelector('span').textContent = c.job + ' · ' + c.trait.k; card.querySelector('i').textContent = citizenDoing(c); card.style.opacity = 1; }
       else card.style.opacity = 0;
     }
-    if (districtTimer > 0 && (districtTimer -= dt) <= 0) $('district').style.opacity = 0;
+    if (shared.districtTimer > 0 && (shared.districtTimer -= dt) <= 0) $('district').style.opacity = 0;
   }
-  if (toastTimer > 0 && (toastTimer -= dt) <= 0) $('toast').style.opacity = 0;
-  if (sayTimer > 0 && (sayTimer -= dt) <= 0) $('say').style.opacity = 0;
+  if (shared.toastTimer > 0 && (shared.toastTimer -= dt) <= 0) $('toast').style.opacity = 0;
+  if (shared.sayTimer > 0 && (shared.sayTimer -= dt) <= 0) $('say').style.opacity = 0;
 
   renderReflection();
-  if (composer) { bloomPass.enabled = bloomOn; composer.render(); } else renderer.render(scene, camera);
+  if (composer) { bloomPass.enabled = shared.bloomOn; composer.render(); } else renderer.render(scene, camera);
   requestAnimationFrame(frame);
 }

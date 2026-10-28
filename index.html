@@ -196,45 +196,15 @@ kbd { font: 600 12px/1 var(--body); letter-spacing: 0.08em; color: var(--gold-hi
   </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/shaders/CopyShader.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/postprocessing/EffectComposer.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/postprocessing/MaskPass.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/postprocessing/RenderPass.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/postprocessing/ShaderPass.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
-<script src="src/core.js"></script>
-<script src="src/people-model.js"></script>
-<script src="src/people-skeleton.js"></script>
-<script src="src/facade-shader.js"></script>
-<script src="src/island.js"></script>
-<script src="src/building-forms.js"></script>
-<script src="src/shops.js"></script>
-<script src="src/entrances.js"></script>
-<script src="src/belmont.js"></script>
-<script src="src/dance.js"></script>
-<script src="src/water.js"></script>
-<script src="src/harbour.js"></script>
-<script src="src/serpentine.js"></script>
-<script src="src/ragdoll.js"></script>
-<script src="src/sky.js"></script>
-<script src="src/airships.js"></script>
-<script src="src/cars.js"></script>
-<script src="src/traffic.js"></script>
-<script src="src/player.js"></script>
-<script src="src/venues.js"></script>
-<script src="src/eating.js"></script>
-<script src="src/particles.js"></script>
-<script src="src/driving.js"></script>
-<script src="src/wind.js"></script>
-<script src="src/boat.js"></script>
-<script src="src/music.js"></script>
-<script src="src/bloom.js"></script>
-<script src="src/input.js"></script>
-<script src="src/main.js"></script>
-<script src="src/performance.js"></script>
-<script src="src/boot.js"></script>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.147.0/examples/jsm/"
+  }
+}
+</script>
+<script type="module" src="src/boot.js"></script>
 
 </body>
 </html>

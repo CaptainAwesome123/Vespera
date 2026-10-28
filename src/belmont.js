@@ -1,9 +1,21 @@
-'use strict';
+import { canvasTex, T, scene, mulberry32, ANISO, mergeGeos, pick, R, rand } from './core.js';
+import { addCollider, stdMat, MAT } from './people-skeleton.js';
+import { addSeg, addNeon, addGlow, NEON, shafts, spires, lamps, trees } from './facade-shader.js';
+import { PLAZA, MEDIAN } from './island.js';
+import { crownFins, neonFrame, FAN_TEX, makeSignTex, lathe, DOORS, placeFurn, FURN } from './entrances.js';
+import { fanAtSingle, addNeonArc, setDance } from './dance.js';
+import { poolWaterMat, fountainJet } from './water.js';
+import { kit, Bx } from './harbour.js';
+import { Crowd, GOWNS } from './serpentine.js';
+import { makeBeam } from './airships.js';
+import { player } from './player.js';
+import { addLight } from './performance.js';
+
 /* =====================================================================
    THE BELMONT — das Grand Hotel im Zentrum
    ===================================================================== */
-const BEL = { podium: 34, s1: 190, s2: 250, s3: 290, s4: 320, s5: 340, spire: 418, mast: 432 };
-function buildBelmont() {
+export const BEL = { podium: 34, s1: 190, s2: 250, s3: 290, s4: 320, s5: 340, spire: 418, mast: 432 };
+export function buildBelmont() {
   const cream = [0.17, 0.155, 0.18], dark = [0.1, 0.09, 0.11];
   const P = 0.26;
   // Platz
@@ -182,15 +194,15 @@ function buildBelmont() {
    THE BELMONT VON INNEN: Lobby im Süden, großer Ballsaal im Norden
    Lobby: z -4 … 48, 18 m hoch. Ballsaal: z -48 … -6, 31 m hoch, zwei Galerien.
    ===================================================================== */
-const BI = { P: 0.26, G1: 8.0, G2: 16.0, LOBBY_H: 18.26, BALL_H: 31.6 };
+export const BI = { P: 0.26, G1: 8.0, G2: 16.0, LOBBY_H: 18.26, BALL_H: 31.6 };
 /* =====================================================================
    V19 · BELMONT-EINGANG: Bronze-Glas-Wand in der 16 m breiten Südöffnung,
    mittig eine Drehtür (Glastrommel, vier Flügel, dreht sich, wenn jemand kommt),
    seitlich zwei Pendeltüren, die sich selbsttätig öffnen; Sonnenstrahl-Relief,
    roter Läufer, Portiers
    ===================================================================== */
-const BDOOR = { wings: null, spin: 0, speed: 0, leafs: [], carpetOn: true };
-function buildBelmontDoor() {
+export const BDOOR = { wings: null, spin: 0, speed: 0, leafs: [], carpetOn: true };
+export function buildBelmontDoor() {
   const K = kit(), P = BI.P, Z = 49, H = 9.2, bronze = [1, 1, 1];
   const glassP = (w, h, x, y, z, ry = 0) => K.add('glass', new T.PlaneGeometry(w, h).rotateY(ry).translate(x, y, z));
   // Seitliche Glaswände mit Bronzesprossen, Riegel bei 3,3 und 6,6 m, Oberband mit Sonnenstrahlen
@@ -259,7 +271,7 @@ function buildBelmontDoor() {
   addCollider(-8, P, Z - 0.15, -3.9, H, Z + 0.15); addCollider(3.9, P, Z - 0.15, 8, H, Z + 0.15);
   addCollider(-2.4, P + 3.3, Z - 0.15, 2.4, H, Z + 0.15);
 }
-function updateBelmontDoor(dt) {
+export function updateBelmontDoor(dt) {
   if (!BDOOR.wings) return;
   const p = player.p, d = Math.hypot(p.x, p.z - 49);
   // Drehtür dreht, wenn jemand näher als 7 m ist, langsam auslaufend
@@ -275,11 +287,11 @@ function updateBelmontDoor(dt) {
   }
 }
 
-const inBelmont = (x, z, y) => Math.abs(x) < 48 && Math.abs(z) < 48 && y < 32;
-let interiorCrowd = null;
-const dancers = [], swayers = [], walkersIn = [];
-const BALLROOM_F = { cx: 0, cz: -28, rx: 13, rz: 7.2 };
-function marbleTex(base, vein, seed, n = 60) {
+export const inBelmont = (x, z, y) => Math.abs(x) < 48 && Math.abs(z) < 48 && y < 32;
+export let interiorCrowd = null;
+export const dancers = [], swayers = [], walkersIn = [];
+export const BALLROOM_F = { cx: 0, cz: -28, rx: 13, rz: 7.2 };
+export function marbleTex(base, vein, seed, n = 60) {
   return canvasTex(512, 512, (g, W, H) => {
     const rr = mulberry32(seed);
     g.fillStyle = base; g.fillRect(0, 0, W, H);
@@ -294,7 +306,7 @@ function marbleTex(base, vein, seed, n = 60) {
     g.globalAlpha = 1;
   });
 }
-function sunburst(g, cx, cy, r, rays, gold, dark) {
+export function sunburst(g, cx, cy, r, rays, gold, dark) {
   for (let i = 0; i < rays; i++) {
     const a0 = i / rays * Math.PI * 2, a1 = (i + 1) / rays * Math.PI * 2;
     g.fillStyle = i % 2 ? gold : dark;
@@ -305,13 +317,13 @@ function sunburst(g, cx, cy, r, rays, gold, dark) {
   g.fillStyle = gold; g.beginPath(); g.arc(cx, cy, r * 0.12, 0, 7); g.fill();
 }
 // Box mit UV in Metern, damit Marmor und Kacheln überall gleich groß bleiben
-function boxW(w, h, d, x, y, z, s = 4) {
+export function boxW(w, h, d, x, y, z, s = 4) {
   const g = new T.BoxGeometry(w, h, d), uv = g.attributes.uv;
   const dims = [[d, h], [d, h], [w, d], [w, d], [w, h], [w, h]];
   for (let f = 0; f < 6; f++) for (let k = 0; k < 4; k++) { const i = f * 4 + k; uv.setXY(i, uv.getX(i) * dims[f][0] / s, uv.getY(i) * dims[f][1] / s); }
   return g.translate(x, y, z);
 }
-function buildBelmontInterior() {
+export function buildBelmontInterior() {
   const { P, G1, G2, LOBBY_H, BALL_H } = BI;
   const batch = {};
   const put = (k, g) => (batch[k] ||= []).push(g);
