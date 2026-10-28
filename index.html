@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Vespera</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Limelight&family=Josefin+Sans:wght@300;400;600&display=swap">
+<style>
+/* Ein Bildschirm: Vollbild-3D, darüber ein schmaler Art-Deco-HUD in Goldlinien. Bewusst nur dunkel. */
+:root {
+  --night: #04121a;
+  --ink: #f3e6c8;
+  --muted: #b9a98a;
+  --gold: #d9b26a;
+  --gold-hi: #f6dc9a;
+  --teal: #6fd6cf;
+  --panel: rgba(5, 16, 24, 0.74);
+  --display: "Limelight", "Didot", "Bodoni 72", Georgia, serif;
+  --body: "Josefin Sans", "Futura", "Century Gothic", "Avenir Next", system-ui, sans-serif;
+  color-scheme: dark;
+}
+html, body { height: 100%; overflow: hidden; }
+[hidden] { display: none !important; }
+body { background: var(--night); color: var(--ink); font-family: var(--body); -webkit-user-select: none; user-select: none; }
+#c { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+
+.overlay {
+  position: fixed; inset: 0; z-index: 20;
+  display: grid; place-items: center;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-bottom, 0px));
+  background: radial-gradient(ellipse at 50% 40%, rgba(4,18,26,0.15), rgba(4,18,26,0.82) 75%);
+  overflow-y: auto;
+}
+.card {
+  width: min(560px, 100%);
+  display: grid; gap: 18px; justify-items: center; text-align: center;
+  padding: 34px 28px 28px;
+  background: var(--panel);
+  border: 1px solid rgba(217,178,106,0.55);
+  outline: 1px solid rgba(217,178,106,0.22); outline-offset: 5px;
+  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+  position: relative;
+}
+.fan { width: 132px; height: 66px; display: block; }
+.eyebrow { font-size: 13px; letter-spacing: 0.32em; text-transform: uppercase; color: var(--gold); }
+h1 {
+  margin: 0; font-family: var(--display); font-weight: 400;
+  font-size: clamp(48px, 13vw, 92px); letter-spacing: 0.14em; line-height: 1; padding-left: 0.14em;
+  background: linear-gradient(180deg, var(--gold-hi) 10%, var(--gold) 55%, #8a6428 100%);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  text-wrap: balance;
+}
+.lede { margin: 0; max-width: 44ch; font-size: 17px; line-height: 1.55; color: var(--ink); font-weight: 300; }
+.btn {
+  font: 600 15px/1 var(--body); letter-spacing: 0.24em; text-transform: uppercase;
+  color: #1a1206; background: linear-gradient(180deg, var(--gold-hi), var(--gold));
+  border: 0; padding: 16px 30px 14px; cursor: pointer;
+  clip-path: polygon(10px 0, calc(100% - 10px) 0, 100% 50%, calc(100% - 10px) 100%, 10px 100%, 0 50%);
+}
+.btn:hover { filter: brightness(1.08); }
+.btn:focus-visible { outline: 2px solid var(--teal); outline-offset: 4px; }
+.btn[disabled] { opacity: 0.5; cursor: wait; }
+.keys { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 22px; width: 100%; text-align: left; font-size: 14px; color: var(--muted); }
+.keys div { display: flex; gap: 10px; align-items: baseline; min-width: 0; }
+kbd { font: 600 12px/1 var(--body); letter-spacing: 0.08em; color: var(--gold-hi); border: 1px solid rgba(217,178,106,0.5); padding: 5px 7px 3px; white-space: nowrap; }
+.rule { width: 100%; height: 1px; background: linear-gradient(90deg, transparent, rgba(217,178,106,0.6), transparent); }
+.loading { font-size: 14px; letter-spacing: 0.12em; color: var(--muted); min-height: 1em; }
+@media (max-width: 480px) { .keys { grid-template-columns: 1fr; } .card { padding: 26px 18px 22px; } }
+
+.hud { position: fixed; z-index: 10; pointer-events: none; }
+#district {
+  top: calc(18px + env(safe-area-inset-top, 0px)); left: 0; right: 0; text-align: center;
+  font-family: var(--display); font-size: clamp(20px, 3.4vw, 30px); letter-spacing: 0.22em; color: var(--gold-hi);
+  text-shadow: 0 0 18px rgba(246,220,154,0.45); opacity: 0; transition: opacity 1.2s ease;
+}
+#district small { display: block; font-family: var(--body); font-size: 12px; letter-spacing: 0.4em; color: var(--muted); margin-top: 6px; text-transform: uppercase; }
+#status {
+  top: calc(16px + env(safe-area-inset-top, 0px)); right: calc(16px + env(safe-area-inset-right, 0px));
+  display: grid; gap: 4px; justify-items: end; font-size: 13px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+#status b { color: var(--gold-hi); font-weight: 600; }
+#mapWrap {
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px)); right: calc(16px + env(safe-area-inset-right, 0px));
+  width: 168px; height: 168px; border: 1px solid rgba(217,178,106,0.6); outline: 1px solid rgba(217,178,106,0.2); outline-offset: 3px;
+  background: rgba(7,6,26,0.7);
+}
+#map { width: 100%; height: 100%; display: block; }
+#hint {
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px)); left: calc(16px + env(safe-area-inset-left, 0px));
+  font-size: 13px; color: var(--muted); letter-spacing: 0.06em; line-height: 1.8; max-width: calc(100% - 220px);
+}
+#hint kbd { font-size: 11px; padding: 3px 5px 1px; }
+#cross { left: 50%; top: 50%; width: 6px; height: 6px; margin: -3px 0 0 -3px; border: 1px solid rgba(246,220,154,0.7); transform: rotate(45deg); }
+#toast {
+  left: 50%; bottom: calc(80px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%);
+  font-size: 14px; letter-spacing: 0.14em; color: var(--ink); background: var(--panel); border: 1px solid rgba(217,178,106,0.45);
+  padding: 9px 16px 7px; opacity: 0; transition: opacity .4s; white-space: nowrap;
+}
+.touch { position: fixed; z-index: 12; display: flex; gap: 10px; right: calc(16px + env(safe-area-inset-right, 0px)); bottom: calc(200px + env(safe-area-inset-bottom, 0px)); flex-direction: column; }
+.touch button { width: 64px; height: 52px; font: 600 12px/1 var(--body); letter-spacing: 0.1em; color: var(--gold-hi); background: var(--panel); border: 1px solid rgba(217,178,106,0.55); }
+#stick { position: fixed; z-index: 11; width: 110px; height: 110px; border-radius: 50%; border: 1px solid rgba(217,178,106,0.5); pointer-events: none; transform: translate(-50%,-50%); }
+#stick i { position: absolute; left: 50%; top: 50%; width: 44px; height: 44px; margin: -22px 0 0 -22px; border-radius: 50%; background: rgba(217,178,106,0.35); }
+#prompt {
+  left: 50%; bottom: calc(130px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%);
+  font-size: 15px; letter-spacing: 0.12em; color: var(--gold-hi); background: var(--panel); border: 1px solid rgba(217,178,106,0.7);
+  padding: 10px 18px 8px; opacity: 0; transition: opacity .25s; white-space: nowrap;
+}
+#prompt kbd { margin-right: 10px; }
+#npc {
+  top: calc(16px + env(safe-area-inset-top, 0px)); left: calc(16px + env(safe-area-inset-left, 0px)); max-width: min(300px, 46vw);
+  display: grid; gap: 3px; padding: 10px 14px 9px; background: var(--panel); border: 1px solid rgba(217,178,106,0.45); opacity: 0; transition: opacity .3s;
+  font-size: 13px; color: var(--muted); letter-spacing: 0.04em;
+}
+#npc b { font-family: var(--display); font-weight: 400; font-size: 17px; color: var(--gold-hi); letter-spacing: 0.08em; }
+#npc i { font-style: normal; color: var(--ink); }
+#say {
+  left: 50%; bottom: calc(180px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); width: min(520px, calc(100% - 32px));
+  display: grid; gap: 4px; padding: 12px 18px 10px; background: var(--panel); border: 1px solid rgba(217,178,106,0.6); opacity: 0; transition: opacity .3s;
+  font-size: 15px; line-height: 1.45; color: var(--ink); text-align: center;
+}
+#say b { font-size: 12px; letter-spacing: 0.24em; text-transform: uppercase; color: var(--gold-hi); font-weight: 600; }
+#menuCard {
+  position: fixed; z-index: 16; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(420px, calc(100% - 32px));
+  padding: 18px 22px 14px; background: rgba(5, 16, 24, 0.9); border: 1px solid rgba(217,178,106,0.75); box-shadow: 0 0 0 4px rgba(5,16,24,0.6), 0 0 0 5px rgba(217,178,106,0.35);
+  color: var(--ink); text-align: center;
+}
+#menuCard h3 { font-family: var(--display); font-weight: 400; font-size: 24px; letter-spacing: 0.12em; color: var(--gold-hi); margin: 0 0 10px; }
+#menuCard .items { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+#menuCard .items b { grid-column: 1 / -1; font-size: 11px; letter-spacing: 0.3em; text-transform: uppercase; color: var(--gold); margin-top: 6px; font-weight: 600; }
+#menuCard button { font: 15px/1.2 var(--body); color: var(--ink); background: rgba(217,178,106,0.08); border: 1px solid rgba(217,178,106,0.4); padding: 9px 8px 7px; text-align: left; cursor: pointer; }
+#menuCard button:hover, #menuCard button:focus-visible { background: rgba(217,178,106,0.22); outline: none; }
+#menuCard kbd { margin-right: 8px; font-size: 11px; }
+#menuCard .close { margin-top: 10px; text-align: center; width: 100%; color: var(--gold-hi); }
+#menuCard p { margin: 10px 0 0; font-size: 12px; color: var(--muted); letter-spacing: 0.06em; }
+#fade { position: fixed; inset: 0; z-index: 15; background: #000; opacity: 0; pointer-events: none; transition: opacity .45s ease; }
+@media (max-width: 640px) { #hint { display: none; } #mapWrap { width: 120px; height: 120px; } }
+@media (prefers-reduced-motion: reduce) { #district, #toast { transition: none; } }
+</style>
+</head>
+<body>
+
+<canvas id="c" aria-label="Vespera, 3D-Stadt"></canvas>
+
+<div class="hud" id="district"></div>
+<div class="hud" id="status"><span id="mode"><b>Zu Fuß</b></span><span id="alt">Höhe 0 m</span><span id="head">Kurs N</span><span id="clock">19:30 Uhr</span></div>
+<div class="hud" id="npc"></div>
+<div class="hud" id="say"></div>
+<div class="hud" id="mapWrap"><canvas id="map" width="336" height="336"></canvas></div>
+<div class="hud" id="hint"><kbd>WASD</kbd> gehen · <kbd>F</kbd> fliegen · <kbd>1</kbd>–<kbd>0</kbd> Aussichtspunkte · <kbd>E</kbd> benutzen / ansprechen · <kbd>Esc</kbd> Pause</div>
+<div class="hud" id="cross"></div>
+<div class="hud" id="toast"></div>
+<div class="hud" id="prompt"></div>
+<div id="fade"></div>
+<div id="menuCard" hidden></div>
+<div class="touch" id="touchUI" hidden>
+  <button id="tFly" type="button">FLIEGEN</button>
+  <button id="tUp" type="button">▲</button>
+  <button id="tDown" type="button">▼</button>
+  <button id="tUse" type="button" hidden>E</button>
+</div>
+<div id="stick" hidden><i></i></div>
+
+<div class="overlay" id="overlay">
+  <div class="card">
+    <svg class="fan" viewBox="0 0 132 66" aria-hidden="true">
+      <g fill="none" stroke="#d9b26a" stroke-width="1.2">
+        <path d="M2 64 A64 64 0 0 1 130 64"/><path d="M18 64 A48 48 0 0 1 114 64"/><path d="M34 64 A32 32 0 0 1 98 64"/>
+        <path d="M66 64 L66 2 M66 64 L20 18 M66 64 L112 18 M66 64 L4 42 M66 64 L128 42 M66 64 L42 6 M66 64 L90 6"/>
+      </g>
+      <circle cx="66" cy="64" r="6" fill="#f6dc9a"/>
+    </svg>
+    <div class="eyebrow">Anno 1927 · Stadt des Abendsterns</div>
+    <h1>VESPERA</h1>
+    <p class="lede" id="lede">Betritt die Lobby des Belmont, tanz im großen Ballsaal zur Jazzband, fahr mit der Straßenbahn durch die Stadt oder fliege über den Viadukt hinauf zur Bergvilla.</p>
+    <button class="btn" id="enter" type="button" disabled>Stadt betreten</button>
+    <div class="loading" id="loading">Die Lichter von Vespera werden entzündet …</div>
+    <div class="rule"></div>
+    <div class="keys">
+      <div><kbd>W A S D</kbd><span>Bewegen</span></div>
+      <div><kbd>Maus</kbd><span>Umsehen</span></div>
+      <div><kbd>Shift</kbd><span>Laufen, schneller fliegen</span></div>
+      <div><kbd>Leertaste</kbd><span>Springen, im Flug steigen</span></div>
+      <div><kbd>F</kbd><span>Fliegen an und aus</span></div>
+      <div><kbd>C</kbd><span>Im Flug sinken</span></div>
+      <div><kbd>1 – 8</kbd><span>Aussichtspunkte</span></div>
+      <div><kbd>E</kbd><span>Fahrstuhl, Türen</span></div>
+      <div><kbd>M</kbd><span>Musik an und aus</span></div>
+      <div><kbd>B</kbd><span>Leuchteffekt (Leistung)</span></div>
+      <div><kbd>Esc</kbd><span>Pause</span></div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/shaders/CopyShader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/postprocessing/EffectComposer.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/postprocessing/MaskPass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/postprocessing/RenderPass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/postprocessing/ShaderPass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
+<script src="src/core.js"></script>
+<script src="src/people-model.js"></script>
+<script src="src/people-skeleton.js"></script>
+<script src="src/facade-shader.js"></script>
+<script src="src/island.js"></script>
+<script src="src/building-forms.js"></script>
+<script src="src/shops.js"></script>
+<script src="src/entrances.js"></script>
+<script src="src/belmont.js"></script>
+<script src="src/dance.js"></script>
+<script src="src/water.js"></script>
+<script src="src/harbour.js"></script>
+<script src="src/serpentine.js"></script>
+<script src="src/ragdoll.js"></script>
+<script src="src/sky.js"></script>
+<script src="src/airships.js"></script>
+<script src="src/cars.js"></script>
+<script src="src/traffic.js"></script>
+<script src="src/player.js"></script>
+<script src="src/venues.js"></script>
+<script src="src/eating.js"></script>
+<script src="src/particles.js"></script>
+<script src="src/driving.js"></script>
+<script src="src/wind.js"></script>
+<script src="src/boat.js"></script>
+<script src="src/music.js"></script>
+<script src="src/bloom.js"></script>
+<script src="src/input.js"></script>
+<script src="src/main.js"></script>
+<script src="src/performance.js"></script>
+<script src="src/boot.js"></script>
+
+</body>
+</html>
