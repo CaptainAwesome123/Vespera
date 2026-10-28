@@ -1,9 +1,31 @@
-'use strict';
+import { primeChunks } from './chunks.js';
+import { initDriveState } from './driving.js';
+import { R } from './core.js';
+import { buildEnv, getMats } from './people-skeleton.js';
+import { segs } from './facade-shader.js';
+import { buildCity, buildNetwork, NET, buildOuter, buildShoreV16, buildBridges, buildElevated } from './island.js';
+import { finishShops, buildIndustry } from './shops.js';
+import { buildTerraces, buildSigns } from './entrances.js';
+import { buildBelmont, buildBelmontInterior, buildBelmontDoor, BEL } from './belmont.js';
+import { buildHarbor, setupReflection } from './water.js';
+import { planAccess, buildPort, portInteractions, VILLA } from './harbour.js';
+import { buildGround, buildVilla, planSerpentine, buildFireworks, buildAccessRoad, buildSerpentine, flushInstances, buildMountains } from './serpentine.js';
+import { buildSky } from './sky.js';
+import { buildShafts, buildGroundFog, buildSearchlights, buildAirship } from './airships.js';
+import { TRAM_LINES, buildCars, buildTrucks, buildTrams, buildParticles } from './traffic.js';
+import { buildVenues } from './venues.js';
+import { driveInteractions, venueInteractions } from './eating.js';
+import { buildMap, boatInteractions } from './boat.js';
+import { buildInteractions } from './music.js';
+import { setupComposer, resize } from './bloom.js';
+import { buildLightPool, collectDetails, setPR, PR_LEVELS, prIdx } from './performance.js';
+
 /* =====================================================================
    AUFBAU UND SPIELSCHLEIFE
    ===================================================================== */
-let shipDefs = [];
-function build() {
+export let shipDefs = [];
+export function build() {
+  initDriveState();
   buildEnv(); getMats(); planAccess();
   buildSky();
   buildCity();
@@ -68,11 +90,12 @@ function build() {
   setupReflection();
   setPR(PR_LEVELS[prIdx]);
   resize();
+  primeChunks();
 }
 
 // Höhenkarte der Dächer (20-m-Raster), damit Luftschiffe über die Türme steigen statt hindurchzufahren
-const SKY = { cell: 20, n: 120, h: null };
-function skyline(x, z, rad) {
+export const SKY = { cell: 20, n: 120, h: null };
+export function skyline(x, z, rad) {
   if (!SKY.h) {
     const { cell, n } = SKY, h = SKY.h = new Float32Array(n * n), o = n / 2;
     const put = (x0, z0, x1, z1, y) => {
@@ -89,7 +112,7 @@ function skyline(x, z, rad) {
   return m;
 }
 // Steigprofil für einen Kurs: 256 Stützstellen, Höchstwert im Fenster und weich geglättet
-function liftProfile(posAt, rad, clear) {
+export function liftProfile(posAt, rad, clear) {
   const N = 256, need = new Float32Array(N), out = new Float32Array(N);
   for (let i = 0; i < N; i++) { const [x, y, z] = posAt(i / N); need[i] = Math.max(0, skyline(x, z, rad) + clear - y); }
   const tmp = new Float32Array(N);
@@ -97,7 +120,7 @@ function liftProfile(posAt, rad, clear) {
   for (let i = 0; i < N; i++) { let a = 0; for (let k = -6; k <= 6; k++) a += tmp[(i + k + N) % N]; out[i] = Math.max(a / 13, need[i]); }
   return u => { const f = ((u % 1) + 1) % 1 * N, i = Math.floor(f), t = f - i; return out[i % N] * (1 - t) + out[(i + 1) % N] * t; };
 }
-function updateShips(t) {
+export function updateShips(t) {
   for (const s of shipDefs) {
     if (s.villa) {
       const m = VILLA.mast, a = Math.sin(t * 0.02) * 0.5 + VILLA.ry + Math.PI / 2, d = s.L / 2 + 2;

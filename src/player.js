@@ -1,15 +1,23 @@
-'use strict';
+import { T } from './core.js';
+import { nearBoxes } from './people-skeleton.js';
+import { onIsland, QUAY, ISL } from './island.js';
+import { WATER_Y } from './dance.js';
+import { PLATFORMS, VILLA, roadHeightAt, terrainHeight } from './harbour.js';
+import { villaRoadAt } from './serpentine.js';
+import { DINE, standUp } from './venues.js';
+import { travel } from './music.js';
+
 /* =====================================================================
    SPIELER: Gehen mit Schwerkraft, Fliegen frei im Raum
    ===================================================================== */
-const player = { p: new T.Vector3(0, 0.26, 120), v: new T.Vector3(), yaw: 0, pitch: 0.12, fly: false, onGround: false };
-const keys = {};
-const EYE = 1.7, RADIUS = 0.45, STEP = 0.55;
-const touch = { mx: 0, my: 0, up: 0, down: 0 };
+export const player = { p: new T.Vector3(0, 0.26, 120), v: new T.Vector3(), yaw: 0, pitch: 0.12, fly: false, onGround: false };
+export const keys = {};
+export const EYE = 1.7, RADIUS = 0.45, STEP = 0.55;
+export const touch = { mx: 0, my: 0, up: 0, down: 0 };
 
-const _lp = { x: 0, y: 0, z: 0 };
-let collideOn = null;
-function collide(p, flying) {
+export const _lp = { x: 0, y: 0, z: 0 };
+export let collideOn = null;
+export function collide(p, flying) {
   // An Bord eines fliegenden Luftschiffs zählen nur die Wände der Gondel
   let near = player.on && player.on.air ? [] : nearBoxes(p.x, p.z, 3);
   let pg = -1e9; collideOn = null;
@@ -44,7 +52,7 @@ function collide(p, flying) {
   if (pg < gr - 0.001) collideOn = null;
   return Math.max(gr, pg);
 }
-function resolveBoxes(p, near, flying) {
+export function resolveBoxes(p, near, flying) {
   const r = flying ? 1.0 : RADIUS, height = flying ? 2.0 : 1.8;
   for (const b of near) {
     if (p.x + r <= b.x0 || p.x - r >= b.x1 || p.z + r <= b.z0 || p.z - r >= b.z1) continue;
@@ -64,8 +72,8 @@ function resolveBoxes(p, near, flying) {
   return ground;
 }
 
-const _f = new T.Vector3(), _r = new T.Vector3(), _w = new T.Vector3();
-function updatePlayer(dt) {
+export const _f = new T.Vector3(), _r = new T.Vector3(), _w = new T.Vector3();
+export function updatePlayer(dt) {
   const fwd = (keys.KeyW || keys.ArrowUp ? 1 : 0) - (keys.KeyS || keys.ArrowDown ? 1 : 0) + touch.my;
   const side = (keys.KeyD || keys.ArrowRight ? 1 : 0) - (keys.KeyA || keys.ArrowLeft ? 1 : 0) + touch.mx;
   // am Tisch sitzen: jede Bewegung steht auf

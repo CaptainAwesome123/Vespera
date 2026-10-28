@@ -1,13 +1,24 @@
-'use strict';
+import { U, T, MOBILE, renderer, scene, camera } from './core.js';
+import { addCollider } from './people-skeleton.js';
+import { lamps, addSeg, addGlow, NEON } from './facade-shader.js';
+import { ISL, landDist, QX, QUAY } from './island.js';
+import { neonFrame } from './entrances.js';
+import { interiorCrowd } from './belmont.js';
+import { WATER_Y } from './dance.js';
+import { VILLA } from './harbour.js';
+import { pedCrowd } from './serpentine.js';
+import { fxEmit } from './particles.js';
+import { WIND } from './wind.js';
+
 /* =====================================================================
    V16 · WASSER: echte Wellen (Gerstner) statt nur gemalter Normalen. Die Wellen
    hängen vom Wind ab, ein feines Netz folgt der Kamera, Schaumkronen bei Böen;
    dieselben Wellen auf der CPU für Auftrieb: Boote heben, nicken und rollen
    ===================================================================== */
-const GW = { n: 6, L: [34, 21, 13.5, 8.6, 5.4, 3.3], A0: [0.2, 0.13, 0.08, 0.05, 0.03, 0.018], da: [0, 0.55, -0.45, 0.95, -0.8, 0.3], m: 1, list: [] };
+export const GW = { n: 6, L: [34, 21, 13.5, 8.6, 5.4, 3.3], A0: [0.2, 0.13, 0.08, 0.05, 0.03, 0.018], da: [0, 0.55, -0.45, 0.95, -0.8, 0.3], m: 1, list: [] };
 U.uGW = { value: [0, 1, 2, 3, 4, 5].map(() => new T.Vector4()) };
 U.uGWQ = { value: 0.55 };
-function updateWaves(dt) {
+export function updateWaves(dt) {
   // Wellenhöhe folgt dem Wind (träge: das Meer braucht Zeit)
   const tgt = 0.45 + WIND.s / 7 + WIND.gust * 0.25;
   GW.m += (tgt - GW.m) * Math.min(1, dt * 0.15);
@@ -19,7 +30,7 @@ function updateWaves(dt) {
   }
 }
 // Wasserhöhe über WATER_Y an einem Punkt (mit einem Rückrechnungsschritt für die waagrechte Verschiebung)
-function waterH(x, z, t = U.uTime.value) {
+export function waterH(x, z, t = U.uTime.value) {
   const Q = U.uGWQ.value;
   let px = x, pz = z;
   for (let it = 0; it < 2; it++) {
@@ -32,7 +43,7 @@ function waterH(x, z, t = U.uTime.value) {
   return h;
 }
 // Netz: Ringe um die Kamera, innen fein, außen grob (bis zum Horizont)
-function waterGridGeo() {
+export function waterGridGeo() {
   const NR = MOBILE ? 100 : 150, NS = MOBILE ? 96 : 176, b = MOBILE ? 0.055 : 0.038, a = 4600 / (Math.exp(b * NR) - 1);
   const pos = new Float32Array(((NR + 1) * NS + 1) * 3), idx = [];
   let o = 3;
@@ -46,7 +57,7 @@ function waterGridGeo() {
   const g = new T.BufferGeometry(); g.setAttribute('position', new T.BufferAttribute(pos.subarray(0, o), 3)); g.setIndex(idx);
   return g;
 }
-const WATER_VERT = `uniform float uTime; uniform vec4 uGW[6]; uniform float uGWQ; uniform vec3 uCam;
+export const WATER_VERT = `uniform float uTime; uniform vec4 uGW[6]; uniform float uGWQ; uniform vec3 uCam;
   varying vec3 vW; varying float vD; varying vec2 vGG; varying float vJ;
   void main(){
     vec4 w = modelMatrix * vec4(position, 1.0);
@@ -62,13 +73,13 @@ const WATER_VERT = `uniform float uTime; uniform vec4 uGW[6]; uniform float uGWQ
     vec4 mv = viewMatrix * w; vD = -mv.z; gl_Position = projectionMatrix * mv;
   }`;
 // Schwimmlage eines Bootes aus vier Messpunkten: Hub, Stampfen, Rollen
-function floatPose(x, z, h, L, B, t) {
+export function floatPose(x, z, h, L, B, t) {
   const fx = Math.cos(h), fz = -Math.sin(h), lx = -Math.sin(h), lz = -Math.cos(h), hl = L * 0.36, hb = B * 0.4;
   const f = waterH(x + fx * hl, z + fz * hl, t), r = waterH(x - fx * hl, z - fz * hl, t), p = waterH(x + lx * hb, z + lz * hb, t), s = waterH(x - lx * hb, z - lz * hb, t);
   return { y: (f + r + p + s) / 4, pitch: Math.atan2(f - r, hl * 2), roll: Math.atan2(s - p, hb * 2) };
 }
 // verankerte Boote schaukeln auf den echten Wellen (große Schiffe träger)
-function bobVessel(v, t) {
+export function bobVessel(v, t) {
   const g = v.g, P = floatPose(g.position.x, g.position.z, g.rotation.y, v.L, v.B, t);
   const k = v.L > 20 ? 0.35 : v.L > 11 ? 0.7 : 1;
   v.fy = (v.fy ?? P.y) + (P.y - (v.fy ?? P.y)) * 0.25;
@@ -77,9 +88,9 @@ function bobVessel(v, t) {
   v.body.rotation.x = (v.body.rotation.x * 0.8 + P.roll * k * 0.2);
 }
 // Spritzer, wenn etwas ins Wasser fällt (Wagen, Anker ...)
-function waterSplash(x, z, s = 1) { fxEmit('spray', x, WATER_Y + 0.2, z, 0, 3 * s, 0, Math.round(20 * s), 1.5 * s, s); }
+export function waterSplash(x, z, s = 1) { fxEmit('spray', x, WATER_Y + 0.2, z, 0, 3 * s, 0, Math.round(20 * s), 1.5 * s, s); }
 // Uferabstand im Shader (gleiche Form wie coastR/landDist)
-const LAND_GLSL = `
+export const LAND_GLSL = () => `
   float coastRG(float th){
     float c = sin(th), s = -cos(th), b = s < 0.0 ? ${ISL.bn.toFixed(1)} : ${ISL.bs.toFixed(1)};
     float r = 1.0 / pow(pow(abs(c) / ${ISL.a.toFixed(1)}, ${ISL.n.toFixed(2)}) + pow(abs(s) / b, ${ISL.n.toFixed(2)}), ${(1 / ISL.n).toFixed(5)});
@@ -90,7 +101,7 @@ const LAND_GLSL = `
   float landDistG(vec2 p){ vec2 d = p - vec2(${ISL.cx.toFixed(1)}, ${ISL.cz.toFixed(1)}); float th = atan(d.x, -d.y); return min(coastRG(th) - length(d), ${ISL.quay.toFixed(1)} - p.y); }`;
 
 /* ---------- Wasser: Hafenbecken mit Wellen, Mondglitzern, Spiegelungen der Lichter; Pools und Brunnen ---------- */
-const WATER_COMMON = `
+export const WATER_COMMON = `
   float wH(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
   float wN(vec2 p){ vec2 i = floor(p), f = fract(p); f = f*f*(3.0 - 2.0*f); return mix(mix(wH(i), wH(i + vec2(1, 0)), f.x), mix(wH(i + vec2(0, 1)), wH(i + vec2(1, 1)), f.x), f.y); }
   // Wellen: mehrere Richtungen und Längen, dazu feines Gekräusel aus Rauschen
@@ -114,11 +125,11 @@ const WATER_COMMON = `
   }`;
 // Echte Spiegelung (am PC): die Szene wird an der Wasserfläche gespiegelt in ein halb so großes Bild gerendert;
 // das Wasser verzerrt es mit seinen Wellen. Auf Handys bleibt die gemalte Spiegelung.
-const REFL = { rt: null, cam: new T.PerspectiveCamera(), on: !MOBILE };
+export const REFL = { rt: null, cam: new T.PerspectiveCamera(), on: !MOBILE };
 U.uRefl = { value: null }; U.uReflMat = { value: new T.Matrix4() }; U.uReflOn = { value: 0 };
 U.uWakeL = { value: [27, 8.4, 8.4, 8.4] };
-const _rv = { n: new T.Vector3(0, 1, 0), rp: new T.Vector3(), cp: new T.Vector3(), view: new T.Vector3(), look: new T.Vector3(), tgt: new T.Vector3(), rot: new T.Matrix4(), plane: new T.Plane(), clip: new T.Vector4(), q: new T.Vector4() };
-function setupReflection() {
+export const _rv = { n: new T.Vector3(0, 1, 0), rp: new T.Vector3(), cp: new T.Vector3(), view: new T.Vector3(), look: new T.Vector3(), tgt: new T.Vector3(), rot: new T.Matrix4(), plane: new T.Plane(), clip: new T.Vector4(), q: new T.Vector4() };
+export function setupReflection() {
   if (!REFL.on) return;
   const sz = renderer.getDrawingBufferSize(new T.Vector2());
   REFL.rt = new T.WebGLRenderTarget(Math.max(2, Math.round(sz.x * 0.5)), Math.max(2, Math.round(sz.y * 0.5)), { type: T.HalfFloatType });
@@ -130,12 +141,12 @@ function setupReflection() {
   for (const c of [pedCrowd, interiorCrowd, VILLA.crowd]) if (c) for (const k in c.hi) { skip.add(c.hi[k].im); skip.add(c.lo[k].im); }
   scene.traverse(o => { if (!skip.has(o) && o !== harborWater && !o.userData.noRefl) o.layers.enable(1); });
 }
-function resizeReflection() {
+export function resizeReflection() {
   if (!REFL.rt) return;
   const sz = renderer.getDrawingBufferSize(new T.Vector2());
   REFL.rt.setSize(Math.max(2, Math.round(sz.x * 0.5)), Math.max(2, Math.round(sz.y * 0.5)));
 }
-function renderReflection() {
+export function renderReflection() {
   if (!REFL.rt || REFL.off) { U.uReflOn.value = 0; return; }
   const cam = camera, vc = REFL.cam, V = _rv, cp = cam.position;
   // nur wenn das Hafenbecken überhaupt zu sehen sein kann
@@ -165,8 +176,8 @@ function renderReflection() {
   renderer.setRenderTarget(prev);
   harborWater.visible = true;
 }
-let harborWater = null;
-function buildHarborWaterMat() {
+export let harborWater = null;
+export function buildHarborWaterMat() {
   return new T.ShaderMaterial({
     uniforms: U,
     vertexShader: WATER_VERT,
@@ -174,7 +185,7 @@ function buildHarborWaterMat() {
       uniform sampler2D uRefl; uniform mat4 uReflMat; uniform float uReflOn; uniform vec4 uWake[4]; uniform float uWakeL[4]; uniform vec4 uWind;
       varying vec3 vW; varying float vD; varying vec2 vGG; varying float vJ;
       ${WATER_COMMON}
-      ${LAND_GLSL}
+      ${LAND_GLSL()}
       // Feines Gekräusel: zwei Lagen Rauschen, die gegeneinander laufen
       vec2 ripple(vec2 p, float t){
         float e = 0.08;
@@ -254,7 +265,7 @@ function buildHarborWaterMat() {
   });
 }
 // Pool- und Brunnenwasser: von unten beleuchtet, Lichtnetz (Kaustik) am Grund, kleine Wellen und Spiegelung
-function poolWaterMat(tint = [0.05, 0.42, 0.45]) {
+export function poolWaterMat(tint = [0.05, 0.42, 0.45]) {
   return new T.ShaderMaterial({
     uniforms: { ...U, uTint: { value: new T.Vector3(...tint) } },
     vertexShader: `varying vec3 vW; varying float vD; void main(){ vec4 w = modelMatrix*vec4(position,1.0); vW=w.xyz; vec4 mv=viewMatrix*w; vD=-mv.z; gl_Position=projectionMatrix*mv; }`,
@@ -278,7 +289,7 @@ function poolWaterMat(tint = [0.05, 0.42, 0.45]) {
   });
 }
 // Wasserfontäne: aufsteigende Säule und fallender Schirm, durchscheinend und laufend
-function fountainJet(x, y, z, h, r, tint = [0.6, 0.85, 0.9]) {
+export function fountainJet(x, y, z, h, r, tint = [0.6, 0.85, 0.9]) {
   const mat = new T.ShaderMaterial({
     uniforms: { uTime: U.uTime, uTint: { value: new T.Vector3(...tint) } }, transparent: true, depthWrite: false, blending: T.AdditiveBlending, side: T.DoubleSide,
     vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
@@ -300,8 +311,8 @@ function fountainJet(x, y, z, h, r, tint = [0.6, 0.85, 0.9]) {
   return g;
 }
 
-let waterMat;
-function buildHarbor() {
+export let waterMat;
+export function buildHarbor() {
   addCollider(QX[0], 0, QUAY.z0, QX[1], 0.25, QUAY.z1);
   const quay = new T.Mesh(new T.BoxGeometry(QX[1] - QX[0], 3.88, QUAY.z1 - QUAY.z0), new T.MeshStandardMaterial({ color: 0x1f2a30, roughness: 0.9 }));
   quay.position.set((QX[0] + QX[1]) / 2, -1.81, (QUAY.z0 + QUAY.z1) / 2); scene.add(quay);

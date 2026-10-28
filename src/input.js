@@ -1,10 +1,18 @@
-'use strict';
+import { shared, canvas, $ } from './core.js';
+import { player, keys, touch } from './player.js';
+import { DINE, placeOrder, closeMenu } from './venues.js';
+import { DRIVE } from './eating.js';
+import { initWindAudio } from './wind.js';
+import { toast, VIEWS, goView, showDistrict, districtAt } from './boat.js';
+import { toggleMusic, activeUse } from './music.js';
+import { composer } from './bloom.js';
+
 /* =====================================================================
    EINGABE
    ===================================================================== */
-let playing = false, paused = true, locked = false, dragging = false;
-const isTouch = matchMedia('(pointer: coarse)').matches;
-function look(dx, dy, k = 0.0022) {
+export let playing = false, paused = true, locked = false, dragging = false;
+export const isTouch = matchMedia('(pointer: coarse)').matches;
+export function look(dx, dy, k = 0.0022) {
   player.yaw -= dx * k; player.pitch = Math.max(-1.5, Math.min(1.5, player.pitch - dy * k));
   if (DRIVE.on) DRIVE.lookT = 1.5;
 }
@@ -19,7 +27,7 @@ canvas.addEventListener('mousedown', () => {
   dragging = true;
 });
 window.addEventListener('mouseup', () => dragging = false);
-function tryLock() { try { const r = canvas.requestPointerLock(); if (r && r.catch) r.catch(() => {}); } catch {} }
+export function tryLock() { try { const r = canvas.requestPointerLock(); if (r && r.catch) r.catch(() => {}); } catch {} }
 document.addEventListener('pointerlockchange', () => {
   const was = locked; locked = document.pointerLockElement === canvas;
   if (was && !locked && playing && !DINE.menuOpen) pause();
@@ -37,20 +45,20 @@ window.addEventListener('keydown', e => {
   if (e.code === 'KeyF') { player.fly = !player.fly; player.v.y = 0; toast(player.fly ? 'Flugmodus' : 'Zu Fuß'); }
   if (e.code === 'KeyM') toggleMusic();
   if (e.code === 'KeyE' && activeUse) activeUse.act();
-  if (e.code === 'KeyB') { bloomOn = !bloomOn && !!composer; toast(bloomOn ? 'Leuchteffekt an' : 'Leuchteffekt aus'); }
+  if (e.code === 'KeyB') { shared.bloomOn = !shared.bloomOn && !!composer; toast(shared.bloomOn ? 'Leuchteffekt an' : 'Leuchteffekt aus'); }
   if (VIEWS[e.code]) goView(e.code);
   if (e.code === 'Space' || e.code.startsWith('Arrow')) e.preventDefault();
 });
 window.addEventListener('keyup', e => { keys[e.code] = false; });
 window.addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
 
-function pause() {
+export function pause() {
   paused = true;
   $('enter').textContent = 'Weiter';
   $('lede').textContent = 'Pause. Vespera wartet auf dich.';
   $('overlay').hidden = false;
 }
-function resume() {
+export function resume() {
   paused = false; $('overlay').hidden = true;
   if (!isTouch) tryLock();
 }
@@ -62,7 +70,7 @@ $('enter').addEventListener('click', () => {
 });
 
 // Touch: linke Hälfte Joystick, rechte Hälfte Umsehen
-const touches = new Map();
+export const touches = new Map();
 canvas.addEventListener('touchstart', e => {
   if (!playing || paused) return;
   for (const t of e.changedTouches) {
@@ -84,7 +92,7 @@ canvas.addEventListener('touchmove', e => {
   }
   e.preventDefault();
 }, { passive: false });
-const endTouch = e => {
+export const endTouch = e => {
   for (const t of e.changedTouches) {
     const s = touches.get(t.identifier); if (!s) continue;
     if (s.left) { touch.mx = touch.my = 0; $('stick').hidden = true; $('stick').firstElementChild.style.transform = ''; }

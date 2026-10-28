@@ -1,11 +1,19 @@
-'use strict';
+import { U, canvasTex, pick, R, T, scene, MOBILE, camera } from './core.js';
+import { nearBoxes, stdMat, mergeColored, paintMat, addCollider } from './people-skeleton.js';
+import { blocks, PLAZA, onIsland, ISL, OUTER, blockAt, curbHeight } from './island.js';
+import { inBelmont } from './belmont.js';
+import { COL } from './serpentine.js';
+import { _m, _p, _q, _s } from './traffic.js';
+import { DRIVE } from './eating.js';
+import { paused } from './input.js';
+
 /* =====================================================================
    V16 · WIND: eine Wetterlage für alles. Richtung wandert langsam, Böen ziehen
    als Wellen über die Stadt; Bäume, Gras, Fahnen, Rauch, Wasser, Luftschiffe,
    Boote, der Wagen auf dem Viadukt und fliegendes Laub folgen ihr
    ===================================================================== */
-const WIND = { a: 0.6, s: 4.5, gust: 0, gT: 6, gA: 0, gDur: 3, t: 0, dx: 0.8, dz: 0.6 };
-function updateWind(dt) {
+export const WIND = { a: 0.6, s: 4.5, gust: 0, gT: 6, gA: 0, gDur: 3, t: 0, dx: 0.8, dz: 0.6 };
+export function updateWind(dt) {
   const W = WIND; W.t += dt;
   // Grundwind: dreht langsam, Stärke schwankt zwischen etwa 2 und 8 m/s
   W.a = 0.6 + Math.sin(W.t * 0.011) * 0.5 + Math.sin(W.t * 0.037) * 0.15;
@@ -18,15 +26,15 @@ function updateWind(dt) {
   U.uWind.value.set(W.dx, W.dz, W.s, W.gust);
 }
 // Wind an einem Ort (m/s, Vektor): Böenwelle zieht mit dem Wind, oben weht es stärker
-function windAt(x, z, y = 0) {
+export function windAt(x, z, y = 0) {
   const W = WIND, ph = (x * W.dx + z * W.dz) * 0.012 - W.t * 0.5;
   const s = (W.s * (1 + 0.25 * Math.sin(ph)) + W.gust * 6) * (1 + Math.max(0, y) / 160);
   return [W.dx * s, W.dz * s];
 }
-const windName = a => ['O', 'SO', 'S', 'SW', 'W', 'NW', 'N', 'NO'][((Math.round(a / (Math.PI / 4)) % 8) + 8) % 8];
+export const windName = a => ['O', 'SO', 'S', 'SW', 'W', 'NW', 'N', 'NO'][((Math.round(a / (Math.PI / 4)) % 8) + 8) % 8];
 
 /* ---------- Bäume und Gras: Krone biegt sich in Windrichtung, Böen laufen als Welle durch ---------- */
-function windPatch(mat, strength = 1, flutter = 0, grass = false) {
+export function windPatch(mat, strength = 1, flutter = 0, grass = false) {
   mat.onBeforeCompile = sh => {
     sh.uniforms.uTime = U.uTime; sh.uniforms.uWind = U.uWind;
     sh.vertexShader = 'uniform float uTime; uniform vec4 uWind;\n' + sh.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
@@ -57,8 +65,8 @@ function windPatch(mat, strength = 1, flutter = 0, grass = false) {
 }
 
 /* ---------- Fahnen auf Dächern, am Belmont-Platz, an der Promenade und im Hafen ---------- */
-const FLAGS = [];
-function flagTex() {
+export const FLAGS = [];
+export function flagTex() {
   return canvasTex(256, 128, (g, W, H) => {
     g.fillStyle = '#c8c8c8'; g.fillRect(0, 0, W, H);
     // Art-Déco-Fächer und Goldstreifen am Liek
@@ -69,8 +77,8 @@ function flagTex() {
     g.fillStyle = 'rgba(0,0,0,0.12)'; for (let y = 0; y < H; y += 3) g.fillRect(0, y, W, 1);
   }, 2);
 }
-function addFlag(x, y, z, size = 1, col = null, pole = 8) { FLAGS.push({ x, y, z, s: size, c: col || pick([[0.05, 0.42, 0.44], [0.85, 0.62, 0.25], [0.55, 0.06, 0.09], [0.86, 0.82, 0.72], [0.04, 0.2, 0.28]]), pole }); }
-function placeFlags() {
+export function addFlag(x, y, z, size = 1, col = null, pole = 8) { FLAGS.push({ x, y, z, s: size, c: col || pick([[0.05, 0.42, 0.44], [0.85, 0.62, 0.25], [0.55, 0.06, 0.09], [0.86, 0.82, 0.72], [0.04, 0.2, 0.28]]), pole }); }
+export function placeFlags() {
   // Dächer der hohen Häuser: an einer Ecke der obersten Stufe
   for (const b of blocks) {
     if (!b.tier || b.factory || R() > (b.tier === 'landmark' ? 0.8 : 0.35)) continue;
@@ -87,7 +95,7 @@ function placeFlags() {
   // Ringstraße: an jeder sechsten Laterne eine Fahne
   OUTER.paths.forEach((P, i) => { if (i % 3) return; for (let k = 10; k < P.length; k += 40) addFlag(P[k][0], 0.02, P[k][1], 1.0, null, 7); });
 }
-function buildFlags() {
+export function buildFlags() {
   placeFlags();
   if (!FLAGS.length) return;
   const n = FLAGS.length;
@@ -130,8 +138,8 @@ function buildFlags() {
 }
 
 /* ---------- Laub und Zeitungsblätter, die durch die Straßen wirbeln ---------- */
-const LEAVES = { n: MOBILE ? 50 : 140, list: [], im: null };
-function buildLeaves() {
+export const LEAVES = { n: MOBILE ? 50 : 140, list: [], im: null };
+export function buildLeaves() {
   const g = new T.PlaneGeometry(0.16, 0.11).rotateX(-Math.PI / 2);
   const m = stdMat({ color: 0xffffff, side: T.DoubleSide, roughness: 0.9, envI: 0.2, emissive: 0x0a0806 });
   const im = new T.InstancedMesh(g, m, LEAVES.n), c = new T.Color();
@@ -143,8 +151,8 @@ function buildLeaves() {
   im.instanceMatrix.setUsage(T.DynamicDrawUsage); im.frustumCulled = false; im.userData.noRefl = true; scene.add(im);
   LEAVES.im = im;
 }
-const _le = new T.Euler();
-function updateLeaves(dt) {
+export const _le = new T.Euler();
+export function updateLeaves(dt) {
   if (!LEAVES.im) return;
   const cp = camera.position, far = cp.y > 40;
   LEAVES.im.visible = !far;
@@ -175,8 +183,8 @@ function updateLeaves(dt) {
 }
 
 /* ---------- Windgeräusch: Rauschen, bei Böen und in der Höhe lauter ---------- */
-let WAU = null;
-function initWindAudio() {
+export let WAU = null;
+export function initWindAudio() {
   if (WAU) { if (WAU.ctx.state === 'suspended') WAU.ctx.resume(); return; }
   const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
   try {
@@ -189,7 +197,7 @@ function initWindAudio() {
     WAU = { ctx, bp, g };
   } catch (e) { WAU = null; }
 }
-function updateWindAudio() {
+export function updateWindAudio() {
   if (!WAU) return;
   const t = WAU.ctx.currentTime, cp = camera.position;
   const inside = typeof inBelmont === 'function' && inBelmont(cp.x, cp.z, cp.y);

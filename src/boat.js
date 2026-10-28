@@ -1,12 +1,28 @@
-'use strict';
+import { shared, U, T, camera, $ } from './core.js';
+import { nearBoxes } from './people-skeleton.js';
+import { segs } from './facade-shader.js';
+import { landDist, inRect, PLAZA, COAST, NET, OUTER, obbCorners, blocks, MEDIAN } from './island.js';
+import { BEL, inBelmont } from './belmont.js';
+import { WATER_Y } from './dance.js';
+import { floatPose, waterH } from './water.js';
+import { VESSELS, PIER_Y, terrainHeight, pfRead, VILLA, deckY, VIA, ROAD_Z0 } from './harbour.js';
+import { TRAM_LINES } from './traffic.js';
+import { player, keys, touch } from './player.js';
+import { DRIVE } from './eating.js';
+import { fxEmit } from './particles.js';
+import { driveExit, initCarAudio, impulse, obbAabb, obbObb, carCrashSound, _wv } from './driving.js';
+import { windAt } from './wind.js';
+import { INTERACT } from './music.js';
+import { isTouch } from './input.js';
+
 /* =====================================================================
    V16 · BOOT FAHREN: an einem Mahagoni-Runabout im Jachthafen E drücken.
    Schub, Ruder, Gleitfahrt (Bug hebt sich), Seitendrift, Wind und Wellen;
    Bugwelle, Gischt und Kielwasser; Anlegen am Steg zum Aussteigen
    ===================================================================== */
-const BOAT = { on: false, v: null, x: 0, z: 0, h: 0, u: 0, s: 0, r: 0, thr: 0, rud: 0, y: 0, pitch: 0, roll: 0, py: 0, pv: 0, camP: null, lookT: 0, hit: 0, driver: null, slam: 0 };
-const BP = { m: 1700, I: 5200, thrust: 15500, hl: 4.0, hw: 1.1 };
-function nearRunabout(p) {
+export const BOAT = { on: false, v: null, x: 0, z: 0, h: 0, u: 0, s: 0, r: 0, thr: 0, rud: 0, y: 0, pitch: 0, roll: 0, py: 0, pv: 0, camP: null, lookT: 0, hit: 0, driver: null, slam: 0 };
+export const BP = { m: 1700, I: 5200, thrust: 15500, hl: 4.0, hw: 1.1 };
+export function nearRunabout(p) {
   let best = null, bd = 1e9;
   for (const v of VESSELS) {
     if (v.L !== 8.4 || (v.kind !== 'moored' && v.kind !== 'player')) continue;
@@ -15,7 +31,7 @@ function nearRunabout(p) {
   }
   return best;
 }
-function boatEnter(v) {
+export function boatEnter(v) {
   if (DRIVE.on) driveExit();
   initCarAudio();
   BOAT.on = true; BOAT.v = v; v.kind = 'player';
@@ -24,7 +40,7 @@ function boatEnter(v) {
   player.yaw = BOAT.h - Math.PI / 2; player.pitch = -0.12;
   toast(isTouch ? 'Am Ruder · zum Aussteigen an einen Steg fahren' : 'Am Ruder · W/S Gas und Rückwärts · A/D Ruder · E am Steg aussteigen');
 }
-function boatExit() {
+export function boatExit() {
   if (!BOAT.on) return;
   // freie Stelle auf einem Steg oder am Kai in der Nähe suchen
   let best = null, bd = 1e9;
@@ -38,11 +54,11 @@ function boatExit() {
   player.p.set(best[0], best[1] + 0.02, best[2]); player.v.set(0, 0, 0); player.pitch = 0;
   toast('Angelegt und ausgestiegen');
 }
-function boatInteractions() {
+export function boatInteractions() {
   INTERACT.unshift({ test: () => BOAT.on, label: 'Am Steg aussteigen', act: boatExit });
   INTERACT.push({ test: p => !BOAT.on && !DRIVE.on && p.y < 1 && p.z > 530 && !!(BOAT.pick = nearRunabout(p)), label: 'Ans Ruder · Boot fahren', act: () => boatEnter(BOAT.pick) });
 }
-function updateBoatInput(dt) {
+export function updateBoatInput(dt) {
   if (player.fly) { player.fly = false; }
   const up = (keys.KeyW || keys.ArrowUp ? 1 : 0) + Math.max(0, touch.my), dn = (keys.KeyS || keys.ArrowDown ? 1 : 0) + Math.max(0, -touch.my);
   const st = Math.max(-1, Math.min(1, (keys.KeyD || keys.ArrowRight ? 1 : 0) - (keys.KeyA || keys.ArrowLeft ? 1 : 0) + touch.mx));
@@ -52,7 +68,7 @@ function updateBoatInput(dt) {
   BOAT.rud += Math.max(-dt * 2.2, Math.min(dt * 2.2, -st * 0.6 - BOAT.rud));
 }
 // Physik in Teilschritten
-function stepBoat(dt) {
+export function stepBoat(dt) {
   const B = BOAT, fx = Math.cos(B.h), fz = -Math.sin(B.h), lx = -Math.sin(B.h), lz = -Math.cos(B.h);
   let u = B.u, s = B.s, r = B.r;
   // Widerstand: Verdränger bis zum Buckel um 6 m/s, dann gleitet der Rumpf auf und wird leichter
@@ -71,7 +87,7 @@ function stepBoat(dt) {
   B.x += (u * fx + s * lx) * dt; B.z += (u * fz + s * lz) * dt; B.h += r * dt;
 }
 // Ufer, Stege, andere Boote
-function collideBoat() {
+export function collideBoat() {
   const B = BOAT, body = { x: B.x, z: B.z, h: B.h, hl: BP.hl, hw: BP.hw, vx: 0, vz: 0, w: B.r, m: BP.m, I: BP.I };
   const fx = Math.cos(B.h), fz = -Math.sin(B.h), lx = -Math.sin(B.h), lz = -Math.cos(B.h);
   body.vx = B.u * fx + B.s * lx; body.vz = B.u * fz + B.s * lz;
@@ -106,7 +122,7 @@ function collideBoat() {
   B.u = body.vx * fx + body.vz * fz; B.s = body.vx * lx + body.vz * lz;
   if (hit > 1.2) { carCrashSound(Math.min(1, hit / 6), 0.3); fxEmit('spray', B.x + fx * BP.hl, WATER_Y + 0.4, B.z + fz * BP.hl, 0, 2.5, 0, 12, 1.2); B.shake = Math.min(1, (B.shake || 0) + hit * 0.1); }
 }
-function updateBoat(dt) {
+export function updateBoat(dt) {
   if (!BOAT.on) return;
   const B = BOAT, v = B.v, t = U.uTime.value;
   const n = Math.max(1, Math.ceil(dt / (1 / 90)));
@@ -136,7 +152,7 @@ function updateBoat(dt) {
   if (Math.abs(B.thr) > 0.1 && Math.random() < dt * 14) fxEmit('foam', B.x - fx * 4.3, WATER_Y + B.y + 0.05, B.z - fz * 4.3, -fx * B.u * 0.2, 0, -fz * B.u * 0.2, 1, 0.8, 0.9);
   B.shake = Math.max(0, (B.shake || 0) - dt * 2);
 }
-function boatCamera() {
+export function boatCamera() {
   const B = BOAT;
   if ((B.lookT -= 1 / 60) <= 0) {
     let want = B.h - Math.PI / 2 + (B.u < -0.5 ? Math.PI : 0), cur = player.yaw;
@@ -155,9 +171,9 @@ function boatCamera() {
 }
 
 /* ---------- Aussichtspunkte ---------- */
-const VIEWS = {
+export const VIEWS = {
   Digit1: { name: 'Belmont-Platz', p: [0, 0.26, 120], yaw: 0, pitch: 0.22, fly: false },
-  Digit2: { name: 'Ballsaal-Terrasse', p: [0, BEL.s2, 22.5], yaw: Math.PI, pitch: -0.12, fly: false },
+  Digit2: { name: 'Ballsaal-Terrasse', get p() { return [0, BEL.s2, 22.5]; }, yaw: Math.PI, pitch: -0.12, fly: false },
   Digit3: { name: 'Hafenpromenade', p: [60, 0.26, 520], yaw: 0.12, pitch: 0.3, fly: false },
   Digit4: { name: 'Am Ankermast', p: [150, 405, 180], yaw: Math.atan2(150, 180), pitch: -0.05, fly: true },
   Digit5: { name: 'Bergvilla', get p() { return [VILLA.x + VILLA.ux * 88, VILLA.y - 17 + 0.1, VILLA.z + VILLA.uz * 88]; }, get yaw() { return Math.atan2(VILLA.ux, VILLA.uz); }, pitch: 0.12, fly: false },
@@ -165,7 +181,7 @@ const VIEWS = {
   Digit8: { name: 'Der große Ballsaal', p: [44.5, 8.0, -14], yaw: 0.93, pitch: -0.2, fly: false },
   Digit6: { name: 'Tunnelportal · Die Straße nach Vespera', get p() { return [-4, deckY(VIA.portalZ + 14) + 0.1, VIA.portalZ + 14]; }, yaw: Math.PI, pitch: -0.06, fly: false },
 };
-function goView(code) {
+export function goView(code) {
   const v = VIEWS[code]; if (!v) return;
   driveExit();
   player.p.set(...v.p); player.v.set(0, 0, 0); player.yaw = v.yaw; player.pitch = v.pitch; player.fly = v.fly;
@@ -173,7 +189,7 @@ function goView(code) {
 }
 
 /* ---------- Stadtviertel ---------- */
-function districtAt(x, z, y) {
+export function districtAt(x, z, y) {
   if (inBelmont(x, z, y)) return z > -5 ? ['The Belmont · Lobby', 'Grand Hotel seit 1912'] : ['Der große Ballsaal', 'Jazz, Champagner und Tanz'];
   if (y > 200 && Math.hypot(x, z) < 60) return ['Turm des Belmont', 'Grand Hotel · ' + Math.round(y) + ' m'];
   if (inRect(x, z, PLAZA, 2)) return ['Belmont-Platz', 'Grand Hotel The Belmont'];
@@ -191,20 +207,20 @@ function districtAt(x, z, y) {
   if (z < -450) return ['Observatoriumsviertel', 'Gärten und Sternwarten'];
   return ['Salonviertel', 'Cafés, Salons und Ateliers'];
 }
-let lastDistrict = '';
-let districtTimer = 0;
-function showDistrict(d) {
+shared.lastDistrict = '';
+shared.districtTimer = 0;
+export function showDistrict(d) {
   const el = $('district');
   el.innerHTML = '';
   el.append(d[0]); const s = document.createElement('small'); s.textContent = d[1]; el.append(s);
-  el.style.opacity = 1; districtTimer = 4.5;
+  el.style.opacity = 1; shared.districtTimer = 4.5;
 }
-let toastTimer = 0;
-function toast(text) { const t = $('toast'); t.textContent = text; t.style.opacity = 1; toastTimer = 2.4; }
+shared.toastTimer = 0;
+export function toast(text) { const t = $('toast'); t.textContent = text; t.style.opacity = 1; shared.toastTimer = 2.4; }
 
 /* ---------- Karte ---------- */
-const mapBase = document.createElement('canvas');
-function buildMap() {
+export const mapBase = document.createElement('canvas');
+export function buildMap() {
   mapBase.width = mapBase.height = 1400;
   const g = mapBase.getContext('2d'), s = 1400 / 2400, X = x => (x + 1200) * s, Z = z => (z + 1100) * s;
   g.fillStyle = '#0b1830'; g.fillRect(0, 0, 1400, 1400);
@@ -223,7 +239,7 @@ function buildMap() {
   g.strokeStyle = '#4fb8b0'; g.lineWidth = 3;
   for (const L of TRAM_LINES) { g.beginPath(); if (L.axis === 'x') { g.moveTo(X(L.from), Z(L.at)); g.lineTo(X(L.to), Z(L.at)); } else { g.moveTo(X(L.at), Z(L.from)); g.lineTo(X(L.at), Z(L.to)); } g.stroke(); }
 }
-function drawMap() {
+export function drawMap() {
   const c = $('map'), g = c.getContext('2d'), W = c.width, s = 1400 / 2400;
   const span = 520, px = (player.p.x + 1200) * s, pz = (player.p.z + 1100) * s, half = span * s / 2;
   g.clearRect(0, 0, W, W);

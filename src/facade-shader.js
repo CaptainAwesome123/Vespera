@@ -1,10 +1,12 @@
-'use strict';
+import { T, U } from './core.js';
+import { addCollider } from './people-skeleton.js';
+
 /* =====================================================================
    FASSADEN-SHADER: Fenster, Goldbänder, Ladenzeilen, Flutlicht
    Ein Quader pro Gebäudeabschnitt (InstancedMesh). Fenster entstehen
    im Shader aus den echten Maßen, daher bleiben sie immer gleich groß.
    ===================================================================== */
-const facadeVS = `
+export const facadeVS = `
 attribute vec3 aTint; attribute vec4 aParams; attribute vec3 aRib;
 varying vec3 vWorld; varying vec3 vN; varying vec3 vLN; varying vec3 vT; varying vec3 vTint; varying vec4 vParams; varying vec3 vRib; varying vec3 vLocal; varying vec3 vScale; varying float vFogDepth;
 void main(){
@@ -18,7 +20,7 @@ void main(){
   vec4 mv = viewMatrix * wp; vFogDepth = -mv.z;
   gl_Position = projectionMatrix * mv;
 }`;
-const facadeFS = `
+export const facadeFS = `
 uniform float uTime; uniform vec3 uFogColor; uniform float uFogDensity; uniform vec3 uMoonDir; uniform vec3 uTeal; uniform vec3 uCam;
 varying vec3 vWorld; varying vec3 vN; varying vec3 vLN; varying vec3 vT; varying vec3 vTint; varying vec4 vParams; varying vec3 vRib; varying vec3 vLocal; varying vec3 vScale; varying float vFogDepth;
 float hash(vec2 p){ p = fract(p*vec2(123.34, 456.21)); p += dot(p, p+45.32); return fract(p.x*p.y); }
@@ -414,36 +416,36 @@ void main(){
   vec3 fogCol = mix(uFogColor*2.2, uFogColor, smoothstep(0.0, 140.0, vWorld.y));
   gl_FragColor = vec4(mix(col, fogCol, clamp(fogF, 0.0, 1.0)), 1.0);
 }`;
-const facadeMat = new T.ShaderMaterial({ uniforms: U, vertexShader: facadeVS, fragmentShader: facadeFS });
+export const facadeMat = new T.ShaderMaterial({ uniforms: U, vertexShader: facadeVS, fragmentShader: facadeFS });
 facadeMat.extensions.derivatives = true;
 
 /* Sammler für alle Bauteile, später in InstancedMeshes gegossen */
-const segs = [];    // Gebäudeabschnitte {x,z,w,d,y0,y1,tint,seed,style,dens,flood,rib}
-const towers = [];  // Hochhäuser für Brücken und Lichtsäulen {x,z,w,d,H}
-const shafts = [];  // Lichtsäulen {x,z,y,h,w,c}
-const neons = [];   // Leuchtleisten {x,y,z,sx,sy,sz,c}
-const spires = [];  // Turmspitzen {x,z,y0,h,b}
-const glowPts = []; // Lichtpunkte {p,c,s,ph,bl}
-const lamps = [];   // Laternen {x,z,h}
-const trees = [];
-const steamPts = []; // Dampfquellen in den Gassen {x,z}
-const roofs = [];    // Dachflächen {x,z,w,d,H,worker,dist}
-const curbs = [];    // Bordsteinkanten für parkende Autos {ax,az,bx,bz}
+export const segs = [];    // Gebäudeabschnitte {x,z,w,d,y0,y1,tint,seed,style,dens,flood,rib}
+export const towers = [];  // Hochhäuser für Brücken und Lichtsäulen {x,z,w,d,H}
+export const shafts = [];  // Lichtsäulen {x,z,y,h,w,c}
+export const neons = [];   // Leuchtleisten {x,y,z,sx,sy,sz,c}
+export const spires = [];  // Turmspitzen {x,z,y0,h,b}
+export const glowPts = []; // Lichtpunkte {p,c,s,ph,bl}
+export const lamps = [];   // Laternen {x,z,h}
+export const trees = [];
+export const steamPts = []; // Dampfquellen in den Gassen {x,z}
+export const roofs = [];    // Dachflächen {x,z,w,d,H,worker,dist}
+export const curbs = [];    // Bordsteinkanten für parkende Autos {ax,az,bx,bz}
 
-function addSeg(s, collide = true) {
+export function addSeg(s, collide = true) {
   segs.push(s);
   if (collide) addCollider(s.x - s.w / 2, s.y0, s.z - s.d / 2, s.x + s.w / 2, s.y1, s.z + s.d / 2);
 }
-function addNeon(x, y, z, sx, sy, sz, c, ry = 0) { neons.push({ x, y, z, sx, sy, sz, c, ry }); }
-function addGlow(x, y, z, c, s, ph = 0, bl = 0) { glowPts.push({ p: [x, y, z], c, s, ph, bl }); }
+export function addNeon(x, y, z, sx, sy, sz, c, ry = 0) { neons.push({ x, y, z, sx, sy, sz, c, ry }); }
+export function addGlow(x, y, z, c, s, ph = 0, bl = 0) { glowPts.push({ p: [x, y, z], c, s, ph, bl }); }
 
-const NEON = {
+export const NEON = {
   gold: [1.25, 0.88, 0.42], amber: [1.3, 0.6, 0.22], teal: [0.35, 1.15, 1.05], ice: [0.62, 1.25, 1.3],
   rose: [1.25, 0.42, 0.68], violet: [0.78, 0.52, 1.3], pearl: [1.25, 1.12, 0.92],
 };
-const neonPool = ['gold', 'gold', 'amber', 'pearl', 'teal', 'teal', 'ice', 'ice'];
-const RIBS = [[0.2, 0.75, 0.8], [0.2, 0.75, 0.8], [0.3, 0.9, 0.95], [0.85, 0.62, 0.28], [0.7, 0.8, 0.9]];
-const STONES = [
+export const neonPool = ['gold', 'gold', 'amber', 'pearl', 'teal', 'teal', 'ice', 'ice'];
+export const RIBS = [[0.2, 0.75, 0.8], [0.2, 0.75, 0.8], [0.3, 0.9, 0.95], [0.85, 0.62, 0.28], [0.7, 0.8, 0.9]];
+export const STONES = [
   [0.86, 0.8, 0.68], [0.8, 0.7, 0.52], [0.5, 0.54, 0.64], [0.72, 0.5, 0.4],
   [0.24, 0.23, 0.29], [0.4, 0.58, 0.54], [0.9, 0.86, 0.8], [0.58, 0.46, 0.62],
 ];

@@ -1,20 +1,23 @@
-'use strict';
+import { MOBILE, T, mulberry32, ANISO } from './core.js';
+import { PAINT } from './people-skeleton.js';
+import { COL } from './serpentine.js';
+
 /* =====================================================================
    V17 · MENSCHEN: modellierte Köpfe mit Gesichtszügen, Haar aus einzelnen
    Strähnen, Kleidung mit Falten und erkennbarem Stoff. Drei Detailstufen:
    nah (q 2), mittel (q 1), fern (personGeo). Jede Ecke trägt Stoffart und
    Schwunggewicht (aSoft), damit Haare, Röcke und Fransen sich bewegen
    ===================================================================== */
-const HQ = { near2: (MOBILE ? 7 : 11) ** 2, cache: new Map() };
+export const HQ = { near2: (MOBILE ? 7 : 11) ** 2, cache: new Map() };
 // Stoffarten für den Shader
-const FAB = { skin: 1, hair: 2, wool: 3, silk: 4, cotton: 5, leather: 6, fur: 7, felt: 8, straw: 9, sequin: 10, knit: 11, metal: 12, satin: 13, stock: 14 };
+export const FAB = { skin: 1, hair: 2, wool: 3, silk: 4, cotton: 5, leather: 6, fur: 7, felt: 8, straw: 9, sequin: 10, knit: 11, metal: 12, satin: 13, stock: 14 };
 // Schwungarten: 1 Haar, 2 Rock, 3 Fransen, 4 Mantelschoß, 5 Kette, 6 Krawatte
 // Gesichtsmerkmale relativ zur Kopfmitte: Atlas und Modell benutzen dieselben Werte
-const HL = { eyeX: 0.031, eyeY: -0.005, browY: 0.018, noseY: -0.039, mouthY: -0.064, chinY: -0.101, fw: 0.17, fh: 0.2, fy: -0.02 };
-const hsm = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
-const hg2 = (x, y, x0, y0, sx, sy) => Math.exp(-(((x - x0) / sx) ** 2) - (((y - y0) / sy) ** 2));
+export const HL = { eyeX: 0.031, eyeY: -0.005, browY: 0.018, noseY: -0.039, mouthY: -0.064, chinY: -0.101, fw: 0.17, fh: 0.2, fy: -0.02 };
+export const hsm = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+export const hg2 = (x, y, x0, y0, sx, sy) => Math.exp(-(((x - x0) / sx) ** 2) - (((y - y0) / sy) ** 2));
 // Gitterfläche: f(u, v) -> { p, uv?, s? }; wrap schließt den Ring in u
-function hGrid(nu, nv, f, wrap = false, flipCheck = true) {
+export function hGrid(nu, nv, f, wrap = false, flipCheck = true) {
   const P = [], UV = [], S = [], I = [];
   let hasUV = false, hasS = false;
   for (let j = 0; j <= nv; j++) for (let i = 0; i <= nu; i++) {
@@ -43,19 +46,19 @@ function hGrid(nu, nv, f, wrap = false, flipCheck = true) {
   return g;
 }
 // Dreiecke nach außen drehen (für geschlossene, ungefähr konvexe Teile)
-function hOrient(g) {
+export function hOrient(g) {
   const p = g.attributes.position, n = g.attributes.normal; let cx = 0, cy = 0, cz = 0;
   for (let i = 0; i < p.count; i++) { cx += p.getX(i); cy += p.getY(i); cz += p.getZ(i); }
   cx /= p.count; cy /= p.count; cz /= p.count;
   let s = 0; for (let i = 0; i < p.count; i++) s += (p.getX(i) - cx) * n.getX(i) + (p.getY(i) - cy) * n.getY(i) + (p.getZ(i) - cz) * n.getZ(i);
   if (s < 0) hFlip(g);
 }
-function hFlip(g) {
+export function hFlip(g) {
   const I = g.index.array; for (let k = 0; k < I.length; k += 3) { const t = I[k + 1]; I[k + 1] = I[k + 2]; I[k + 2] = t; }
   g.index.needsUpdate = true; g.computeVertexNormals();
 }
 // Catmull-Rom durch Punkte (Arrays gleicher Länge), n Stützstellen
-function hSpline(pts, n) {
+export function hSpline(pts, n) {
   const out = [], m = pts.length - 1;
   for (let k = 0; k < n; k++) {
     const t = k / (n - 1) * m, i = Math.min(m - 1, Math.floor(t)), f = t - i;
@@ -65,7 +68,7 @@ function hSpline(pts, n) {
   return out;
 }
 // Drehkörper mit elliptischem Querschnitt; fold(th, y, r) liefert Faltentiefe, sway(y) das Schwunggewicht
-function hLathe(prof, o = {}) {
+export function hLathe(prof, o = {}) {
   const rings = o.rings || 24, seg = o.seg || 32, sz = o.sz ?? 0.74, sx = o.sx ?? 1, pw = o.pw || 2;
   const se = v => Math.sign(v) * Math.pow(Math.abs(v), 2 / pw);
   const S = hSpline(prof, rings);
@@ -82,7 +85,7 @@ function hLathe(prof, o = {}) {
   return g;
 }
 // Röhre entlang eines Pfads (Gliedmaßen, Strähnen): rads je Punkt, Querschnitt (ax, az) skaliert
-function hTube(path, rads, o = {}) {
+export function hTube(path, rads, o = {}) {
   const n = o.n || Math.max(4, path.length), seg = o.seg || 12;
   const C = hSpline(path, n), Rr = hSpline(rads.map(r => [r]), n).map(r => r[0]);
   const up0 = o.up ? new T.Vector3(...o.up) : null;
@@ -106,7 +109,7 @@ function hTube(path, rads, o = {}) {
   }, true, false);
 }
 // Ellipsoid aus dem Gitter, mit Verformung
-function hEll(r, c, sc, o = {}) {
+export function hEll(r, c, sc, o = {}) {
   const nu = o.nu || 16, nv = o.nv || 10;
   return hGrid(nu, nv, (u, v) => {
     const th = u * Math.PI * 2, e = (v - 0.5) * Math.PI;
@@ -117,7 +120,7 @@ function hEll(r, c, sc, o = {}) {
 }
 
 /* ---------- Der Kopf: Schädel, Stirn, Augenhöhlen, Wangenknochen, Nase, Lippen, Kinn, Kiefer ---------- */
-function headShape(th, e, fem) {
+export function headShape(th, e, fem) {
   const dx = Math.sin(th) * Math.cos(e), dy = Math.sin(e), dz = Math.cos(th) * Math.cos(e);
   const rx = fem ? 0.072 : 0.076, ry = fem ? 0.106 : 0.11, rz = fem ? 0.093 : 0.098;
   let x = dx * rx, y = dy * ry, z = dz * rz;
@@ -174,8 +177,8 @@ function headShape(th, e, fem) {
   return [x, y, z];
 }
 // Gesichtsabbildung: vorn eben projiziert; hinten außerhalb (durchsichtig)
-const faceUV = (x, y, dz) => dz > -0.08 ? [0.5 + x / HL.fw, 0.5 + (y - HL.fy) / HL.fh] : [x < 0 ? -0.6 : 1.6, 0.5];
-function headGeo(q, fem) {
+export const faceUV = (x, y, dz) => dz > -0.08 ? [0.5 + x / HL.fw, 0.5 + (y - HL.fy) / HL.fh] : [x < 0 ? -0.6 : 1.6, 0.5];
+export function headGeo(q, fem) {
   const nu = q > 1.5 ? 96 : 40, nv = q > 1.5 ? 74 : 30;
   // dicht vorn und in Gesichtshöhe, locker am Hinterkopf
   const au = u => { const s = u * 2 - 1; return Math.PI * Math.sign(s) * Math.pow(Math.abs(s), 1.45); };
@@ -186,7 +189,7 @@ function headGeo(q, fem) {
   }, true);
 }
 // Ohr: Muschel mit Rand (Helix), Läppchen
-function earGeo(sx, q, fem) {
+export function earGeo(sx, q, fem) {
   const n = q > 1.5 ? 1 : 0.6, P = [];
   const rim = hTube(Array.from({ length: 12 }, (_, k) => { const a = -0.6 + k / 11 * Math.PI * 1.55; return [0, Math.sin(a) * 0.024, Math.cos(a) * 0.016 - 0.004]; }), [0.0035, 0.0045, 0.005, 0.005, 0.0045, 0.004], { seg: Math.round(7 * n) + 2, n: Math.round(16 * n) + 4, fab: FAB.skin });
   const shell = hEll(1, [0.002, 0.001, -0.003], [0.006, 0.022, 0.014], { nu: 10, nv: 8, fab: FAB.skin });
@@ -197,12 +200,12 @@ function earGeo(sx, q, fem) {
 
 /* ---------- Haar: Haaransatz als Kappe, darauf Strähnen, die der Frisur folgen ---------- */
 // Richtung auf dem Kopf -> Punkt auf der Haaroberfläche (Abstand h über der Kopfhaut)
-function scalpPt(th, e, fem, h) {
+export function scalpPt(th, e, fem, h) {
   const p = headShape(th, e, fem), L = Math.hypot(...p), k = (L + h) / L;
   return [p[0] * k, p[1] * k, p[2] * k];
 }
 // Strähne: Pfad über die Kopfhaut (Liste aus [th, e, h]), danach optional frei hängend
-function hairLock(pts, fem, w, t, o = {}) {
+export function hairLock(pts, fem, w, t, o = {}) {
   const path = pts.map(([th, e, h], k) => scalpPt(th, e, fem, h * (0.3 + 0.7 * hsm(0, 0.3, k / (pts.length - 1)))));
   if (o.tail) for (const q of o.tail) path.push(q(path[path.length - 1], path));
   const n = path.length, rads = path.map((_, k) => { const f = k / (n - 1); return w * (0.45 + 0.55 * Math.sin(Math.min(1, f * 2.5) * Math.PI / 2)) * (1 - Math.pow(f, o.taper ?? 1.6) * 0.85); });
@@ -211,7 +214,7 @@ function hairLock(pts, fem, w, t, o = {}) {
   return hTube(path, rads, { seg: o.seg || 5, n: o.n || Math.max(6, n * 2), ax: t / w, az: 1, fab: FAB.hair, strand: true, swayKind: o.kind ?? 1, sway: v => Math.pow(v, o.swPow ?? 1.4) * sw, up: o.up || [p0[0] / L0, p0[1] / L0, p0[2] / L0] });
 }
 // Kappe unter den Strähnen; mask(th, e) sagt, wo Haar wächst
-function hairCap(fem, q, h, mask, o = {}) {
+export function hairCap(fem, q, h, mask, o = {}) {
   const nu = q > 1.5 ? 56 : 26, nv = q > 1.5 ? 18 : 9, lim = mask.lim || (() => 0.3);
   return hGrid(nu, nv, (u, v) => {
     const th = (u * 2 - 1) * Math.PI, l = lim(th), e = l + (Math.PI / 2 - l) * Math.pow(v, 0.8) * 0.999;
@@ -220,8 +223,8 @@ function hairCap(fem, q, h, mask, o = {}) {
   }, true);
 }
 // Haaransatz: vorn hoch (Stirn), an den Seiten über den Ohren, hinten tief im Nacken
-const HAIRLINE = [[0, 0.5], [0.3, 0.52], [0.55, 0.57], [0.85, 0.48], [1.12, 0.2], [1.3, 0.12], [1.48, 0.3], [1.66, 0.34], [1.86, 0.12], [2.2, -0.25], [2.6, -0.55], [Math.PI, -0.68]];
-function hairLim(th, o = {}) {
+export const HAIRLINE = [[0, 0.5], [0.3, 0.52], [0.55, 0.57], [0.85, 0.48], [1.12, 0.2], [1.3, 0.12], [1.48, 0.3], [1.66, 0.34], [1.86, 0.12], [2.2, -0.25], [2.6, -0.55], [Math.PI, -0.68]];
+export function hairLim(th, o = {}) {
   const a = Math.abs(Math.atan2(Math.sin(th), Math.cos(th)));
   let k = 1; while (k < HAIRLINE.length - 1 && HAIRLINE[k][0] < a) k++;
   const [a0, l0] = HAIRLINE[k - 1], [a1, l1] = HAIRLINE[k], t = hsm(a0, a1, a);
@@ -231,11 +234,11 @@ function hairLim(th, o = {}) {
   lim -= (o.burns ?? 0) * Math.exp(-(((a - 1.25) / 0.12) ** 2));
   return lim;
 }
-const hairline = (th, e, o = {}) => e > hairLim(th, o) ? 1 : 0;
+export const hairline = (th, e, o = {}) => e > hairLim(th, o) ? 1 : 0;
 // Bogen über den Kopf: von Richtung d0 über mid nach d1 (Bezier auf der Kugel), Höhe h(f)
-const dirTE = d => { const L = Math.hypot(d[0], d[1], d[2]) || 1; return [Math.atan2(d[0], d[2]), Math.asin(Math.max(-0.999, Math.min(0.999, d[1] / L)))]; };
-const dirOf = (th, e) => [Math.sin(th) * Math.cos(e), Math.sin(e), Math.cos(th) * Math.cos(e)];
-function arcPts(d0, d1, n, h, mid, wig) {
+export const dirTE = d => { const L = Math.hypot(d[0], d[1], d[2]) || 1; return [Math.atan2(d[0], d[2]), Math.asin(Math.max(-0.999, Math.min(0.999, d[1] / L)))]; };
+export const dirOf = (th, e) => [Math.sin(th) * Math.cos(e), Math.sin(e), Math.cos(th) * Math.cos(e)];
+export function arcPts(d0, d1, n, h, mid, wig) {
   const out = [];
   const m = mid || [(d0[0] + d1[0]) / 2, (d0[1] + d1[1]) / 2 + 0.5, (d0[2] + d1[2]) / 2];
   for (let s = 0; s <= n; s++) {
@@ -246,7 +249,7 @@ function arcPts(d0, d1, n, h, mid, wig) {
   }
   return out;
 }
-function hairGeo(style, fem, q, P, hc, opt, push) {
+export function hairGeo(style, fem, q, P, hc, opt, push) {
   const R = mulberry32(style * 97 + (fem ? 13 : 0) + 7), rr = (a, b) => a + R() * (b - a);
   const dense = q > 1.5 ? 1 : 0.38;
   const add = g => push(g);
@@ -339,18 +342,18 @@ function hairGeo(style, fem, q, P, hc, opt, push) {
 }
 
 /* ---------- Das feine Modell ---------- */
-function personGeoHi(kind, q = 1) {
+export function personGeoHi(kind, q = 1) {
   const key = kind + ':' + q; if (HQ.cache.has(key)) return HQ.cache.get(key);
   const geo = personBuild(kind, q); HQ.cache.set(key, geo); return geo;
 }
 // eine Kopie mit denselben Puffern (jede Menge hat ihre eigenen Instanz-Attribute)
-function personShare(kind, q) {
+export function personShare(kind, q) {
   const src = personGeoHi(kind, q), g = new T.BufferGeometry();
   for (const k in src.attributes) g.setAttribute(k, src.attributes[k]);
   if (src.index) g.setIndex(src.index);
   return g;
 }
-function personBuild(kind, q) {
+export function personBuild(kind, q) {
   // Teile: [Geometrie, Farbe, Glied, Drehpunkthöhe, Variante, Stoff]
   const P = []; let LB = [0, 0], HIP = 0.95, OPT = 0, FB = 0;
   const female = kind === 'lady' || kind === 'gown' || kind === 'dress'; const WR = {};
@@ -717,9 +720,9 @@ function personBuild(kind, q) {
   return personMerge(P, kind);
 }
 // Hutmaske je Art: welche Hutvarianten das Haar bedecken (Bit 0-2), 8 = immer eine Mütze
-const HATMASK = { coat: 3, suit: 3, worker: 3, kid: 7, lady: 7, dress: 2, police: 8, chauffeur: 8, sailor: 8, livery: 8 };
+export const HATMASK = { coat: 3, suit: 3, worker: 3, kid: 7, lady: 7, dress: 2, police: 8, chauffeur: 8, sailor: 8, livery: 8 };
 // Zusammenfügen mit Index; Farben, Glieder, Varianten, Stoffart und Schwung je Ecke
-function personMerge(parts, kind) {
+export function personMerge(parts, kind) {
   let n = 0, ni = 0;
   const geos = parts.map(([g]) => { if (!g.index) { const c = g.attributes.position.count; g.setIndex(Array.from({ length: c }, (_, i) => i)); } n += g.attributes.position.count; ni += g.index.count; return g; });
   const pos = new Float32Array(n * 3), nor = new Float32Array(n * 3), uv = new Float32Array(n * 2), col = new Float32Array(n * 3), lb = new Float32Array(n * 2), op = new Float32Array(n), so = new Float32Array(n * 3);
@@ -752,10 +755,10 @@ function personMerge(parts, kind) {
 // V17 · Gesichteratlas: 8 x 8 Gesichter, 0-31 Männer, 32-63 Frauen. Die Formen stecken jetzt im Modell;
 // gemalt werden Augen, Lider, Wimpern, Brauen aus Härchen, Lippen, Schminke, Bart, Falten und Sommersprossen.
 // Zweiter Atlas (FACE_MAT): R Glanz, G Relief, B Art des Pixels (0 Haut tönt, 1/3 Haarfarbe, 2/3 feste Farbe, 1 Auge)
-const FACE_RES = MOBILE ? 128 : 320;
+export const FACE_RES = MOBILE ? 128 : 320;
 // Merkmale je Gesicht, auch im Shader (humanShape) aus der Nummer berechnet: Schönheit -1..1 und Alter 0..1
-const FACE_TRAIT = i => ({ b: ((i * 0.618034) % 1) * 2 - 1, age: (i * 0.754877 + 0.13) % 1 });
-const FACE_ATLAS = (() => {
+export const FACE_TRAIT = i => ({ b: ((i * 0.618034) % 1) * 2 - 1, age: (i * 0.754877 + 0.13) % 1 });
+export const FACE_ATLAS = (() => {
   const S = FACE_RES, M = MOBILE ? S / 2 : S, W = S * 8, rnd = mulberry32(3141);
   const cv = document.createElement('canvas'); cv.width = cv.height = W; const g = cv.getContext('2d');
   const mk = () => { const c = document.createElement('canvas'); c.width = c.height = M * 8; const x = c.getContext('2d'); x.fillStyle = '#000'; x.fillRect(0, 0, M * 8, M * 8); return [c, x]; };
@@ -991,4 +994,4 @@ const FACE_ATLAS = (() => {
   t.userData.mat = tm;
   return t;
 })();
-const FACE_MAT = FACE_ATLAS.userData.mat;
+export const FACE_MAT = FACE_ATLAS.userData.mat;

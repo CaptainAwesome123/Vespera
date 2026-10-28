@@ -1,4 +1,21 @@
-'use strict';
+import { shared, T, scene, camera } from './core.js';
+import { MAT, mergeColored, nearBoxes } from './people-skeleton.js';
+import { onIsland, curbHeight, maskAt } from './island.js';
+import { WATER_Y } from './dance.js';
+import { waterSplash } from './water.js';
+import { roadHeightAt, terrainHeight } from './harbour.js';
+import { villaRoadAt, SERP, carGeoHi, COL, serpReset, parked, serpWallHit } from './serpentine.js';
+import { makeGlowPoints } from './ragdoll.js';
+import { cars } from './airships.js';
+import { carDamageAttr, glassFor } from './cars.js';
+import { TRF, OBSTACLES, placeTrafficCar, polyAt, _q, _ce, _p, _s, _m } from './traffic.js';
+import { player, keys, touch } from './player.js';
+import { DRIVE } from './eating.js';
+import { fxEmit, skidMark, updateFX } from './particles.js';
+import { windAt, updateLeaves, updateWindAudio } from './wind.js';
+import { toast, BOAT } from './boat.js';
+import { isTouch, paused } from './input.js';
+
 /* =====================================================================
    V16 · FAHRPHYSIK: Einspurmodell mit Reifenkräften (Schräglauf, Kammscher Kreis),
    Lastverlagerung, Viergang-Getriebe, Handbremse, Federung mit Nicken und Wanken;
@@ -6,16 +23,16 @@
    Schadensmodell (Beulen, Scheiben, Scheinwerfer, Motor), Reifenspuren, Qualm,
    Funken und Motorklang
    ===================================================================== */
-const VP = { m: 1450, I: 2500, a: 1.38, b: 1.52, hcg: 0.55, Cf: 100000, Cr: 118000, rw: 0.4, gears: [2.85, 1.85, 1.33, 1.0], rev: 3.3, fd: 3.9, hl: 2.62, hw: 0.98, idle: 720, red: 4600 };
-const GRAV = 9.81, VL = VP.a + VP.b;
-const BODIES = new Set();   // frei bewegliche Wagen: Spielerwagen, Unfallwagen, angeschobene Parker
-function makeBody(x, y, z, h, vx = 0, vz = 0, w = 0) {
+export const VP = { m: 1450, I: 2500, a: 1.38, b: 1.52, hcg: 0.55, Cf: 100000, Cr: 118000, rw: 0.4, gears: [2.85, 1.85, 1.33, 1.0], rev: 3.3, fd: 3.9, hl: 2.62, hw: 0.98, idle: 720, red: 4600 };
+export const GRAV = 9.81, VL = VP.a + VP.b;
+export const BODIES = new Set();   // frei bewegliche Wagen: Spielerwagen, Unfallwagen, angeschobene Parker
+export function makeBody(x, y, z, h, vx = 0, vz = 0, w = 0) {
   return { x, y, z, h, vx, vz, w, vy: 0, m: VP.m, I: VP.I, hl: VP.hl, hw: VP.hw, pitch: 0, roll: 0, pv: 0, rv: 0, dmg: [0, 0, 0, 0], still: 0, air: false, sunk: 0 };
 }
-const tireF = (al, C, Fm) => { if (Fm < 1) return 0; const B = C / (1.45 * Fm); return Fm * Math.sin(1.45 * Math.atan(B * al)); };
-function engineT(rpm) { const k = Math.max(0, Math.min(1, (rpm - VP.idle) / (VP.red - VP.idle))); return 275 * (0.6 + 0.55 * Math.sin(Math.PI * (0.25 + k * 0.6))); }
+export const tireF = (al, C, Fm) => { if (Fm < 1) return 0; const B = C / (1.45 * Fm); return Fm * Math.sin(1.45 * Math.atan(B * al)); };
+export function engineT(rpm) { const k = Math.max(0, Math.min(1, (rpm - VP.idle) / (VP.red - VP.idle))); return 275 * (0.6 + 0.55 * Math.sin(Math.PI * (0.25 + k * 0.6))); }
 // Boden unter einem Punkt: Viadukt/Tunnel, Bürgersteig, Insel; außerhalb der Insel Wasser (null)
-function groundAt(x, z, y) {
+export function groundAt(x, z, y) {
   const rd = roadHeightAt(x, z, y + 1);
   if (rd.y > -1e8) return { y: rd.y, mu: 1, road: true, via: true };
   if (typeof villaRoadAt === 'function') { const v = villaRoadAt(x, z, y); if (v) return v; }
@@ -33,8 +50,9 @@ function groundAt(x, z, y) {
 }
 
 /* ---------- Spielerwagen ---------- */
-Object.assign(DRIVE, { body: null, gear: 0, rpm: VP.idle, shiftT: 0, revMode: false, revT: 0, delta: 0, spin: [0, 0, 0, 0], wheelA: 0, slip: 0, lock: 0, axf: 0, ayf: 0, shake: 0, wheels: null, glass: null, lights: null, stalled: false, au: null, lastW: null, fov0: 0, camP: null, splashT: 0 });
-function playerCarMesh() {
+// Fahrzustand des Spielerwagens; wird in build() gesetzt (nicht beim Laden, damit die Modulreihenfolge keine Rolle spielt)
+export function initDriveState() { Object.assign(DRIVE, { body: null, gear: 0, rpm: VP.idle, shiftT: 0, revMode: false, revT: 0, delta: 0, spin: [0, 0, 0, 0], wheelA: 0, slip: 0, lock: 0, axf: 0, ayf: 0, shake: 0, wheels: null, glass: null, lights: null, stalled: false, au: null, lastW: null, fov0: 0, camP: null, splashT: 0 }); }
+export function playerCarMesh() {
   if (DRIVE.mesh) return;
   DRIVE.mesh = new T.InstancedMesh(carGeoHi({ driver: true, noWheels: true }), MAT.carPaint, 1);
   carDamageAttr(DRIVE.mesh);
@@ -49,7 +67,7 @@ function playerCarMesh() {
   DRIVE.lights = makeGlowPoints(lp, true); scene.add(DRIVE.lights);
 }
 // Drahtspeichenrad mit Weißwandreifen (Achse entlang z, außen = +z)
-function wheelGeo() {
+export function wheelGeo() {
   const P = [];
   P.push([new T.TorusGeometry(0.34, 0.1, 8, 22), COL.tyre]);
   P.push([new T.CylinderGeometry(0.3, 0.3, 0.02, 20, 1, true).rotateX(Math.PI / 2).translate(0, 0, 0.1), COL.wall]);
@@ -60,12 +78,12 @@ function wheelGeo() {
   for (let k = 0; k < 18; k++) { const a = k / 18 * Math.PI * 2; P.push([new T.BoxGeometry(0.06, 0.03, 0.16).rotateZ(a).translate(Math.cos(a) * 0.43, Math.sin(a) * 0.43, 0), [0.05, 0.05, 0.05]]); }
   return mergeColored(P);
 }
-function driveEnter(c) {
+export function driveEnter(c) {
   playerCarMesh();
   initCarAudio();
   if (c) {
     // den geparkten Wagen übernehmen: Lage, Richtung und Farbe
-    c.hidden = true; parkedTimer = 0;
+    c.hidden = true; shared.parkedTimer = 0;
     const e = c.m.elements;
     const h = Math.atan2(e[8], e[0]), x = e[12], z = e[14];
     if (DRIVE.body) BODIES.delete(DRIVE.body);
@@ -85,7 +103,7 @@ function driveEnter(c) {
   DRIVE.camP = null;
   toast(isTouch ? 'Am Steuer · Knopf ▼ Handbremse' : 'Am Steuer · W/S Gas und Bremse · Leertaste Handbremse · R Wagen aufrichten');
 }
-function driveExit() {
+export function driveExit() {
   if (!DRIVE.on) return;
   DRIVE.on = false;
   // links neben der Fahrertür aussteigen (Fahrer sitzt rechts, also über den Beifahrersitz, wenn die Straße frei ist)
@@ -97,7 +115,7 @@ function driveExit() {
   toast('Ausgestiegen');
 }
 // Wagen aufrichten und auf die nächste Fahrspur stellen (R)
-function driveReset() {
+export function driveReset() {
   const B = DRIVE.body; if (!B) return;
   let best = null, bd = 1e18;
   const sy = typeof serpReset === 'function' ? serpReset(B) : false;
@@ -110,8 +128,8 @@ function driveReset() {
   DRIVE.stalled = false; DRIVE.gear = 0; DRIVE.revMode = false; DRIVE.camP = null;
   toast('Wagen repariert und aufgerichtet');
 }
-const _dp = { x: 0, y: 0, z: 0 };
-function updateDrive(dt) {
+export const _dp = { x: 0, y: 0, z: 0 };
+export function updateDrive(dt) {
   if (player.fly) { driveExit(); return; }
   // Eingaben sammeln; die Physik läuft in updateVehicles
   const up = (keys.KeyW || keys.ArrowUp ? 1 : 0) + Math.max(0, touch.my), dn = (keys.KeyS || keys.ArrowDown ? 1 : 0) + Math.max(0, -touch.my);
@@ -120,7 +138,7 @@ function updateDrive(dt) {
   DRIVE.rDown = !!keys.KeyR;
 }
 // ein Teilschritt für den Spielerwagen
-function stepPlayerCar(B, dt, inp) {
+export function stepPlayerCar(B, dt, inp) {
   const D = DRIVE, fx = Math.cos(B.h), fz = -Math.sin(B.h), lx = -Math.sin(B.h), lz = -Math.cos(B.h);
   let u = B.vx * fx + B.vz * fz, v = B.vx * lx + B.vz * lz, r = B.w;
   const dm = B.dmg, dAvg = (dm[0] + dm[1] + dm[2] + dm[3]) / 4;
@@ -192,7 +210,7 @@ function stepPlayerCar(B, dt, inp) {
   D.u = u;
 }
 // ein Unfallwagen ohne Fahrer am Steuer: rollt aus, rutscht quer, dreht sich aus
-function stepLooseCar(B, dt) {
+export function stepLooseCar(B, dt) {
   const fx = Math.cos(B.h), fz = -Math.sin(B.h), lx = -Math.sin(B.h), lz = -Math.cos(B.h);
   let u = B.vx * fx + B.vz * fz, v = B.vx * lx + B.vz * lz;
   const mu = B.mu || 1, brake = B.player ? (DRIVE.on ? 0 : 6) : 5.5;
@@ -203,9 +221,9 @@ function stepLooseCar(B, dt) {
 }
 
 /* ---------- Zusammenstöße ---------- */
-const _cn = { nx: 0, nz: 0, d: 0, px: 0, pz: 0 };
+export const _cn = { nx: 0, nz: 0, d: 0, px: 0, pz: 0 };
 // Rechteck (Wagen) gegen achsenparallelen Quader; Ergebnis: Normale vom Quader zum Wagen, Tiefe, Berührpunkt
-function obbAabb(B, b) {
+export function obbAabb(B, b) {
   const fx = Math.cos(B.h), fz = -Math.sin(B.h), lx = -Math.sin(B.h), lz = -Math.cos(B.h);
   const bx = (b.x0 + b.x1) / 2, bz = (b.z0 + b.z1) / 2;
   let ex = (b.x1 - b.x0) / 2, ez = (b.z1 - b.z0) / 2;
@@ -225,7 +243,7 @@ function obbAabb(B, b) {
   return _cn;
 }
 // Rechteck gegen Rechteck (zwei Wagen); Normale von A nach B
-function obbObb(A, B) {
+export function obbObb(A, B) {
   const ax = [[Math.cos(A.h), -Math.sin(A.h)], [-Math.sin(A.h), -Math.cos(A.h)]], bx = [[Math.cos(B.h), -Math.sin(B.h)], [-Math.sin(B.h), -Math.cos(B.h)]];
   const dx = B.x - A.x, dz = B.z - A.z;
   if (dx * dx + dz * dz > 36) return null;
@@ -246,7 +264,7 @@ function obbObb(A, B) {
   return _cn;
 }
 // Stoß: A gegen B (B = null: feste Wand); n zeigt von B nach A
-function impulse(A, B, nx, nz, px, pz, e = 0.25) {
+export function impulse(A, B, nx, nz, px, pz, e = 0.25) {
   const rax = px - A.x, raz = pz - A.z;
   let vax = A.vx + A.w * raz, vaz = A.vz - A.w * rax;
   let vbx = 0, vbz = 0, rbx = 0, rbz = 0;
@@ -267,7 +285,7 @@ function impulse(A, B, nx, nz, px, pz, e = 0.25) {
   return j;
 }
 // Schaden an der getroffenen Seite; Funken, Glassplitter, Klang
-function crashDamage(B, px, pz, j, vt) {
+export function crashDamage(B, px, pz, j, vt) {
   const dv = j / B.m;
   const fx = Math.cos(B.h), fz = -Math.sin(B.h), lx = -Math.sin(B.h), lz = -Math.cos(B.h);
   const rx = px - B.x, rz = pz - B.z, a = (rx * fx + rz * fz) / B.hl, l = (rx * lx + rz * lz) / B.hw;
@@ -286,7 +304,7 @@ function crashDamage(B, px, pz, j, vt) {
   if (B.player) { DRIVE.shake = Math.min(1, DRIVE.shake + dv * 0.08); if (B.dmg[0] > 0.95 && DRIVE.on && !DRIVE.stalled) { DRIVE.stalled = true; toast('Motor abgesoffen · R zum Reparieren'); } }
 }
 // Verkehrswagen und Parker werden bei Berührung zu freien Körpern
-function looseFromTraffic(car) {
+export function looseFromTraffic(car) {
   if (car.dyn) return car.dyn;
   const B = makeBody(car.wx, car.wy || 0, car.wz, car.yaw, Math.cos(car.yaw) * car.v, -Math.sin(car.yaw) * car.v, 0);
   B.traffic = car; B.dmg = car.dmg || [0, 0, 0, 0]; car.dmg = B.dmg;
@@ -294,15 +312,15 @@ function looseFromTraffic(car) {
   BODIES.add(B);
   return B;
 }
-function looseFromParked(c) {
+export function looseFromParked(c) {
   if (c.dyn) return c.dyn;
   const e = c.m.elements, B = makeBody(e[12], 0, e[14], Math.atan2(e[8], e[0]));
   B.parked = c; B.dmg = c.dmg || [0, 0, 0, 0]; c.dmg = B.dmg; c.dyn = B; BODIES.add(B);
   return B;
 }
 // Verkehr in der Nähe: Hüllkörper ohne Speicher (Kreis-Vorfilter)
-const _tb = { x: 0, z: 0, h: 0, hl: VP.hl, hw: VP.hw };
-function collideBody(B) {
+export const _tb = { x: 0, z: 0, h: 0, hl: VP.hl, hw: VP.hw };
+export function collideBody(B) {
   let hits = 0;
   // Häuser, Mauern, Masten
   for (const b of nearBoxes(B.x, B.z, 4)) {
@@ -341,7 +359,7 @@ function collideBody(B) {
   }
   return hits;
 }
-function collidePair(A, O) {
+export function collidePair(A, O) {
   const c = obbObb(A, O); if (!c) return 0;
   // Normale zeigt von A nach O; A nach außen schieben
   const nx = -c.nx, nz = -c.nz, w = O.m / (A.m + O.m);
@@ -353,8 +371,8 @@ function collidePair(A, O) {
 }
 
 /* ---------- Welt: alle beweglichen Wagen, Federung, Wasser, Darstellung ---------- */
-let vehTimer = 0;
-function updateVehicles(dt) {
+export let vehTimer = 0;
+export function updateVehicles(dt) {
   OBSTACLES.length = 0;
   const cp = camera.position;
   for (const B of BODIES) {
@@ -434,7 +452,7 @@ function updateVehicles(dt) {
   }
   syncBodies();
 }
-function respawnTraffic(B) {
+export function respawnTraffic(B) {
   const car = B.traffic, cp = camera.position;
   BODIES.delete(B); car.dyn = null; car.dmg = null;
   let L = null;
@@ -444,19 +462,19 @@ function respawnTraffic(B) {
   const q = polyAt(L.pts, L.cum, car.s); car.wx = q[0]; car.wz = q[1]; car.yaw = Math.atan2(-q[3], q[2]);
 }
 // Körper in die Darstellung übertragen
-function syncBodies() {
+export function syncBodies() {
   for (const B of BODIES) {
     if (B.traffic) { const c = B.traffic; c.wx = B.x; c.wz = B.z; c.wy = B.y; c.yaw = B.h; c.v = 0; }
     else if (B.parked) {
       const c = B.parked;
       _q.setFromEuler(_ce.set(B.roll, B.h, B.pitch, 'YXZ')); c.m.compose(_p.set(B.x, B.y + 0.22, B.z), _q, _s.setScalar(1));
-      c.x = B.x; c.z = B.z; parkedTimer = 0;
+      c.x = B.x; c.z = B.z; shared.parkedTimer = 0;
     }
   }
 }
 // Spielerwagen zeichnen: Karosserie mit Federung, Räder mit Lenkung und Drehung, Lichter, Schaden
-const _wq = new T.Quaternion(), _wq2 = new T.Quaternion(), _wv = new T.Vector3(), _wm = new T.Matrix4(), _wy = new T.Vector3(0, 1, 0), _wz = new T.Vector3(0, 0, 1);
-function drawPlayerCar(dt) {
+export const _wq = new T.Quaternion(), _wq2 = new T.Quaternion(), _wv = new T.Vector3(), _wm = new T.Matrix4(), _wy = new T.Vector3(0, 1, 0), _wz = new T.Vector3(0, 0, 1);
+export function drawPlayerCar(dt) {
   const B = DRIVE.body; if (!B || !DRIVE.mesh) return;
   const D = DRIVE;
   D.x = B.x; D.z = B.z; D.y = B.y; D.h = B.h; D.v = D.on ? (D.u || 0) : 0;
@@ -506,7 +524,7 @@ function drawPlayerCar(dt) {
   } else D.lastW = null;
   D.shake = Math.max(0, D.shake - dt * 1.8);
 }
-function driveCamera() {
+export function driveCamera() {
   const B = DRIVE.body;
   if (!DRIVE.fov0) DRIVE.fov0 = camera.fov;
   const sp = B ? Math.hypot(B.vx, B.vz) : 0;
@@ -535,7 +553,7 @@ function driveCamera() {
 }
 
 /* ---------- Klang: Reihensechszylinder, Reifenquietschen, Blech ---------- */
-function initCarAudio() {
+export function initCarAudio() {
   if (DRIVE.au) { if (DRIVE.au.ctx.state === 'suspended') DRIVE.au.ctx.resume(); return; }
   const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
   try {
@@ -555,7 +573,7 @@ function initCarAudio() {
     DRIVE.au = { ctx, out, eg, lp, o1, o2, o3, sg, nf, rg, nb };
   } catch (e) { DRIVE.au = null; }
 }
-function updateCarAudio() {
+export function updateCarAudio() {
   const A = DRIVE.au; if (!A) return;
   const boat = typeof BOAT !== 'undefined' && BOAT.on;
   const t = A.ctx.currentTime, on = (DRIVE.on || boat) && !paused && !(DRIVE.on && DRIVE.body && DRIVE.body.sunk) && !(DRIVE.on && DRIVE.stalled);
@@ -570,7 +588,7 @@ function updateCarAudio() {
   const sp = boat ? Math.abs(BOAT.u) * 2.5 : DRIVE.body ? Math.hypot(DRIVE.body.vx, DRIVE.body.vz) : 0;
   A.rg.gain.setTargetAtTime(on ? Math.min(0.12, sp * 0.004) * (DRIVE.body && DRIVE.body.grass ? 2 : 1) : 0, t, 0.1);
 }
-function carCrashSound(k, scrape, water) {
+export function carCrashSound(k, scrape, water) {
   const A = DRIVE.au; if (!A || paused) return;
   const ctx = A.ctx, t = ctx.currentTime;
   if (A.lastCrash && t - A.lastCrash < 0.12 && !water) return; A.lastCrash = t;
@@ -586,7 +604,7 @@ function carCrashSound(k, scrape, water) {
   }
 }
 // pro Bild: Physik aller freien Wagen, Spielerwagen zeichnen, Partikel, Klang
-function updateVehicleWorld(dt) {
+export function updateVehicleWorld(dt) {
   if (!paused) { updateVehicles(dt); drawPlayerCar(dt); updateFX(dt); updateLeaves(dt); }
   updateCarAudio(); updateWindAudio();
 }

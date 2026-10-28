@@ -1,21 +1,35 @@
-'use strict';
+import { U, T, mulberry32, canvasTex, mergeGeos, pick, R, scene, camera } from './core.js';
+import { stdMat, ENV, addCollider } from './people-skeleton.js';
+import { addNeon, NEON, lamps, addGlow, addSeg } from './facade-shader.js';
+import { QUAY, QX, landDist } from './island.js';
+import { roundBox, lathe, placeFurn, FURN, makeSignTex, neonFrame } from './entrances.js';
+import { WATER_Y } from './dance.js';
+import { bobVessel, waterH } from './water.js';
+import { texSet, woodPanelTextures, worldUV, GOWNS, DRESSES, COL, COATS, CHATS, serpTerrain } from './serpentine.js';
+import { makeGlowPoints } from './ragdoll.js';
+import { buildAirship } from './airships.js';
+import { player } from './player.js';
+import { toast } from './boat.js';
+import { INTERACT, travel } from './music.js';
+import { liftProfile } from './main.js';
+
 /* =====================================================================
    HAFEN: Kaipromenade, Jachthafen mit begehbaren Booten, Fähre und Luftschiffhafen
    ===================================================================== */
 // Plattformen: Boote und Luftschiffe, auf denen man stehen kann. Ihre Quader liegen im eigenen Koordinatensystem und fahren mit
-const PLATFORMS = [], PORT_PEDS = [], VESSELS = [];
+export const PLATFORMS = [], PORT_PEDS = [], VESSELS = [];
 U.uWake = { value: [new T.Vector4(0, 0, 0, 0), new T.Vector4(0, 0, 0, 0), new T.Vector4(0, 0, 0, 0), new T.Vector4(0, 0, 0, 0)] };
-function addPlatform(g, boxes, r, opt = {}) {
+export function addPlatform(g, boxes, r, opt = {}) {
   const pf = { g, boxes, r, x: 0, y: 0, z: 0, ry: 0, px: 0, py: 0, pz: 0, pry: 0, air: false, ...opt };
   pfRead(pf); pfSave(pf); PLATFORMS.push(pf); return pf;
 }
-function pfRead(pf) { pf.x = pf.g.position.x; pf.y = pf.g.position.y; pf.z = pf.g.position.z; pf.ry = pf.g.rotation.y; }
-function pfSave(pf) { pf.px = pf.x; pf.py = pf.y; pf.pz = pf.z; pf.pry = pf.ry; }
-function pfLocal(pf, x, z) { const c = Math.cos(pf.ry), s = Math.sin(pf.ry), dx = x - pf.x, dz = z - pf.z; return [dx * c - dz * s, dx * s + dz * c]; }
-const bx6 = (x0, y0, z0, x1, y1, z1) => ({ x0: Math.min(x0, x1), y0: Math.min(y0, y1), z0: Math.min(z0, z1), x1: Math.max(x0, x1), y1: Math.max(y0, y1), z1: Math.max(z0, z1) });
+export function pfRead(pf) { pf.x = pf.g.position.x; pf.y = pf.g.position.y; pf.z = pf.g.position.z; pf.ry = pf.g.rotation.y; }
+export function pfSave(pf) { pf.px = pf.x; pf.py = pf.y; pf.pz = pf.z; pf.pry = pf.ry; }
+export function pfLocal(pf, x, z) { const c = Math.cos(pf.ry), s = Math.sin(pf.ry), dx = x - pf.x, dz = z - pf.z; return [dx * c - dz * s, dx * s + dz * c]; }
+export const bx6 = (x0, y0, z0, x1, y1, z1) => ({ x0: Math.min(x0, x1), y0: Math.min(y0, y1), z0: Math.min(z0, z1), x1: Math.max(x0, x1), y1: Math.max(y0, y1), z1: Math.max(z0, z1) });
 
 /* ---------- Texturen: Bohlen, Teak, Mahagoni, Stahlplatten, Granit, Teppich ---------- */
-function boardTex(seed, rows, base, vari, seam, grain, nails) {
+export function boardTex(seed, rows, base, vari, seam, grain, nails) {
   return texSet(256, (g, gr, gh, W) => {
     const rr = mulberry32(seed), h = W / rows;
     g.fillStyle = seam; g.fillRect(0, 0, W, W); gr.fillStyle = '#f2f2f2'; gr.fillRect(0, 0, W, W); gh.fillStyle = '#000'; gh.fillRect(0, 0, W, W);
@@ -45,8 +59,8 @@ function boardTex(seed, rows, base, vari, seam, grain, nails) {
     for (let k = 0; k < 2500; k++) { g.fillStyle = `rgba(${rr() < 0.5 ? '0,0,0' : '255,240,220'},${rr() * 0.06})`; g.fillRect(rr() * W, rr() * W, 1 + rr() * 2, 1); }
   }, 1.6);
 }
-let PLANK, TEAK, MAHOG, PLATE, QSTONE, CARPET, WOODP, PM = null;
-function portTextures() {
+export let PLANK, TEAK, MAHOG, PLATE, QSTONE, CARPET, WOODP, PM = null;
+export function portTextures() {
   PLANK = boardTex(5150, 10, [96, 84, 70], 0.35, '#141110', 0.18, true);       // verwitterte Stegbohlen
   TEAK = boardTex(5151, 14, [150, 104, 62], 0.25, '#0c0a08', 0.16, false);     // Teakdeck mit schwarzen Fugen
   MAHOG = boardTex(5152, 9, [112, 42, 22], 0.3, '#cfc2a8', 0.22, false);       // Mahagoni mit hellen Fugen
@@ -92,7 +106,7 @@ function portTextures() {
   WOODP = woodPanelTextures();
 }
 // Rumpf: unter der Wasserlinie Antifouling, darüber ein heller Wasserpass, knapp darüber nasser, dunklerer Lack
-function hullMat(set, rough, metal) {
+export function hullMat(set, rough, metal) {
   const m = stdMat({ vertexColors: true, map: set.map, normalMap: set.normal, roughnessMap: set.rough, roughness: rough * 1.6, metalness: metal, envI: 0.9, side: T.DoubleSide });
   m.onBeforeCompile = sh => {
     sh.vertexShader = 'varying float vHY;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n vHY = position.y;');
@@ -103,7 +117,7 @@ function hullMat(set, rough, metal) {
   };
   return m;
 }
-function portMats() {
+export function portMats() {
   if (PM) return PM;
   portTextures();
   const vc = o => stdMat({ vertexColors: true, ...o });
@@ -131,7 +145,7 @@ function portMats() {
   return PM;
 }
 // Bausatz: Teile nach Material sammeln, am Ende je Material zu einem Mesh verschmelzen (Farbe pro Teil)
-function kit() {
+export function kit() {
   const G = {};
   return {
     add(k, g, c = [1, 1, 1]) { (G[k] ||= []).push([g, c]); return g; },
@@ -149,11 +163,11 @@ function kit() {
   };
 }
 // UV in Metern (für Holz, Lack und Stein), Größe einer Kachel in Metern
-const wuv = (g, sc) => { if (!g.attributes.uv) g.setAttribute('uv', new T.BufferAttribute(new Float32Array(g.attributes.position.count * 2), 2)); worldUV(g, sc); return g; };
-const Bx = (w, h, d, x, y, z, sc = 2) => wuv(new T.BoxGeometry(w, h, d).translate(x, y, z), sc);
+export const wuv = (g, sc) => { if (!g.attributes.uv) g.setAttribute('uv', new T.BufferAttribute(new Float32Array(g.attributes.position.count * 2), 2)); worldUV(g, sc); return g; };
+export const Bx = (w, h, d, x, y, z, sc = 2) => wuv(new T.BoxGeometry(w, h, d).translate(x, y, z), sc);
 
 /* ---------- Rumpf aus Spanten: Spiegelheck oder doppelendig, Kimm gerundet, Sprung zum Bug ---------- */
-function hullShape(L, B, H, Tr, o = {}) {
+export function hullShape(L, B, H, Tr, o = {}) {
   const tr = o.transom ?? 0.8, rise = o.rise ?? 0.3, fine = o.fine ?? 0.42, srise = o.sternRise ?? 0, dbl = !!o.double, blunt = o.blunt ?? 0;
   const half = u => {
     if (dbl) { const k = Math.abs(u - 0.5) * 2; return B / 2 * Math.max(blunt, Math.pow(Math.max(0, 1 - Math.pow(Math.max(0, k - 0.4) / 0.6, 2)), 0.55)); }
@@ -190,14 +204,14 @@ function hullShape(L, B, H, Tr, o = {}) {
   return { hull, deck, L, B, H, half: x => half(Math.min(1, Math.max(0, at(x)))), sheer: x => sheer(Math.min(1, Math.max(0, at(x)))) + camber * 0.5 };
 }
 // Scheuerleiste entlang der Deckskante
-function rubRail(K, hs, k, c, r = 0.05, y = 0) {
+export function rubRail(K, hs, k, c, r = 0.05, y = 0) {
   for (const s of [-1, 1]) {
     const pts = []; for (let i = 0; i <= 30; i++) { const x = (i / 30 - 0.5) * hs.L * 0.995; pts.push(new T.Vector3(x, hs.sheer(x) - 0.04 + y, s * (hs.half(x) + 0.01))); }
     K.add(k, new T.TubeGeometry(new T.CatmullRomCurve3(pts), 40, r, 6, false), c);
   }
 }
 // Begehbares Deck: Quader entlang des Rumpfs, Oberkante am Deck
-function deckBoxes(hs, x0, x1, step = 1.0, inset = 0.05, yTop) {
+export function deckBoxes(hs, x0, x1, step = 1.0, inset = 0.05, yTop) {
   const out = [];
   for (let x = x0; x < x1 - 0.01; x += step) {
     const xe = Math.min(x1, x + step), hb = Math.min(hs.half(x), hs.half(xe)) - inset;
@@ -208,7 +222,7 @@ function deckBoxes(hs, x0, x1, step = 1.0, inset = 0.05, yTop) {
   return out;
 }
 // Reling: Pfosten, Handlauf und Draht, als Kollision dünne Quader; Lücken für Gangways
-function railing(K, boxes, hs, x0, x1, gaps = [], o = {}) {
+export function railing(K, boxes, hs, x0, x1, gaps = [], o = {}) {
   const h = o.h ?? 1.0, k = o.k ?? 'chrome', c = o.c ?? [1, 1, 1], yOf = o.y ?? (x => hs.sheer(x));
   const inGap = (x, s) => gaps.some(g => (g[2] === undefined || g[2] === s) && x > g[0] && x < g[1]);
   for (const s of [-1, 1]) {
@@ -224,7 +238,7 @@ function railing(K, boxes, hs, x0, x1, gaps = [], o = {}) {
   }
 }
 // Wand mit Fensterreihe zwischen zwei Punkten (Plattform-Koordinaten): Brüstung, Sturz, Pfosten, Glas; innen Holz, außen Lack
-function wallRun(K, boxes, ax, az, bx, bz, y0, h, o = {}) {
+export function wallRun(K, boxes, ax, az, bx, bz, y0, h, o = {}) {
   const sill = o.sill ?? 0.9, head = o.head ?? h - 0.45, win = o.win ?? 1.3, post = o.post ?? 0.35, th = o.th ?? 0.12, out = o.out ?? 1;
   const dx = bx - ax, dz = bz - az, len = Math.hypot(dx, dz), ang = Math.atan2(-dz, dx), nx = -dz / len * out, nz = dx / len * out;
   const outC = o.outC ?? [0.9, 0.88, 0.8], outK = o.outK ?? 'paint', inK = o.inK ?? 'inWood', inC = o.inC ?? [1, 1, 1];
@@ -253,7 +267,7 @@ function wallRun(K, boxes, ax, az, bx, bz, y0, h, o = {}) {
   }
 }
 // Sitzbank aus Latten mit eisernen Wangen, Sitzfläche nach +z
-function benchGeo(K, len, x, y, z, a = 0, wood = 'varnish') {
+export function benchGeo(K, len, x, y, z, a = 0, wood = 'varnish') {
   const parts = [];
   for (let k = 0; k < 4; k++) parts.push([wood, new T.BoxGeometry(len, 0.03, 0.08).translate(0, 0.44, -0.16 + k * 0.105)]);
   for (let k = 0; k < 3; k++) parts.push([wood, new T.BoxGeometry(len, 0.08, 0.025).rotateX(-0.2).translate(0, 0.6 + k * 0.12, -0.24 - k * 0.025)]);
@@ -262,14 +276,14 @@ function benchGeo(K, len, x, y, z, a = 0, wood = 'varnish') {
 }
 
 /* ---------- Boote ---------- */
-const NAME_TEX = {};
-function nameplate(text, w, h, color = '#e8c47a', bg = null) {
+export const NAME_TEX = {};
+export function nameplate(text, w, h, color = '#e8c47a', bg = null) {
   const key = text + color + bg;
   const t = NAME_TEX[key] ||= canvasTex(512, 96, (g, W, H) => { if (bg) { g.fillStyle = bg; g.fillRect(0, 0, W, H); } g.fillStyle = color; g.shadowColor = 'rgba(0,0,0,0.6)'; g.shadowBlur = 4; g.font = '64px Limelight, Georgia, serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(text, W / 2, H / 2 + 4); });
   return new T.Mesh(new T.PlaneGeometry(w, h), new T.MeshBasicMaterial({ map: t, transparent: !bg, color: new T.Color(1.3, 1.3, 1.3), side: T.DoubleSide }));
 }
 // Runabout aus Mahagoni: zwei Sitzbänke aus Leder, Windschutzscheibe mit Chromrahmen, Lenkrad, Flaggenstock
-function boatRunabout(rr) {
+export function boatRunabout(rr) {
   const L = 8.4, B = 2.3, hs = hullShape(L, B, 0.62, 0.42, { transom: 0.82, rise: 0.22, fine: 0.45 }), K = kit(), g = new T.Group(), body = new T.Group(); g.add(body);
   K.add('whull', hs.hull); K.add('varnish', hs.deck);
   rubRail(K, hs, 'chrome', [1, 1, 1], 0.035);
@@ -299,7 +313,7 @@ function boatRunabout(rr) {
   return { g, body, boxes: deckBoxes(hs, -L / 2 + 0.2, L / 2 - 0.5, 0.9), spots, L, B, hs };
 }
 // Kajütboot: lackierter Rumpf, Kajüte aus Mahagoni mit Bullaugen, Achterdeck mit Liegestühlen
-function boatCruiser(rr) {
+export function boatCruiser(rr) {
   const L = 12.5, B = 3.6, hs = hullShape(L, B, 0.95, 0.75, { transom: 0.86, rise: 0.35, fine: 0.42 }), K = kit(), g = new T.Group(), body = new T.Group(); g.add(body);
   const hc = pick([[0.92, 0.9, 0.85], [0.06, 0.09, 0.16], [0.08, 0.22, 0.18], [0.5, 0.08, 0.07], [0.92, 0.9, 0.85]]);
   K.add('hull', hs.hull, hc); K.add('deck', hs.deck); rubRail(K, hs, 'gold', [1, 1, 1], 0.045);
@@ -334,7 +348,7 @@ function boatCruiser(rr) {
   return { g, body, boxes, spots, L, B, hs };
 }
 // Segelyacht: Mast mit Salingen und Wanten, Großbaum mit Persenning, kleiner Kajütaufbau, Pinne
-function boatSail(rr) {
+export function boatSail(rr) {
   const L = 10.5, B = 3.0, hs = hullShape(L, B, 0.75, 1.3, { transom: 0.55, rise: 0.4, fine: 0.5, sternRise: 0.05 }), K = kit(), g = new T.Group(), body = new T.Group(); g.add(body);
   const varnished = rr() < 0.3, hc = pick([[0.92, 0.9, 0.85], [0.05, 0.1, 0.2], [0.12, 0.3, 0.3], [0.92, 0.9, 0.85]]);
   K.add(varnished ? 'whull' : 'hull', hs.hull, varnished ? [1, 1, 1] : hc); K.add('deck', hs.deck); rubRail(K, hs, 'varnish', [1, 1, 1], 0.045);
@@ -357,7 +371,7 @@ function boatSail(rr) {
   return { g, body, boxes, spots: [], L, B, hs };
 }
 // Motorjacht im Stil der Zwanziger: dunkler Rumpf, Salon mit Fensterband (begehbar), Oberdeck mit Brücke und Schornstein, Achterdeck mit Gesellschaft
-function boatYacht() {
+export function boatYacht() {
   const L = 36, B = 7.2, hs = hullShape(L, B, 1.65, 1.9, { transom: 0.72, rise: 0.7, fine: 0.42, sternRise: 0.15, ns: 64 }), K = kit(), g = new T.Group(), body = new T.Group(); g.add(body);
   K.add('hull', hs.hull, [0.05, 0.07, 0.12]); K.add('deck', hs.deck); rubRail(K, hs, 'gold', [1, 1, 1], 0.06); rubRail(K, hs, 'gold', [1, 1, 1], 0.03, -0.5);
   const boxes = deckBoxes(hs, -L / 2 + 0.3, L / 2 - 1.2, 1.0), spots = [], cream = [0.93, 0.9, 0.82];
@@ -469,7 +483,7 @@ function boatYacht() {
   return { g, body, boxes, spots, L, B, hs };
 }
 // Hafenfähre: doppelendig, Fahrgastsalon mit Bänken, offenes Oberdeck, Steuerhaus mit Schornstein
-function boatFerry() {
+export function boatFerry() {
   const L = 27, B = 7.6, hs = hullShape(L, B, 1.0, 1.5, { double: true, rise: 0.35, blunt: 0.4, ns: 54 }), K = kit(), g = new T.Group(), body = new T.Group(); g.add(body);
   const teal = [0.05, 0.27, 0.29], cream = [0.92, 0.88, 0.78];
   K.add('hull', hs.hull, teal); K.add('deck', hs.deck); rubRail(K, hs, 'gold', [1, 1, 1], 0.07);
@@ -526,7 +540,7 @@ function boatFerry() {
   return { g, body, boxes, spots, L, B, hs };
 }
 // Personen auf einer Plattform verteilen (Fahrgäste, Gäste, Besatzung)
-function spotPeds(pf, spots) {
+export function spotPeds(pf, spots) {
   for (const s of spots) {
     const kind = s.kind || pick(['coat', 'suit', 'lady', 'dress', 'suit', 'lady', 'sailor']);
     const col = s.col || (kind === 'gown' ? pick(GOWNS) : kind === 'dress' ? pick(DRESSES) : kind === 'tux' ? COL.tux : kind === 'sailor' ? [0.93, 0.93, 0.9] : pick(COATS));
@@ -535,7 +549,7 @@ function spotPeds(pf, spots) {
     PORT_PEDS.push({ st: 8, pf, lx: s.lx, ly: s.ly, lz: s.lz, lyaw, act: s.act ?? (R() < 0.6 ? 0.7 : 1.5), sit: !!s.sit, kind, col, sc: kind === 'kid' ? 0.64 : 0.94 + R() * 0.12, v: 0, tilt: s.rail ? 0.22 : 0 });
   }
 }
-function placeVessel(b, x, z, ry, kind = 'moored') {
+export function placeVessel(b, x, z, ry, kind = 'moored') {
   b.g.position.set(x, WATER_Y, z); b.g.rotation.y = ry; scene.add(b.g);
   const pf = addPlatform(b.g, b.boxes, b.L / 2 + 2, { ylo: -2, yhi: 12 });
   const v = { ...b, pf, kind, ph: R() * 6.28, w: 0.6 + R() * 0.5, amp: 0.035 + R() * 0.03, roll: b.L > 20 ? 0.004 : 0.012 };
@@ -543,10 +557,10 @@ function placeVessel(b, x, z, ry, kind = 'moored') {
 }
 
 /* ---------- Bau: Kai, Jachthafen, Fähranleger, Luftschiffhafen ---------- */
-const PIER_Y = -0.95, MARINA_X = [-400, -300, -200], FERRY_X = -110;
-const AP = { x: 620, z: 637.5, fy: 34, tx: 0, tz: 0 };
-const QUAY_GAPS = [[-401.7, -398.3], [-301.7, -298.3], [-201.7, -198.3], [-112.2, -107.8], [600, 616]];
-function buildPort() {
+export const PIER_Y = -0.95, MARINA_X = [-400, -300, -200], FERRY_X = -110;
+export const AP = { x: 620, z: 637.5, fy: 34, tx: 0, tz: 0 };
+export const QUAY_GAPS = [[-401.7, -398.3], [-301.7, -298.3], [-201.7, -198.3], [-112.2, -107.8], [600, 616]];
+export function buildPort() {
   const K = kit(), z1 = QUAY.z1;
   // Kaimauer: Granitbelag, Kantensteine, eiserne Reling mit Goldhandlauf und Lichtband, Poller, Leitern
   K.add('stone', Bx(QX[1] - QX[0], 0.12, z1 - QUAY.z0, (QX[0] + QX[1]) / 2, 0.19, (QUAY.z0 + z1) / 2, 4));
@@ -659,11 +673,11 @@ function buildPort() {
   for (const px of MARINA_X) grp(px + 8, 651.5, PIER_Y, 3);
   grp(FERRY_X, 585, PIER_Y, 3); grp(FERRY_X + 0.5, z1 - 9, 0.25, 4);
 }
-const PORT_LOOPS = [], CRUISERS = [];
-const FERRY = { s: 0, dir: 1, wait: 25, v: 0, curve: null, len: 1, g: null };
+export const PORT_LOOPS = [], CRUISERS = [];
+export const FERRY = { s: 0, dir: 1, wait: 25, v: 0, curve: null, len: 1, g: null };
 
 /* ---------- Ufer der Stadtinsel: Kaimauer aus Granit, Brüstung mit Goldlicht, Laternen; Lücke nur für den Viadukt ---------- */
-function buildShore() {
+export function buildShore() {
   const K = kit(), X = LAND.x, Z0 = LAND.z0, Z1 = LAND.z1, gap = ROAD_W / 2 + 1;
   // Mauern: [Mitte x, Mitte z, Länge x, Länge z, Brüstung-Seite]
   const runs = [];
@@ -700,8 +714,8 @@ function buildShore() {
   K.build(scene);
 }
 /* ---------- Luftschiffhafen: Plattform im Wasser, Damm, Abfertigungshalle, Landeturm mit Fahrstuhl, Ankermast ---------- */
-const ZEP = { state: 'dock', t: 0, s: 0, g: null, pf: null, gate: null, y0: 0, len: 1, curve: null, lines: null };
-function buildAirport() {
+export const ZEP = { state: 'dock', t: 0, s: 0, g: null, pf: null, gate: null, y0: 0, len: 1, curve: null, lines: null };
+export function buildAirport() {
   const K = kit(), x0 = 520, x1 = 720, za = 575, zb = 700, top = 0.25;
   addCollider(x0, -3, za, x1, top, zb);
   K.add('stone', Bx(x1 - x0, 0.2, zb - za, (x0 + x1) / 2, top - 0.1, (za + zb) / 2, 4));
@@ -788,7 +802,7 @@ function buildAirport() {
   grp(590, 600, top, 4); grp(640, 590, top, 3); grp(560, 630, top, 3); grp(tx - 3, tz - 9, top, 2); grp(tx + 3, tz + 2, fy, 3);
 }
 // Fahrgastgondel: Speisesalon mit Fensterbändern, Bar achtern, Brücke vorn; Tür an Backbord zur Gangway
-function passengerGondola(ship, L) {
+export function passengerGondola(ship, L) {
   const hr = ship.userData.hr, gx = L * 0.08, GL = 36, GW = 7.4, GH = 3.0, x0 = gx - GL / 2, x1 = gx + GL / 2, fy = -hr(gx) - GH - 0.15;
   const K = kit(), boxes = [], spots = [], skin = [0.6, 0.58, 0.55], cream = [0.92, 0.88, 0.8];
   K.add('paint', wuv(roundBox(GL + 0.4, 1.3, GW + 0.3, 0.6).translate(gx - 0.3, fy - 0.67, 0), 2), skin);
@@ -844,9 +858,9 @@ function passengerGondola(ship, L) {
 }
 
 /* ---------- Bewegung: Boote schaukeln, Fähre pendelt, Motorboote kreisen, Luftschiff fliegt Rundflüge ---------- */
-const easeIO = k => k * k * (3 - 2 * k);
-let portTimer = 0;
-function updatePort(dt, t) {
+export const easeIO = k => k * k * (3 - 2 * k);
+export let portTimer = 0;
+export function updatePort(dt, t) {
   for (const pf of PLATFORMS) pfSave(pf);
   const cp = camera.position;
   portTimer -= dt;
@@ -882,7 +896,7 @@ function updatePort(dt, t) {
   updateZeppelin(dt, t);
   for (const pf of PLATFORMS) pfRead(pf);
 }
-function updateZeppelin(dt, t) {
+export function updateZeppelin(dt, t) {
   const Z = ZEP; if (!Z.g) return;
   const bob = Math.sin(t * 0.35) * 0.1, P0x = AP.x - 80;
   if (Z.state === 'dock') { Z.g.position.set(AP.x, Z.y0 + bob, AP.z); Z.g.rotation.y = 0; }
@@ -908,12 +922,12 @@ function updateZeppelin(dt, t) {
   Z.gate.boxes = Z.state === 'dock' ? [] : [Z.gateBox];
 }
 // Spieler fährt mit: Stand er zuletzt auf einer Plattform, wird er mit ihr verschoben und gedreht
-function carryPlayer() {
+export function carryPlayer() {
   const pf = player.on; if (!pf || player.fly) return;
   const dx = player.p.x - pf.px, dz = player.p.z - pf.pz, c0 = Math.cos(pf.pry), s0 = Math.sin(pf.pry), lx = dx * c0 - dz * s0, lz = dx * s0 + dz * c0, c1 = Math.cos(pf.ry), s1 = Math.sin(pf.ry);
   player.p.x = pf.x + lx * c1 + lz * s1; player.p.z = pf.z - lx * s1 + lz * c1; player.p.y += pf.y - pf.py; player.yaw += pf.ry - pf.pry;
 }
-function portInteractions() {
+export function portInteractions() {
   INTERACT.push({ test: p => Math.abs(p.x - AP.tx) < 2 && p.z > AP.tz - 8.5 && p.z < AP.tz - 5.5 && p.y < 3, label: 'Fahrstuhl zum Luftschiff · Landeturm', act: () => travel([AP.tx, AP.fy, AP.tz - 3.5], Math.PI, 0, 'Landeturm · Gangway zum Luftschiff') });
   INTERACT.push({ test: p => Math.abs(p.x - AP.tx) < 2 && p.z > AP.tz - 5 && p.z < AP.tz - 2.5 && Math.abs(p.y - AP.fy) < 1.5, label: 'Fahrstuhl hinunter zum Hafen', act: () => travel([AP.tx, 0.25, AP.tz - 8], 0, 0, 'Luftschiffhafen') });
   const inBridge = p => { if (!ZEP.pf) return false; const [lx, lz] = pfLocal(ZEP.pf, p.x, p.z); return lx > ZEP.gd.gx + 11 && lx < ZEP.gd.gx + 18 && Math.abs(lz) < 3.6 && Math.abs(p.y - (ZEP.pf.y + ZEP.gd.fy)) < 1.5; };
@@ -923,7 +937,7 @@ function portInteractions() {
 
 /* ---------- Berge: ein Gebirgsring um die Stadt, zur Bucht hin offen ---------- */
 // Gelände: Stadtplateau, Felsabbruch, Tal mit Tannen, dahinter der Gebirgsring
-const TER = (() => {
+export const TER = (() => {
   const rnd = mulberry32(4242);
   const perm = []; for (let i = 0; i < 256; i++) perm.push(i);
   for (let i = 255; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [perm[i], perm[j]] = [perm[j], perm[i]]; }
@@ -933,10 +947,10 @@ const TER = (() => {
   const fbm = (x, y) => noise(x, y) * 0.5 + noise(x * 2.1 + 3, y * 2.1 + 7) * 0.25 + noise(x * 4.3 + 11, y * 4.3 + 5) * 0.125 + noise(x * 8.7 + 1, y * 8.7 + 9) * 0.0625;
   return { rnd, noise, fbm };
 })();
-const RIM = 1120, CLIFF = 178, VALLEY_W = 190;
+export const RIM = 1120, CLIFF = 178, VALLEY_W = 190;
 // Land der Stadtinsel (Pflasterfläche); im Süden schließt der Hafenkai an
-const LAND = { x: 1040, z0: -1040, z1: 535 };
-function terrainInfo(wx, wz) {
+export const LAND = { x: 1040, z0: -1040, z1: 535 };
+export function terrainInfo(wx, wz) {
   const x = wx, z = wz + 100;
   const r = Math.hypot(x, z), sq = Math.max(Math.abs(x), Math.abs(z)), ang = Math.atan2(x, -z);
   const met = sq;
@@ -945,8 +959,8 @@ function terrainInfo(wx, wz) {
   const inner = rim + VALLEY_W, peak = 2100 + 300 * south;
   return { r, ang, met, south, rim, inner, peak };
 }
-const VILLA = { x: 0, z: 0, y: 0, r: 170, ux: 0, uz: 0, ry: 0, boxes: null };
-function terrainHeight(wx, wz) {
+export const VILLA = { x: 0, z: 0, y: 0, r: 170, ux: 0, uz: 0, ry: 0, boxes: null };
+export function terrainHeight(wx, wz) {
   let h = accessCarve(wx, wz, terrainHeightRaw(wx, wz));
   if (!VILLA.y) return h;
   const dx = wx - VILLA.x, dz = wz - VILLA.z, d = Math.hypot(dx, dz);
@@ -971,7 +985,7 @@ function terrainHeight(wx, wz) {
   }
   return serpTerrain(wx, wz, h);
 }
-function terrainHeightRaw(wx, wz) {
+export function terrainHeightRaw(wx, wz) {
   const { r, ang, met, south, inner, peak } = terrainInfo(wx, wz);
   const x = wx, z = wz + 100;
   // Die Stadt liegt auf einer Insel: außerhalb der Ufermauer Seegrund, erst am Gebirge steigt das Land wieder
@@ -993,16 +1007,16 @@ function terrainHeightRaw(wx, wz) {
   return floor * (1 - rise) + wall + base * (650 + 750 * ridge * detail) + Math.pow(rise, 1.3) * crest * crest * (380 + 500 * far) + rise * 22 * jag - 2.5;
 }
 /* ---------- Die einzige Zufahrt: ein durchgehender Viadukt bis an den Berg, dann der Tunnel ---------- */
-const ROAD_W = 14, ROAD_Z0 = -985;
-const VIA = { grade: 0.045, portalZ: 0, tunnelLen: 280, end: 0 };
-const deckY = z => 0.3 + Math.max(0, ROAD_Z0 - z) * VIA.grade;
-function planAccess() {
+export const ROAD_W = 14, ROAD_Z0 = -985;
+export const VIA = { grade: 0.045, portalZ: 0, tunnelLen: 280, end: 0 };
+export const deckY = z => 0.3 + Math.max(0, ROAD_Z0 - z) * VIA.grade;
+export function planAccess() {
   VIA.portalZ = -1700;
   for (let z = -1260; z > -2600; z -= 2) if (terrainHeightRaw(0, z) > deckY(z) + 34) { VIA.portalZ = z; break; }
   VIA.end = VIA.portalZ - VIA.tunnelLen;
 }
 // Gelände entlang der Trasse: Felseinschnitt vor dem Portal, genug Fels über dem Tunnel
-function accessCarve(wx, wz, h) {
+export function accessCarve(wx, wz, h) {
   if (!VIA.portalZ) return h;
   const ax = Math.abs(wx);
   if (ax > 120 || wz > VIA.portalZ + 300 || wz < VIA.end - 80) return h;
@@ -1011,7 +1025,7 @@ function accessCarve(wx, wz, h) {
   if (ax < 30) return Math.max(h, d + 22 - ax * 0.3);
   return h;
 }
-function roadHeightAt(x, z, y) {
+export function roadHeightAt(x, z, y) {
   if (Math.abs(x) > ROAD_W / 2 + 0.4 || z > ROAD_Z0 || z < VIA.end) return { y: -1e9 };
   const d = deckY(z);
   if (z < VIA.portalZ + 2 && y < d + 9) return { y: d, tunnel: true };

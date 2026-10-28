@@ -1,19 +1,23 @@
-'use strict';
+import { T, mergeGeos, scene } from './core.js';
+import { stdMat, MAT } from './people-skeleton.js';
+import { addSeg, addGlow, lamps } from './facade-shader.js';
+import { DOORS } from './entrances.js';
+
 /* =====================================================================
    V19 · GEBÄUDEVIELFALT UND ERSCHLIESSUNG: Erker über mehrere Geschosse,
    Balkone mit Brüstung, Arkaden-Erdgeschosse mit Säulengang, einfache Haustüren
    mit Stufe, Laterne und Türblatt für jedes Haus ohne Portal oder Laden
    ===================================================================== */
-const HOUSE_DOORS = [];   // {fx, fz, o, tint}
-const V19_DBG = { oriel: [], balc: [], arcade: [] };
+export const HOUSE_DOORS = [];   // {fx, fz, o, tint}
+export const V19_DBG = { oriel: [], balc: [], arcade: [] };
 // Fensterraster des Shaders nachrechnen (wie facadeRelief), damit Anbauten auf den Achsen sitzen
-function winGrid(L, style) {
+export function winGrid(L, style) {
   const cw = style < 0.5 ? 3.2 : 2.4, margin = 1.0, usable = Math.max(L - 2 * margin, 1), nc = Math.max(1, Math.floor(usable / cw));
   return { nc, cellW: usable / nc, margin };
 }
-const SIDE_O = { n: [0, -1], s: [0, 1], w: [-1, 0], e: [1, 0] };
+export const SIDE_O = { n: [0, -1], s: [0, 1], w: [-1, 0], e: [1, 0] };
 // Erker: vorspringende Fensterkästen über mehrere Geschosse, mit Konsole unten und Dach oben
-function addOriels(cx, cz, sw, sd, y0, y1, style, dens, tint, seed, edges, rr, rib) {
+export function addOriels(cx, cz, sw, sd, y0, y1, style, dens, tint, seed, edges, rr, rib) {
   if (y1 - y0 < 12) return;
   V19_DBG.oriel.push([cx, cz, sw, sd]);
   const deep = 0.9, wide = style < 0.5 ? 2.5 : 2.0, ct = tint.map(v => v * 1.1);
@@ -35,7 +39,7 @@ function addOriels(cx, cz, sw, sd, y0, y1, style, dens, tint, seed, edges, rr, r
   }
 }
 // Balkone: auskragende Platten mit massiver Art-Déco-Brüstung, jedes zweite Geschoss, auf jeder zweiten Achse
-function addBalconies(cx, cz, sw, sd, y0, y1, style, tint, seed, edges, rr) {
+export function addBalconies(cx, cz, sw, sd, y0, y1, style, tint, seed, edges, rr) {
   const deep = 1.1, ct = tint.map(v => v * 1.15), railT = tint.map(v => v * 0.75);
   const sides = ['n', 's', 'w', 'e'].filter(s => edges[s]); if (!sides.length) return;
   V19_DBG.balc.push([cx, cz, sw, sd]);
@@ -57,7 +61,7 @@ function addBalconies(cx, cz, sw, sd, y0, y1, style, tint, seed, edges, rr) {
   }
 }
 // Arkade: Erdgeschoss um 3,5 m zurückgesetzt, davor eine Reihe Pfeiler, darunter Licht; der Gehweg läuft durch
-function addArcade(cx, cz, sw, sd, edges, tint, seed, dens, rr) {
+export function addArcade(cx, cz, sw, sd, edges, tint, seed, dens, rr) {
   const A = 3.5, ct = tint.map(v => v * 1.12); V19_DBG.arcade.push([cx, cz, sw, sd]);
   const ins = { n: edges.n ? A : 0, s: edges.s ? A : 0, w: edges.w ? A : 0, e: edges.e ? A : 0 };
   const x0 = cx - sw / 2 + ins.w, x1 = cx + sw / 2 - ins.e, z0 = cz - sd / 2 + ins.n, z1 = cz + sd / 2 - ins.s;
@@ -77,7 +81,7 @@ function addArcade(cx, cz, sw, sd, edges, tint, seed, dens, rr) {
   return { x0, x1, z0, z1 };
 }
 // Einfache Haustür: Gewände aus hellem Stein, Türblatt aus dunklem Holz, Oberlicht, Stufe, Laterne; Hausnummer
-function houseDoor(cx, cz, sw, sd, edges, tint, rr, kind = 'house') {
+export function houseDoor(cx, cz, sw, sd, edges, tint, rr, kind = 'house') {
   const sides = Object.keys(edges).filter(k => edges[k]); if (!sides.length) return;
   const side = sides[Math.floor(rr() * sides.length)], o = SIDE_O[side], ax = o[0] !== 0, L = ax ? sd : sw;
   const u = (rr() - 0.5) * Math.max(0, L - 8);
@@ -91,7 +95,7 @@ function houseDoor(cx, cz, sw, sd, edges, tint, rr, kind = 'house') {
   DOORS.push({ x: fx + o[0] * 0.4, z: fz + o[1] * 0.4, nx: o[0], nz: o[1], kind });
 }
 // Türblätter, Stufen und Laternen der Haustüren (ein Mesh je Material)
-function buildHouseDoors() {
+export function buildHouseDoors() {
   if (!HOUSE_DOORS.length) return;
   const wood = [], gold = [], stone = [], glass = [];
   for (const D of HOUSE_DOORS) {

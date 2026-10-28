@@ -1,10 +1,14 @@
-'use strict';
+import { T, mergeGeos, scene } from './core.js';
+import { ENV } from './people-skeleton.js';
+import { roundBox } from './entrances.js';
+import { COL } from './serpentine.js';
+
 /* =====================================================================
    V16 · AUTOS: Innenraum (Sitzbänke, Armaturenbrett, Lenkrad), Fahrer und Fahrgäste,
    Scheiben als eigenes, durchsichtiges Netz, Schadensverformung im Shader
    ===================================================================== */
 // Innenraum und Insassen; add(geometrie, farbe, variante)
-function carCabin(add, opts = {}) {
+export function carCabin(add, opts = {}) {
   const leather = [0.22, 0.07, 0.05], wood = [0.28, 0.15, 0.07], dark = [0.03, 0.03, 0.035];
   const B = (w, h, d, x, y, z, c, o = 0) => add(new T.BoxGeometry(w, h, d).translate(x, y, z), c, o);
   // Vorder- und Rückbank mit Lehnen, gepolstert
@@ -54,7 +58,7 @@ function carCabin(add, opts = {}) {
   add(new T.SphereGeometry(0.115, 12, 8).scale(1.05, 0.9, 1.08).translate(-1.45, 1.82, -0.35), [0.25, 0.08, 0.1], 20);
 }
 // Scheiben: Frontscheibe, Seitenfenster, Heckfenster (Variante 4: nicht beim Cabriolet)
-function carGlassGeo() {
+export function carGlassGeo() {
   const parts = [];
   const pane = (w, h, x, y, z, rz = 0, ry = 0) => parts.push(new T.BoxGeometry(0.012, h, w).rotateZ(rz).rotateY(ry).translate(x, y, z));
   pane(1.56, 0.66, 0.33, 1.615, 0, 0.28);
@@ -64,8 +68,8 @@ function carGlassGeo() {
   g.setAttribute('aOpt', new T.BufferAttribute(new Float32Array(g.attributes.position.count).fill(4), 1));
   return g;
 }
-let GLASS_MAT = null;
-function carGlassMat() {
+export let GLASS_MAT = null;
+export function carGlassMat() {
   if (GLASS_MAT) return GLASS_MAT;
   const m = new T.MeshPhysicalMaterial({ color: 0x9fb8c0, metalness: 0.0, roughness: 0.04, transparent: true, opacity: 0.22, envMapIntensity: 1.6, depthWrite: false, side: T.DoubleSide });
   if (ENV) m.envMap = ENV;
@@ -89,7 +93,7 @@ function carGlassMat() {
   return GLASS_MAT = m;
 }
 // Scheiben-Netz zu einem Karosserie-Netz: gleiche Instanzmatrizen, Farben und Schäden
-function glassFor(bodyIM) {
+export function glassFor(bodyIM) {
   const g = carGlassGeo();
   if (bodyIM.geometry.attributes.aDmg) g.setAttribute('aDmg', bodyIM.geometry.attributes.aDmg);
   const im = new T.InstancedMesh(g, carGlassMat(), bodyIM.instanceMatrix.count);
@@ -98,7 +102,7 @@ function glassFor(bodyIM) {
   return im;
 }
 // Schaden je Wagen: vorn, hinten, links, rechts (w gespeichert als 1 - rechts, damit fehlende Werte "heil" bedeuten)
-function carDamageAttr(im) {
+export function carDamageAttr(im) {
   const n = im.instanceMatrix.count, a = new Float32Array(n * 4);
   for (let i = 0; i < n; i++) a[i * 4 + 3] = 1;
   im.geometry.setAttribute('aDmg', new T.InstancedBufferAttribute(a, 4));

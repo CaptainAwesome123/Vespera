@@ -1,10 +1,18 @@
-'use strict';
+import { rand, R, $ } from './core.js';
+import { inBelmont, BEL, BI } from './belmont.js';
+import { VILLA } from './harbour.js';
+import { citizenNear, citizenSay } from './ragdoll.js';
+import { player } from './player.js';
+import { driveExit } from './driving.js';
+import { toast } from './boat.js';
+import { playing, paused, isTouch } from './input.js';
+
 /* =====================================================================
    MUSIK: sanfte Akkorde über Web Audio (nur nach Klick)
    ===================================================================== */
-let audio = null;
-const mtof = m => 440 * Math.pow(2, (m - 69) / 12);
-function initAudio() {
+export let audio = null;
+export const mtof = m => 440 * Math.pow(2, (m - 69) / 12);
+export function initAudio() {
   const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return null;
   const ctx = new AC(), master = ctx.createGain(); master.gain.value = 0; master.connect(ctx.destination);
   const amb = ctx.createGain(); amb.gain.value = 0;
@@ -32,9 +40,9 @@ function initAudio() {
   return a;
 }
 // Kleine Jazzband: Walking Bass, Becken, Besen, Klavier-Comping, gedämpfte Trompete
-const PROG = [[53, 'M7'], [50, '7'], [55, 'm7'], [48, '7'], [57, 'm7'], [50, '7'], [55, 'm7'], [48, '7']];
-const CHORD = { M7: [0, 4, 7, 11, 14], '7': [0, 4, 7, 10, 14], m7: [0, 3, 7, 10, 14] };
-function scheduleJazz(a) {
+export const PROG = [[53, 'M7'], [50, '7'], [55, 'm7'], [48, '7'], [57, 'm7'], [50, '7'], [55, 'm7'], [48, '7']];
+export const CHORD = { M7: [0, 4, 7, 11, 14], '7': [0, 4, 7, 10, 14], m7: [0, 3, 7, 10, 14] };
+export function scheduleJazz(a) {
   const ctx = a.ctx;
   if (a.jazz.gain.value < 0.002 && a.jazzTarget < 0.002) { a.next = 0; return; }
   const spb = 60 / 138;
@@ -68,32 +76,32 @@ function scheduleJazz(a) {
     a.next += spb; a.beat++;
   }
 }
-function jzTone(a, f, t, dur, type, vol, cut) {
+export function jzTone(a, f, t, dur, type, vol, cut) {
   const o = a.ctx.createOscillator(), g = a.ctx.createGain(), fl = a.ctx.createBiquadFilter();
   o.type = type; o.frequency.value = f; fl.type = 'lowpass'; fl.frequency.value = cut;
   g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0008, t + dur);
   o.connect(fl); fl.connect(g); g.connect(a.jazz); g.connect(a.room); o.start(t); o.stop(t + dur + 0.05);
 }
-function jzNoise(a, t, dur, f, vol) {
+export function jzNoise(a, t, dur, f, vol) {
   const s = a.ctx.createBufferSource(), g = a.ctx.createGain(), fl = a.ctx.createBiquadFilter();
   s.buffer = a.noise; fl.type = 'bandpass'; fl.frequency.value = f; fl.Q.value = 0.8;
   g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0008, t + dur);
   s.connect(fl); fl.connect(g); g.connect(a.jazz); s.start(t, Math.random() * 0.5); s.stop(t + dur + 0.02);
 }
-function jzLead(a, f, t, dur) {
+export function jzLead(a, f, t, dur) {
   const o = a.ctx.createOscillator(), g = a.ctx.createGain(), fl = a.ctx.createBiquadFilter(), lfo = a.ctx.createOscillator(), lg = a.ctx.createGain();
   o.type = 'sawtooth'; o.frequency.value = f; lfo.frequency.value = 5.5; lg.gain.value = f * 0.006; lfo.connect(lg); lg.connect(o.frequency);
   fl.type = 'bandpass'; fl.frequency.value = 1300; fl.Q.value = 1.6;
   g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.09, t + 0.04); g.gain.setValueAtTime(0.08, t + dur * 0.7); g.gain.linearRampToValueAtTime(0, t + dur);
   o.connect(fl); fl.connect(g); g.connect(a.jazz); g.connect(a.room); o.start(t); lfo.start(t); o.stop(t + dur + 0.05); lfo.stop(t + dur + 0.05);
 }
-function toggleMusic() {
+export function toggleMusic() {
   if (!audio) { audio = initAudio(); if (!audio) return; audio.master.gain.setTargetAtTime(1, audio.ctx.currentTime, 0.6); toast('Musik an'); return; }
   audio.on = !audio.on; audio.master.gain.setTargetAtTime(audio.on ? 1 : 0, audio.ctx.currentTime, 0.5); toast(audio.on ? 'Musik an' : 'Musik aus');
 }
 // Lautstärken je nach Ort: Ballsaal laut, Lobby gedämpft, Villa im Freien, sonst der Klangteppich
-let bandHint = false;
-function updateAudio(dt) {
+export let bandHint = false;
+export function updateAudio(dt) {
   const p = player.p;
   const inBall = inBelmont(p.x, p.z, p.y) && p.z < -5, inLobby = inBelmont(p.x, p.z, p.y) && !inBall;
   const dv = Math.hypot(p.x - VILLA.x, p.z - VILLA.z);
@@ -110,18 +118,18 @@ function updateAudio(dt) {
 }
 
 /* ---------- Benutzen: Fahrstühle ---------- */
-const INTERACT = [];
-let activeUse = null;
-function travel(pos, yaw, pitch, name) {
+export const INTERACT = [];
+export let activeUse = null;
+export function travel(pos, yaw, pitch, name) {
   const f = $('fade'); f.style.opacity = 1;
   driveExit();
   setTimeout(() => { player.p.set(...pos); player.v.set(0, 0, 0); player.on = null; player.yaw = yaw; player.pitch = pitch; player.fly = false; toast(name); f.style.opacity = 0; }, 480);
 }
-function buildInteractions() {
+export function buildInteractions() {
   for (const z of [12, 22, 32]) INTERACT.push({ test: p => p.x > 44.3 && Math.abs(p.z - z) < 2.2 && p.y < 3, label: 'Fahrstuhl zur Ballsaal-Terrasse · 250 m', act: () => travel([0, BEL.s2, 22], Math.PI, -0.05, 'Ballsaal-Terrasse') });
   INTERACT.push({ test: p => Math.abs(p.x) < 3 && p.z > 19.6 && p.z < 23.6 && Math.abs(p.y - BEL.s2) < 2, label: 'Fahrstuhl hinunter in die Lobby', act: () => travel([44.4, BI.P, 22], Math.PI / 2, 0, 'The Belmont · Lobby') });
 }
-function updateInteract() {
+export function updateInteract() {
   let u = null;
   if (playing && !paused && !player.fly) for (const it of INTERACT) if (it.test(player.p)) { u = it; break; }
   if (!u && playing && !paused && !player.fly) { const c = citizenNear(player.p, 3.2); if (c) u = c.use ||= { label: 'Ansprechen: ' + c.name, act: () => citizenSay(c) }; }

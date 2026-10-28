@@ -1,11 +1,22 @@
-'use strict';
+import { T, scene, pick, R, camera, $ } from './core.js';
+import { stdMat, ENV, MAT, addCollider } from './people-skeleton.js';
+import { addNeon, NEON, lamps, addGlow } from './facade-shader.js';
+import { lathe, roundBox, placeFurn, FURN } from './entrances.js';
+import { kit, Bx, wallRun, nameplate } from './harbour.js';
+import { COL, setAct } from './serpentine.js';
+import { player, EYE } from './player.js';
+import { updateGuestFlow, updateDine } from './eating.js';
+import { VIEWS, toast } from './boat.js';
+import { isTouch, tryLock, locked } from './input.js';
+import { addLight } from './performance.js';
+
 /* =====================================================================
    LOKALE ZUM HINEINGEHEN: Bar „The Brass Lantern“ und „Restaurant Aurora“ an der Seepromenade.
    Man setzt sich, bestellt beim Kellner, er bringt es an den Tisch, dann essen und trinken.
    Die Gäste essen, trinken, reden; Barkeeper mixt, Pianist spielt, Kellner gehen zwischen den Tischen.
    ===================================================================== */
-const VENUES = [], VENUE_PEDS = [];
-const MENU = {
+export const VENUES = [], VENUE_PEDS = [];
+export const MENU = {
   bar: { title: 'The Brass Lantern', items: [
     ['Martini', 'drink', 'martini'], ['Whisky Sour', 'drink', 'tumbler'], ['Champagner', 'drink', 'coupe'], ['Gin Fizz', 'drink', 'highball'],
     ['Kaffee', 'drink', 'cup'], ['Austern', 'food', 'oysters'], ['Erdnüsse', 'food', 'nuts'], ['Club-Sandwich', 'food', 'sandwich']] },
@@ -13,11 +24,11 @@ const MENU = {
     ['Champagner', 'drink', 'coupe'], ['Rotwein', 'drink', 'wine'], ['Kaffee', 'drink', 'cup'], ['Consommé', 'food', 'soup'],
     ['Austern', 'food', 'oysters'], ['Filet mit Gemüse', 'food', 'steak'], ['Hummer', 'food', 'lobster'], ['Schokoladentorte', 'food', 'cake']] },
 };
-const DINE = { seat: null, venue: null, order: null, item: null, sips: 0, anim: 0, menuOpen: false, waitT: 0 };
+export const DINE = { seat: null, venue: null, order: null, item: null, sips: 0, anim: 0, menuOpen: false, waitT: 0 };
 
 // Geschirr und Gläser: kleine Modelle, je eines pro Bestellung
-let dishMats = null;
-function dishMat() {
+export let dishMats = null;
+export function dishMat() {
   return dishMats ||= {
     china: stdMat({ color: 0xf2eee4, roughness: 0.25, envI: 0.8, emissive: 0x2a2620 }),
     glass: new T.MeshStandardMaterial({ color: 0xcfe6ea, metalness: 0.1, roughness: 0.05, transparent: true, opacity: 0.35, envMap: ENV, envMapIntensity: 1.5, depthWrite: false }),
@@ -38,7 +49,7 @@ function dishMat() {
   };
 }
 // Modell eines Gerichts oder Getränks; .fill ist der Teil, der beim Essen und Trinken weniger wird
-function dishModel(type) {
+export function dishModel(type) {
   const M = dishMat(), g = new T.Group(), add = (geo, m) => { const o = new T.Mesh(geo, m); g.add(o); return o; };
   const plate = () => add(lathe([[0, 0], [0.13, 0], [0.15, 0.012], [0.16, 0.02], [0, 0.01]], 24), M.china);
   let fill = null;
@@ -61,7 +72,7 @@ function dishModel(type) {
   return g;
 }
 
-function venue(o) {
+export function venue(o) {
   const { x, z, w, d, kind } = o, x0 = x - w / 2, x1 = x + w / 2, z0 = z - d / 2, z1 = z + d / 2, F = 0.3, H = 5.2, bar = kind === 'bar';
   const K = kit(), V = { ...o, x0, x1, z0, z1, F, seats: [], tables: [], waiters: [], station: null, staff: [], peds: [] };
   VENUES.push(V);
@@ -188,26 +199,26 @@ function venue(o) {
   }
   return V;
 }
-function buildVenues() {
+export function buildVenues() {
   venue({ name: 'THE BRASS LANTERN', kind: 'bar', x: -170, z: -1014, w: 24, d: 15 });
   venue({ name: 'RESTAURANT AURORA', kind: 'restaurant', x: 170, z: -1012, w: 28, d: 16 });
   VIEWS.Digit9 = { name: 'The Brass Lantern', p: [-170, 0.26, -1000], yaw: 0, pitch: 0.05, fly: false };
   VIEWS.Digit0 = { name: 'Restaurant Aurora', p: [170, 0.26, -997], yaw: 0, pitch: 0.05, fly: false };
 }
 // Weg eines Kellners durch die Gänge: erst in den Gang zwischen den Tischreihen, dann zum Tisch
-function waiterPath(V, from, to) {
+export function waiterPath(V, from, to) {
   const lane = to.z + (to.z < (V.z0 + V.z1) / 2 ? 1.6 : -1.6), cx = V.x0 + 4.6;
   const pts = [[from.x, from.z]];
   if (Math.abs(from.x - cx) > 0.5) pts.push([cx, from.z]);
   pts.push([cx, lane], [to.x, lane], [to.x, to.z]);
   return pts;
 }
-function seatStandPoint(s) { const a = Math.atan2(s.x - s.tx, s.z - s.tz) + 0.9; return { x: s.x + Math.sin(a) * 0.55, z: s.z + Math.cos(a) * 0.55 }; }
-function walkGait(pd, on) {
+export function seatStandPoint(s) { const a = Math.atan2(s.x - s.tx, s.z - s.tz) + 0.9; return { x: s.x + Math.sin(a) * 0.55, z: s.z + Math.cos(a) * 0.55 }; }
+export function walkGait(pd, on) {
   const g = pd.a.gait, f = on ? (pd.fem ? 5.4 : 4.6) * 1.3 / pd.sc : pd.act, amp = on ? 0.36 : 0;
   if (g[1] !== f || g[2] !== amp) { g[1] = f; g[2] = amp; pd.a.gv = (pd.a.gv | 0) + 1; }
 }
-function updateVenues(dt) {
+export function updateVenues(dt) {
   const cp = camera.position;
   for (const V of VENUES) {
     const near = (cp.x - (V.x0 + V.x1) / 2) ** 2 + (cp.z - (V.z0 + V.z1) / 2) ** 2 < 90 * 90;
@@ -259,7 +270,7 @@ function updateVenues(dt) {
   updateDine(dt);
 }
 // Spieler am Tisch
-function freeSeatNear(p) {
+export function freeSeatNear(p) {
   for (const V of VENUES) {
     if (p.x < V.x0 - 6 || p.x > V.x1 + 6 || p.z < V.z0 - 6 || p.z > V.z1 + 6) continue;
     let best = null, bd = 1.4 * 1.4;
@@ -268,12 +279,12 @@ function freeSeatNear(p) {
   }
   return null;
 }
-function sitDown(V, s) {
+export function sitDown(V, s) {
   DINE.seat = s; DINE.venue = V; s.taken = 'player'; DINE.order = null; DINE.item = null;
   player.p.set(s.x, s.y + 0.75 - EYE, s.z); player.v.set(0, 0, 0); player.yaw = s.yaw + Math.PI; player.pitch = -0.32;
   toast('Platz genommen · E bestellen · W aufstehen');
 }
-function standUp() {
+export function standUp() {
   const s = DINE.seat; if (!s) return;
   s.taken = null; DINE.seat = null;
   if (DINE.menuOpen) { closeMenu(); if (!isTouch) tryLock(); }
@@ -281,7 +292,7 @@ function standUp() {
   DINE.order = null; DINE.venue = null;
   player.p.set(s.x + Math.sin(s.yaw) * -0.7, s.y - 0.5, s.z + Math.cos(s.yaw) * -0.7); player.pitch = 0;
 }
-function openMenu() {
+export function openMenu() {
   const V = DINE.venue, M = MENU[V.kind], el = $('menuCard');
   el.innerHTML = '';
   const h = document.createElement('h3'); h.textContent = M.title; el.append(h);
@@ -296,18 +307,18 @@ function openMenu() {
   el.hidden = false; DINE.menuOpen = true;
   if (locked) { DINE.keepLock = true; document.exitPointerLock(); }
 }
-function closeMenu() { $('menuCard').hidden = true; DINE.menuOpen = false; }
-function placeOrder(i) {
+export function closeMenu() { $('menuCard').hidden = true; DINE.menuOpen = false; }
+export function placeOrder(i) {
   const it = MENU[DINE.venue.kind].items[i]; if (!it) return;
   DINE.order = it; closeMenu();
   toast(`Bestellt: ${it[0]} · der Kellner kommt gleich`);
   if (!isTouch) tryLock();
 }
-function serveOrder() {
+export function serveOrder() {
   const s = DINE.seat, it = DINE.order, dm = dishModel(it[2]);
   dm.position.set(s.tx, s.ty, s.tz); dm.rotation.y = s.yaw; scene.add(dm);
   DINE.item = dm; DINE.sips = it[1] === 'drink' ? 5 : 6; DINE.anim = 0;
   toast(`Bitte sehr: ${it[0]}`);
 }
 // Essen und Trinken: Glas oder Gabel kommt zum Mund, danach ist etwas weniger da
-const _dv = new T.Vector3(), _dw = new T.Vector3();
+export const _dv = new T.Vector3(), _dw = new T.Vector3();

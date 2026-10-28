@@ -1,19 +1,24 @@
-'use strict';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { shared, T, renderer, MOBILE, scene, camera, U } from './core.js';
+import { resizeReflection } from './water.js';
+
 /* =====================================================================
    NACHLEUCHTEN (Bloom)
    ===================================================================== */
-let composer = null, bloomOn = true, bloomPass = null, gradePass = null;
-function setupComposer() {
-  if (!T.EffectComposer || !T.UnrealBloomPass) { bloomOn = false; return; }
+export let composer = null, bloomPass = null, gradePass = null; shared.bloomOn = true;
+export function setupComposer() {
   const sz = renderer.getDrawingBufferSize(new T.Vector2());
   // Mit Stencil bekommt das Ziel einen 24-Bit-Tiefenpuffer statt 16 Bit: sonst flimmern nahe Flächen (Z-Fighting)
   const rt = new T.WebGLRenderTarget(sz.x, sz.y, { type: T.HalfFloatType, samples: renderer.capabilities.isWebGL2 && !MOBILE ? 4 : 0, stencilBuffer: true });
-  composer = new T.EffectComposer(renderer, rt);
-  composer.addPass(new T.RenderPass(scene, camera));
-  bloomPass = new T.UnrealBloomPass(new T.Vector2(window.innerWidth / 2, window.innerHeight / 2), 0.72, 0.6, 0.72);
+  composer = new EffectComposer(renderer, rt);
+  composer.addPass(new RenderPass(scene, camera));
+  bloomPass = new UnrealBloomPass(new T.Vector2(window.innerWidth / 2, window.innerHeight / 2), 0.72, 0.6, 0.72);
   composer.addPass(bloomPass);
   // Filmischer Abschluss: weiche Lichterkappe, Türkis in den Schatten, Gold im Licht, Vignette, feines Korn
-  gradePass = new T.ShaderPass({
+  gradePass = new ShaderPass({
     uniforms: { tDiffuse: { value: null }, uTime: U.uTime, uRes: { value: new T.Vector2(sz.x, sz.y) } },
     vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
     fragmentShader: `uniform sampler2D tDiffuse; uniform float uTime; uniform vec2 uRes; varying vec2 vUv;
@@ -31,7 +36,7 @@ function setupComposer() {
   });
   composer.addPass(gradePass);
 }
-function resize() {
+export function resize() {
   const w = window.innerWidth, h = window.innerHeight;
   renderer.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix();
   const v = new T.Vector2(); renderer.getDrawingBufferSize(v);

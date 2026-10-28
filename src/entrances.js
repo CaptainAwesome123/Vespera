@@ -1,11 +1,18 @@
-'use strict';
+import { T, mergeGeos, scene, pick, R, rand, mulberry32, canvasTex } from './core.js';
+import { stdMat, MAT, addCollider } from './people-skeleton.js';
+import { addGlow, addSeg, addNeon, NEON, STONES, RIBS, spires, towers, roofs, neonPool, shafts, steamPts } from './facade-shader.js';
+import { BR_SPOTS } from './island.js';
+import { addArcade, addOriels, addBalconies, houseDoor } from './building-forms.js';
+import { BRICK, wantShop, shopFloor, tier, facadeRelief } from './shops.js';
+import { _m, _p, _q, _up, _s } from './traffic.js';
+
 /* =====================================================================
    V16 · EINGÄNGE: Stufen aus Granit, verglaste Doppeltür mit Goldrahmen und
    Messinggriffen, Oberlicht mit Goldfächer, Wandlaternen; vor Hotels, Bars und
    Restaurants ein roter Läufer zwischen Messingpfosten mit Kordel
    ===================================================================== */
-const PORTALS = [];
-function buildEntrances() {
+export const PORTALS = [];
+export function buildEntrances() {
   if (!PORTALS.length) return;
   const stone = [], gold = [], glass = [], carpet = [];
   for (const P of PORTALS) {
@@ -43,8 +50,8 @@ function buildEntrances() {
 }
 
 // Portal mit Rahmen, Vordach und Lichtband an der Straßenseite
-const DOORS = [];  // Eingänge für Passanten {x,z,nx,nz,kind}
-function portal(cx, cz, sw, sd, edges, tint, rr, kind) {
+export const DOORS = [];  // Eingänge für Passanten {x,z,nx,nz,kind}
+export function portal(cx, cz, sw, sd, edges, tint, rr, kind) {
   const sides = Object.keys(edges).filter(k => edges[k]); if (!sides.length) return;
   const side = sides[Math.floor(rr() * sides.length)], o = { n: [0, -1], s: [0, 1], w: [-1, 0], e: [1, 0] }[side];
   const ax = o[0] !== 0, L = ax ? sd : sw, u = (rr() - 0.5) * Math.max(0, L - 16);
@@ -60,7 +67,7 @@ function portal(cx, cz, sw, sd, edges, tint, rr, kind) {
   PORTALS.push({ fx, fz, o, kind });
 }
 /* ---------- Möbel: weich gerundete Modelle statt Kisten (Sessel, Sofas, Bistrostühle, runde Tische, Lampen) ---------- */
-function roundBox(w, h, d, r, s = 3) {
+export function roundBox(w, h, d, r, s = 3) {
   r = Math.min(r, w / 2 - 0.001, h / 2 - 0.001, d / 2 - 0.001);
   const g = new T.BoxGeometry(w, h, d, s * 2, s * 2, s * 2), p = g.attributes.position, v = new T.Vector3(), c = new T.Vector3();
   const hx = w / 2 - r, hy = h / 2 - r, hz = d / 2 - r;
@@ -71,9 +78,9 @@ function roundBox(w, h, d, r, s = 3) {
   }
   g.computeVertexNormals(); return g;
 }
-const lathe = (pts, seg = 20) => new T.LatheGeometry(pts.map(([r, y]) => new T.Vector2(Math.max(r, 0.0001), y)), seg);
-const tube = (pts, r, seg = 10) => new T.TubeGeometry(new T.CatmullRomCurve3(pts.map(p => new T.Vector3(...p))), seg, r, 6, false);
-const FURN = {
+export const lathe = (pts, seg = 20) => new T.LatheGeometry(pts.map(([r, y]) => new T.Vector2(Math.max(r, 0.0001), y)), seg);
+export const tube = (pts, r, seg = 10) => new T.TubeGeometry(new T.CatmullRomCurve3(pts.map(p => new T.Vector3(...p))), seg, r, 6, false);
+export const FURN = {
   clubChair() {
     const P = [[roundBox(0.92, 0.4, 0.86, 0.13).translate(0, 0.38, 0.02), 'up'], [roundBox(0.92, 0.78, 0.26, 0.12).rotateX(-0.14).translate(0, 0.82, -0.32), 'up']];
     for (const sx of [-1, 1]) { P.push([roundBox(0.22, 0.56, 0.9, 0.1).translate(sx * 0.44, 0.5, 0), 'up']); P.push([lathe([[0.035, 0], [0.025, 0.14]], 8).translate(sx * 0.36, 0, 0.3), 'frame'], [lathe([[0.035, 0], [0.025, 0.14]], 8).translate(sx * 0.36, 0, -0.3), 'frame']); }
@@ -126,10 +133,10 @@ const FURN = {
   },
 };
 // Ein Möbelstück aufstellen: Teile drehen, verschieben und in die passenden Materialgruppen legen
-function placeFurn(parts, map, add, x, y, z, a = 0) { for (const [g, role] of parts) add(map[role] || map.up, g.clone().rotateY(a).translate(x, y, z)); }
+export function placeFurn(parts, map, add, x, y, z, a = 0) { for (const [g, role] of parts) add(map[role] || map.up, g.clone().rotateY(a).translate(x, y, z)); }
 // Café-Terrassen vor Cafés und Restaurants: Bistrotische mit Stühlen und Kerzenlicht
-const TERRACE = [];
-function buildTerraces() {
+export const TERRACE = [];
+export function buildTerraces() {
   for (const d of DOORS) {
     if ((d.kind !== 'cafe' && d.kind !== 'restaurant') || Math.hypot(d.x, d.z) > 820) continue;
     const tx = -d.nz, tz = d.nx;
@@ -155,10 +162,10 @@ function buildTerraces() {
     im.frustumCulled = false; scene.add(im);
   });
 }
-const caps = [];   // Kupfer- und Golddächer {x,z,y,w,d,h,gold}
-const domes = [];  // Kuppeln {x,z,y,r}
-function pickW(rr, opts) { let t = 0; for (const o of opts) t += o[1]; let u = rr() * t; for (const o of opts) if ((u -= o[1]) <= 0) return o[0]; return opts[0][0]; }
-function decoBuilding(cx, cz, w, d, H, dist, edges, worker = false) {
+export const caps = [];   // Kupfer- und Golddächer {x,z,y,w,d,h,gold}
+export const domes = [];  // Kuppeln {x,z,y,r}
+export function pickW(rr, opts) { let t = 0; for (const o of opts) t += o[1]; let u = rr() * t; for (const o of opts) if ((u -= o[1]) <= 0) return o[0]; return opts[0][0]; }
+export function decoBuilding(cx, cz, w, d, H, dist, edges, worker = false) {
   const tint = worker ? pick(BRICK) : pick(STONES);
   const seed = Math.floor(R() * 1000);
   const style = worker ? 0 : (R() < 0.55 ? 1 : 0);
@@ -305,7 +312,7 @@ function decoBuilding(cx, cz, w, d, H, dist, edges, worker = false) {
   else if (dist < 700 && R() < 0.42) placeSign(cx, cz, w, d, edges);
 }
 // Zinnen und Flossen an der Krone, in Art-Deco-Staffelung
-function crownFins(x, z, w, d, y, h, c) {
+export function crownFins(x, z, w, d, y, h, c) {
   const col = c.map(v => v * 0.9);
   const nx = Math.max(2, Math.floor(w / 6)), nz = Math.max(2, Math.floor(d / 6));
   for (let i = 0; i <= nx; i++) {
@@ -317,7 +324,7 @@ function crownFins(x, z, w, d, y, h, c) {
     for (const sx of [-1, 1]) addNeon(x + sx * (w / 2 - 0.3), y + h * k / 2, fz, 0.8, h * k, 0.6, col);
   }
 }
-function neonFrame(x, y, z, w, d, c) {
+export function neonFrame(x, y, z, w, d, c) {
   addNeon(x, y + 0.15, z - d / 2, w + 0.3, 0.3, 0.3, c);
   addNeon(x, y + 0.15, z + d / 2, w + 0.3, 0.3, 0.3, c);
   addNeon(x - w / 2, y + 0.15, z, 0.3, 0.3, d + 0.3, c);
@@ -325,11 +332,11 @@ function neonFrame(x, y, z, w, d, c) {
 }
 
 /* ---------- Leuchtreklame ---------- */
-const WORKER_WORDS = ['BRASS LANTERN', 'WERKSTATT', 'GARAGE', 'BAR', 'PFANDHAUS', 'DAMPFBAD', 'KOHLE & EISEN', 'SPEISEHAUS'];
-const SIGN_WORDS = ['HOTEL', 'CAFÉ', 'JAZZ', 'ODEON', 'LUMIÈRE', 'BAR', 'KINO', 'TANZ', 'AURORA', 'ORPHEUM', 'SALON', 'CASINO', 'REVUE', 'ÉTOILE', 'TABAK', 'PALAIS', 'NOCTURNE', 'VARIÉTÉ'];
-const signTex = {};
-const signDefs = [];
-function makeSignTex(word, color, vertical) {
+export const WORKER_WORDS = ['BRASS LANTERN', 'WERKSTATT', 'GARAGE', 'BAR', 'PFANDHAUS', 'DAMPFBAD', 'KOHLE & EISEN', 'SPEISEHAUS'];
+export const SIGN_WORDS = ['HOTEL', 'CAFÉ', 'JAZZ', 'ODEON', 'LUMIÈRE', 'BAR', 'KINO', 'TANZ', 'AURORA', 'ORPHEUM', 'SALON', 'CASINO', 'REVUE', 'ÉTOILE', 'TABAK', 'PALAIS', 'NOCTURNE', 'VARIÉTÉ'];
+export const signTex = {};
+export const signDefs = [];
+export function makeSignTex(word, color, vertical) {
   const key = word + color + vertical;
   if (signTex[key]) return signTex[key];
   const chars = [...word];
@@ -346,7 +353,7 @@ function makeSignTex(word, color, vertical) {
   });
   return signTex[key] = { t, W, H };
 }
-function placeSign(cx, cz, w, d, edges, worker = false) {
+export function placeSign(cx, cz, w, d, edges, worker = false) {
   const sides = Object.keys(edges).filter(k => edges[k]);
   if (!sides.length) return;
   const side = pick(sides), word = worker ? pick(WORKER_WORDS) : pick(SIGN_WORDS);
@@ -354,7 +361,7 @@ function placeSign(cx, cz, w, d, edges, worker = false) {
   const vertical = worker ? false : R() < 0.55;
   signDefs.push({ cx, cz, w, d, side, word, color, vertical });
 }
-function buildSigns() {
+export function buildSigns() {
   for (const s of signDefs) {
     const tex = makeSignTex(s.word, s.color, s.vertical);
     const mat = new T.MeshBasicMaterial({ map: tex.t, color: new T.Color(1.35, 1.35, 1.35) });
@@ -383,10 +390,10 @@ function buildSigns() {
     }
   }
 }
-function hexToArr(hex, k = 1) { const c = new T.Color(hex); return [c.r * k, c.g * k, c.b * k]; }
+export function hexToArr(hex, k = 1) { const c = new T.Color(hex); return [c.r * k, c.g * k, c.b * k]; }
 
 // Das Belmont-Symbol: Sonnenstrahl-Fächer
-const FAN_TEX = canvasTex(512, 256, (g, W, H) => {
+export const FAN_TEX = canvasTex(512, 256, (g, W, H) => {
   g.clearRect(0, 0, W, H);
   g.translate(W / 2, H);
   for (let i = 0; i < 15; i++) {
