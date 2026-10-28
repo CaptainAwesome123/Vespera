@@ -38,6 +38,7 @@ import { shared, $, renderer, scene, camera } from './core.js';
 import { layers, chunkStats } from './chunks.js';
 import { assetStats, manifest } from './assets.js';
 import { setupProps } from './props.js';
+import { loadPeople, MHP } from './people-mh.js';
 import { player } from './player.js';
 import { isTouch } from './input.js';
 import { build } from './main.js';
@@ -45,8 +46,12 @@ import { frame } from './performance.js';
 import { STREET } from './serpentine.js';
 import { props } from './props.js';
 
-export function start(data) {
+export async function start(data) {
   if (data && data.p) { player.p.set(...data.p); player.yaw = data.yaw; player.pitch = data.pitch; player.fly = data.fly; }
+  // V22: MakeHuman-Figuren vor dem Aufbau laden (die Menge baut ihre Netze daraus); ohne sie bleiben die gebauten
+  $('loading').textContent = 'Menschen der Stadt werden eingekleidet …';
+  await Promise.race([loadPeople(), new Promise(r => setTimeout(r, 20000))]);
+  if (!MHP.ready) MHP.late = true;
   build();
   setupProps().catch(e => console.warn('Requisiten:', e));
   $('enter').disabled = false;
@@ -54,7 +59,7 @@ export function start(data) {
   requestAnimationFrame(t => { shared.last = t; frame(t); });
 }
 // Handgriff für Werkzeuge und Tests (Konsole: vespera.player.p, vespera.renderer.info, vespera.chunkStats ...)
-window.vespera = { renderer, scene, camera, player, shared, layers, chunkStats, assetStats, manifest, street: STREET, props };
+window.vespera = { renderer, scene, camera, player, shared, layers, chunkStats, assetStats, manifest, people: MHP, street: STREET, props };
 window.claude?.hot?.snapshot?.(() => ({ p: player.p.toArray(), yaw: player.yaw, pitch: player.pitch, fly: player.fly }));
 
 export const fontsReady = (document.fonts && document.fonts.load)

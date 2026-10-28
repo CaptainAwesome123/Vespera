@@ -1,6 +1,6 @@
 import { shared, MOBILE, T, scene, mulberry32, $, U } from './core.js';
 import { personShare } from './people-model.js';
-import { MAT } from './people-skeleton.js';
+import { MAT, HRIG } from './people-skeleton.js';
 import { FACTORIES, FACTORY_NAMES, FACTORY_LOOPS } from './shops.js';
 import { endMeet, _cc, peds, setAct, pedCrowd, loopPos, pedSocial, STAY, loopRound, SHIRTS, DRESSES, COATS } from './serpentine.js';
 import { BODIES, groundAt } from './driving.js';
@@ -14,6 +14,11 @@ import { BODIES, groundAt } from './driving.js';
 export const RAG = { pool: [], max: MOBILE ? 2 : 4, sub: {}, live: [] };
 // Gelenke im Modell (Mann / Frau), passend zur Geometrie aus personBuild
 export function ragJoints(fem) {
+  const R = HRIG[fem ? 'f' : 'm'];
+  // V22: MakeHuman-Körper bringen ihre eigenen Gelenkpunkte mit (people.json)
+  if (R) return [[0, R.hip, 0], [0, R.headC - 0.15, R.headZ], [0, R.headC + 0.1, R.headZ + 0.01],
+    [-R.shX, R.top, R.shZ], [R.shX, R.top, R.shZ], [-R.el[0], R.el[1], R.el[2]], [R.el[0], R.el[1], R.el[2]], [-R.wr[0], R.wr[1], R.wr[2]], [R.wr[0], R.wr[1], R.wr[2]],
+    [-R.hx, R.hip, 0], [R.hx, R.hip, 0], [-R.hx, R.knee, 0], [R.hx, R.knee, 0], [-R.hx, R.ank, 0], [R.hx, R.ank, 0]];
   const hip = fem ? 0.88 : 0.95, hx = fem ? 0.085 : 0.1, knee = hip * 0.52, ank = fem ? 0.1 : 0.09;
   const top = fem ? 1.31 : 1.34, sx = fem ? 0.178 : 0.215, ex = sx + 0.022, wx = sx + 0.008, len = fem ? 0.54 : 0.56;
   const headC = fem ? 1.58 : 1.62;
@@ -74,7 +79,7 @@ export function ragStart(pd, B) {
   const L = RAG_LINKS.map(([i, j, soft]) => [i, j, Math.hypot(p[i][0] - p[j][0], p[i][1] - p[j][1], p[i][2] - p[j][2]), soft]);
   for (let k = 0; k < RAG_PARTS.length; k++) {
     const im = s.parts[k], geo = im.geometry, ix = sub.idx[k];
-    for (const n of ['position', 'normal', 'uv', 'color', 'aLimb', 'aOpt', 'aSoft']) if (sub.g.attributes[n]) geo.setAttribute(n, sub.g.attributes[n]);
+    for (const n of ['position', 'normal', 'uv', 'color', 'aLimb', 'aOpt', 'aSoft', 'aMH']) if (sub.g.attributes[n]) geo.setAttribute(n, sub.g.attributes[n]);
     if (ix) { geo.setIndex(new T.BufferAttribute(ix, 1)); im.visible = true; } else im.visible = false;
     geo.attributes.aGait.setXYZW(0, a.gait[0], 99, 0, a.gait[3] || 0); geo.attributes.aGait.needsUpdate = true;
     geo.boundingSphere = sub.g.boundingSphere;

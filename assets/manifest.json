@@ -17,6 +17,11 @@
     "gold-normal": { "url": "textures/gold-normal.jpg", "srgb": false, "source": "ambientCG Metal007, CC0" },
     "gold-rough": { "url": "textures/gold-rough.jpg", "srgb": false, "source": "ambientCG Metal007, CC0" }
   },
+  "people": {
+    "comment": "V22: Menschen aus MakeHuman (CC0), gebaut mit tools/make-people.mjs; geladen von src/people-mh.js vor dem Aufbau der Stadt",
+    "meshes": "people/people.glb", "meta": "people/people.json", "atlas": "people/people-atlas.webp", "atlasMobile": "people/people-atlas-m.webp",
+    "source": "MakeHuman 1.x Grundnetz hm08, Makro-Ziele, Skelett, Kleidung, Haare, Brauen, Wimpern, Haut- und Augentexturen; CC0"
+  },
   "placements": [],
   "demo": {
     "comment": "nur mit ?demo=props in der Adresse: zeigt die Pipeline (Modell laden, in Chunks stellen, in der Ferne ausblenden)",
