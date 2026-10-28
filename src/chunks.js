@@ -98,5 +98,11 @@ export function updateChunks(dt, { budgetMs = BUILD_BUDGET_MS, all = false } = {
   chunkStats.loaded = loaded; chunkStats.pending = pending;
   if (pending) timer = 0;   // nächstes Bild weiterbauen
 }
+// Schicht neu bauen lassen (z. B. wenn echte Modelle nachgeladen wurden): alle Zellen abbauen, der nächste Durchlauf baut sie wieder
+export function invalidateLayer(name) {
+  const L = layerByName(name); if (!L) return;
+  for (const [key, rec] of L.chunks) { if (rec.obj) disposeChunk(L, rec); L.chunks.delete(key); }
+  timer = 0;
+}
 // Vor dem ersten Bild: alles im Umkreis sofort bauen, damit nichts aufpoppt
 export function primeChunks() { updateChunks(0, { all: true }); }

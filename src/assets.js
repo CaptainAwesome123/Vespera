@@ -11,7 +11,7 @@
    ===================================================================== */
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { KTX2Loader } from 'three/addons/loaders/KTX2Loader.js';
-import { T, renderer, ANISO } from './core.js';
+import { T, renderer, ANISO, mergeGeos } from './core.js';
 
 export const ASSET_BASE = new URL('../assets/', import.meta.url).href;
 export const THREE_CDN = 'https://cdn.jsdelivr.net/npm/three@0.147.0/';
@@ -88,4 +88,66 @@ export function loadTexture(name) {
   });
   textures.set(name, pr);
   return pr;
+}
+
+/* ---------- V21: Modelle zu einer Geometrie backen (für InstancedMesh) ----------
+   bakeModel('kenney-bench', { colors: { wood: [0.3, 0.18, 0.1], stone: PAINT }, height: 0.9 })
+     colors   Farbe je Materialname des Modells; fehlt sie, gilt die Materialfarbe. [1,1,1] nimmt die Instanzfarbe an (paintMat).
+     height   Modell gleichmäßig auf diese Höhe (m) skalieren; scale: fester Faktor
+     ground   Unterkante auf y = 0 legen (Standard an); center: x/z auf die Mitte des Umrisses legen
+     envMap   Umgebungskarte für Modelle mit eigenen Texturen
+   Ergebnis { geo, material, box }: material ist das Modellmaterial (mit Texturen), sonst null -> Aufrufer nimmt paintMat. */
+export function bakeModel(name, opts = {}) {
+  const root = loadedModels.get(name); if (!root) return null;
+  root.updateMatrixWorld(true);
+  const geos = [], cols = []; let texMat = null;
+  root.traverse(o => {
+    if (!o.isMesh) return;
+    const g = (o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone()).applyMatrix4(o.matrixWorld);
+    if (!g.attributes.normal) g.computeVertexNormals();
+    const m = Array.isArray(o.material) ? o.material[0] : o.material;
+    const c = (opts.colors && opts.colors[m.name]) || (m.color ? m.color.toArray() : [1, 1, 1]);
+    if (m.map && !texMat) texMat = m;
+    geos.push(g); cols.push(c);
+  });
+  if (!geos.length) return null;
+  const geo = mergeGeos(geos), n = geo.attributes.position.count, col = new Float32Array(n * 3);
+  let o = 0; geos.forEach((g, i) => { for (let k = 0; k < g.attributes.position.count; k++) col.set(cols[i], (o + k) * 3); o += g.attributes.position.count; });
+  geo.setAttribute('color', new T.BufferAttribute(col, 3));
+  geo.computeBoundingBox(); let b = geo.boundingBox;
+  let s = opts.scale || 1; if (opts.height) s = opts.height / Math.max(1e-6, b.max.y - b.min.y);
+  if (s !== 1) { geo.scale(s, s, s); geo.computeBoundingBox(); b = geo.boundingBox; }
+  const cx = opts.center ? (b.min.x + b.max.x) / 2 : 0, cz = opts.center ? (b.min.z + b.max.z) / 2 : 0;
+  if (opts.ground !== false || opts.center) { geo.translate(-cx, opts.ground !== false ? -b.min.y : 0, -cz); geo.computeBoundingBox(); b = geo.boundingBox; }
+  geo.computeBoundingSphere();
+  let material = null;
+  if (texMat) { material = texMat.clone(); material.vertexColors = false; if (opts.envMap) { material.envMap = opts.envMap; material.envMapIntensity = opts.envI ?? 0.6; } }
+  return { geo, material, box: b };
+}
+
+/* ---------- V21: Fototexturen für bestehende Materialien ----------
+   wantTexture(mat, { map: 'marble-color', normalMap: 'marble-normal', roughnessMap: 'marble-rough', repeat: [0.5, 0.5] })
+   merkt sich den Wunsch; applyTextures() (nach dem Manifest) lädt die Dateien und hängt sie ein.
+   Bis dahin behält das Material seine gezeichnete Textur oder Farbe. Fehlt eine Datei, bleibt alles wie es war. */
+export const textureWishes = [];
+export function wantTexture(mat, wish) { textureWishes.push({ mat, wish }); return mat; }
+export async function applyTextures() {
+  const slots = ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'bumpMap', 'emissiveMap', 'aoMap'];
+  await Promise.all(textureWishes.map(async ({ mat, wish }) => {
+    const got = {};
+    for (const k of slots) if (wish[k]) { if (!manifest.textures[wish[k]]) return; try { got[k] = await loadTexture(wish[k]); } catch (e) { return; } }
+    for (const k in got) {
+      const t = got[k];
+      if (k !== 'map' && k !== 'emissiveMap') t.encoding = T.LinearEncoding;
+      if (wish.repeat) { t.wrapS = t.wrapT = T.RepeatWrapping; t.repeat.set(wish.repeat[0], wish.repeat[1]); }
+      mat[k] = t;
+    }
+    if (got.normalMap && wish.normalScale !== undefined) mat.normalScale = new T.Vector2(wish.normalScale, wish.normalScale);
+    if (got.bumpMap && wish.bumpScale !== undefined) mat.bumpScale = wish.bumpScale;
+    if (got.roughnessMap && mat.roughness !== undefined) mat.roughness = wish.roughness ?? 1;
+    if (got.metalnessMap && mat.metalness !== undefined) mat.metalness = wish.metalness ?? 1;
+    if (wish.color !== undefined) mat.color.set(wish.color);
+    if (wish.then) wish.then(mat, got);
+    mat.needsUpdate = true;
+  }));
 }

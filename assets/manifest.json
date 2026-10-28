@@ -1,15 +1,29 @@
 {
-  "comment": "Verzeichnis der echten Modelle und Texturen. Pfade relativ zu assets/. Modelle: glTF/GLB (optional mit KTX2-Texturen), Texturen: PNG/JPG/KTX2. placements: Objekte je Modell in Weltkoordinaten (x, y, z in Metern, ry in Radiant, scale).",
+  "comment": "Verzeichnis der echten Modelle und Texturen. Pfade relativ zu assets/. Modelle: glTF/GLB (optional mit KTX2-Texturen), Texturen: PNG/JPG/KTX2. placements: Objekte je Modell in Weltkoordinaten (x, y, z in Metern, ry in Radiant, scale). Herkunft und Lizenzen: assets/LICENSES.md. Verwendung der Modelle für Laternen, Bänke und Papierkörbe: MODEL_USE in src/props.js.",
   "models": {
-    "deco-bollard": { "url": "models/deco-bollard.glb", "scale": 1 }
+    "lantern": { "url": "models/lantern.glb", "scale": 1, "source": "Khronos glTF-Sample-Assets 'Lantern', Microsoft, CC0; Texturen auf 512 px verkleinert" },
+    "kenney-bench": { "url": "models/kenney-bench.glb", "scale": 1, "source": "Kenney Graveyard Kit, CC0" },
+    "kenney-trashcan": { "url": "models/kenney-trashcan.glb", "scale": 1, "source": "Kenney Furniture Kit, CC0" },
+    "deco-bollard": { "url": "models/deco-bollard.glb", "scale": 1, "source": "eigenes Beispiel, tools/make-example-asset.py" }
   },
-  "textures": {},
+  "textures": {
+    "brick-color": { "url": "textures/brick-color.jpg", "source": "three.js examples (MIT)" },
+    "brick-bump": { "url": "textures/brick-bump.jpg", "srgb": false, "source": "three.js examples (MIT)" },
+    "brick-rough": { "url": "textures/brick-rough.jpg", "srgb": false, "source": "three.js examples (MIT)" },
+    "marble-color": { "url": "textures/marble-color.jpg", "source": "ambientCG Marble006, CC0" },
+    "marble-normal": { "url": "textures/marble-normal.jpg", "srgb": false, "source": "ambientCG Marble006, CC0" },
+    "marble-rough": { "url": "textures/marble-rough.jpg", "srgb": false, "source": "ambientCG Marble006, CC0" },
+    "gold-color": { "url": "textures/gold-color.jpg", "source": "ambientCG Metal007, CC0" },
+    "gold-normal": { "url": "textures/gold-normal.jpg", "srgb": false, "source": "ambientCG Metal007, CC0" },
+    "gold-rough": { "url": "textures/gold-rough.jpg", "srgb": false, "source": "ambientCG Metal007, CC0" }
+  },
   "placements": [],
   "demo": {
     "comment": "nur mit ?demo=props in der Adresse: zeigt die Pipeline (Modell laden, in Chunks stellen, in der Ferne ausblenden)",
     "placements": [
-      { "model": "deco-bollard", "x": -8, "y": 0.26, "z": 104, "ry": 0 },
-      { "model": "deco-bollard", "x": -4, "y": 0.26, "z": 104, "ry": 0.3 },
+      { "model": "lantern", "x": -14, "y": 0.26, "z": 104, "ry": 0, "scale": 0.27 },
+      { "model": "kenney-bench", "x": -8, "y": 0.26, "z": 104, "ry": 0 },
+      { "model": "kenney-trashcan", "x": -4, "y": 0.26, "z": 104, "ry": 0.3 },
       { "model": "deco-bollard", "x": 0, "y": 0.26, "z": 104, "ry": 0.6 },
       { "model": "deco-bollard", "x": 4, "y": 0.26, "z": 104, "ry": 0.9 },
       { "model": "deco-bollard", "x": 8, "y": 0.26, "z": 104, "ry": 1.2 }

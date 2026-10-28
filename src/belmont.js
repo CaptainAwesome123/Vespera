@@ -1,3 +1,4 @@
+import { wantTexture } from './assets.js';
 import { canvasTex, T, scene, mulberry32, ANISO, mergeGeos, pick, R, rand } from './core.js';
 import { addCollider, stdMat, MAT } from './people-skeleton.js';
 import { addSeg, addNeon, addGlow, NEON, shafts, spires, lamps, trees } from './facade-shader.js';
@@ -334,9 +335,11 @@ export function buildBelmontInterior() {
   const wallT = marbleTex('#0c1514', '#c9d6cf', 11); wallT.wrapS = wallT.wrapT = T.RepeatWrapping;
   const darkT = marbleTex('#08080a', '#9a8a70', 12, 40); darkT.wrapS = darkT.wrapT = T.RepeatWrapping;
   const M = {
+    // V21: Fototexturen (ambientCG Marble006 / Metal007, CC0) kommen per applyTextures, bis dahin die gezeichneten
     wall: stdMat({ map: wallT, color: 0xb8c4c0, roughness: 0.16, metalness: 0.05, envI: 0.7 }),
-    dark: stdMat({ map: darkT, color: 0xffffff, roughness: 0.12, metalness: 0.05, envI: 0.8 }),
-    gold: MAT.gold, brass: MAT.brass, chrome: MAT.chrome, piano: MAT.black,
+    // V21: schwarzer Marmor und Gold als Fototexturen (ambientCG Marble006 / Metal007, CC0) per applyTextures, bis dahin die gezeichneten
+    dark: wantTexture(stdMat({ map: darkT, color: 0xffffff, roughness: 0.12, metalness: 0.05, envI: 0.8 }), { map: 'marble-color', normalMap: 'marble-normal', roughnessMap: 'marble-rough', repeat: [2, 2], normalScale: 0.5, roughness: 0.45, color: 0xfff4e4 }),
+    gold: wantTexture(MAT.gold.clone(), { map: 'gold-color', normalMap: 'gold-normal', roughnessMap: 'gold-rough', repeat: [3, 3], normalScale: 0.35, roughness: 0.9, color: 0xf2d79a }), brass: MAT.brass, chrome: MAT.chrome, piano: MAT.black,
     wood: stdMat({ color: 0x3b1d10, roughness: 0.35, metalness: 0.05, envI: 0.5 }),
     velvet: stdMat({ color: 0x0c3d40, roughness: 0.95, envI: 0.1 }),
     velvetBlue: stdMat({ color: 0x0f1d3a, roughness: 0.95, envI: 0.1 }),

@@ -11,14 +11,15 @@ Alles (Stadt, Menschen, Autos, Luftschiffe, Wasser) wird prozedural erzeugt.
 index.html          Seite: HUD, Menü, Stile, importmap für three.js und der Modul-Einstieg src/boot.js
 assets/             echte Modelle und Texturen (siehe "Echte Modelle einbauen")
   manifest.json       Verzeichnis aller Dateien, Platzierungen in Weltkoordinaten
-  models/             glTF/GLB-Modelle (Beispiel: deco-bollard.glb, 10 KB)
-  textures/           PNG/JPG/KTX2-Texturen
+  models/             glTF/GLB-Modelle: lantern.glb (Khronos/Microsoft, CC0), kenney-bench.glb, kenney-trashcan.glb (Kenney, CC0), deco-bollard.glb (Beispiel)
+  textures/           Fototexturen (512 px JPG): Backstein (three.js, MIT), schwarzer Marmor und Gold (ambientCG, CC0)
+  LICENSES.md         Herkunft und Lizenz jeder Datei
 src/                der Spielcode als ES-Module, ein Abschnitt pro Datei
   boot.js             Einstieg: legt die Ladereihenfolge fest, startet nach dem Laden der Schriften
   core.js             Zufall mit festem Startwert, Renderer, Szene, MOBILE-Schalter, Hilfsfunktionen, `shared`
   chunks.js           Welt-Chunks: Zellen werden um den Spieler herum gebaut und wieder freigegeben (Streaming, LOD)
   assets.js           Asset-Pipeline: Manifest, glTF-Loader (mit KTX2), Textur-Loader, Zwischenspeicher
-  props.js            Requisiten aus echten Modellen als Chunk-Schicht (Platzierungen aus dem Manifest)
+  props.js            Chunk-Schichten 'lamps', 'furniture', 'props': Laternen, Stadtmobiliar und freie Platzierungen aus echten Modellen (V21)
   people-model.js     Menschen: Köpfe, Haar, Kleidung (V17)
   people-skeleton.js  Skelett im Shader, Gang, Laufen, Tanzen, Sitzen (V18)
   facade-shader.js    Fassaden: Fenster, Goldbänder, Ladenzeilen, Flutlicht
@@ -50,7 +51,8 @@ src/                der Spielcode als ES-Module, ein Abschnitt pro Datei
   performance.js      Lichter-Pool, Sichtweiten, adaptive Auflösung, Bildschleife
 single/
   vespera-v19.html    V19 als eine einzige Datei (Stand der Übernahme, unverändert)
-  vespera-v20.html    V20 als eine einzige Datei (gebaut mit tools/build-single.py, für das claude.ai-Artefakt)
+  vespera-v20.html    V20 als eine einzige Datei
+  vespera-v21.html    V21 als eine einzige Datei (gebaut mit tools/build-single.py, für das claude.ai-Artefakt)
 tools/
   build-single.py     bündelt index.html + src/ + assets/ zu einer Einzeldatei (nur Python, kein npm nötig)
   check-modules.js    prüft die Modulreihenfolge auf "Cannot access ... before initialization" (braucht acorn)
@@ -100,7 +102,20 @@ Zierrat aus `collectDetails`, Bäume und Laternen, Außenbezirke, Serpentine).
    `repeat`, `srgb`).
 3. Entweder Platzierungen unter `placements` (`model, x, y, z, ry, scale`) – sie erscheinen über die Schicht
    `props` – oder im Code `await loadModel('name')` / `instanceModel('name')` bzw. `await loadTexture('name')`.
-4. `?demo=props` an die Adresse hängen zeigt die Beispiel-Poller vor dem Belmont (Platzierungen unter `demo`).
+4. `?demo=props` an die Adresse hängen zeigt alle Modelle in einer Reihe vor dem Belmont (Platzierungen unter `demo`).
+
+**Modelle hundertfach (V21):** `bakeModel('name', { colors, height, center })` in `src/assets.js` backt ein geladenes
+Modell zu einer einzigen Geometrie mit Farbattribut, die eine `InstancedMesh` tragen kann. `MODEL_USE` in
+`src/props.js` sagt, welches Modell für Laternen (`lamp`), Bänke (`bench`) und Papierkörbe (`bin`) steht und wie
+es umgefärbt wird (`colors` je Materialname des Modells, `[1,1,1]` nimmt die Instanzfarbe). Fehlt ein Modell oder
+lädt es noch, stehen die gezeichneten Formen aus `serpentine.js`; danach werden die Zellen einmal neu gebaut.
+Ein eigenes 1920er-Auto wäre der nächste Kandidat: Eintrag im Manifest, dann in `traffic.js` die Geometrie aus
+`bakeModel` statt `carGeoHi()` nehmen (Achsen: Fahrtrichtung +x, Räder bei x = ±1.55, z = ±0.86).
+
+**Fototexturen (V21):** `wantTexture(material, { map, normalMap, roughnessMap, repeat, ... })` meldet ein Material
+an; `applyTextures()` (aus `setupProps`) lädt die Dateien aus dem Manifest und hängt sie ein. So bekommen die
+Belmont-Lobby ihren schwarzen Marmor und das Gold, die Fassaden den Backstein (`uBrick` im Fassaden-Shader).
+Pflasterstein-Fotos fehlen noch (keine erreichbare CC0-Quelle), die Straße bleibt gezeichnet.
 
 Große Modelle: Draco/Meshopt sind noch nicht eingebunden; KTX2 braucht die Transcoder-Dateien vom CDN
 (`THREE_CDN` in `assets.js`). Die Einzeldatei bettet `assets/` als Daten-URLs ein; ab einigen MB lohnt sich das
@@ -113,7 +128,7 @@ python3 -m http.server 8765                      # dann http://localhost:8765/
 node tools/test.js http://localhost:8765/ out/desk          # Desktop; Messwerte in out/desk.json
 node tools/test.js http://localhost:8765/ out/mobil mobile  # iPhone-Modus (MOBILE-Schalter)
 node tools/check-modules.js .                    # Modulreihenfolge prüfen
-python3 tools/build-single.py single/vespera-v20.html       # Einzeldatei für das Artefakt
+python3 tools/build-single.py single/vespera-v21.html       # Einzeldatei für das Artefakt
 ```
 
 `tools/test.js` braucht Playwright mit Chromium; `THREE_DIR=/pfad/zu/node_modules/three` bedient das CDN lokal.
