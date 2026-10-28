@@ -21,7 +21,8 @@ void main(){
   gl_Position = projectionMatrix * mv;
 }`;
 export const facadeFS = `
-uniform float uTime; uniform vec3 uFogColor; uniform float uFogDensity; uniform vec3 uMoonDir; uniform vec3 uTeal; uniform vec3 uCam;
+#define BRICK_MEAN vec3(0.519, 0.287, 0.184)
+uniform float uTime; uniform vec3 uFogColor; uniform float uFogDensity; uniform vec3 uMoonDir; uniform vec3 uTeal; uniform vec3 uCam; uniform sampler2D uBrick; uniform float uBrickOn;
 varying vec3 vWorld; varying vec3 vN; varying vec3 vLN; varying vec3 vT; varying vec3 vTint; varying vec4 vParams; varying vec3 vRib; varying vec3 vLocal; varying vec3 vScale; varying float vFogDepth;
 float hash(vec2 p){ p = fract(p*vec2(123.34, 456.21)); p += dot(p, p+45.32); return fract(p.x*p.y); }
 float vnoise(vec2 p){ vec2 i = floor(p), f = fract(p); f = f*f*(3.0 - 2.0*f); return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y); }
@@ -54,6 +55,10 @@ void main(){
   vec3 masonry = mix(vTint * ashTone * ashBevel, vTint * vec3(0.72, 0.7, 0.68), ashJoint * fineFade);
   vec3 brickWall = mix(brickC, vec3(0.62, 0.6, 0.56) * 0.55, brMortar * 0.85);
   brickWall = mix(vTint, brickWall, fineFade);
+  // V21: Foto-Backstein (assets/textures/brick-color.jpg) in der Hausfarbe; je Haus leicht versetzt, in der Ferne weich zur Grundfarbe
+  vec3 ph = texture2D(uBrick, vec2(uW + seed*0.37, vWorld.y) / 1.25).rgb; ph = ph*ph / BRICK_MEAN;
+  vec3 photoBrick = vTint * mix(vec3(1.0), ph, 0.3 + 0.7*midFade) * (0.92 + 0.16*hash(vec2(floor(uW/1.6 + seed*0.23), floor(vWorld.y/1.6)) + seed));
+  brickWall = mix(brickWall, photoBrick, uBrickOn * (0.25 + 0.75*midFade));
   // Jedes Haus bekommt sein eigenes Material: Quader, Kalkstein mit Rustika, glasierte Fliesen, Terrakotta-Relief, polierter Granit
   float matT = floor(hash(vec2(seed, 5.3)) * 8.0), gloss = 0.0;
   vec2 wq = vec2(uW, vWorld.y);

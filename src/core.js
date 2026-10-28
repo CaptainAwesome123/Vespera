@@ -48,7 +48,10 @@ export const U = {
   uVilla: { value: new T.Vector3(0, -1000, 0) },
   uInside: { value: 0 },
   uWind: { value: new T.Vector4(0.8, 0.6, 4, 0) },   // Windrichtung (x, z), Stärke in m/s, Böe
+  uBrick: { value: new T.DataTexture(new Uint8Array([120, 70, 55, 255]), 1, 1) }, // V21: Foto-Backstein für die Fassaden (assets/textures), kommt per applyTextures
+  uBrickOn: { value: 0 },
 };
+U.uBrick.value.needsUpdate = true;
 
 export const hemi = new T.HemisphereLight(new T.Color(0.1, 0.18, 0.3), new T.Color(0.12, 0.42, 0.44), 0.9);
 scene.add(hemi);

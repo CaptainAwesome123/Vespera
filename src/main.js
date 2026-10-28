@@ -1,4 +1,5 @@
 import { primeChunks } from './chunks.js';
+import { setupStreetLayers } from './props.js';
 import { initDriveState } from './driving.js';
 import { R } from './core.js';
 import { buildEnv, getMats } from './people-skeleton.js';
@@ -90,6 +91,7 @@ export function build() {
   setupReflection();
   setPR(PR_LEVELS[prIdx]);
   resize();
+  setupStreetLayers();   // V21: Laternen und Stadtmobiliar als Chunk-Schichten
   primeChunks();
 }
 

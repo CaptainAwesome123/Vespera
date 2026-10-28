@@ -42,6 +42,8 @@ import { player } from './player.js';
 import { isTouch } from './input.js';
 import { build } from './main.js';
 import { frame } from './performance.js';
+import { STREET } from './serpentine.js';
+import { props } from './props.js';
 
 export function start(data) {
   if (data && data.p) { player.p.set(...data.p); player.yaw = data.yaw; player.pitch = data.pitch; player.fly = data.fly; }
@@ -52,7 +54,7 @@ export function start(data) {
   requestAnimationFrame(t => { shared.last = t; frame(t); });
 }
 // Handgriff für Werkzeuge und Tests (Konsole: vespera.player.p, vespera.renderer.info, vespera.chunkStats ...)
-window.vespera = { renderer, scene, camera, player, shared, layers, chunkStats, assetStats, manifest };
+window.vespera = { renderer, scene, camera, player, shared, layers, chunkStats, assetStats, manifest, street: STREET, props };
 window.claude?.hot?.snapshot?.(() => ({ p: player.p.toArray(), yaw: player.yaw, pitch: player.pitch, fly: player.fly }));
 
 export const fontsReady = (document.fonts && document.fonts.load)

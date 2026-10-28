@@ -1542,6 +1542,8 @@ export function buildGround() {
 
 // Laternen-Modelle nur in der Nähe zeichnen; in der Ferne bleibt der Lichtpunkt
 export const LAMP_SETS = []; export let lampTimer = 0;
+// V21: Laternen und Stadtmobiliar werden hier nur geplant; gebaut werden sie als Chunk-Schichten in props.js
+export const STREET = { lamps: [], lampParts: null, furniture: null };
 export function updateLampLod(dt) {
   if ((lampTimer -= dt) > 0) return;
   lampTimer = 0.25;
@@ -1666,6 +1668,8 @@ export function flushInstances() {
     new T.CylinderGeometry(0.24, 0.24, 0.05, 8).translate(0, 0.63, 0), new T.CylinderGeometry(0.17, 0.12, 0.08, 8).translate(0, -0.02, 0),
   ]);
   const heads = [];
+  // V21: die Laternen werden nicht mehr hier gebaut, sondern als Chunk-Schicht in props.js (echtes Modell, sonst dieser Kandelaber)
+  STREET.lampParts = { poleMat, lanternGeo, capGeo };
   for (const [h, list] of byH) {
     const hs = h - 0.75;
     const g = mergeGeos([
@@ -1675,17 +1679,8 @@ export function flushInstances() {
       new T.CylinderGeometry(0.11, 0.08, 0.12, 8).translate(0, hs * 0.55, 0),
       new T.CylinderGeometry(0.14, 0.07, 0.18, 8).translate(0, hs - 0.06, 0),
     ]);
-    const im = new T.InstancedMesh(g, poleMat, list.length);
-    const pts = [];
-    list.forEach((l, i) => { const y0 = l.y ?? (inRect(l.x, l.z, PLAZA) ? 0.26 : 0.22); im.setMatrixAt(i, m.makeTranslation(l.x, y0, l.z)); pts.push({ x: l.x, z: l.z, m: m.clone() }); heads.push([l.x, y0 + hs, l.z, l.h, y0]); });
-    im.frustumCulled = false; scene.add(im); LAMP_SETS.push({ im, pts });
+    list.forEach(l => { const y0 = l.y ?? (inRect(l.x, l.z, PLAZA) ? 0.26 : 0.22); STREET.lamps.push({ x: l.x, y: y0, z: l.z, h, hs, geo: g }); heads.push([l.x, y0 + hs, l.z, l.h, y0]); });
   }
-  const lantern = new T.InstancedMesh(lanternGeo, new T.MeshBasicMaterial({ color: new T.Color(1.6, 1.12, 0.62) }), heads.length);
-  const lampCaps = new T.InstancedMesh(capGeo, poleMat, heads.length);
-  const hpts = [];
-  heads.forEach((hd, i) => { m.makeTranslation(hd[0], hd[1], hd[2]); lantern.setMatrixAt(i, m); lampCaps.setMatrixAt(i, m); hpts.push({ x: hd[0], z: hd[2], m: m.clone() }); });
-  LAMP_SETS.push({ im: lantern, pts: hpts }, { im: lampCaps, pts: hpts });
-  lantern.frustumCulled = lampCaps.frustumCulled = false; scene.add(lantern, lampCaps);
   const pools = new T.InstancedMesh(new T.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), new T.MeshBasicMaterial({ map: glowTex, color: new T.Color(0.2, 0.14, 0.07), transparent: true, blending: T.AdditiveBlending, depthWrite: false, fog: true }), lamps.length);
   lamps.forEach((l, i) => {
     const y0 = l.y ?? (inRect(l.x, l.z, PLAZA) ? 0.26 : 0.22);
@@ -1859,17 +1854,10 @@ export function buildStreetFurniture() {
       t += big ? 3 : 0;
     }
   }
-  const make = (geo, material, list, colored) => {
-    if (!list.length) return;
-    const im = new T.InstancedMesh(geo, material, list.length), cc = new T.Color();
-    list.forEach((p, i) => { im.setMatrixAt(i, p.m); if (colored) im.setColorAt(i, cc.setRGB(...p.c)); });
-    im.frustumCulled = false; scene.add(im); LAMP_SETS.push({ im, pts: list });
-  };
-  for (const k in TYPES) make(TYPES[k], mat, out[k], true);
+  // V21: Aufstellung als Chunk-Schicht in props.js (Bank und Papierkorb aus echten Modellen, der Rest aus diesen Formen)
   const posterMat = stdMat({ map: POSTER_TEX, roughness: 0.8, envI: 0.25, emissive: 0x303030, emissiveMap: POSTER_TEX });
-  make(colGeo, posterMat, out.column, false); make(colParts, mat, out.column, true);
   const faceGeo = new T.CircleGeometry(0.38, 24); const faces = mergeGeos([faceGeo.clone().translate(0, 3.55, 0.095), faceGeo.clone().rotateY(Math.PI).translate(0, 3.55, -0.095)]);
-  make(faces, new T.MeshBasicMaterial({ map: CLOCK_TEX, color: new T.Color(1.1, 1.0, 0.85) }), out.clock, false);
+  STREET.furniture = { out, TYPES, mat, colGeo, colParts, posterMat, faces, faceMat: new T.MeshBasicMaterial({ map: CLOCK_TEX, color: new T.Color(1.1, 1.0, 0.85) }) };
   for (const p of out.clock) addGlow(p.x, 3.55 + 0.22, p.z, [1.2, 0.95, 0.6], 0.8);
 }
 
