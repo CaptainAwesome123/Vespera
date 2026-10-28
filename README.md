@@ -13,6 +13,7 @@ assets/             echte Modelle und Texturen (siehe "Echte Modelle einbauen")
   manifest.json       Verzeichnis aller Dateien, Platzierungen in Weltkoordinaten
   models/             glTF/GLB-Modelle: lantern.glb (Khronos/Microsoft, CC0), kenney-bench.glb, kenney-trashcan.glb (Kenney, CC0), deco-bollard.glb (Beispiel)
   textures/           Fototexturen (512 px JPG): Backstein (three.js, MIT), schwarzer Marmor und Gold (ambientCG, CC0)
+  people/             Menschen (V22): MakeHuman-Körper, Kleidung, Haare als GLB, Haut/Stoff-Atlas als WebP (CC0)
   LICENSES.md         Herkunft und Lizenz jeder Datei
 src/                der Spielcode als ES-Module, ein Abschnitt pro Datei
   boot.js             Einstieg: legt die Ladereihenfolge fest, startet nach dem Laden der Schriften
@@ -21,7 +22,8 @@ src/                der Spielcode als ES-Module, ein Abschnitt pro Datei
   assets.js           Asset-Pipeline: Manifest, glTF-Loader (mit KTX2), Textur-Loader, Zwischenspeicher
   props.js            Chunk-Schichten 'lamps', 'furniture', 'props': Laternen, Stadtmobiliar und freie Platzierungen aus echten Modellen (V21)
   people-model.js     Menschen: Köpfe, Haar, Kleidung (V17)
-  people-skeleton.js  Skelett im Shader, Gang, Laufen, Tanzen, Sitzen (V18)
+  people-skeleton.js  Skelett im Shader, Gang, Laufen, Tanzen, Sitzen (V18); Gelenkmaße je Körper (HRIG, V22)
+  people-mh.js        Menschen aus MakeHuman (V22): lädt assets/people, setzt die Figuren je Kleidungsart zusammen
   facade-shader.js    Fassaden: Fenster, Goldbänder, Ladenzeilen, Flutlicht
   island.js           Stadtplan und Insel mit Ringstraße
   building-forms.js   Erker, Balkone, Arkaden, Haustüren (V19)
@@ -117,6 +119,15 @@ an; `applyTextures()` (aus `setupProps`) lädt die Dateien aus dem Manifest und 
 Belmont-Lobby ihren schwarzen Marmor und das Gold, die Fassaden den Backstein (`uBrick` im Fassaden-Shader).
 Pflasterstein-Fotos fehlen noch (keine erreichbare CC0-Quelle), die Straße bleibt gezeichnet.
 
+**Menschen (V22):** `tools/make-people.mjs` baut aus den MakeHuman-Daten (CC0) zwei Körper (Mann, Frau), Anzüge,
+Arbeitskleidung, Damenkostüm, Schuhe, je drei Frisuren, Brauen, Wimpern und Augen, stellt sie in die Ruhehaltung
+des Spiels und schreibt `assets/people/`. Aufruf: `node tools/make-people.mjs <makehuman>/makehuman/data
+<makehuman-data>/public/data [vorschau-ordner]` (npm: `meshoptimizer`, `@gltf-transform/core`,
+`@gltf-transform/extensions`, `@gltf-transform/functions`, `sharp`). Im Spiel setzt `mhPersonGeo` in
+`src/people-mh.js` die Figuren für die nahen und mittleren Stufen zusammen (Tabelle `MH_KIND`: Teile,
+Atlasbild, Farbe, welche gebauten Teile wie Hüte, Mäntel, Kleider und Werkzeuge bleiben); ferne Figuren
+bleiben die gebauten. Lädt `assets/people` nicht, läuft alles wie in V21.
+
 Große Modelle: Draco/Meshopt sind noch nicht eingebunden; KTX2 braucht die Transcoder-Dateien vom CDN
 (`THREE_CDN` in `assets.js`). Die Einzeldatei bettet `assets/` als Daten-URLs ein; ab einigen MB lohnt sich das
 nicht mehr, dann bleibt das Artefakt ohne die großen Dateien und nur GitHub Pages zeigt sie.
@@ -128,7 +139,7 @@ python3 -m http.server 8765                      # dann http://localhost:8765/
 node tools/test.js http://localhost:8765/ out/desk          # Desktop; Messwerte in out/desk.json
 node tools/test.js http://localhost:8765/ out/mobil mobile  # iPhone-Modus (MOBILE-Schalter)
 node tools/check-modules.js .                    # Modulreihenfolge prüfen
-python3 tools/build-single.py single/vespera-v21.html       # Einzeldatei für das Artefakt
+python3 tools/build-single.py single/vespera-v21.html       # Einzeldatei (seit V22 nicht mehr gepflegt, nur GitHub Pages)
 ```
 
 `tools/test.js` braucht Playwright mit Chromium; `THREE_DIR=/pfad/zu/node_modules/three` bedient das CDN lokal.

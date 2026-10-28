@@ -25,6 +25,19 @@ Die Kenney-Dateien stammen aus dem GitHub-Spiegel `ETdoFresh/kenney.nl` (Inhalt 
 
 Die ambientCG-Dateien wurden über den Spiegel `pmndrs/market-assets` (GitHub) bezogen.
 
+## Menschen (`assets/people/`, V22)
+
+| Dateien | Original | Urheber | Lizenz |
+|---|---|---|---|
+| `people.glb`, `people.json` | MakeHuman-Grundnetz `hm08`, Makro-Ziele (Geschlecht, Alter, Muskel, Gewicht, Herkunft), Skelett `default` mit Gewichten, Augen `low-poly` (`brown_eye`) aus [makehumancommunity/makehuman](https://github.com/makehumancommunity/makehuman) (Stand a8bc2d5); Kleidung `male_elegantsuit01`, `male_worksuit01`, `female_elegantsuit01`, `shoes01`, `shoes03`, Haare `short01`, `short02`, `short04`, `bob01`, `bob02`, `ponytail01`, Brauen `eyebrow001`, `eyebrow010`, Wimpern `Eyelashes01` und Hauttexturen (jung, mittel, alt, dunkel) aus dem npm-Paket [`makehuman-data`](https://www.npmjs.com/package/makehuman-data) 0.0.2 (MakeHuman-Systemdaten als JSON) | MakeHuman-Team und -Gemeinschaft | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) (`LICENSE.ASSETS.md` im MakeHuman-Repo) |
+| `people-atlas.webp`, `people-atlas-m.webp` | Haut-, Kleider-, Haar-, Augen-, Brauen- und Wimpertexturen derselben MakeHuman-Teile, verkleinert und zu einem Atlas zusammengesetzt; Frack, Uniform und Kellnerjacke sind daraus umgemalt | MakeHuman-Team, Umarbeitung Vespera | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) |
+
+Bearbeitung (`tools/make-people.mjs`): Körper in die Ruhehaltung des Spiels gestellt (Arme hängend, Damen auf
+Absätzen, Absatzschuhe aus dem Fuß gebaut), Kleidung und Haare angepasst (Pony über der Stirn gekürzt),
+Netze vereinfacht (zweite Stufe für mittlere Entfernung) und mit meshoptimizer gepackt. Der MakeHuman-Programmcode
+(AGPL) ist nicht Teil des Spiels; verwendet sind nur die CC0-Daten. Das npm-Paket verweist für die Lizenz auf
+makehuman.org, wo die mitgelieferten Assets als CC0 freigegeben sind.
+
 ## Nicht enthalten (Stand V21)
 
 Für 1920er-Automobile, Hydranten, Litfaßsäulen und Pflasterstein-Fotos wurde keine frei lizenzierte Quelle

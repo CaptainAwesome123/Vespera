@@ -344,7 +344,7 @@ export function hairGeo(style, fem, q, P, hc, opt, push) {
 /* ---------- Das feine Modell ---------- */
 export function personGeoHi(kind, q = 1) {
   const key = kind + ':' + q; if (HQ.cache.has(key)) return HQ.cache.get(key);
-  const geo = personBuild(kind, q); HQ.cache.set(key, geo); return geo;
+  const geo = PB.geo ? PB.geo(kind, q) : personBuild(kind, q); HQ.cache.set(key, geo); return geo;
 }
 // eine Kopie mit denselben Puffern (jede Menge hat ihre eigenen Instanz-Attribute)
 export function personShare(kind, q) {
@@ -353,13 +353,18 @@ export function personShare(kind, q) {
   if (src.index) g.setIndex(src.index);
   return g;
 }
+// V22: mit MakeHuman-Figuren (src/people-mh.js) liefert personBuild nur die Teile (mit Etikett) statt der fertigen Geometrie;
+// mh.rig gibt dann Schulter und Handgelenk vor, Arme, Kopf, Beine und Schuhe baut der MakeHuman-Körper
+export const PB = { mh: null };
 export function personBuild(kind, q) {
-  // Teile: [Geometrie, Farbe, Glied, Drehpunkthöhe, Variante, Stoff]
-  const P = []; let LB = [0, 0], HIP = 0.95, OPT = 0, FB = 0;
+  // Teile: [Geometrie, Farbe, Glied, Drehpunkthöhe, Variante, Stoff, Etikett]
+  const P = []; let LB = [0, 0], HIP = 0.95, OPT = 0, FB = 0, TAG = 'body';
+  const MHR = PB.mh && PB.mh.rig;
   const female = kind === 'lady' || kind === 'gown' || kind === 'dress'; const WR = {};
   const S = q > 1.5 ? 1 : 0.55;                                  // Feinheit
   const sg = n => Math.max(6, Math.round(n * S));
-  const push = (g, c, fab) => P.push([g, c, LB[0], LB[1], OPT, fab ?? FB ?? 0]);
+  const push = (g, c, fab) => P.push([g, c, LB[0], LB[1], OPT, fab ?? FB ?? 0, TAG]);
+  const tagged = (t, fn) => (...a) => { const o = TAG; TAG = t; try { return fn(...a); } finally { TAG = o; } };
   const fabOf = c => c === COL.skin ? FAB.skin : c === COL.hair || c === COL.blond ? FAB.hair : c === COL.shirt ? FAB.cotton : c === COL.dark ? FAB.leather : c === COL.gold ? FAB.metal : c === PAINT ? MAINFAB : 0;
   const MAINFAB = kind === 'gown' ? FAB.silk : kind === 'dress' ? FAB.sequin : kind === 'waiter' || kind === 'sailor' || kind === 'worker' || kind === 'kid' ? FAB.cotton : FAB.wool;
   const P0 = (g, c, fab) => push(g, c, fab ?? fabOf(c));
@@ -389,7 +394,8 @@ export function personBuild(kind, q) {
     return 0.0035 * Math.sin(v * (upper ? 60 : 50) + th * 0.5) * near * (0.4 + 0.6 * Math.max(0, fr))
       + (upper ? 0 : 0.003 * Math.sin(v * 70) * hsm(0.85, 1.0, v)); };
   /* Kopf mit Hals und Ohren; drei Frisuren je Geschlecht */
-  const head = (y) => {
+  const head = tagged('head', (y) => {
+    if (MHR) return;
     const neck = hTube([[0, y - 0.215, -0.024], [0, y - 0.16, -0.016], [0, y - 0.1, -0.008], [0, y - 0.05, -0.01]], female ? [0.045, 0.039, 0.04, 0.035] : [0.058, 0.051, 0.05, 0.045], { seg: sg(18), n: sg(8), az: 0.95, fab: FAB.skin });
     P0(neck, COL.skin, FAB.skin);
     if (!female) sph(0.012, 0, y - 0.15, 0.045, COL.skin, 0.8, 1.3, 0.7, 8, 6, FAB.skin);           // Adamsapfel
@@ -399,9 +405,9 @@ export function personBuild(kind, q) {
     OPT = 12; hairGeo(1, female, q, P, y, OPT, g => { g.translate(0, y, 0.004); P0(g, hairC, FAB.hair); });
     OPT = 13; hairGeo(2, female, q, P, y, OPT, g => { g.translate(0, y, 0.004); P0(g, hairC, FAB.hair); });
     OPT = 0;
-  };
+  });
   // Hüte: drei Varianten je Art; Variante 3 heißt meistens barhäuptig
-  const hats = (y, list) => { list.forEach((fn, i) => { OPT = i + 1; if (fn) fn(y); }); OPT = 0; };
+  const hats = tagged('hat', (y, list) => { list.forEach((fn, i) => { OPT = i + 1; if (fn) fn(y); }); OPT = 0; });
   const brimF = (r0, r1, yy, c, curl = 0.012, fab = FAB.felt) => { const g = hLathe([[r0, yy - 0.004], [r1 * 0.75, yy - 0.003], [r1 * 0.97, yy + curl * 0.3], [r1, yy + curl], [r1 * 0.97, yy + curl + 0.004], [r1 * 0.75, yy + 0.006], [r0, yy + 0.006]], { sz: 1.05, seg: sg(40), rings: sg(14), fab }); P0(g, c, fab); };
   const fedora = c => y => { brimF(0.09, 0.19, y + 0.06, c, 0.014); const cr = hLathe([[0.104, y + 0.06], [0.106, y + 0.12], [0.1, y + 0.17], [0.07, y + 0.19], [0.02, y + 0.175], [0, y + 0.17]], { sz: 1.12, seg: sg(36), rings: sg(14), fab: FAB.felt, fold: (th, yy) => -0.012 * Math.exp(-(((Math.cos(th) - 1) / 0.25) ** 2)) * hsm(y + 0.14, y + 0.18, yy) }); P0(cr, c, FAB.felt); cyl(0.107, 0.107, 0.028, 0, y + 0.064, 0, [0.08, 0.05, 0.03], 16, 0, 0, FAB.silk); };
   const bowler = c => y => { brimF(0.09, 0.16, y + 0.06, c, 0.022); sph(0.11, 0, y + 0.08, 0, c, 1, 0.95, 1.08, 14, 8, FAB.felt); cyl(0.111, 0.111, 0.02, 0, y + 0.063, 0, [0.03, 0.03, 0.03], 16, 0, 0, FAB.silk); };
@@ -412,7 +418,7 @@ export function personBuild(kind, q) {
   const wideBrim = c => y0 => { const y = y0 + 0.025; brimF(0.1, 0.22, y + 0.02, c, -0.01); sph(0.11, 0, y + 0.05, -0.01, c, 1.0, 0.8, 1.05, 14, 8, FAB.felt); sph(0.035, 0.09, y + 0.07, 0.07, [0.85, 0.3, 0.35], 1, 1, 1, 6, 5, FAB.silk); };
   const headband = y => { tor(0.103, 0.008, y + 0.05, -0.016, COL.gold, 1.08, 0.15); for (let k = 0; k < 3; k++) P0(hTube([[0.065, y + 0.075, -0.03], [0.075 + k * 0.006, y + 0.14, -0.04], [0.06 + k * 0.012, y + 0.22, -0.07 - k * 0.01]], [0.007, 0.012, 0.004], { seg: 5, n: 8, az: 0.25, swayKind: 1, sway: v => v * 0.8, fab: FAB.fur }), [0.95, 0.92, 0.85], FAB.fur); };
   // Schuhe: Leisten mit Sohle, Absatz, Kappe und Schnürung; Damen mit hohem Absatz und Spange
-  const shoes = (heel = false) => {
+  const shoes = tagged('shoes', (heel = false) => {
     for (const sx of [-1, 1]) {
       LB = [sx < 0 ? 5 : 6, HIP]; const x = sx * (heel ? 0.085 : 0.1);
       if (heel) {
@@ -426,7 +432,7 @@ export function personBuild(kind, q) {
       }
     }
     LB = [0, 0];
-  };
+  });
   // Hände: flacher Handteller, vier Finger aus drei Gliedern (locker gekrümmt), Daumen; ins zeigt zur Handfläche
   const hand = (wr, sx, c) => {
     const fab = c === COL.skin ? FAB.skin : FAB.leather, ins = -sx, [wx, wy, wz] = wr;
@@ -446,7 +452,7 @@ export function personBuild(kind, q) {
     P0(hTube([[wx + ins * 0.004, wy - 0.03, wz + 0.02], [wx + ins * 0.01, wy - 0.05, wz + 0.04], [wx + ins * 0.016, wy - 0.07, wz + 0.05], [wx + ins * 0.02, wy - 0.087, wz + 0.052], [wx + ins * 0.021, wy - 0.092, wz + 0.051]], [0.0135, 0.0108, 0.0092, 0.0078, 0.0018], { seg: sg(9), n: sg(12), fab }), c, fab);
   };
   // Requisiten in den Händen (blendet der Shader je nach Handlung ein): Sektschale, belegtes Brot in drei Bissen, Gabel und Messer
-  const props = () => {
+  const props = tagged('props', () => {
     const wr = WR[-1], wl = WR[1], top = WR.top; if (!wr) return;
     const hx = wr[0] - 0.004, hy = wr[1] - 0.07, hz = wr[2] + 0.02;
     LB = [7, top];
@@ -483,13 +489,14 @@ export function personBuild(kind, q) {
     OPT = 54; P0(new T.TorusGeometry(0.18, 0.0155, sg(10), sg(40)), [0.05, 0.035, 0.03], FAB.leather); for (let k = 0; k < 3; k++) box(0.012, 0.17, 0.008, Math.sin(k * 2.094) * 0.085, Math.cos(k * 2.094 + Math.PI) * 0.085, 0.012, [0.72, 0.6, 0.38], 0, 0, -k * 2.094, FAB.metal); P0(new T.CylinderGeometry(0.03, 0.035, 0.04, sg(14)).rotateX(Math.PI / 2).translate(0, 0, 0.02), [0.72, 0.6, 0.38], FAB.metal);   // Lenkrad
     OPT = 55; for (const sx of [-1, 1]) { box(0.28, 0.38, 0.004, sx * 0.138, 0, 0, [0.88, 0.86, 0.8], 0, sx * 0.14, 0, FAB.cotton); for (let k = 0; k < 4; k++) box(0.1, 0.008 + (k ? 0 : 0.02), 0.006, sx * 0.14 + (k % 2 ? 0.05 : -0.05) * 0.7, 0.14 - k * 0.07, 0, [0.15, 0.14, 0.13], 0, sx * 0.14, 0, FAB.cotton); }   // Zeitung
     LB = [0, 0]; OPT = 0;
-  };
+  });
   const sleeveFoldC = (th, v, cc) => { const fr = Math.cos(th);
     return 0.0035 * Math.sin(v * 75 + th * 0.5) * hsm(0.5, 0.64, v) * hsm(0.8, 0.68, v) * (0.3 + 0.7 * Math.max(0, fr))     // Ellbogenfalten innen
       + 0.0025 * Math.sin(v * 46 + th) * hsm(0.12, 0.22, v) * hsm(0.4, 0.3, v) * Math.max(0, -Math.sin(th * 0.5 + 1))         // Achsel
       + 0.003 * Math.sin(v * 90) * hsm(0.86, 1.0, v); };                                                                         // Stoff staucht sich am Handgelenk
-  const arms = (top, len, c, opts = {}) => {
+  const arms = tagged('arms', (top, len, c, opts = {}) => {
     const S = opts.spread ?? 0.215, hc = opts.hand ?? COL.skin, bare = c === COL.skin;
+    if (MHR) { for (const sx of [-1, 1]) WR[sx] = [sx * MHR.wr[0], MHR.wr[1], MHR.wr[2]]; WR.top = MHR.top; if (hc !== COL.skin) PB.mh.gloves = hc; return; }
     for (const sx of [-1, 1]) {
       LB = [sx < 0 ? 3 : 4, top];
       const el = [sx * (S + 0.022), top - len * 0.5, -0.025], wr = [sx * (S + 0.008), top - len, 0.05];
@@ -508,10 +515,10 @@ export function personBuild(kind, q) {
       hand(wr, sx, hc); WR[sx] = wr; WR.top = top;
     }
     LB = [0, 0];
-  };
+  });
   // Dinge, die eine Figur bei sich trägt (Variante je Figur): Aktentasche, Spazierstock, Zeitung unter dem Arm
-  const carry = (top, list) => {
-    const wr = WR[1], wl = WR[-1];
+  const carry = tagged('carry', (top, list) => {
+    const wr = WR[1], wl = WR[-1]; if (MHR) top = MHR.top;
     list.forEach((k, i) => { OPT = k === 'news' ? 0 : 31 + i;
       if (k === 'case') { LB = [8, top]; box(0.36, 0.26, 0.09, wr[0] + 0.02, wr[1] - 0.27, wr[2], [0.22, 0.12, 0.06], 0, 0, 0, FAB.leather); box(0.1, 0.03, 0.03, wr[0] + 0.02, wr[1] - 0.12, wr[2], [0.1, 0.06, 0.03], 0, 0, 0, FAB.leather); box(0.37, 0.02, 0.095, wr[0] + 0.02, wr[1] - 0.2, wr[2], COL.gold); }
       else if (k === 'cane') { LB = [8, top]; limb(0.012, 0.012, [wr[0] + 0.01, wr[1] - 0.08, wr[2] + 0.02], [wr[0] + 0.03, 0.03, wr[2] + 0.12], [0.08, 0.05, 0.03], 6, FAB.leather); sph(0.022, wr[0] + 0.01, wr[1] - 0.06, wr[2] + 0.02, COL.gold); }
@@ -521,9 +528,9 @@ export function personBuild(kind, q) {
       else if (k === 'news') { LB = [0, 0]; box(0.3, 0.3, 0.1, 0.25, 0.85, 0.05, [0.4, 0.3, 0.18], 0, 0, 0, FAB.leather); box(0.26, 0.08, 0.06, 0.25, 1.02, 0.06, [0.88, 0.85, 0.78], 0, 0, 0, FAB.cotton); limb(0.012, 0.012, [0.25, 1.0, 0.05], [-0.12, 1.42, 0.08], [0.3, 0.22, 0.12], 4, FAB.leather); }
       LB = [0, 0]; });
     OPT = 0;
-  };
+  });
   // Beine: Hose mit Bund, Bügelfalte, Kniekehle und Aufschlag
-  const legs = (c, cuff = true, shin) => {
+  const legs = tagged('legs', (c, cuff = true, shin) => {
     for (const sx of [-1, 1]) {
       const x = sx * 0.1;
       LB = [sx < 0 ? 5 : 6, HIP];
@@ -536,12 +543,12 @@ export function personBuild(kind, q) {
       }
     }
     LB = [0, 0];
-  };
+  });
   // Hemdkragen um den Hals (Stehkragen mit Ecken beim Frack), Fliege am Kragen
-  const collar = (wing) => { P0(hLathe([[0.059, 1.458], [0.064, 1.468], [0.062, 1.505], [0.059, 1.514], [0.055, 1.511]], { sz: 0.95, seg: sg(32), rings: sg(6), fab: FAB.cotton }).translate(0, 0, 0.006), COL.shirt, FAB.cotton);
-    if (wing) for (const sx of [-1, 1]) box(0.022, 0.016, 0.004, sx * 0.016, 1.482, 0.066, COL.shirt, 0.3, 0, sx * 0.5, FAB.cotton); };
-  const bow = (c) => { for (const sx of [-1, 1]) P0(hEll(1, [sx * 0.022, 1.474, 0.066], [0.022, 0.014, 0.008], { nu: sg(10), nv: sg(6), fab: FAB.satin }), c, FAB.satin); sph(0.009, 0, 1.474, 0.07, c, 1, 1, 0.8, 6, 5, FAB.satin); };
-  const tieOpts = (y0, y1, z) => { [[0.45, 0.06, 0.08], [0.1, 0.16, 0.3], [0.5, 0.4, 0.15]].forEach((c, i) => { OPT = 21 + i; strip([[0, y1 - 0.01], [0, (y0 + y1) / 2], [0, y0]], [0.03, 0.038, 0.044], z, 0.006, c, FAB.silk, 6); box(0.03, 0.03, 0.018, 0, y1 - 0.004, BODY.userData.surf(0, y1 - 0.01) + z + 0.008, c, -0.3, 0, 0, FAB.silk); }); OPT = 0; };
+  const collar = tagged('collar', (wing) => { P0(hLathe([[0.059, 1.458], [0.064, 1.468], [0.062, 1.505], [0.059, 1.514], [0.055, 1.511]], { sz: 0.95, seg: sg(32), rings: sg(6), fab: FAB.cotton }).translate(0, 0, 0.006), COL.shirt, FAB.cotton);
+    if (wing) for (const sx of [-1, 1]) box(0.022, 0.016, 0.004, sx * 0.016, 1.482, 0.066, COL.shirt, 0.3, 0, sx * 0.5, FAB.cotton); });
+  const bow = tagged('bow', (c) => { for (const sx of [-1, 1]) P0(hEll(1, [sx * 0.022, 1.474, 0.066], [0.022, 0.014, 0.008], { nu: sg(10), nv: sg(6), fab: FAB.satin }), c, FAB.satin); sph(0.009, 0, 1.474, 0.07, c, 1, 1, 0.8, 6, 5, FAB.satin); });
+  const tieOpts = tagged('tie', (y0, y1, z) => { [[0.45, 0.06, 0.08], [0.1, 0.16, 0.3], [0.5, 0.4, 0.15]].forEach((c, i) => { OPT = 21 + i; strip([[0, y1 - 0.01], [0, (y0 + y1) / 2], [0, y0]], [0.03, 0.038, 0.044], z, 0.006, c, FAB.silk, 6); box(0.03, 0.03, 0.018, 0, y1 - 0.004, BODY.userData.surf(0, y1 - 0.01) + z + 0.008, c, -0.3, 0, 0, FAB.silk); }); OPT = 0; });
   // Band auf dem Körper (Revers, Krawatte, Knopfleiste): Pfad in x/y, Breiten, folgt der Oberfläche des zuletzt gebauten Rumpfs
   let BODY = null;
   const strip = (pts, ws, off, th, c, fab, swayKind = 0, side = 1) => {
@@ -589,7 +596,7 @@ export function personBuild(kind, q) {
       tor(0.07, 0.02, 1.42, 0.0, PAINT, 1); limb(0.018, 0.018, [-0.22, 0.95, 0.06], [-0.24, 0.6, 0.1], [0.06, 0.04, 0.03], 6, FAB.leather);
       for (const sx of [-1, 1]) box(0.05, 0.02, 0.08, sx * 0.2, 1.4, 0, COL.gold);
       arms(1.34, 0.56, PAINT, { cuff: PAINT });
-      head(1.62); cyl(0.108, 0.104, 0.08, 0, 1.69, 0, PAINT, 16); cyl(0.13, 0.115, 0.035, 0, 1.765, 0, PAINT, 18); box(0.18, 0.012, 0.08, 0, 1.69, 0.1, [0.02, 0.02, 0.02], 0.2, 0, 0, FAB.leather); sph(0.018, 0, 1.74, 0.11, COL.gold, 1, 1, 0.5, 6, 4); tor(0.109, 0.01, 1.7, 0, [0.02, 0.02, 0.02], 1, 0, FAB.leather);
+      head(1.62); TAG = 'hat'; cyl(0.108, 0.104, 0.08, 0, 1.69, 0, PAINT, 16); cyl(0.13, 0.115, 0.035, 0, 1.765, 0, PAINT, 18); box(0.18, 0.012, 0.08, 0, 1.69, 0.1, [0.02, 0.02, 0.02], 0.2, 0, 0, FAB.leather); sph(0.018, 0, 1.74, 0.11, COL.gold, 1, 1, 0.5, 6, 4); tor(0.109, 0.01, 1.7, 0, [0.02, 0.02, 0.02], 1, 0, FAB.leather); TAG = 'body';
     } else if (kind === 'kid') {
       // Zeitungsjunge: kurze Hose, Kniestrümpfe, Hemd mit Weste, Schiebermütze, Tasche mit Zeitungen
       BODY = lathe([[0.001, 0.5], [0.2, 0.5], [0.205, 0.62], [0.2, 0.86], [0.196, 1.05], [0.208, 1.22], ...SHO], PAINT, 0.74, { fold: jacketFold });
@@ -618,7 +625,7 @@ export function personBuild(kind, q) {
       band(0.92, 0.09, 0.006, COL.tux, FAB.satin);
       for (const y of [1.0, 1.1, 1.2]) sph(0.009, 0.06, y, BODY.userData.surf(0.06, y) + 0.003, COL.gold, 1, 1, 0.5, 5, 3);
       arms(1.34, 0.56, PAINT, { cuff: COL.shirt });
-      LB = [7, 1.34]; box(0.03, 0.24, 0.13, -0.31, 0.86, 0.02, [0.96, 0.95, 0.92], 0, 0, 0, FAB.cotton); LB = [0, 0];
+      LB = [7, 1.34]; TAG = 'carry'; box(0.03, 0.24, 0.13, (MHR ? -MHR.wr[0] - 0.07 : -0.31), (MHR ? MHR.wr[1] + 0.08 : 0.86), 0.02, [0.96, 0.95, 0.92], 0, 0, 0, FAB.cotton); TAG = 'body'; LB = [0, 0];
       head(1.62);
     } else if (kind === 'sailor') {
       // Matrose: Bluse (Instanzfarbe) mit blauem Kragen, Halstuch, weite Hose, weiße Mütze
@@ -628,14 +635,14 @@ export function personBuild(kind, q) {
       strip([[0, 1.22], [0, 1.15], [0.01, 1.08]], [0.05, 0.04, 0.025], 0.006, 0.006, COL.dark, FAB.silk, 6);
       band(0.89, 0.05, 0.006, NAVY, FAB.cotton);
       arms(1.34, 0.56, PAINT, { cuff: NAVY });
-      head(1.62); cyl(0.105, 0.1, 0.06, 0, 1.68, 0, [0.95, 0.95, 0.93], 14, 0, 0, FAB.cotton); tor(0.106, 0.018, 1.74, 0, [0.95, 0.95, 0.93], 1, 0, FAB.cotton);
+      head(1.62); TAG = 'hat'; cyl(0.105, 0.1, 0.06, 0, 1.68, 0, [0.95, 0.95, 0.93], 14, 0, 0, FAB.cotton); tor(0.106, 0.018, 1.74, 0, [0.95, 0.95, 0.93], 1, 0, FAB.cotton); TAG = 'body';
     } else if (kind === 'chauffeur') {
       // Chauffeur: zweireihige Uniformjacke (Instanzfarbe), Lederhandschuhe, Schirmmütze
       BODY = lathe([[0.001, 0.7], [0.225, 0.7], [0.22, 0.85], [0.205, 1.02], [0.208, 1.22], ...SHO], PAINT, 0.74, { fold: jacketFold, swayKind: 4, sway: y => hsm(0.9, 0.7, y) * 0.6 });
       for (const y of [0.9, 1.02, 1.14, 1.26]) for (const sx of [-0.06, 0.06]) sph(0.01, sx, y, BODY.userData.surf(sx, y) + 0.003, COL.gold, 1, 1, 0.6, 5, 3);
       band(0.98, 0.045, 0.007, [0.05, 0.04, 0.035], FAB.leather); tor(0.07, 0.025, 1.42, 0, PAINT, 1);
       arms(1.34, 0.56, PAINT, { hand: COL.dark });
-      head(1.62); cyl(0.106, 0.104, 0.07, 0, 1.69, 0, PAINT, 16); cyl(0.125, 0.112, 0.03, 0, 1.755, 0, PAINT, 18); box(0.17, 0.012, 0.08, 0, 1.69, 0.1, [0.02, 0.02, 0.02], 0.2, 0, 0, FAB.leather);
+      head(1.62); TAG = 'hat'; cyl(0.106, 0.104, 0.07, 0, 1.69, 0, PAINT, 16); cyl(0.125, 0.112, 0.03, 0, 1.755, 0, PAINT, 18); box(0.17, 0.012, 0.08, 0, 1.69, 0.1, [0.02, 0.02, 0.02], 0.2, 0, 0, FAB.leather); TAG = 'body';
     } else {
       // Anzug, Frack, Livree: Sakko mit Revers, Hemdbrust, Weste, Einstecktuch
       const jacket = kind === 'tux' ? COL.tux : PAINT;
@@ -654,22 +661,23 @@ export function personBuild(kind, q) {
       for (const sx of [-1, 1]) box(0.1, 0.012, 0.025, sx * 0.11, 0.9, BODY.userData.surf(sx * 0.11, 0.9) + 0.004, [0.04, 0.04, 0.045], 0, 0, 0, FAB.wool);           // Taschenpatten
       arms(1.34, 0.56, jacket, { cuff: COL.shirt });
       head(1.62);
-      if (kind === 'livery') { cyl(0.1, 0.1, 0.09, 0, 1.69, 0, PAINT, 14); cyl(0.102, 0.102, 0.02, 0, 1.7, 0, COL.gold, 14); }
+      if (kind === 'livery') { TAG = 'hat'; cyl(0.1, 0.1, 0.09, 0, 1.69, 0, PAINT, 14); cyl(0.102, 0.102, 0.02, 0, 1.7, 0, COL.gold, 14); TAG = 'body'; }
       else if (kind === 'suit') { hats(1.62, [fedora([0.22, 0.2, 0.18]), boater, null]); carry(1.34, ['case', 'paper', 'umbrella']); }
     }
   } else {
     // Frauen: Hüfte auf 0,88 m, Knie auf 0,46 m; Seidenstrümpfe
     HIP = 0.88; shoes(true);
     const stock = [0.72, 0.5, 0.38];
+    TAG = 'legs';
     for (const sx of [-1, 1]) {
       const x = sx * 0.085; LB = [sx < 0 ? 5 : 6, HIP];
       P0(hTube([[x, 0.075, -0.002], [x, 0.2, -0.014], [x, 0.33, -0.006], [x, 0.4576, 0.004], [x * 1.03, 0.62, 0.006], [x * 1.08, 0.78, 0.004], [x * 1.1, 0.93, 0]], [0.027, 0.043, 0.046, 0.046, 0.057, 0.069, 0.08], { seg: sg(24), n: sg(34), fab: FAB.stock }), stock, FAB.stock);
     }
-    LB = [0, 0];
+    LB = [0, 0]; TAG = 'body';
     // nackte Schultern, Schlüsselbein und Nacken über dem Kleid; schmale Träger über die Schulter
-    const shoulders = () => P0(hLathe([[0.11, 1.26], [0.148, 1.3], [0.152, 1.345], [0.146, 1.385], [0.122, 1.42], [0.08, 1.45], [0.035, 1.462], [0, 1.464]], { sz: 0.8, seg: sg(40), rings: sg(14), fab: FAB.skin,
-      fold: (th, y) => 0.004 * Math.exp(-(((y - 1.4) / 0.012) ** 2)) * Math.max(0, Math.cos(th)) * hsm(0.9, 0.3, Math.abs(Math.cos(th))) - 0.004 * Math.exp(-(((y - 1.39) / 0.02) ** 2)) * Math.exp(-((Math.atan2(Math.sin(th), Math.cos(th)) / 0.25) ** 2)) }), COL.skin, FAB.skin);
-    const straps = (c, fab) => { for (const sx of [-1, 1]) P0(hTube([[sx * 0.088, 1.348, 0.104], [sx * 0.098, 1.392, 0.084], [sx * 0.102, 1.426, 0.0], [sx * 0.098, 1.392, -0.084], [sx * 0.088, 1.348, -0.098]], [0.0075, 0.0075, 0.0075, 0.0075, 0.0075], { seg: sg(16), n: 6, az: 0.45, fab }), c, fab); };
+    const shoulders = tagged('skin', () => P0(hLathe([[0.11, 1.26], [0.148, 1.3], [0.152, 1.345], [0.146, 1.385], [0.122, 1.42], [0.08, 1.45], [0.035, 1.462], [0, 1.464]], { sz: 0.8, seg: sg(40), rings: sg(14), fab: FAB.skin,
+      fold: (th, y) => 0.004 * Math.exp(-(((y - 1.4) / 0.012) ** 2)) * Math.max(0, Math.cos(th)) * hsm(0.9, 0.3, Math.abs(Math.cos(th))) - 0.004 * Math.exp(-(((y - 1.39) / 0.02) ** 2)) * Math.exp(-((Math.atan2(Math.sin(th), Math.cos(th)) / 0.25) ** 2)) }), COL.skin, FAB.skin));
+    const straps = tagged('skin', (c, fab) => { for (const sx of [-1, 1]) P0(hTube([[sx * 0.088, 1.348, 0.104], [sx * 0.098, 1.392, 0.084], [sx * 0.102, 1.426, 0.0], [sx * 0.098, 1.392, -0.084], [sx * 0.088, 1.348, -0.098]], [0.0075, 0.0075, 0.0075, 0.0075, 0.0075], { seg: sg(16), n: 6, az: 0.45, fab }), c, fab); });
     // Büste unter dem Stoff
     const bust = (th, y) => 0.022 * Math.exp(-(((Math.abs(Math.atan2(Math.sin(th), Math.cos(th))) - 0.42) / 0.3) ** 2) - (((y - 1.2) / 0.06) ** 2));
     if (kind === 'gown') {
@@ -681,8 +689,8 @@ export function personBuild(kind, q) {
       // Perlenkette in Bögen, schwingt mit
       for (let r = 0; r < 2; r++) for (let k = 0; k < 19; k++) { const a = (k - 9) * 0.16; sph(0.0075, Math.sin(a) * (0.085 + r * 0.02), 1.36 - (9 - Math.abs(k - 9)) * (0.012 + r * 0.008) - 0.02 * r, 0.07 + Math.cos(a) * 0.065 + r * 0.008, [0.95, 0.93, 0.88], 1, 1, 1, 5, 4, FAB.satin); }
       arms(1.31, 0.54, COL.skin, { spread: 0.178 });
-      for (const sx of [-1, 1]) { LB = [sx < 0 ? 7 : 8, 1.31]; P0(hTube([[sx * 0.196, 1.03, -0.012], [sx * 0.196, 0.9, 0.02], [sx * 0.19, 0.79, 0.05]], [0.033, 0.03, 0.026], { seg: sg(14), n: sg(8), fold: (th, v) => 0.004 * Math.sin(v * 40) * hsm(0.0, 0.3, v) }), [0.92, 0.9, 0.86], FAB.satin); }   // lange Handschuhe
-      LB = [0, 0];
+      TAG = 'skin'; for (const sx of [-1, 1]) { LB = [sx < 0 ? 7 : 8, 1.31]; P0(hTube([[sx * 0.196, 1.03, -0.012], [sx * 0.196, 0.9, 0.02], [sx * 0.19, 0.79, 0.05]], [0.033, 0.03, 0.026], { seg: sg(14), n: sg(8), fold: (th, v) => 0.004 * Math.sin(v * 40) * hsm(0.0, 0.3, v) }), [0.92, 0.9, 0.86], FAB.satin); }   // lange Handschuhe
+      LB = [0, 0]; TAG = 'body';
     } else if (kind === 'dress') {
       // Charleston-Kleid: tiefe Taille, Pailletten, drei Reihen Fransen, die fliegen; lange Perlenkette
       BODY = lathe([[0.001, 0.42], [0.25, 0.42], [0.235, 0.6], [0.2, 0.8], [0.172, 0.95], [0.152, 1.08], [0.162, 1.22], [0.158, 1.32], [0.154, 1.352], [0.146, 1.362], [0.1, 1.366], [0, 1.366]], PAINT, 0.8,
@@ -712,11 +720,12 @@ export function personBuild(kind, q) {
       arms(1.31, 0.54, PAINT, { spread: 0.178, hand: Math.random() < 0.5 ? [0.92, 0.9, 0.86] : COL.skin, cuff: [0.32, 0.25, 0.2] });
     }
     head(1.58);
-    if (kind === 'gown') { tor(0.09, 0.005, 1.648, -0.012, COL.gold, 1.12, 0.3); sph(0.011, 0.055, 1.672, 0.06, [0.85, 0.95, 1.0], 1, 1, 0.6, 8, 6, FAB.metal); for (const sx of [-1, 1]) { sph(0.004, sx * 0.073, 1.555, -0.006, COL.gold, 1, 1, 1, 4, 3); P0(hTube([[sx * 0.073, 1.553, -0.006], [sx * 0.0735, 1.535, -0.006], [sx * 0.0735, 1.518, -0.005]], [0.0018, 0.0018, 0.0018], { seg: 4, n: 4, swayKind: 5, sway: v => v * 0.6 }), COL.gold, FAB.metal); sph(0.0075, sx * 0.0735, 1.512, -0.005, [0.95, 0.93, 0.88], 1, 1.25, 1, 8, 6, FAB.satin); } }
+    if (kind === 'gown') { TAG = 'hat'; tor(0.09, 0.005, 1.648, -0.012, COL.gold, 1.12, 0.3); sph(0.011, 0.055, 1.672, 0.06, [0.85, 0.95, 1.0], 1, 1, 0.6, 8, 6, FAB.metal); for (const sx of [-1, 1]) { sph(0.004, sx * 0.073, 1.555, -0.006, COL.gold, 1, 1, 1, 4, 3); P0(hTube([[sx * 0.073, 1.553, -0.006], [sx * 0.0735, 1.535, -0.006], [sx * 0.0735, 1.518, -0.005]], [0.0018, 0.0018, 0.0018], { seg: 4, n: 4, swayKind: 5, sway: v => v * 0.6 }), COL.gold, FAB.metal); sph(0.0075, sx * 0.0735, 1.512, -0.005, [0.95, 0.93, 0.88], 1, 1.25, 1, 8, 6, FAB.satin); } TAG = 'body'; }
     else if (kind === 'dress') hats(1.58, [headband, cloche([0.3, 0.06, 0.08]), null]);
     else { hats(1.58, [cloche(COL.dark), wideBrim([0.15, 0.12, 0.1]), cloche([0.2, 0.22, 0.3])]); carry(1.31, ['umbrella', 'bag', 'paper']); }
   }
   props();
+  if (PB.mh) return P;
   return personMerge(P, kind);
 }
 // Hutmaske je Art: welche Hutvarianten das Haar bedecken (Bit 0-2), 8 = immer eine Mütze

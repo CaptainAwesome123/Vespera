@@ -11,14 +11,33 @@ import { HL, FACE_ATLAS, FACE_MAT } from './people-model.js';
 export const DANCE = { fox: 2.0, charl: 2.6, sway: 2.0 };   // Schläge pro Sekunde
 // Lenkräder und Steuerräder: Mitte (Körperraum), Radius, Neigung der Achse nach oben
 export const WHEEL = { car: [0, 1.19, 0.47, 0.18, 0.5], boat: [0, 1.08, 0.42, 0.17, 0.5], ship: [0, 1.15, 0.52, 0.36, 0.0] };
+// V22: Gelenkpunkte je Figurenart. Gebaute Figuren (V17) haben feste Maße; MakeHuman-Figuren (aMH.w >= 2, src/people-mh.js)
+// bringen ihre eigenen mit (assets/people/people.json), damit Schultern, Ellbogen, Knie und Kopf am richtigen Ort drehen
+export const HRIG = { m: null, f: null, tex: null, tile: 0.25 };
+const PROC_RIG = { m: { top: 1.34, shX: 0.215, shZ: 0, el: [0.237, 1.06, -0.025], wr: [0.223, 0.78, 0.05], hip: 0.95, hx: 0.1, knee: 0.494, ank: 0.09, headC: 1.62, headZ: 0.004, neck: 1.47, neckZ: 0, waist: 1.02, kn: [0.086, 0.12] },
+  f: { top: 1.31, shX: 0.178, shZ: 0, el: [0.2, 1.04, -0.025], wr: [0.186, 0.77, 0.05], hip: 0.88, hx: 0.085, knee: 0.4576, ank: 0.1, headC: 1.58, headZ: 0.004, neck: 1.43, neckZ: 0, waist: 1.0, kn: [0.086, 0.12] } };
+function rigGLSL() {
+  const f = x => (+x).toFixed(4), P = PROC_RIG, M = { m: HRIG.m || P.m, f: HRIG.f || P.f };
+  const v = (k, i) => { const g = o => i === undefined ? o[k] : o[k][i]; return `mix(mix(${f(g(P.m))}, ${f(g(P.f))}, fem), mix(${f(g(M.m))}, ${f(g(M.f))}, fem), mh)`; };
+  return `void rigSet(float fem, float mh) {
+  rTop = ${v('top')}; rShX = ${v('shX')}; rShZ = ${v('shZ')};
+  rElX = ${v('el', 0)}; rElY = ${v('el', 1)}; rElZ = ${v('el', 2)}; rWrX = ${v('wr', 0)}; rWrY = ${v('wr', 1)}; rWrZ = ${v('wr', 2)};
+  hHip = ${v('hip')}; hHx = ${v('hx')}; rKnee = ${v('knee')}; rAnk = ${v('ank')};
+  rHeadC = ${v('headC')}; rHeadZ = ${v('headZ')}; rNeck = ${v('neck')}; rNeckZ = ${v('neckZ')}; rWaist = ${v('waist')}; rKn1 = ${v('kn', 0)}; rKn2 = ${v('kn', 1)};
+}`;
+}
 export const HUM_VS_HEAD = () => `
 attribute vec2 aLimb; attribute vec4 aGait; attribute float aOpt; attribute vec3 aSoft;
+attribute vec4 aMH;   // V22: Atlas-UV, Stoffart, Mischgewicht + 2 (fehlt bei gebauten Figuren = 0)
 uniform float uTime; uniform vec4 uWind;
 varying vec2 vFaceUV; varying float vFaceId; varying vec3 vClP; varying float vPnt; varying vec3 vSoft; varying float vBlink; varying vec2 vGaze; varying vec4 vLook;
+varying vec2 vTexUV; varying float vTexK;
+float rTop, rShX, rShZ, rElX, rElY, rElZ, rWrX, rWrY, rWrZ, rKnee, rAnk, rHeadC, rHeadZ, rNeck, rNeckZ, rWaist, rKn1, rKn2, hMH;
 vec2 thP, thA, thY, knF, anF, uaP, uaA, uaT, elF, wrF, fgC;
 float spP, spR, spY, nkP, nkY, nkR, pvP, pvR, pvY, sitK, chew, jawO, danceK, flareK, bounceV, walkC, walkA, hAct, runK, carryK, toolOn, legIKon;
 vec3 pvO, toolO, toolX, toolY, toolZ, camB;
 float lookK, lookY, lookP, hHip, hHx, hFem;
+${rigGLSL()}
 float hh(float n) { return fract(sin(n * 12.9898 + 4.1) * 43758.5453); }
 float cb(float c, float m, float w) { float d = c - m; d -= floor(d + 0.5); d /= w; return exp(-d * d); }
 float s01(float x) { return clamp(x, 0.0, 1.0); }
@@ -36,7 +55,7 @@ void legIK(vec3 H, vec3 F, float L1, float L2, out float p, out float a, out flo
 // Fußziele im Körperraum -> Becken-Raum (das Becken dreht, kippt und verschiebt sich), dann Hüft- und Kniewinkel
 vec3 toPelvis(vec3 F) { vec3 v = F - pvO - vec3(0.0, hHip, 0.0); v = rY(v, -pvY); v = rX(v, -pvP); v = rZ(v, -pvR); return v + vec3(0.0, hHip, 0.0); }
 void legsTo(vec3 fR, vec3 fL) {
-  float kY = hHip * 0.52, L1 = hHip - kY, L2 = kY - 0.09, p, a, k;
+  float kY = rKnee, L1 = hHip - kY, L2 = kY - mix(0.09, rAnk, hMH), p, a, k;
   legIK(vec3(-hHx, hHip, 0.0), toPelvis(fR), L1, L2, p, a, k); thP.x = p; thA.x = -a; knF.x = k;
   legIK(vec3(hHx, hHip, 0.0), toPelvis(fL), L1, L2, p, a, k); thP.y = p; thA.y = a; knF.y = k;
   legIKon = 1.0;
@@ -45,8 +64,8 @@ void legsTo(vec3 fR, vec3 fL) {
 // Rechnet mit den wirklichen Ruhelagen von Schulter, Ellbogen und Faust, damit die Hand genau am Griff liegt
 float wrapA(float x) { return mod(x + 3.14159265, 6.2831853) - 3.14159265; }
 void armIK(float sd, vec3 H, float tw, out float ap, out float aa, out float e, out float at) {
-  float top = mix(1.34, 1.31, hFem);
-  vec3 S = vec3(sd * mix(0.215, 0.178, hFem), top, 0.0), E = vec3(sd * mix(0.237, 0.2, hFem), top - mix(0.28, 0.27, hFem), -0.025), G = vec3(sd * (mix(0.223, 0.186, hFem) - 0.012), top - mix(0.56, 0.54, hFem) - 0.088, 0.058);
+  float top = rTop;
+  vec3 S = vec3(sd * rShX, top, rShZ), E = vec3(sd * rElX, rElY, rElZ), G = vec3(sd * (rWrX - 0.012), rWrY - 0.088, rWrZ + 0.008);
   vec3 u = E - S, f = G - E; float L1 = length(u), L2 = length(f);
   vec3 d = H - S; float D = clamp(length(d), 0.15, 0.995 * (L1 + L2)); d = normalize(d) * D;
   float uyz = length(u.yz), fyz = length(f.yz), tu = atan(u.z, u.y), tf = atan(f.z, f.y);
@@ -422,7 +441,7 @@ void humanPose(float fem, float gs, float elder) {
   }
   // Blick: wer die Kamera bemerkt, dreht den Kopf (und ein wenig die Schultern) zu ihr; manche grüßen im Vorbeigehen
   {
-    vec3 hd = camB - vec3(0.0, mix(1.62, 1.58, fem), 0.03); float dist = length(hd);
+    vec3 hd = camB - vec3(0.0, rHeadC, rHeadZ + 0.026); float dist = length(hd);
     float yaw = atan(hd.x, hd.z), pit = atan(hd.y, length(hd.xz));
     float want = step(hh(aGait.x * 3.3), 0.78) * smoothstep(0.15, 0.45, 0.5 + 0.5 * sin(uTime * (0.23 + 0.1 * hh(aGait.x)) + aGait.x * 9.0));
     float busy = max(danceK, step(23.5, act) * (1.0 - step(31.5, act)) * 0.7) + step(31.5, act) * step(act, 34.5) * 0.6;
@@ -444,8 +463,8 @@ void humanPose(float fem, float gs, float elder) {
 vec3 armRot(vec3 v, float sd, float ap, float aa, float at, float w) { return rX(rZ(rY(v, -sd * at * w), sd * aa * w), -ap * w); }
 // Pose auf einen Punkt (und seine Normale) anwenden; L Glied, piv Drehpunkthöhe, sk Schwungart, sw Gewicht, op Variante
 void humanRig(inout vec3 p, inout vec3 n, float L, float piv, float fem, float sk, float sw, float op) {
-  float hipY = hHip, hx = hHx, kneeY = hipY * 0.52, waistY = mix(1.02, 1.0, fem);
-  float headC = mix(1.62, 1.58, fem), neckY = headC - 0.15;
+  float hipY = hHip, hx = hHx, kneeY = rKnee, waistY = rWaist;
+  float headC = rHeadC, neckY = rNeck;
   bool tool = L > 8.5, leg = (L > 0.5 && L < 2.5) || (L > 4.5 && L < 6.5), arm = !tool && ((L > 2.5 && L < 4.5) || L > 6.5);
   float rgt = (L < 1.5 || (L > 2.5 && L < 3.5) || (L > 4.5 && L < 5.5) || (L > 6.5 && L < 7.5)) ? 1.0 : 0.0;
   float sd = rgt > 0.5 ? -1.0 : 1.0;
@@ -454,7 +473,7 @@ void humanRig(inout vec3 p, inout vec3 n, float L, float piv, float fem, float s
     // Werkzeug mit zwei Händen: liegt im Körperraum, folgt dem Oberkörper
     p = toolO + toolX * p.x + toolY * p.y + toolZ * p.z; n = toolX * n.x + toolY * n.y + toolZ * n.z;
   } else if (leg) {
-    float pivY = piv > 0.1 ? piv : hipY, kY = pivY * 0.52, ank = mix(0.09, 0.1, fem);
+    float pivY = piv > 0.1 ? piv : hipY, kY = mix(pivY * 0.52, rKnee, hMH), ank = rAnk;
     vec3 hj = vec3(sd * hx, pivY, 0.0);
     float k = rgt > 0.5 ? knF.x : knF.y;
     if (L > 4.5 && p.y < ank + 0.05) { vec3 aj = vec3(sd * hx, ank, 0.0); float a = rgt > 0.5 ? anF.x : anF.y; float wA = smoothstep(ank + 0.05, ank - 0.01, p.y); p = mix(p, aj + rX(p - aj, -a), wA); n = mix(n, rX(n, -a), wA); }
@@ -466,18 +485,18 @@ void humanRig(inout vec3 p, inout vec3 n, float L, float piv, float fem, float s
     float wh = rigid ? 1.0 : 1.0 - 0.35 * smoothstep(hipY - 0.08, hipY + 0.03, p.y) * (1.0 - sitK);
     p = hj + rX(rZ(rY(p - hj, sd * ty * wh), sd * ta * wh), -tp * wh); n = rX(rZ(rY(n, sd * ty * wh), sd * ta * wh), -tp * wh);
   } else if (arm) {
-    float shX = sd * mix(0.215, 0.178, fem), top = piv, elY = top - mix(0.28, 0.27, fem), wrY = top - mix(0.56, 0.54, fem);
-    vec3 wj = vec3(sd * mix(0.223, 0.186, fem), wrY, 0.05);
+    float shX = sd * rShX, top = piv, elY = top - (rTop - rElY), wrY = top - (rTop - rWrY);
+    vec3 wj = vec3(sd * rWrX, wrY, rWrZ);
     float isHand = (!rigid && p.y < wrY + 0.004 && aSoft.x < 6.5 && (aSoft.x < 1.5 || aSoft.x > 5.5)) ? 1.0 : 0.0;
     // Finger krümmen sich zur Handfläche (Daumen bleibt), Handgelenk beugt
-    if (isHand > 0.5 && p.y < wrY - 0.072 && p.z < wj.z + 0.036) {
-      float c = rgt > 0.5 ? fgC.x : fgC.y, xk = sd * mix(0.222, 0.185, fem);
+    if (isHand > 0.5 && p.y < wrY - rKn1 + 0.014 && p.z < wj.z + 0.036) {
+      float c = rgt > 0.5 ? fgC.x : fgC.y, xk = sd * (rWrX - 0.001);
       // Mittelglieder, dann Grundgelenke
-      vec2 k2 = vec2(xk - sd * 0.006, wrY - 0.12);
+      vec2 k2 = vec2(xk - sd * 0.006, wrY - rKn2);
       float w2 = smoothstep(k2.y + 0.004, k2.y - 0.006, p.y);
       vec3 q = vec3(p.x - k2.x, p.y - k2.y, 0.0); q = rZ(q, -sd * c * 0.9 * w2); p = vec3(k2.x + q.x, k2.y + q.y, p.z); n = rZ(n, -sd * c * 0.9 * w2);
-      vec2 k1 = vec2(xk, wrY - 0.086);
-      float w1 = smoothstep(wrY - 0.075, wrY - 0.09, position.y);
+      vec2 k1 = vec2(xk, wrY - rKn1);
+      float w1 = smoothstep(wrY - rKn1 + 0.011, wrY - rKn1 - 0.004, position.y);
       q = vec3(p.x - k1.x, p.y - k1.y, 0.0); q = rZ(q, -sd * c * w1); p = vec3(k1.x + q.x, k1.y + q.y, p.z); n = rZ(n, -sd * c * w1);
     }
     float wfx = rgt > 0.5 ? wrF.x : wrF.y;
@@ -485,21 +504,21 @@ void humanRig(inout vec3 p, inout vec3 n, float L, float piv, float fem, float s
     // Ellbogen weich
     float e = rgt > 0.5 ? elF.x : elF.y;
     float we = rigid ? (L > 6.5 ? 1.0 : 0.0) : smoothstep(elY + 0.05, elY - 0.04, p.y);
-    if (we > 0.0) { vec3 ej = vec3(sd * mix(0.237, 0.2, fem), elY, -0.025); p = ej + rX(p - ej, -e * we); n = rX(n, -e * we); }
+    if (we > 0.0) { vec3 ej = vec3(sd * rElX, elY, rElZ); p = ej + rX(p - ej, -e * we); n = rX(n, -e * we); }
     // Schulter: oben am Arm nur zum Teil mitgedreht, damit die Schulter rund bleibt
-    vec3 sj = vec3(shX, top, 0.0);
+    vec3 sj = vec3(shX, top, rShZ);
     float ap = rgt > 0.5 ? uaP.x : uaP.y, aa = rgt > 0.5 ? uaA.x : uaA.y, at = rgt > 0.5 ? uaT.x : uaT.y;
     float nearTop = 1.0 - smoothstep(top + 0.01, top - 0.13, p.y), inner = 1.0 - smoothstep(abs(shX) - 0.07, abs(shX) - 0.01, abs(p.x));
     float ws = rigid ? 1.0 : 1.0 - 0.45 * nearTop * (0.45 + 0.55 * inner);
     p = sj + armRot(p - sj, sd, ap, aa, at, ws); n = armRot(n, sd, ap, aa, at, ws);
   } else {
     // Rumpf an der Schulter: Achsel und Schulterkappe gehen ein Stück mit dem Arm
-    float ax = abs(p.x), sdT = sign(p.x + 1e-4), top = mix(1.34, 1.31, fem), shXa = mix(0.215, 0.178, fem);
+    float ax = abs(p.x), sdT = sign(p.x + 1e-4), top = rTop, shXa = rShX;
     float wt = 0.3 * smoothstep(shXa - 0.085, shXa - 0.01, ax) * smoothstep(top - 0.16, top - 0.06, p.y) * (1.0 - smoothstep(top + 0.05, top + 0.1, p.y)) * (1.0 - step(30.5, op));
     if (wt > 0.001 && (sk < 1.5 || sk > 4.5)) {
       float ap = sdT < 0.0 ? uaP.x : uaP.y, aa = sdT < 0.0 ? uaA.x : uaA.y, at = sdT < 0.0 ? uaT.x : uaT.y;
       ap = clamp(ap, -0.8, 1.6); aa = clamp(aa, -0.4, 1.2); at = clamp(at, -0.8, 0.8);
-      vec3 sj = vec3(sdT * shXa, top, 0.0); p = sj + armRot(p - sj, sdT, ap, aa, at, wt); n = armRot(n, sdT, ap, aa, at, wt);
+      vec3 sj = vec3(sdT * shXa, top, rShZ); p = sj + armRot(p - sj, sdT, ap, aa, at, wt); n = armRot(n, sdT, ap, aa, at, wt);
     }
     if ((sk > 1.5 && sk < 4.5) && p.y < hipY + 0.04) {
       // Rock, Fransen und Mantelschoß gehen mit den Beinen; im Sitzen knicken sie an Hüfte und Knie ab
@@ -520,7 +539,7 @@ void humanRig(inout vec3 p, inout vec3 n, float L, float piv, float fem, float s
     }
     // Kopf am Hals
     if (p.y > neckY - 0.04) {
-      vec3 nj = vec3(0.0, neckY, 0.0); float w = smoothstep(neckY - 0.04, neckY + 0.05, p.y);
+      vec3 nj = vec3(0.0, neckY, rNeckZ); float w = smoothstep(neckY - 0.04, neckY + 0.05, p.y);
       vec3 hp = nj + rY(rX(rZ(p - nj, -nkR), nkP), nkY);
       p = mix(p, hp, w); n = mix(n, rY(rX(rZ(n, -nkR), nkP), nkY), w);
     }
@@ -543,11 +562,11 @@ void humanShape(inout vec3 p, float L, float fem, float fid, float op) {
   float fat = (hh(seed + 10.7) * 2.0 - 1.0) * ext, brw = (hh(seed + 11.3) * 2.0 - 1.0) * ext * (1.0 - 0.6 * fem), lip = (hh(seed + 12.9) * 2.0 - 1.0) * ext + 0.4 * fem;
   float ear = max(0.0, hh(seed + 14.1) * 2.0 - 1.0 - 0.3 * beauty) * ext, fh = (hh(seed + 15.7) * 2.0 - 1.0) * ext, asy = (hh(seed + 16.3) * 2.0 - 1.0) * (1.0 - s01(beauty)) * 0.6;
   float hw = (hh(seed + 17.9) * 2.0 - 1.0) * 0.6 * ext, hl = (hh(seed + 19.1) * 2.0 - 1.0) * 0.6 * ext, eyS = (hh(seed + 20.3) * 2.0 - 1.0) * ext;
-  float headC = mix(1.62, 1.58, fem), neckY = headC - 0.15;
+  float headC = rHeadC, neckY = rNeck;
   bool torsoish = L < 0.5;
   if (torsoish && p.y > neckY + 0.02) {
     // ganzer Kopf samt Haar und Hut: Breite und Länge
-    vec3 q = p - vec3(0.0, headC, 0.004);
+    vec3 q = p - vec3(0.0, headC, rHeadZ);
     float wHead = smoothstep(neckY + 0.02, neckY + 0.07, p.y);
     q.x *= 1.0 + 0.045 * hw * wHead; q.y *= 1.0 + 0.04 * hl * wHead * step(q.y, 0.0) + 0.02 * hl * wHead * step(0.0, q.y);
     float skin = step(abs(aSoft.x - 1.0), 0.1) * (1.0 - step(0.5, op));
@@ -577,7 +596,7 @@ void humanShape(inout vec3 p, float L, float fem, float fid, float op) {
       // Doppelkinn bei Fülligen
       q.z += 0.008 * max(0.0, fat) * exp(-pow(q.x / 0.035, 2.0) - pow((q.y - chinY + 0.012) / 0.014, 2.0)) * step(0.0, q.z);
     }
-    p = q + vec3(0.0, headC, 0.004);
+    p = q + vec3(0.0, headC, rHeadZ);
   }
   // Statur: Bauch bei Männern, schmalere Taille bei Damen
   if (torsoish && op < 0.5 && p.y > 0.75 && p.y < neckY) {
@@ -590,7 +609,7 @@ void humanShape(inout vec3 p, float L, float fem, float fid, float op) {
 `;
 export const HUM_VS_RIG = `
   float hFemV = step(32.0, mod(aGait.w, 64.0)), hGs = fract(sin(aGait.x * 91.7) * 437.5);
-  hFem = hFemV; hHip = mix(0.95, 0.88, hFemV); hHx = mix(0.1, 0.085, hFemV);
+  hFem = hFemV; hMH = step(1.5, aMH.w); rigSet(hFemV, hMH);
   float hHairI = mod(floor(aGait.w / 320.0), 6.0), hElder = step(3.5, hHairI) * step(hHairI, 4.5);
   // Kamera im Körperraum der Figur
   {
@@ -609,29 +628,34 @@ export const HUM_VS_RIG = `
   #ifdef USE_INSTANCING
   {
     float sx = length(instanceMatrix[0].xyz), sy = length(instanceMatrix[1].xyz), sz = length(instanceMatrix[2].xyz);
-    float hc = mix(1.62, 1.58, hFemV), wq = smoothstep(hc - 0.2, hc - 0.13, hP.y) * step(aLimb.x, 0.5);
-    hP.x = mix(hP.x, hP.x * sy / max(sx, 1e-3), wq); hP.z = mix(hP.z, (hP.z - 0.004) * sy / max(sz, 1e-3) + 0.004, wq);
+    float hc = rHeadC, wq = smoothstep(hc - 0.2, hc - 0.13, hP.y) * step(aLimb.x, 0.5);
+    hP.x = mix(hP.x, hP.x * sy / max(sx, 1e-3), wq); hP.z = mix(hP.z, (hP.z - rHeadZ) * sy / max(sz, 1e-3) + rHeadZ, wq);
   }
   #endif
   humanShape(hP, aLimb.x, hFemV, mod(aGait.w, 64.0), aOpt);
   // Atmen: Brustkorb hebt sich
   if (aLimb.x < 0.5 && aOpt < 0.5) hP.xz *= 1.0 + 0.014 * sin(uTime * (1.4 + 0.4 * hGs + 1.2 * runK) + aGait.x) * smoothstep(1.0, 1.25, hP.y) * (1.0 - smoothstep(1.38, 1.46, hP.y)) * (1.0 - step(98.5, hAct)) * (1.0 + runK);
   // Kiefer: kauen, reden, lachen, gähnen
-  { float hc = mix(1.62, 1.58, hFemV), yh = hP.y - hc; float jw = smoothstep(-0.135, -0.1, yh) * (1.0 - smoothstep(-0.064, -0.054, yh)) * step(0.015, hP.z) * step(aLimb.x, 0.5) * (1.0 - step(0.5, aOpt));
+  { float hc = rHeadC, yh = hP.y - hc; float jw = smoothstep(-0.135, -0.1, yh) * (1.0 - smoothstep(-0.064, -0.054, yh)) * step(0.011 + rHeadZ, hP.z) * step(aLimb.x, 0.5) * (1.0 - step(0.5, aOpt));
     hP.y -= jw * (chew * 0.006 * (0.5 + 0.5 * sin(uTime * 13.0)) + jawO * 0.005); }
   // Haar unter dem Hut zusammendrücken; Glatze oben bei manchen älteren Herren
   if (hSk > 0.5 && hSk < 1.5) {
-    float hm = floor(aSoft.z / 16.0), want = mod(floor(aGait.w / 7680.0), 3.0), hc = mix(1.62, 1.58, hFemV);
+    float hm = floor(aSoft.z / 16.0), want = mod(floor(aGait.w / 7680.0), 3.0), hc = rHeadC;
     float on = step(7.5, hm) + mod(floor(hm / pow(2.0, want)), 2.0);
-    if (on > 0.5) { vec3 c = vec3(0.0, hc, 0.0); vec3 d = hP - c; float up = smoothstep(0.0, 0.06, d.y); hP = c + d * mix(1.0, 0.9, up); hSw *= 0.3; }
+    if (on > 0.5) { vec3 c = vec3(0.0, hc, rHeadZ); vec3 d = hP - c; float up = smoothstep(0.0, 0.06, d.y); hP = c + d * mix(1.0, 0.9, up); hSw *= 0.3; }
     else {
       float bald = (1.0 - hFemV) * step(0.55, hh(aGait.x * 4.4 + 0.3) + hElder * 0.35);
-      vec3 d = hP - vec3(0.0, hc, 0.0);
-      float crown = smoothstep(0.03, 0.07, d.y + d.z * 0.4) * bald;
-      hP = vec3(0.0, hc, 0.0) + d * mix(1.0, 0.86, crown);
+      vec3 d = hP - vec3(0.0, hc, rHeadZ);
+      float crown = smoothstep(0.03, 0.07, d.y + d.z * 0.4) * bald * (1.0 - hMH);
+      hP = vec3(0.0, hc, rHeadZ) + d * mix(1.0, 0.86, crown);
     }
   }
-  humanRig(hP, hN, aLimb.x, aLimb.y, hFemV, hSk, hSw, aOpt);
+  // MakeHuman: Ecken an Schulter und Hüfte gehören zu Rumpf und Glied (Gewicht aMH.w - 2): beide Lagen rechnen und mischen
+  if (hMH > 0.5 && aLimb.x > 0.5 && aMH.w - 2.0 < 0.995) {
+    vec3 bP = hP, bN = hN; humanRig(bP, bN, 0.0, 0.0, hFemV, hSk, hSw, aOpt);
+    humanRig(hP, hN, aLimb.x, aLimb.y, hFemV, hSk, hSw, aOpt);
+    hP = mix(bP, hP, aMH.w - 2.0); hN = mix(bN, hN, aMH.w - 2.0);
+  } else humanRig(hP, hN, aLimb.x, aLimb.y, hFemV, hSk, hSw, aOpt);
   // Nachschwingen: Haare, Röcke, Fransen, Ketten. Wind kommt aus der Welt in den Körper
   if (hSk > 0.5 && hSw > 0.001 && hAct < 98.5) {
     vec3 wW = vec3(uWind.x, 0.0, uWind.y) * uWind.z;
@@ -706,10 +730,15 @@ export const HUM_VS_POS = `
           float want = mod(floor(aGait.w / (grp < 0.5 ? 7680.0 : grp < 1.5 ? 23040.0 : grp < 2.5 ? 69120.0 : 207360.0)), grp > 2.5 ? 4.0 : 3.0);
           if (abs(vari - want) > 0.1 || (grp > 2.5 && (act > 1.5 || carryK > 0.5 || runK > 0.5))) transformed = vec3(0.0);
         }
-        vFaceUV = uv; vFaceId = mod(aGait.w, 7680.0); vClP = position; vPnt = step(2.97, color.r + color.g + color.b); vSoft = aSoft;`;
+        vFaceUV = uv; vFaceId = mod(aGait.w, 7680.0); vClP = position; vPnt = step(2.97, color.r + color.g + color.b); vSoft = aSoft;
+        // Atlas der MakeHuman-Figuren: Haut je Figur aus vier Bildern (jung, mittel, alt, dunkel)
+        vTexUV = aMH.xy; vTexK = aMH.z;
+        if (aMH.z > 1.5 && aMH.z < 2.5) { float idv = mod(aGait.w, 7680.0), fid = mod(idv, 64.0), tone = mod(floor(idv / 64.0), 5.0), age = fract(fid * 0.754877 + 0.13);
+          vTexUV.x += (tone > 2.5 ? 3.0 : age < 0.5 ? 0.0 : age < 0.82 ? 1.0 : 2.0) * ${HRIG.tile.toFixed(4)}; }`;
 
-export const HUM_FS_HEAD = `uniform sampler2D uFaces, uFaceMat; uniform float uTime;
+export const HUM_FS_HEAD = `uniform sampler2D uFaces, uFaceMat, uPeople; uniform float uTime;
 varying vec2 vFaceUV; varying float vFaceId; varying vec3 vClP; varying float vPnt; varying vec3 vSoft; varying float vBlink; varying vec2 vGaze; varying vec4 vLook;
+varying vec2 vTexUV; varying float vTexK;
 float clH(vec3 p){ return fract(sin(dot(p, vec3(12.9898, 78.233, 37.719))) * 43758.5453); }
 float vN3(vec3 p){ vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
   return mix(mix(mix(clH(i), clH(i + vec3(1,0,0)), f.x), mix(clH(i + vec3(0,1,0)), clH(i + vec3(1,1,0)), f.x), f.y), mix(mix(clH(i + vec3(0,0,1)), clH(i + vec3(1,0,1)), f.x), mix(clH(i + vec3(0,1,1)), clH(i + vec3(1,1,1)), f.x), f.y), f.z); }
@@ -727,6 +756,15 @@ export const HUM_FS_COLOR = `
           vec3 HC = hairI < 0.5 ? vec3(0.05, 0.035, 0.03) : hairI < 1.5 ? vec3(0.2, 0.12, 0.06) : hairI < 2.5 ? vec3(0.62, 0.48, 0.26) : hairI < 3.5 ? vec3(0.42, 0.14, 0.06) : hairI < 4.5 ? vec3(0.55, 0.5, 0.43) : vec3(0.11, 0.07, 0.04);
           float fab = floor(vSoft.x + 0.5);
           vec3 vd = normalize(vViewPosition); float nv = abs(dot(normalize(vNormal), vd));
+          // V22: MakeHuman-Figuren lesen Haut, Stoff, Haar und Augen aus dem Atlas (1 Stoff, 2 Haut, 3 Haar, 4 Auge, 5 Brauen/Wimpern)
+          float tK = floor(vTexK + 0.5); vec4 tx = vec4(1.0);
+          if (tK > 0.5) {
+            tx = texture2D(uPeople, vTexUV);
+            if (tK < 1.5) { float pk = 1.0 - smoothstep(0.55, 0.8, tx.a); diffuseColor.rgb = mix(tx.rgb, diffuseColor.rgb * tx.r * 2.2, pk); }
+            else if (tK < 2.5) { vec3 ref = tone < 2.5 ? vec3(0.97, 0.9, 0.84) : vec3(0.62, 0.48, 0.38); diffuseColor.rgb = tx.rgb * clamp(T5 / ref, 0.55, 1.35); }
+            else if (tK < 3.5 || tK > 4.5) { if (tx.a < (tK > 4.5 ? 0.35 : 0.5)) discard; diffuseColor.rgb = HC * tx.r * (tK > 4.5 ? 1.2 : 1.9); }
+            else diffuseColor.rgb = tx.rgb;
+          }
           float aa = clamp(1.6 - fwidth(vClP.y) * 260.0, 0.0, 1.0), aa2 = clamp(1.6 - fwidth(vClP.y) * 700.0, 0.0, 1.0);
           if (fab < 0.5) {
             // ferne Figuren und Teile ohne Stoffangabe: wie bisher nach Farbe
@@ -735,8 +773,8 @@ export const HUM_FS_COLOR = `
             if (vPnt > 0.5) { float pat = floor(idv / 1920.0); float weave = 0.95 + 0.07 * clH(floor(vClP * 420.0)) * aa; diffuseColor.rgb *= weave; }
           } else if (fab < 1.5) {
             // Haut: Hautton, Gesicht aus dem Atlas, feine Poren
-            diffuseColor.rgb *= T5;
-            hRough = 0.62; hB = (vN3(vClP * 420.0) - 0.5) * 0.06 * aa2;
+            if (tK < 0.5) diffuseColor.rgb *= T5;
+            hRough = tK > 3.5 && tK < 4.5 ? 0.12 : 0.62; hB = (vN3(vClP * 420.0) - 0.5) * 0.06 * aa2;
             if (vFaceUV.x >= 0.0) {
               vec2 cell = vec2(mod(fid, 8.0), floor(fid / 8.0)), fuv = (cell + clamp(vFaceUV, 0.01, 0.99)) / 8.0;
               vec4 f = texture2D(uFaces, fuv); vec3 m = texture2D(uFaceMat, fuv).rgb;
@@ -754,12 +792,13 @@ export const HUM_FS_COLOR = `
             }
           } else if (fab < 2.5) {
             // Haar: Farbe der Figur, Strähnen quer zur Wuchsrichtung, dunkler am Ansatz, Glanzband
+            if (tK > 0.5) { vec3 c = diffuseColor.rgb; c += HC * 0.5 * pow(1.0 - nv, 3.0); diffuseColor.rgb = c; hRough = 0.45; hB = (tx.r - 0.5) * 0.8; } else {
             float across = -vFaceUV.x, along = vFaceUV.y;
             float ac = across * 7.0, fa = clamp(1.0 - fwidth(ac) * 1.5, 0.0, 1.0);
             float st = vN3(vec3(ac, along * 2.0, vClP.y * 6.0)), clump = vN3(vClP * 60.0);
             vec3 c = HC * (0.75 + 0.35 * mix(0.5, st, fa) + 0.25 * (clump - 0.5)) * mix(0.62, 1.0, smoothstep(0.0, 0.35, along));
             c += HC * 0.6 * pow(1.0 - nv, 3.0) + vec3(0.04) * pow(1.0 - nv, 4.0);
-            diffuseColor.rgb = c; hRough = 0.42 + 0.1 * hFemF(idv); hB = st * 0.8 * fa;
+            diffuseColor.rgb = c; hRough = 0.42 + 0.1 * hFemF(idv); hB = st * 0.8 * fa; }
           } else {
             vec3 c = diffuseColor.rgb, p = vClP;
             float u = p.x * 0.8 + p.z;
@@ -823,8 +862,10 @@ export const HUM_FS_COLOR = `
           diffuseColor.rgb *= ao;
         }`;
 // Glanz, Metall und Relief nach den Stoffarten
+const WHITE1 = (() => { const t = new T.DataTexture(new Uint8Array([255, 255, 255, 255]), 1, 1); t.needsUpdate = true; return t; })();
 export function humanShader(sh) {
   sh.uniforms.uTime = U.uTime; sh.uniforms.uFaces = { value: FACE_ATLAS }; sh.uniforms.uFaceMat = { value: FACE_MAT }; sh.uniforms.uWind = U.uWind;
+  sh.uniforms.uPeople = { value: HRIG.tex || WHITE1 };
   sh.vertexShader = HUM_VS_HEAD() + sh.vertexShader
     .replace('#include <beginnormal_vertex>', '#include <beginnormal_vertex>\n' + HUM_VS_RIG)
     .replace('#include <begin_vertex>', '#include <begin_vertex>\n' + HUM_VS_POS);

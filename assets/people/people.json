@@ -1,0 +1,361 @@
+{
+ "comment": "V22: Figuren aus MakeHuman (CC0). Erzeugt von tools/make-people.mjs. RIG: Gelenkpunkte der Ruhehaltung (Meter, rechte Seite positiv nach außen), m = Herren, f = Damen.",
+ "rig": {
+  "m": {
+   "top": 1.4255,
+   "shX": 0.1874,
+   "shZ": 0.0198,
+   "el": [
+    0.2063,
+    1.1736,
+    0.0022
+   ],
+   "wr": [
+    0.214,
+    0.9181,
+    0.0711
+   ],
+   "hip": 0.9619,
+   "hx": 0.1092,
+   "knee": 0.5381,
+   "ank": 0.1017,
+   "ankX": 0.0983,
+   "headC": 1.6717,
+   "headZ": 0.0436,
+   "neck": 1.5585,
+   "neckZ": 0.0135,
+   "waist": 1.125,
+   "eye": [
+    0.0293,
+    1.6667,
+    0.1286
+   ],
+   "kn": [
+    0.111,
+    0.1462
+   ]
+  },
+  "f": {
+   "top": 1.3259,
+   "shX": 0.1546,
+   "shZ": 0.0208,
+   "el": [
+    0.1823,
+    1.0947,
+    0.0047
+   ],
+   "wr": [
+    0.1921,
+    0.8905,
+    0.0598
+   ],
+   "hip": 0.8751,
+   "hx": 0.0949,
+   "knee": 0.5018,
+   "ank": 0.1212,
+   "ankX": 0.0807,
+   "headC": 1.5548,
+   "headZ": 0.0257,
+   "neck": 1.4436,
+   "neckZ": -0.0012,
+   "waist": 1.0219,
+   "eye": [
+    0.0287,
+    1.5498,
+    0.1107
+   ],
+   "kn": [
+    0.0908,
+    0.12
+   ]
+  }
+ },
+ "hideBits": {
+  "suit-m": 1,
+  "work-m": 2,
+  "shoes-m": 4,
+  "boots-m": 8,
+  "lady-f": 16,
+  "heels-f": 32
+ },
+ "atlas": {
+  "w": 2048,
+  "h": 2560,
+  "tile": 512,
+  "rect": {
+   "skin_m": [
+    0,
+    0,
+    1,
+    1
+   ],
+   "skin_f": [
+    0,
+    1,
+    1,
+    1
+   ],
+   "suit": [
+    0,
+    2,
+    1,
+    1
+   ],
+   "tux": [
+    1,
+    2,
+    1,
+    1
+   ],
+   "uniform": [
+    2,
+    2,
+    1,
+    1
+   ],
+   "waiter": [
+    3,
+    2,
+    1,
+    1
+   ],
+   "work": [
+    0,
+    3,
+    1,
+    1
+   ],
+   "lady": [
+    1,
+    3,
+    1,
+    1
+   ],
+   "shoes": [
+    2,
+    3,
+    0.5,
+    0.5
+   ],
+   "boots": [
+    2.5,
+    3,
+    0.5,
+    0.5
+   ],
+   "eyes": [
+    2,
+    3.5,
+    0.5,
+    0.5
+   ],
+   "brows_m": [
+    2.5,
+    3.5,
+    0.25,
+    0.25
+   ],
+   "brows_f": [
+    2.75,
+    3.5,
+    0.25,
+    0.25
+   ],
+   "lashes": [
+    2.5,
+    3.75,
+    0.5,
+    0.25
+   ],
+   "heels": [
+    3,
+    3,
+    0.25,
+    0.25
+   ],
+   "hairA_m": [
+    0,
+    4,
+    0.5,
+    0.5
+   ],
+   "hairB_m": [
+    0.5,
+    4,
+    0.5,
+    0.5
+   ],
+   "hairC_m": [
+    0,
+    4.5,
+    0.5,
+    0.5
+   ],
+   "hairA_f": [
+    1,
+    4,
+    1,
+    1
+   ],
+   "hairB_f": [
+    2,
+    4,
+    1,
+    1
+   ],
+   "hairC_f": [
+    3,
+    4,
+    1,
+    1
+   ]
+  },
+  "skinTiles": 4
+ },
+ "meshes": {
+  "body-m": {
+   "verts": 14517,
+   "tris": 26756
+  },
+  "eyes-m": {
+   "verts": 96,
+   "tris": 172
+  },
+  "body-f": {
+   "verts": 14517,
+   "tris": 26756
+  },
+  "eyes-f": {
+   "verts": 96,
+   "tris": 172
+  },
+  "suit-m": {
+   "verts": 8522,
+   "tris": 14956
+  },
+  "work-m": {
+   "verts": 4277,
+   "tris": 6986
+  },
+  "shoes-m": {
+   "verts": 2542,
+   "tris": 4128
+  },
+  "boots-m": {
+   "verts": 1904,
+   "tris": 3320
+  },
+  "lady-f": {
+   "verts": 2446,
+   "tris": 4192
+  },
+  "hairA-m": {
+   "verts": 2061,
+   "tris": 6688
+  },
+  "hairB-m": {
+   "verts": 991,
+   "tris": 2100
+  },
+  "hairC-m": {
+   "verts": 3177,
+   "tris": 7356
+  },
+  "hairA-f": {
+   "verts": 1759,
+   "tris": 4496
+  },
+  "hairB-f": {
+   "verts": 5961,
+   "tris": 16948
+  },
+  "hairC-f": {
+   "verts": 4049,
+   "tris": 10704
+  },
+  "brows-m": {
+   "verts": 126,
+   "tris": 384
+  },
+  "brows-f": {
+   "verts": 126,
+   "tris": 384
+  },
+  "lashes-m": {
+   "verts": 250,
+   "tris": 736
+  },
+  "lashes-f": {
+   "verts": 250,
+   "tris": 736
+  },
+  "heels-f": {
+   "verts": 2454,
+   "tris": 4290
+  },
+  "body-m@1": {
+   "verts": 2347,
+   "tris": 4012
+  },
+  "body-f@1": {
+   "verts": 2342,
+   "tris": 4012
+  },
+  "suit-m@1": {
+   "verts": 1846,
+   "tris": 2691
+  },
+  "work-m@1": {
+   "verts": 1244,
+   "tris": 1746
+  },
+  "lady-f@1": {
+   "verts": 846,
+   "tris": 1257
+  },
+  "shoes-m@1": {
+   "verts": 504,
+   "tris": 619
+  },
+  "boots-m@1": {
+   "verts": 454,
+   "tris": 664
+  },
+  "heels-f@1": {
+   "verts": 697,
+   "tris": 1072
+  },
+  "eyes-m@1": {
+   "verts": 96,
+   "tris": 172
+  },
+  "eyes-f@1": {
+   "verts": 96,
+   "tris": 172
+  },
+  "hairA-m@1": {
+   "verts": 773,
+   "tris": 1946
+  },
+  "hairB-m@1": {
+   "verts": 453,
+   "tris": 836
+  },
+  "hairC-m@1": {
+   "verts": 685,
+   "tris": 1838
+  },
+  "hairA-f@1": {
+   "verts": 548,
+   "tris": 1324
+  },
+  "hairB-f@1": {
+   "verts": 1599,
+   "tris": 3708
+  },
+  "hairC-f@1": {
+   "verts": 889,
+   "tris": 2070
+  }
+ }
+}
