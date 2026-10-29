@@ -255,7 +255,7 @@ export function buildVillaRooms(ctx) {
     for (const sx of [-1, 1]) for (let k = 0; k < 3; k++) add('gold', new T.BoxGeometry(0.2, 0.02, 0.03).translate(sx * 0.95, 0.18 + k * 0.2, 0.6));
     col(lx - 1.4, y, lz - 0.7, lx + 1.4, y + 0.8, lz + 0.7);
   };
-  const rug = (zone, lx, lz, y, w, L, mat = 'rug') => { A(zone, mat, new T.BoxGeometry(w, 0.03, L), lx, y + 0.015, lz); box(zone, 'gold', w + 0.2, 0.02, 0.12, lx, y, lz - L / 2); box(zone, 'gold', w + 0.2, 0.02, 0.12, lx, y, lz + L / 2); };
+  const rug = (zone, mat, lx, lz, y, w, L) => { A(zone, mat, new T.BoxGeometry(w, 0.03, L), lx, y + 0.015, lz); box(zone, 'gold', w + 0.2, 0.02, 0.12, lx, y, lz - L / 2); box(zone, 'gold', w + 0.2, 0.02, 0.12, lx, y, lz + L / 2); };
   const statue = (zone, lx, lz, y, s = 1.4) => {
     A(zone, 'white', lathe([[0.45, 0], [0.45, 0.12], [0.35, 0.2], [0.32, 1.0], [0.42, 1.1], [0, 1.1]], 16), lx, y, lz);
     A(zone, 'white', new T.SphereGeometry(0.22 * s, 10, 8).scale(1, 1.6, 1).translate(0, 1.1 + 0.5 * s, 0), lx, y, lz);
@@ -308,7 +308,7 @@ export function buildVillaRooms(ctx) {
   A(EG, 'gold', new T.RingGeometry(3.6, 3.9, 48).rotateX(-Math.PI / 2), 0, 0.05, -17.5);
   A(EG, 'black', new T.CircleGeometry(3.6, 48).rotateX(-Math.PI / 2), 0, 0.045, -17.5);
   A(EG, 'gold', new T.PlaneGeometry(2.4, 2.4).rotateX(-Math.PI / 2).rotateY(Math.PI / 4), 0, 0.055, -17.5);
-  rug(EG, 0, -20.5, 0.06, 6, 3.6, 'carpet');
+  rug(EG, 'carpet', 0, -20.5, 0.06, 6, 3.6);
   ceiling(EG, 'ceil', -14.3, 14.3, -22.4, -13, H1 - 0.05, 3.5);           // unter der Galerie
   ceiling(OG, 'ceil', -14.3, 14.3, -13, -1.6, Y1 + H2 - 0.05, 4);         // über der Halle: zwei Geschosse hoch
   wall(EG, 'plaster', 'z', -14.4, -22.4, -1.6, 0, Y1, 0.14, [[-19, -15, 4.2]], { col: false, side: 1 });
@@ -811,7 +811,7 @@ export function updateVillaZones(near) {
   VR.far = false;
   const l = villaLocal(player.p), dist = Math.hypot(l.x, l.z), lim = MOBILE ? 120 : 190;
   const inH = inVillaHouse(player.p);
-  const eg = dist < lim, og = eg && (!inH || l.y > 4 || (Math.abs(l.x) < 17.5 && l.z < -1)), kel = eg && inH && l.y < 0.6;
+  const eg = dist < lim, og = eg && (!inH || l.y > 4 || (Math.abs(l.x) < 17.5 && l.z < -1)), kel = eg && inH && l.y < -0.3;
   const vis = { eg, og, kel };
   for (const z in G) G[z].visible = !!vis[z];
   for (const d of VR.doors) d.grp.visible = !!vis[d.zone];
