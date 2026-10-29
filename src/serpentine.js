@@ -19,6 +19,7 @@ import { fxEmit } from './particles.js';
 import { impulse, crashDamage } from './driving.js';
 import { windPatch } from './wind.js';
 import { addLight } from './performance.js';
+import { buildVillaRooms, updateVillaRooms } from './villa.js';
 
 /* =====================================================================
    V16 · SERPENTINE ZUR VILLA: vom Viadukt zweigt eine gepflasterte Bergstraße ab
@@ -737,7 +738,9 @@ export function buildVilla() {
 
   // ---------- Terrassen in den Hang gebaut, mit Freitreppe ----------
   const TER_ = [[30, 52, 92, by - 5], [52, 72, 76, by - 11], [72, 90, 58, by - 17]];
-  V(0, 0, 130, 60, by - 3, by, { col: true, flood: 0.3 });                          // Plateau des Hauses
+  V(0, 0, 130, 60, by - 3, by, { col: false, flood: 0.3 });                         // Plateau des Hauses
+  // V28: Kollision des Plateaus ohne den Keller (lokal -56..56 / -24..8); dort gelten Kellerboden und -wände
+  for (const [x0, x1, z0, z1] of [[-65, -56, -30, 30], [56, 65, -30, 30], [-56, 56, -30, -24], [-56, 56, 8, 30]]) colL(x0, by - 3, z0, x1, by, z1);
   for (const [z0, z1, w, top] of TER_) {
     V(0, (z0 + z1) / 2, w, z1 - z0, top - 70, top, { rib: GR, flood: 0.5 });
     // Balustrade an der Vorderkante, Laternen
@@ -770,19 +773,9 @@ export function buildVilla() {
   const DX = VILLA_DOOR.x, DW = VILLA_DOOR.w, DH = VILLA_DOOR.h;
   for (const [a, b] of [[-30, -DX - DW / 2], [-DX + DW / 2, DX - DW / 2], [DX + DW / 2, 30]]) V((a + b) / 2, -22.7, b - a, 0.6, by, by + IH, { ...FW, seed: 881 + Math.round(a) });
   for (const sd of [-1, 1]) V(sd * DX, -22.7, DW, 0.6, by + DH, by + IH, { ...FW, style: 3, dens: 0 });
-  for (const sd of [-1, 1]) { V(sd * 29.7, -12, 0.6, 22, by, by + IH, FW); V(sd * 15.9, -1.3, 28.2, 0.6, by, by + IH, FW); }
-  V(0, -1.3, 3.6, 0.6, by + 6.4, by + IH, FW);
-  V(0, -12, 60, 22, by + IH, by + 16, FW);
-  buildVillaInterior(put, colL, G, by, IH);
+  // V28: Seitenwände, Loggiafassade, Obergeschoss, Flügel und alle Innenräume baut villa.js (buildVillaRooms)
   V(0, -12, 62, 24, by + 16, by + 17.2, { tint: [0.5, 0.42, 0.3], flood: 1, rib: GR, col: false });
-  for (const sd of [-1, 1]) {
-    V(sd * 42, -6, 26, 30, by, by + 12, { style: 2, dens: 1, flood: 1, rib: GR, tint: cream, seed: 882 });
-    V(sd * 42, -6, 27, 31, by + 12, by + 13, { tint: [0.5, 0.42, 0.3], flood: 1, rib: GR, col: false });
-    V(sd * 42, -6, 14, 18, by + 13, by + 17, { style: 2, dens: 1, flood: 1, tint: cream, seed: 883 });
-    N(sd * 42, by + 13.15, -6, 27.2, 0.25, 31.2, NEON.gold);
-    // Dachterrassen-Laternen
-    for (const [dx, dz] of [[-12, 8], [12, 8], [-12, -20], [12, -20]]) G(sd * 42 + dx, by + 13.8, -6 + dz, [1.3, 0.92, 0.55], 1.5);
-  }
+  for (const sd of [-1, 1]) N(sd * 42, by + 16.15, -8, 27.2, 0.25, 31.2, NEON.gold);   // V28: Flügel so hoch wie der Mittelbau
   // Rundturm in der Mitte (gestuft) mit Goldkrone und Lichtsäule
   V(0, -10, 18, 18, by + 16, by + 27, { style: 2, dens: 1, flood: 1, rib: GR, tint: cream, seed: 884 });
   V(0, -10, 12, 12, by + 27, by + 35, { style: 2, dens: 1, flood: 1, rib: GR, tint: cream, seed: 885 });
@@ -797,15 +790,23 @@ export function buildVilla() {
   N(0, by + 10.3, 2, 60.2, 0.25, 0.25, NEON.gold);
   for (let x = -26; x <= 26; x += 4) G(x, by + 7.8, -0.5, [1.35, 0.95, 0.55], 1.3);
   // Große Fenstertüren zur Loggia: warme Lichtflächen
-  for (let x = -24; x <= 24; x += 6) if (x !== 0) put('lamp', new T.PlaneGeometry(3.2, 6.2), x, by + 3.3, -0.94);
-  // Flügeltür in der Mitte: offen, mit Goldrahmen
-  for (const sd of [-1, 1]) { put('gold', new T.BoxGeometry(0.2, 6.4, 0.7), sd * 1.9, by + 3.2, -1.3); put('lamp', new T.PlaneGeometry(1.7, 6.0).rotateY(sd * 1.2), sd * 2.4, by + 3.1, -0.4); }
-  put('gold', new T.BoxGeometry(4.0, 0.25, 0.7), 0, by + 6.5, -1.3);
+  for (let x = -24; x <= 24; x += 6) if (x !== 0 && Math.abs(x) !== 18) put('lamp', new T.PlaneGeometry(3.2, 6.2), x, by + 3.3, -0.94);
   // Pflanzkübel aus Stein mit Buchskugeln entlang der Loggia
   for (let x = -30; x <= 30; x += 10) { put('stone', new T.CylinderGeometry(0.75, 0.5, 1.0, 16), x + 2, by + 0.5, 4.2); put('gold', new T.TorusGeometry(0.75, 0.06, 6, 24).rotateX(Math.PI / 2), x + 2, by + 1.0, 4.2); put('hedge', new T.SphereGeometry(0.9, 14, 10), x + 2, by + 1.75, 4.2); colL(x + 1.2, by, 3.4, x + 2.8, by + 1.2, 5.0); }
 
   // ---------- Garten: Brunnen, Pool, Hecken, Zypressen, Belvedere ----------
   const water = poolWaterMat([0.04, 0.4, 0.42]);
+  const M = {
+    stone: stdMat({ color: 0xcfc2a8, roughness: 0.6, envI: 0.3, emissive: 0x15100a }), gold: MAT.gold, iron: stdMat({ color: 0x2a2a2e, metalness: 0.7, roughness: 0.4 }),
+    lamp: new T.MeshBasicMaterial({ color: new T.Color(1.05, 0.78, 0.48), side: T.DoubleSide }), water,
+    hedge: stdMat({ map: HEDGE_TEX.map, normalMap: HEDGE_TEX.normal, roughnessMap: HEDGE_TEX.rough, normalScale: new T.Vector2(1.2, 1.2), color: 0xb0c0a8, roughness: 1, envI: 0.15, emissive: 0x0a140a, emissiveMap: HEDGE_TEX.map }), trunk: stdMat({ color: 0x2e2216, roughness: 0.9, env: false }),
+    velvet: stdMat({ color: 0xe9e1cf, roughness: 0.8, envI: 0.2 }), dark: MAT.black, ...villaInteriorMats(),
+    glassD: stdMat({ color: 0x0a0d10, metalness: 0.7, roughness: 0.12, envI: 1.4, emissive: 0x1a1006, transparent: true, opacity: 0.55 }),
+    carpet: stdMat({ color: 0x6a0d12, roughness: 0.85, envI: 0.15, emissive: 0x120202 }),
+    sofa: stdMat({ color: 0x8a6a3e, roughness: 0.75, env: false, emissive: 0x140c05 }),
+    statue: stdMat({ color: 0xf2ede4, roughness: 0.35, envI: 0.6, emissive: 0x1a1612 }),
+    roseW: stdMat({ color: 0xf4f0ea, roughness: 0.7, emissive: 0x3a3634 }), roseR: stdMat({ color: 0x8a0e1a, roughness: 0.6, emissive: 0x2a0306 }),
+  };
   const basin = (lx, lz, r, y) => {
     put('stone', new T.CylinderGeometry(r + 0.5, r + 0.7, 0.9, 40), lx, y + 0.45, lz);
     put('water', new T.CylinderGeometry(r, r, 0.1, 40), lx, y + 0.86, lz);
@@ -911,7 +912,7 @@ export function buildVilla() {
   put('dark', new T.BoxGeometry(12, 0.8, 6), -20, by + 0.4, 14); colL(-26, by, 11, -14, by + 0.8, 17);
   { const [x, z] = W(-20, 11.5); const fm = new T.Mesh(new T.PlaneGeometry(10, 5), new T.MeshBasicMaterial({ map: FAN_TEX, transparent: true, color: new T.Color(1.2, 1.0, 0.7), depthWrite: false, side: T.DoubleSide })); fm.position.set(x, by + 3.3, z); fm.rotation.y = ry; scene.add(fm); }
   G(-20, by + 4, 14, [1.3, 0.9, 0.5], 6);
-  const crowd = VILLA.crowd = new Crowd(['tux', 'gown', 'dress', 'livery'], 300);
+  const crowd = VILLA.crowd = new Crowd(['tux', 'gown', 'dress', 'livery'], 420);
   const pl = (kind, color, lx, y, lz, yaw) => { const a = crowd.add(kind, color); const [x, z] = W(lx, lz); a.x = x; a.y = y; a.z = z; a.yaw = yaw + ry; return a; };
   VILLA.sway = [];
   for (const [lx, kind] of [[-24, 'tux'], [-22, 'tux'], [-20, 'gown'], [-18, 'tux'], [-16, 'tux']]) VILLA.sway.push(pl(kind, [0.95, 0.75, 0.38], lx, by + 0.8, 15.5, Math.PI));
@@ -932,6 +933,8 @@ export function buildVilla() {
   for (let k = 0; k < 6; k++) pl(R() < 0.5 ? 'tux' : 'gown', pick(GOWNS), 17 + k * 1.8, by, -15.6, Math.PI);
   for (let k = 0; k < 3; k++) guest(rand(-27, -18), by, rand(-12, -4));
   pl('livery', [0.9, 0.88, 0.82], 22, by, -20.6, 0);
+  // V28: alle Innenräume, ihre Möbel, Türen, Lichter und Bewohner (vor crowd.finish, weil Figuren dazukommen)
+  buildVillaRooms({ W, V, G, colL, pl, by, ry, M, crowd });
   crowd.finish();
   for (const a of crowd.list) if (a.x !== undefined) crowd.set(a, a.x, a.y, a.z, a.yaw);
   crowd.flag();
@@ -985,28 +988,17 @@ export function buildVilla() {
     G(tx, by + 1.3, tz, [1.3, 1.1, 0.6], 1.2);
   }
   // Goldfinnen auf den Flügeln und dem Mittelbau, Lichtband an den Gesimsen
-  for (const sd of [-1, 1]) { const [x, z] = W(sd * 42, -6); crownFinsR(x, z, 14, 18, by + 17, 2.4, GR, ry); }
+  for (const sd of [-1, 1]) { const [x, z] = W(sd * 42, -8); crownFinsR(x, z, 26, 30, by + 17.2, 1.8, GR, ry); crownFinsR(x, z, 14, 18, by + 21, 2.4, GR, ry); }
   { const [x, z] = W(0, -12); crownFinsR(x, z, 62, 24, by + 17.2, 1.6, GR, ry); }
   // Fackeln an der Auffahrt und am Weg hinunter
   for (let lx = -48; lx <= 48; lx += 16) for (const lz of [-24.5, -55.5]) { put('iron', new T.CylinderGeometry(0.05, 0.07, 2.2, 6), lx, by + 1.1, lz); put('gold', new T.CylinderGeometry(0.16, 0.08, 0.3, 8), lx, by + 2.3, lz); G(lx, by + 2.65, lz, [1.6, 0.7, 0.2], 1.4); }
 
-  const M = {
-    stone: stdMat({ color: 0xcfc2a8, roughness: 0.6, envI: 0.3, emissive: 0x15100a }), gold: MAT.gold, iron: stdMat({ color: 0x2a2a2e, metalness: 0.7, roughness: 0.4 }),
-    lamp: new T.MeshBasicMaterial({ color: new T.Color(1.05, 0.78, 0.48), side: T.DoubleSide }), water,
-    hedge: stdMat({ map: HEDGE_TEX.map, normalMap: HEDGE_TEX.normal, roughnessMap: HEDGE_TEX.rough, normalScale: new T.Vector2(1.2, 1.2), color: 0xb0c0a8, roughness: 1, envI: 0.15, emissive: 0x0a140a, emissiveMap: HEDGE_TEX.map }), trunk: stdMat({ color: 0x2e2216, roughness: 0.9, env: false }),
-    velvet: stdMat({ color: 0xe9e1cf, roughness: 0.8, envI: 0.2 }), dark: MAT.black, ...villaInteriorMats(),
-    glassD: stdMat({ color: 0x0a0d10, metalness: 0.7, roughness: 0.12, envI: 1.4, emissive: 0x1a1006, transparent: true, opacity: 0.55 }),
-    carpet: stdMat({ color: 0x6a0d12, roughness: 0.85, envI: 0.15, emissive: 0x120202 }),
-    sofa: stdMat({ color: 0x8a6a3e, roughness: 0.75, env: false, emissive: 0x140c05 }),
-    statue: stdMat({ color: 0xf2ede4, roughness: 0.35, envI: 0.6, emissive: 0x1a1612 }),
-    roseW: stdMat({ color: 0xf4f0ea, roughness: 0.7, emissive: 0x3a3634 }), roseR: stdMat({ color: 0x8a0e1a, roughness: 0.6, emissive: 0x2a0306 }),
-  };
   const WUV = { hedge: 1.6, plaster: 4.2, parq: 4.0, marble: 4.2, panel: 2.0 };
   for (const k in batch) { const g = mergeGeos(batch[k]); if (WUV[k]) worldUV(g, WUV[k]); const m = new T.Mesh(g, M[k]); m.frustumCulled = false; scene.add(m); }
   { const [x, z] = W(0, 20); addLight(0xffc27a, 0.95, 140, 1.4, x, by + 12, z); }
   { const [x, z] = W(0, -12); addLight(0xffd29a, 0.7, 30, 1.6, x, by + 6.5, z); }
 }
-// Innenräume der Villa: Marmorboden, Kassettendecke, Kronleuchter, Kamin, Bücherwände, Bar
+// Materialien der Innenräume (Marmor, Parkett, Täfelung, Tapete, Bücher …); die Räume selbst baut villa.js (V28)
 export function villaInteriorMats() {
   const MB = marbleFloorTextures(), PQ = parquetTextures(), WP = wallpaperTex('#3a2a20', 'rgba(222,178,96,0.24)'), PN = woodPanelTextures(), RG = rugTex();
   WP.wrapS = WP.wrapT = T.RepeatWrapping;
@@ -1030,102 +1022,6 @@ export function villaInteriorMats() {
     fan: new T.MeshBasicMaterial({ map: FAN_TEX, transparent: true, depthWrite: false, color: new T.Color(0.9, 0.72, 0.45) }),
     bottle: new T.MeshBasicMaterial({ color: new T.Color(0.9, 0.55, 0.22) }),
   };
-}
-export function buildVillaInterior(put, colL, G, by, IH) {
-  const X0 = -28.8, X1 = 28.8, Z0 = -22.4, Z1 = -1.6, D = Z1 - Z0;
-  // Boden, Decke, Wandverkleidung innen
-  // Salon mit Marmor, Bibliothek und Bar mit Fischgrätparkett; die Texturen laufen in Weltkoordinaten
-  for (const [a, b, k] of [[X0, -14.5, 'parq'], [-14.5, 14.5, 'marble'], [14.5, X1, 'parq']])
-    put(k, new T.PlaneGeometry(b - a, D).rotateX(-Math.PI / 2), (a + b) / 2, by + 0.03, (Z0 + Z1) / 2);
-  put('ceil', new T.PlaneGeometry(X1 - X0, D).rotateX(Math.PI / 2), 0, by + IH - 0.05, (Z0 + Z1) / 2);
-  for (let x = X0 + 3.5; x < X1; x += 3.5) put('gold', new T.BoxGeometry(0.18, 0.3, D), x, by + IH - 0.2, (Z0 + Z1) / 2);
-  for (let z = Z0 + 3.5; z < Z1; z += 3.5) put('gold', new T.BoxGeometry(X1 - X0, 0.3, 0.18), 0, by + IH - 0.2, z);
-  const DX = VILLA_DOOR.x, DW = VILLA_DOOR.w, DH = VILLA_DOOR.h;
-  const backRuns = [[X0, -DX - DW / 2], [-DX + DW / 2, DX - DW / 2], [DX + DW / 2, X1]];
-  for (const [a, b] of backRuns) put('plaster', new T.BoxGeometry(b - a, IH, 0.1), (a + b) / 2, by + IH / 2, Z0 + 0.05);
-  for (const sd of [-1, 1]) put('plaster', new T.BoxGeometry(DW, IH - DH, 0.1), sd * DX, by + DH + (IH - DH) / 2, Z0 + 0.05);
-  for (const sd of [-1, 1]) {
-    put('plaster', new T.BoxGeometry(0.1, IH, D), sd * (X1 - 0.05), by + IH / 2, (Z0 + Z1) / 2);
-    put('plaster', new T.BoxGeometry(27.6, IH, 0.1), sd * 15.6, by + IH / 2, Z1 - 0.05);
-    // Zwischenwände mit Durchgang zu Bibliothek und Bar
-    const px = sd * 14.5;
-    put('plaster', new T.BoxGeometry(0.4, IH, 8.4), px, by + IH / 2, Z0 + 4.2); colL(px - 0.2, by, Z0, px + 0.2, by + IH, Z0 + 8.4);
-    put('plaster', new T.BoxGeometry(0.4, IH, 8.4), px, by + IH / 2, Z1 - 4.2); colL(px - 0.2, by, Z1 - 8.4, px + 0.2, by + IH, Z1);
-    put('plaster', new T.BoxGeometry(0.4, IH - 4.2, 4.0), px, by + 4.2 + (IH - 4.2) / 2, Z0 + 10.4);
-    put('gold', new T.BoxGeometry(0.5, 0.2, 4.2), px, by + 4.2, Z0 + 10.4);
-    // Sockelleisten und Goldfries
-    put('wood', new T.BoxGeometry(0.12, 0.35, D), sd * (X1 - 0.12), by + 0.18, (Z0 + Z1) / 2);
-    put('gold', new T.BoxGeometry(0.12, 0.08, D), sd * (X1 - 0.12), by + IH - 1.2, (Z0 + Z1) / 2);
-    put('panel', new T.BoxGeometry(0.08, 1.3, D), sd * (X1 - 0.12), by + 0.65, (Z0 + Z1) / 2);
-    put('wood', new T.BoxGeometry(0.14, 0.08, D), sd * (X1 - 0.12), by + 1.32, (Z0 + Z1) / 2);
-  }
-  for (const [a, b] of backRuns) {
-    put('panel', new T.BoxGeometry(b - a, 1.3, 0.08), (a + b) / 2, by + 0.65, Z0 + 0.12);
-    put('wood', new T.BoxGeometry(b - a, 0.08, 0.14), (a + b) / 2, by + 1.32, Z0 + 0.12);
-    put('wood', new T.BoxGeometry(b - a, 0.35, 0.12), (a + b) / 2, by + 0.18, Z0 + 0.12);
-  }
-  put('gold', new T.BoxGeometry(X1 - X0, 0.08, 0.12), 0, by + IH - 1.2, Z0 + 0.12);
-  // Salon: Kamin an der Rückwand, Teppich, Sofas, Flügel, Kronleuchter
-  put('stone', new T.BoxGeometry(5.2, 3.4, 1.0), 0, by + 1.7, Z0 + 0.6); put('dark', new T.BoxGeometry(3.0, 2.0, 0.6), 0, by + 1.1, Z0 + 0.9);
-  put('fire', new T.PlaneGeometry(2.4, 0.9), 0, by + 0.6, Z0 + 1.0); put('gold', new T.BoxGeometry(5.6, 0.2, 1.2), 0, by + 3.45, Z0 + 0.6);
-  put('fan', new T.PlaneGeometry(5.6, 2.8), 0, by + 5.0, Z0 + 0.14);
-  G(0, by + 0.9, Z0 + 1.6, [1.4, 0.6, 0.2], 3.0); colL(-2.6, by, Z0, 2.6, by + 3.5, Z0 + 1.2);
-  put('rug', new T.BoxGeometry(14, 0.04, 9), 0, by + 0.06, -12);
-  put('gold', new T.BoxGeometry(14.2, 0.05, 0.15), 0, by + 0.07, -16.5); put('gold', new T.BoxGeometry(14.2, 0.05, 0.15), 0, by + 0.07, -7.5);
-  const VM = { up: 'sofa', frame: 'gold', wood: 'wood', lamp: 'lamp', leaf: 'hedge', cloth: 'velvet' }, VR = { ...VM, up: 'leather' }, vadd = (k, g) => put(k, g, 0, 0, 0);
-  for (const [lx, lz, a] of [[-5, -12, Math.PI / 2], [5, -12, -Math.PI / 2], [0, -17, 0]]) placeFurn(FURN.sofa(4), VM, vadd, lx, by, lz, a);
-  placeFurn(FURN.roundTable(1.0, 0.46), VM, vadd, 0, by, -12);
-  placeFurn(FURN.vasePlant(0.7), VM, vadd, 0, by + 0.46, -12);
-  for (const sx of [-1, 1]) {
-    placeFurn(FURN.floorLamp(), VM, vadd, sx * 7.4, by, -15.6); G(sx * 7.4, by + 1.55, -15.6, [1.3, 0.9, 0.5], 1.4);
-    placeFurn(FURN.vasePlant(1.6), VM, vadd, sx * 3.7, by, Z0 + 0.9);
-    placeFurn(FURN.vasePlant(1.4), VM, vadd, sx * 3.2, by, Z1 - 1.0);
-  }
-  // Bistrotische mit Stühlen und Tischlampen in den Ecken des Salons
-  for (const [lx, lz] of [[-10, -19.5], [10, -19.5], [-10, -6]]) {
-    placeFurn(FURN.roundTable(0.5), VM, vadd, lx, by, lz); placeFurn(FURN.tableLamp(), VM, vadd, lx, by + 0.74, lz); G(lx, by + 1.15, lz, [1.3, 0.9, 0.5], 1.0);
-    for (let k = 0; k < 3; k++) { const a = k / 3 * Math.PI * 2 + 0.5; placeFurn(FURN.bistroChair(), VM, vadd, lx + Math.sin(a) * 0.85, by, lz + Math.cos(a) * 0.85, a + Math.PI); }
-    colL(lx - 0.6, by, lz - 0.6, lx + 0.6, by + 0.8, lz + 0.6);
-  }
-  colL(-6, by, -14.5, -4, by + 1.1, -9.5); colL(4, by, -14.5, 6, by + 1.1, -9.5); colL(-2, by, -18, 2, by + 1.1, -16.4);
-  // Flügel mit offenem Deckel
-  put('dark', new T.BoxGeometry(2.6, 0.5, 1.6), 9.5, by + 1.0, -5.2); put('dark', new T.BoxGeometry(2.4, 0.06, 1.4).rotateZ(-0.6), 9.8, by + 1.75, -5.2);
-  for (const dx of [-1, 1]) put('dark', new T.CylinderGeometry(0.08, 0.08, 0.75, 8), 9.5 + dx * 1.1, by + 0.38, -5.2);
-  put('velvet', new T.BoxGeometry(0.4, 0.06, 1.6), 8.1, by + 0.82, -5.2); colL(8.1, by, -6.1, 10.9, by + 1.3, -4.3);
-  // Kronleuchter: Goldringe, Kristalltropfen, Licht
-  const chand = (lx, lz, r) => {
-    put('gold', new T.CylinderGeometry(0.04, 0.04, 2.0, 6), lx, by + IH - 1.0, lz);
-    for (const [rr, y] of [[r, 0], [r * 0.65, 0.6], [r * 0.32, 1.1]]) {
-      put('gold', new T.TorusGeometry(rr, 0.05, 6, 32).rotateX(Math.PI / 2), lx, by + IH - 2.6 + y, lz);
-      const n = Math.round(rr * 9);
-      for (let k = 0; k < n; k++) { const a = k / n * Math.PI * 2; put('lamp', new T.OctahedronGeometry(0.09), lx + Math.cos(a) * rr, by + IH - 2.8 + y, lz + Math.sin(a) * rr); }
-    }
-    G(lx, by + IH - 2.4, lz, [1.35, 1.0, 0.65], 4.5);
-  };
-  chand(0, -12, 1.6); chand(-22, -12, 1.0); chand(22, -12, 1.0);
-  // Bibliothek: Bücherwände, Lesesessel, Schreibtisch mit Lampe
-  for (const [lx, lz, w, a] of [[-22, Z0 + 0.35, 13.4, 0], [X0 + 0.35, -12, 19.6, Math.PI / 2]]) {
-    put('books', new T.PlaneGeometry(w, 5.6).rotateY(a), lx, by + 2.9, lz);
-    put('wood', new T.BoxGeometry(w + 0.2, 0.3, 0.7).rotateY(a), lx, by + 5.85, lz); put('wood', new T.BoxGeometry(w + 0.2, 0.15, 0.6).rotateY(a), lx, by + 0.1, lz);
-  }
-  colL(X0, by, Z0, -15, by + 6, Z0 + 0.8); colL(X0, by, Z0, X0 + 0.8, by + 6, Z1);
-  put('wood', new T.BoxGeometry(3.2, 0.12, 1.6), -22, by + 1.0, -9); for (const [dx, dz] of [[-1.4, -0.6], [1.4, -0.6], [-1.4, 0.6], [1.4, 0.6]]) put('wood', new T.BoxGeometry(0.12, 1.0, 0.12), -22 + dx, by + 0.5, -9 + dz);
-  put('gold', new T.CylinderGeometry(0.05, 0.18, 0.5, 8), -21.2, by + 1.3, -9.2); put('lamp', new T.ConeGeometry(0.35, 0.3, 14, 1, true), -21.2, by + 1.65, -9.2);
-  G(-21.2, by + 1.6, -9.2, [1.35, 0.95, 0.55], 1.6); colL(-23.6, by, -9.8, -20.4, by + 1.1, -8.2);
-  for (const [lx, lz] of [[-25, -15], [-19, -15]]) { placeFurn(FURN.clubChair(), VR, vadd, lx, by, lz, lx < -22 ? 0.4 : -0.4); colL(lx - 0.6, by, lz - 0.6, lx + 0.6, by + 1.1, lz + 0.6); }
-  placeFurn(FURN.roundTable(0.4, 0.58), VM, vadd, -22, by, -15.4); placeFurn(FURN.tableLamp(0.45), VM, vadd, -22, by + 0.58, -15.4); G(-22, by + 0.95, -15.4, [1.3, 0.9, 0.5], 1.0);
-  placeFurn(FURN.floorLamp(), VM, vadd, -27.5, by, -6); G(-27.5, by + 1.55, -6, [1.3, 0.9, 0.5], 1.3);
-  // Bar: Tresen mit Goldkante, Spiegelwand mit Flaschen, Hocker
-  put('wood', new T.BoxGeometry(12, 1.15, 1.0), 22, by + 0.58, -17.6); put('gold', new T.BoxGeometry(12.2, 0.08, 1.15), 22, by + 1.19, -17.6);
-  put('gold', new T.BoxGeometry(12, 0.1, 0.1), 22, by + 0.3, -17.0); colL(16, by, -18.1, 28, by + 1.2, -17.1);
-  put('dark', new T.BoxGeometry(13, 4.2, 0.3), 22, by + 3.0, Z0 + 0.3);
-  for (let row = 0; row < 3; row++) {
-    put('gold', new T.BoxGeometry(12.6, 0.06, 0.45), 22, by + 1.6 + row * 1.15, Z0 + 0.5);
-    for (let k = 0; k < 26; k++) put('bottle', new T.CylinderGeometry(0.06, 0.08, 0.42 + (k % 3) * 0.06, 8), 16.2 + k * 0.46, by + 1.85 + row * 1.15, Z0 + 0.55);
-  }
-  G(22, by + 3.0, Z0 + 1.2, [1.3, 0.75, 0.35], 3.5);
-  for (let k = 0; k < 7; k++) placeFurn(FURN.barStool(), VR, vadd, 16.6 + k * 1.75, by, -16.55);
-  for (const lx of [17.5, 26]) { placeFurn(FURN.roundTable(0.45, 1.05), VM, vadd, lx, by, -7); for (let k = 0; k < 2; k++) placeFurn(FURN.barStool(), VR, vadd, lx + (k ? 0.75 : -0.75), by, -7.3); colL(lx - 0.5, by, -7.5, lx + 0.5, by + 1.1, -6.5); }
 }
 export function crownFinsR(x, z, w, d, y, h, c, ry) {
   const n0 = neons.length; crownFins(0, 0, w, d, y, h, c);
@@ -1194,6 +1090,7 @@ export function updateVilla(t) {
   const rot = (lx, lz) => [VILLA.x + lx * cs + lz * sn, VILLA.z - lx * sn + lz * cs]; rot.ry = VILLA.ry;
   for (const c of VILLA.dancers) placeCouple(C, c, t, VILLA_F, 0, 0, by, rot);
   VILLA.sway.forEach((a, i) => C.set(a, a.x, a.y, a.z, a.yaw + Math.sin(t * 2.2 + i) * 0.12, 1, Math.sin(t * 4.4 + i) * 0.05));
+  updateVillaRooms(t, C, rot);   // V28: Zonen, Türen, Tänzer im Ballsaal, Raumnamen
   C.flag();
 }
 export function buildMountains() {

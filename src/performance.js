@@ -6,6 +6,7 @@ import { WATER_Y, updateInterior } from './dance.js';
 import { REFL, updateWaves, harborWater, renderReflection } from './water.js';
 import { updatePort, carryPlayer, VILLA, terrainHeight } from './harbour.js';
 import { updateVilla, updateParked, updateLampLod, updateTreeLod, updateFireworks } from './serpentine.js';
+import { inVillaHouse, updateVillaZones } from './villa.js';
 import { updatePedestrians, CLOCK, citizenNear, citizenDoing } from './ragdoll.js';
 import { searchlights } from './airships.js';
 import { updateCars, updateTrucks, updateTrams } from './traffic.js';
@@ -172,7 +173,7 @@ export function frame(now) {
   updateCars(dt);
   updateTrucks(dt);
   updateTrams(dt);
-  const inside = playing && inBelmont(player.p.x, player.p.z, player.p.y) ? 1 : 0;
+  const inside = playing && (inBelmont(player.p.x, player.p.z, player.p.y) || inVillaHouse(player.p)) ? 1 : 0;   // V28: auch in der Villa kein Regen, kein Bodennebel
   U.uInside.value += (inside - U.uInside.value) * Math.min(1, dt * 4);
   hemi.intensity = (0.9 + 0.12 * U.uSnowCover.value) * (1 - 0.72 * U.uInside.value); moonLight.intensity = ATMO.moonI * (1 - U.uInside.value);
   const nearBel = !playing || (Math.abs(camera.position.x) < 70 && Math.abs(camera.position.z) < 75 && camera.position.y < 45);
@@ -181,7 +182,7 @@ export function frame(now) {
   updateBelmontDoor(dt);
   const nearVilla = Math.hypot(camera.position.x - VILLA.x, camera.position.z - VILLA.z) < 650;
   if (VILLA.crowd) VILLA.crowd.show(nearVilla);
-  if (nearVilla) updateVilla(t);
+  if (nearVilla) updateVilla(t); else updateVillaZones(false);
   updateLights(dt);
   updateDetails(dt);
   updateChunks(dt);
