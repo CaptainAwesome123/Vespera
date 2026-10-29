@@ -14,6 +14,8 @@ import { GROUND_FOG } from './airships.js';
    klar, Polarlicht, türkiser Dunst, dichter Nebel, Regen, Schnee, Eisnebel.
    Nässe und Schneedecke folgen träge (Pfützen bleiben nach dem Regen, Schnee taut langsam).
    ===================================================================== */
+// V30: Nordpol: diese leichte Schneedecke bleibt immer liegen (Untergrenze von uSnowCover)
+export const SNOW_BASE = 0.4;
 export const WEATHERS = [
   { id: 'klar', name: 'Klare Polarnacht', fog: 0.8, cloud: 0.12, aurora: 0.5, rain: 0, snow: 0, frost: 0.2, tint: [0.03, 0.125, 0.142], w: 2 },
   { id: 'polarlicht', name: 'Polarlicht', fog: 0.7, cloud: 0.04, aurora: 1.0, rain: 0, snow: 0, frost: 0.35, tint: [0.028, 0.13, 0.13], w: 2 },
@@ -39,7 +41,7 @@ const SYN = 29.530588853;   // synodischer Monat in Tagen
   ATMO.timer = 200 + Math.random() * 160;
   ATMO.phase0 = q.has('mond') ? +q.get('mond') : ((Date.now() - Date.UTC(2000, 0, 6, 18, 14)) / 86400000 / SYN) % 1;
   if (ATMO.w.rain) U.uWet.value = 0.9;
-  if (ATMO.w.snow) U.uSnowCover.value = 0.8;
+  U.uSnowCover.value = ATMO.w.snow ? 0.8 : SNOW_BASE;
 }
 export const MOON_NAMES = ['Neumond', 'Zunehmende Sichel', 'Erstes Viertel', 'Zunehmender Mond', 'Vollmond', 'Abnehmender Mond', 'Letztes Viertel', 'Abnehmende Sichel'];
 export function moonName(ph) { return MOON_NAMES[Math.round(ph * 8) % 8]; }
@@ -229,7 +231,8 @@ export function updateAtmosphere(dt) {
   // Nässe kommt schnell und trocknet langsam; das Pflaster bleibt immer etwas feucht. Schnee bleibt liegen und taut langsam, im Regen schneller.
   const wet = U.uWet, sc = U.uSnowCover, wT = Math.max(0.3, c.rain);
   wet.value += (wT - wet.value) * (1 - Math.exp(-dt / (wT > wet.value ? 20 : 160)));
-  const sT = c.snow > 0.3 ? 1 : 0;
+  // V30: Nordpol: eine leichte Schneedecke (SNOW_BASE) bleibt immer liegen, Schneefall macht sie dicker
+  const sT = c.snow > 0.3 ? 1 : SNOW_BASE;
   sc.value += (sT - sc.value) * (1 - Math.exp(-dt / (sT > sc.value ? 90 : c.rain > 0.3 ? 60 : 300)));
   // Mond: zieht in 24 Spielstunden flach um den Horizont, die Phase läuft mit den Spieltagen weiter
   A.gameMin += dt;

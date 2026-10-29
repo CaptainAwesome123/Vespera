@@ -1,4 +1,4 @@
-import { shared, U, canvasTex, T, renderer, mergeGeos, geoView } from './core.js';
+import { shared, U, canvasTex, T, renderer, mergeGeos, geoView, snowy } from './core.js';
 import { HL, FACE_ATLAS, FACE_MAT } from './people-model.js';
 import { mocapGLSL, MOCAP } from './mocap.js';
 
@@ -1044,7 +1044,7 @@ export function getMats() {
   MAT.gold = stdMat({ color: 0xc9a258, metalness: 1, roughness: 0.4, emissive: 0x120b03, envI: 0.7 });
   MAT.brass = stdMat({ color: 0xb08a4a, metalness: 0.9, roughness: 0.38, emissive: 0x120a02 });
   MAT.chrome = stdMat({ color: 0xd8dde2, metalness: 1, roughness: 0.18 });
-  MAT.carPaint = carPaintMat();
+  MAT.carPaint = snowy(carPaintMat(), 0.75, false);   // V30: Schnee auf Dach, Haube und Kotflügeln
   MAT.cloth = paintMat({ color: 0xffffff, metalness: 0, roughness: 0.85, envI: 0.25, emissive: 0x100905 });
   // V17: Skelett, Gesten, Tänze und Stoffe im Shader (humanShader)
   { const pc = MAT.cloth.onBeforeCompile; MAT.cloth.onBeforeCompile = sh => { pc(sh); humanShader(sh); }; }

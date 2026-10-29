@@ -71,9 +71,11 @@ export const U = {
   uStone: { value: new T.DataTexture(new Uint8Array([128, 128, 128, 255]), 1, 1) }, // V23: Foto-Gestein (ambientCG Rock020) als Feinstruktur für Quader, Kalk- und Sandstein, Granit
   uStoneOn: { value: 0 },
   // V25 · Polarnacht und Wetter (atmosphere.js): Regen, Schnee, Eisglitzern, Nässe und Schneedecke am Boden, Polarlicht, Bewölkung, Mondphase
-  uRain: { value: 0 }, uSnow: { value: 0 }, uFrost: { value: 0 }, uWet: { value: 0.3 }, uSnowCover: { value: 0 },
+  uRain: { value: 0 }, uSnow: { value: 0 }, uFrost: { value: 0 }, uWet: { value: 0.3 }, uSnowCover: { value: 0.4 },
   uAurora: { value: 0.4 }, uCloud: { value: 0.3 }, uMoonPhase: { value: 0.5 }, uMoonLit: { value: 1 }, uMist: { value: 1 },
   uStreetRefl: { value: 0 },
+  // V30: die nächsten Straßenlaternen (xyz = Leuchtkopf, w = Stärke) für warmes Licht und Glanz auf dem Pflaster (streetDetail)
+  uLamps: { value: Array.from({ length: 16 }, () => new T.Vector4(0, -1000, 0, 0)) },
   uRoofMap: { value: new T.DataTexture(new Uint8Array([0, 0, 0, 255]), 1, 1) }, uRoofBox: { value: new T.Vector4(-1200, -1200, 2400, 255) },
 };
 U.uRoofMap.value.needsUpdate = true;
@@ -86,12 +88,15 @@ U.uBrick.value.needsUpdate = true; U.uStone.value.needsUpdate = true;
 // V27: Bodennebel dichter (FOG_K 7 -> 12) und flacher (Skalenhöhe 16 -> 14 m), der gleichmäßige Dunst schwächer (FOG_E2 0,75):
 // die Straßen versinken früher im Türkis, die Türme und die ferne Silhouette bleiben so sichtbar wie vorher.
 // fogOptical() rechnet dasselbe auf der CPU (performance.js blendet damit aus, was im Nebel ohnehin verschwindet).
-export const FOG_K = 12.0, FOG_SH = 14.0, FOG_E2 = 0.75;
+// V30: Bodennebel setzt erst nach einigen Metern voll ein (wirksamer Weg d - FOG_NEAR·(1 - e^(-d/FOG_NEAR))): der Boden zu Füßen
+// bleibt lesbar, in der Ferne fehlen nur FOG_NEAR Meter Nebel, die Stimmung bleibt.
+export const FOG_K = 12.0, FOG_SH = 14.0, FOG_E2 = 0.75, FOG_NEAR = 14.0;
 export const FOG_GLSL = `
 float vespHF(float d, float y, float cy, float dens){
   float a = max(cy + 2.0, 0.0), b = max(y + 2.0, 0.0), ea = exp(-a / ${FOG_SH.toFixed(1)}), eb = exp(-b / ${FOG_SH.toFixed(1)}), dy = b - a;
   float avg = abs(dy) < 0.05 ? ea : ${FOG_SH.toFixed(1)} * (ea - eb) / dy;
-  return dens * ${FOG_K.toFixed(2)} * d * avg;
+  float dn = d - ${FOG_NEAR.toFixed(1)} * (1.0 - exp(-d / ${FOG_NEAR.toFixed(1)}));   // V30: die ersten Meter fast klar
+  return dens * ${FOG_K.toFixed(2)} * dn * avg;
 }
 float vespFog(float d, float y, float cy, float dens, float k){ return clamp(1.0 - exp(-dens*dens*d*d*k*${FOG_E2.toFixed(2)} - vespHF(d, y, cy, dens)), 0.0, 1.0); }
 `;
@@ -99,12 +104,14 @@ float vespFog(float d, float y, float cy, float dens, float k){ return clamp(1.0
 export function fogOptical(d, y, cy, dens) {
   const a = Math.max(cy + 2, 0), b = Math.max(y + 2, 0), ea = Math.exp(-a / FOG_SH), eb = Math.exp(-b / FOG_SH), dy = b - a;
   const avg = Math.abs(dy) < 0.05 ? ea : FOG_SH * (ea - eb) / dy;
-  return dens * dens * d * d * FOG_E2 + dens * FOG_K * d * avg;
+  const dn = d - FOG_NEAR * (1 - Math.exp(-d / FOG_NEAR));
+  return dens * dens * d * d * FOG_E2 + dens * FOG_K * dn * avg;
 }
 // Abstand, ab dem ein Punkt in Höhe y zu mehr als 98,5 % im Nebel liegt (optische Tiefe 4,2); quadratische Gleichung in d
 export function fogHideDist(y, cy, dens) {
-  const a = dens * dens * FOG_E2, b = fogOptical(1, y, cy, dens) - a;
-  return a > 1e-12 ? (-b + Math.sqrt(b * b + 4 * a * 4.2)) / (2 * a) : 4.2 / Math.max(b, 1e-9);
+  // V30: Bodennebel wirkt auf d - FOG_NEAR (der e-Rest ist in dieser Entfernung vernachlässigbar, er blendet höchstens etwas später aus)
+  const a = dens * dens * FOG_E2, b = (fogOptical(1, y, cy, dens) - a) / (1 - FOG_NEAR * (1 - Math.exp(-1 / FOG_NEAR))), c = 4.2 + b * FOG_NEAR;
+  return a > 1e-12 ? (-b + Math.sqrt(b * b + 4 * a * c)) / (2 * a) : c / Math.max(b, 1e-9);
 }
 export const FOGVIS = { ped: 1e9, low: 1e9, tall: 1e9 };
 T.ShaderChunk.fog_pars_vertex = `#ifdef USE_FOG
@@ -136,6 +143,34 @@ T.ShaderChunk.fog_fragment = `#ifdef USE_FOG
     gl_FragColor.rgb = mix(gl_FragColor.rgb, fogColor, fogFactor);
   #endif
 #endif`;
+
+/* ---------- V30: Schnee auf allem, was im Freien nach oben zeigt ----------
+   Polarnacht: eine leichte Schneedecke liegt immer (uSnowCover hat in atmosphere.js eine Untergrenze), bei Schneefall wird sie dicker.
+   snowy(mat, k, still) legt sie auf ein Standardmaterial: auf Flächen mit Normale nach oben, fleckig nach Weltlage (still = false:
+   ohne Flecken, für Dinge, die sich bewegen wie Autos). Nur für Außenmaterialien verwenden, sonst schneit es in die Räume. */
+export function snowy(mat, k = 1, still = true) {
+  const prev = mat.onBeforeCompile, pk = mat.customProgramCacheKey();
+  mat.onBeforeCompile = (sh, r) => {
+    if (prev) prev.call(mat, sh, r);
+    sh.uniforms.uSnowCover = U.uSnowCover;
+    sh.fragmentShader = 'uniform float uSnowCover;\n' + sh.fragmentShader.replace('#include <lights_physical_fragment>', `{
+      vec3 snN = (vec4(normal, 0.0) * viewMatrix).xyz;
+      vec3 snP = (vec4(-vViewPosition - viewMatrix[3].xyz, 0.0) * viewMatrix).xyz;
+      float snA = clamp(0.3 + 0.75 * uSnowCover, 0.0, 1.0) * ${k.toFixed(2)};
+      ${still ? `vec2 snQ = snP.xz * 1.7; vec2 snI = floor(snQ), snF = fract(snQ); snF = snF * snF * (3.0 - 2.0 * snF);
+      #define SNH(v) fract(sin(dot(v, vec2(127.1, 311.7))) * 43758.5453)
+      float snNo = mix(mix(SNH(snI), SNH(snI + vec2(1.0, 0.0)), snF.x), mix(SNH(snI + vec2(0.0, 1.0)), SNH(snI + vec2(1.0, 1.0)), snF.x), snF.y);
+      #undef SNH` : 'float snNo = 0.6;'}
+      float snK = smoothstep(0.5 - 0.25 * snA, 0.85 - 0.2 * snA, snN.y) * smoothstep(0.15, 0.45, snA + snNo * 0.5 - 0.25);
+      snK *= snA;
+      diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.72, 0.78, 0.88), snK);
+      roughnessFactor = mix(roughnessFactor, 0.7, snK); metalnessFactor = mix(metalnessFactor, 0.0, snK);
+    }
+    #include <lights_physical_fragment>`);
+  };
+  mat.customProgramCacheKey = () => pk + '|snow' + k + still;
+  return mat;
+}
 
 export const hemi = new T.HemisphereLight(new T.Color(0.1, 0.18, 0.3), new T.Color(0.12, 0.42, 0.44), 0.9);
 scene.add(hemi);
@@ -173,6 +208,15 @@ export function mergeGeos(geos) {
   m.setAttribute('position', new T.BufferAttribute(pos, 3));
   m.setAttribute('normal', new T.BufferAttribute(nor, 3));
   m.setAttribute('uv', new T.BufferAttribute(uv, 2));
+  // V30: eigene Attribute, die alle Teile tragen (z. B. aRect der Bürgersteige), mitnehmen; vorher gingen sie verloren
+  for (const k in geos[0].attributes) {
+    if (!/^a[A-Z]/.test(k)) continue;   // nur eigene Shader-Attribute; color/tangent/uv2 aus Modellen bleiben wie bisher weg
+    const s = geos[0].attributes[k].itemSize;
+    if (geos.some(g => !g.attributes[k] || g.attributes[k].itemSize !== s)) continue;
+    const arr = new Float32Array(n * s); o = 0;
+    for (const g of geos) { putAttr(arr, g.attributes[k], o, s); o += g.attributes.position.count; }
+    m.setAttribute(k, new T.BufferAttribute(arr, s));
+  }
   m.setIndex(new T.BufferAttribute(idx, 1));
   return m;
 }

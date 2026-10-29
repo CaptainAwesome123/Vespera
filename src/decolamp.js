@@ -1,4 +1,4 @@
-import { T, MOBILE } from './core.js';
+import { T, MOBILE, snowy } from './core.js';
 import { mergeColored, stdMat } from './people-skeleton.js';
 
 /* =====================================================================
@@ -74,7 +74,7 @@ export let LAMP_MATS = null;
 export function decoLampMats() {
   if (LAMP_MATS) return LAMP_MATS;
   return LAMP_MATS = {
-    metal: stdMat({ color: 0xffffff, vertexColors: true, metalness: 0.7, roughness: 0.38, envI: 0.6, emissive: 0x060403 }),
+    metal: snowy(stdMat({ color: 0xffffff, vertexColors: true, metalness: 0.7, roughness: 0.38, envI: 0.6, emissive: 0x060403 }), 0.9),   // V30: Schneehauben
     glass: new T.MeshBasicMaterial({ color: new T.Color(1.7, 1.18, 0.66), vertexColors: true }),
   };
 }
