@@ -4,6 +4,7 @@ import { onIsland, QUAY, ISL } from './island.js';
 import { WATER_Y } from './dance.js';
 import { PLATFORMS, VILLA, roadHeightAt, terrainHeight } from './harbour.js';
 import { villaRoadAt } from './serpentine.js';
+import { inVillaCellar } from './villa.js';
 import { DINE, standUp } from './venues.js';
 import { travel } from './music.js';
 import { LOOSE } from './physics.js';
@@ -50,7 +51,7 @@ export function collide(p, flying) {
   let ground = onLand ? 0 : WATER_Y + 0.2;
   const rd = roadHeightAt(p.x, p.z, p.y);
   if (rd.tunnel) ground = rd.y;
-  else if (!onLand) { const sr = villaRoadAt(p.x, p.z, p.y); ground = Math.max(ground, terrainHeight(p.x, p.z) + 0.3, rd.y, sr ? sr.y : -1e9); }
+  else if (!onLand) { const sr = villaRoadAt(p.x, p.z, p.y); ground = Math.max(ground, inVillaCellar(p) ? -1e9 : terrainHeight(p.x, p.z) + 0.3, rd.y, sr ? sr.y : -1e9); }   // V28: im Keller der Villa zählt der Hang nicht
   else ground = Math.max(ground, rd.y);
   const gr = Math.max(ground, g0, vg);
   if (pg < gr - 0.001) collideOn = null;

@@ -36,7 +36,8 @@ src/                der Spielcode als ES-Module, ein Abschnitt pro Datei
   dance.js            Tanzpaare im Ballsaal
   water.js            Wellen (Gerstner, acht Wellenzüge), Spiegelung, Gischt am Kai
   harbour.js          Kai, Jachthafen, Fähre, Luftschiffhafen
-  serpentine.js       Bergstraße zur Villa und Umgebung
+  serpentine.js       Bergstraße zur Villa, Villa außen, Garten, Fest, Berge
+  villa.js            Innenräume der Villa auf drei Ebenen: Halle, Ballsaal, Salon, Speisesaal, Küche, OG, Keller, Schwimmhalle (V28)
   ragdoll.js          Gliederpuppen-Physik
   sky.js              Himmel der Polarnacht: drehender Sternhimmel, Mond mit Phase, Polarlicht (V25)
   atmosphere.js       Wetter (Taste N), Nebeldichte, Regen, Schnee, Eisglitzern, Nässe, Schneedecke, Mondschatten (V25)
@@ -191,6 +192,28 @@ bleiben die gebauten. Lädt `assets/people` nicht, läuft alles wie in V21.
   der Bildtiefe. `fogHideDist()` (`core.js`) sagt, ab wo etwas einer bestimmten Höhe ganz im Nebel liegt;
   `updateFogCull` (`performance.js`) blendet dort Laternen-, Möbel-, Waren- und Laden-Zellen aus, Menschen, Autos
   und Bäume zeichnen nur bis dahin (`FOGVIS`). Dichter Nebel spart nur so Arbeit, nicht von allein.
+
+**V28: Die Luxusvilla.** Die Bergvilla gehört dem Spieler, dem reichsten Mann von Vespera. `villa.js` baut alle
+Innenräume im lokalen Hausraster der Villa (lx quer, +lz zur Stadt, y über `VILLA.y`), `serpentine.js` behält
+Außenhaut, Garten, Terrassen und das Fest.
+- *Erdgeschoss:* Eingangshalle über zwei Geschosse mit Imperialtreppe (Mittellauf zum Podest, zwei Seitenläufe zur
+  Galerie), Säulen, Kronleuchter, Randolf am Fuß der Treppe (E: ansprechen); Salon mit Kamin, Flügel und Sofas;
+  Herrenzimmer mit Bar, Spiegelwand, Billard und Clubsesseln; Speisesaal mit 14-m-Tafel, 22 Stühlen, Kandelabern
+  und Speisen; Küche mit Herdblock, Kupfertöpfen und Vorräten; Ballsaal (9,6 m hoch) mit Parkett, Spiegeln, Säulen,
+  Bühne und Band, acht Tanzpaaren, Buffet und Gartentüren.
+- *Obergeschoss:* Galerie um die Halle mit Balustraden, Seitengalerien mit Türen zur Loggia-Terrasse, Flure;
+  Arbeitszimmer mit Schreibtisch, Globus und Kamin, Bibliothek mit Leiter; Wintergarten mit Glasdach, Palmen und
+  Brunnen; Schlafzimmer mit Himmelbett und Balkon; Badezimmer mit freistehender Wanne; Ankleide mit Schränken,
+  Insel und Smoking; drei Gästezimmer und Gästebad.
+- *Keller:* Gewölbeflur, Dienstbotenküche, Gesindestube, vier Zimmer der Bediensteten, Randolfs Zimmer (Bett,
+  Schreibtisch, Bücher, Livree, Bild des Hausherrn), Silberkammer, Tresorraum mit runder Stahltür und Goldbarren,
+  Waschküche, Vorratskammer, Kesselraum, Weinkeller, Schwimmhalle mit türkisem Becken, Säulen, Liegen und Dampf.
+  Zwei Dienstbotentreppen (aus der Halle und aus der Küche) führen hinunter.
+- *Technik:* Räume sind Zonen (`eg`, `og`, `kel`), je Zone und Material ein Netz; `updateVillaZones` blendet ein,
+  was vom Standort aus sichtbar sein kann (Keller nur unten, OG nur oben oder von der Halle aus, alles nur in der
+  Nähe; Handy: 120 m). Türen sind eigene Netze und schwingen auf, wenn der Spieler nahe kommt. Kollision über die
+  Villa-Quader (`VILLA.boxes`); im Keller zählt der Hang nicht als Boden (`inVillaCellar`). In der Villa kein
+  Regen und kein Bodennebel (`inVillaHouse`). Raumnamen erscheinen beim Betreten als Hinweis.
 
 Große Modelle: Draco/Meshopt sind noch nicht eingebunden; KTX2 braucht die Transcoder-Dateien vom CDN
 (`THREE_CDN` in `assets.js`). Die Einzeldatei bettet `assets/` als Daten-URLs ein; ab einigen MB lohnt sich das
