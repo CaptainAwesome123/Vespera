@@ -145,6 +145,9 @@ export function updateNearPlane(dt) {
   const n = nearTarget();
   if (Math.abs(n - camera.near) / camera.near > 0.12) { camera.near = n; camera.updateProjectionMatrix(); }
 }
+// V29: Anzeigen nur anfassen, wenn sich der Text ändert (jede Änderung kostet den Browser Stil- und Layoutarbeit)
+const HUD_LAST = {};
+export function hudSet(id, v, html = false) { if (HUD_LAST[id] === v) return; HUD_LAST[id] = v; const el = $(id); if (html) el.innerHTML = v; else el.textContent = v; }
 export let hudTimer = 0, elapsed = 0; shared.last = performance.now();
 export function frame(now) {
   const raw = (now - shared.last) / 1000, dt = Math.min(0.05, raw); shared.last = now; elapsed += dt;
@@ -216,16 +219,19 @@ export function frame(now) {
       hudTimer = 0.25;
       const d = districtAt(player.p.x, player.p.z, player.p.y);
       if (d[0] !== shared.lastDistrict) { shared.lastDistrict = d[0]; showDistrict(d); }
-      $('mode').innerHTML = '<b>' + (BOAT.on ? 'Am Ruder' : DRIVE.on ? 'Am Steuer' : player.fly ? 'Flugmodus' : 'Zu Fuß') + '</b>';
-      $('alt').textContent = BOAT.on ? Math.round(Math.abs(BOAT.u) * 1.944) + ' Knoten · Gas ' + Math.round(BOAT.thr * 100) + ' %' : DRIVE.on ? Math.round(Math.abs(DRIVE.v) * 3.6) + ' km/h · ' + (DRIVE.revMode ? 'R' : (DRIVE.gear + 1) + '. Gang') + (DRIVE.body && DRIVE.body.dmg.some(v => v > 0.05) ? ' · Zustand ' + Math.round(100 - (DRIVE.body.dmg[0] + DRIVE.body.dmg[1] + DRIVE.body.dmg[2] + DRIVE.body.dmg[3]) * 25) + ' %' : '') : 'Höhe ' + Math.max(0, Math.round(player.p.y)) + ' m';
+      hudSet('mode', '<b>' + (BOAT.on ? 'Am Ruder' : DRIVE.on ? 'Am Steuer' : player.fly ? 'Flugmodus' : 'Zu Fuß') + '</b>', true);
+      hudSet('alt', BOAT.on ? Math.round(Math.abs(BOAT.u) * 1.944) + ' Knoten · Gas ' + Math.round(BOAT.thr * 100) + ' %' : DRIVE.on ? Math.round(Math.abs(DRIVE.v) * 3.6) + ' km/h · ' + (DRIVE.revMode ? 'R' : (DRIVE.gear + 1) + '. Gang') + (DRIVE.body && DRIVE.body.dmg.some(v => v > 0.05) ? ' · Zustand ' + Math.round(100 - (DRIVE.body.dmg[0] + DRIVE.body.dmg[1] + DRIVE.body.dmg[2] + DRIVE.body.dmg[3]) * 25) + ' %' : '') : 'Höhe ' + Math.max(0, Math.round(player.p.y)) + ' m');
       const deg = ((-player.yaw * 180 / Math.PI) % 360 + 360) % 360;
-      $('head').textContent = 'Kurs ' + ['N', 'NO', 'O', 'SO', 'S', 'SW', 'W', 'NW'][Math.round(deg / 45) % 8] + ' · Wind ' + Math.round(WIND.s + WIND.gust * 6) + ' m/s aus ' + windName(WIND.a + Math.PI);
+      hudSet('head', 'Kurs ' + ['N', 'NO', 'O', 'SO', 'S', 'SW', 'W', 'NW'][Math.round(deg / 45) % 8] + ' · Wind ' + Math.round(WIND.s + WIND.gust * 6) + ' m/s aus ' + windName(WIND.a + Math.PI));
       drawMap();
       const hh = Math.floor(CLOCK.min / 60), mm = Math.floor(CLOCK.min % 60);
-      $('clock').textContent = String(hh).padStart(2, '0') + ':' + String(mm).padStart(2, '0') + ' Uhr';
+      hudSet('clock', String(hh).padStart(2, '0') + ':' + String(mm).padStart(2, '0') + ' Uhr');
       const c = player.fly ? null : citizenNear(player.p, 8), card = $('npc');
-      if (c) { card.innerHTML = '<b></b><span></span><i></i>'; card.querySelector('b').textContent = c.name + ', ' + c.age; card.querySelector('span').textContent = c.job + ' · ' + c.trait.k; card.querySelector('i').textContent = citizenDoing(c); card.style.opacity = 1; }
-      else card.style.opacity = 0;
+      if (c) {
+        const a = c.name + ', ' + c.age, b = c.job + ' · ' + c.trait.k, d = citizenDoing(c), key = a + '|' + b + '|' + d;
+        if (HUD_LAST.npc !== key) { HUD_LAST.npc = key; card.innerHTML = '<b></b><span></span><i></i>'; card.querySelector('b').textContent = a; card.querySelector('span').textContent = b; card.querySelector('i').textContent = d; }
+        if (HUD_LAST.npcOp !== 1) { HUD_LAST.npcOp = 1; card.style.opacity = 1; }
+      } else if (HUD_LAST.npcOp !== 0) { HUD_LAST.npcOp = 0; card.style.opacity = 0; }
     }
     if (shared.districtTimer > 0 && (shared.districtTimer -= dt) <= 0) $('district').style.opacity = 0;
   }

@@ -215,6 +215,27 @@ Außenhaut, Garten, Terrassen und das Fest.
   Villa-Quader (`VILLA.boxes`); im Keller zählt der Hang nicht als Boden (`inVillaCellar`). In der Villa kein
   Regen und kein Bodennebel (`inVillaHouse`). Raumnamen erscheinen beim Betreten als Hinweis.
 
+**V29: Leistung.** Gleiche Bilder, gleiche Funktionen, weniger Arbeit für Grafikkarte, Prozessor und Speicher.
+- *Netze mit Index:* `mergeGeos` (`core.js`) zerlegt die Teile nicht mehr in lose Dreiecke, sondern behält ihren
+  Index; Bausätze (`kit`), `mergeColored`, Villa, Autoscheiben und gebackene Modelle ebenso. Jede Ecke wird nur
+  einmal gespeichert und im Vertex-Shader nur einmal gerechnet. Wer nach dem Zusammenfügen Werte je Teil setzt,
+  zählt wie bisher mit `position.count` des Teils. `geoView(g)` ist eine Hülle um dieselben Puffer, damit beim
+  Ergänzen von Attributen das (vielleicht mehrfach benutzte) Original unverändert bleibt.
+- *Weniger Draw Calls:* `bakeGroup(grp)` (`core.js`) verschmilzt feste, undurchsichtige Teile einer Gruppe je
+  Material; die Luftschiffe nutzen es (rund 50 Teile je Schiff werden zu etwa fünf Netzen). Boote im Hafen werden
+  wie Laternen und Bäume ab der Nebelgrenze ihrer Masthöhe nicht mehr gezeichnet (`updatePort`).
+- *Prozessor:* Passanten setzen ihre Matrix direkt aus Gierwinkel und Neigung (`Crowd.set`), wer still steht,
+  rechnet gar nicht; Rundwege ganz außerhalb der Sichtweite laufen nur in `t` weiter (`loopDist2`); die Türsuche
+  prüft nur Türen im Fenster des Schritts (`doorNear`). Der Lichter-Pool sucht die nächsten vier ohne Zwischenlisten.
+  `Object3D.updateMatrix` rechnet nur, wenn sich Lage, Drehung oder Größe geändert haben (`core.js`, bitgleich).
+  HUD-Texte werden nur bei Änderung geschrieben (`hudSet`), die Nebel-Prüfung für Leuchtmaterialien merkt sich
+  geprüfte Materialien.
+- *Speicher:* Chunk-Zellen geben ihre Instanzpuffer beim Abbau sofort frei (`disposeChunk`). Die Leinwand hat kein
+  eigenes Antialiasing mehr (der Composer glättet schon in seinem Ziel). Normalenkarten aus Höhenbildern werden
+  ohne Modulo je Pixel gerechnet (`texSet`). Toter Code (alte V15-Fahrphysik, alte Ufer- und Autobauten) ist entfernt.
+- *Messen:* `tools/profile.js` misst ohne Zeichnen Ladezeit, JS-Zeit je Bild mit den teuersten Funktionen,
+  Objekte im Blickfeld mit Dreiecken und JS-Speicher an festen Aussichtspunkten.
+
 Große Modelle: Draco/Meshopt sind noch nicht eingebunden; KTX2 braucht die Transcoder-Dateien vom CDN
 (`THREE_CDN` in `assets.js`). Die Einzeldatei bettet `assets/` als Daten-URLs ein; ab einigen MB lohnt sich das
 nicht mehr, dann bleibt das Artefakt ohne die großen Dateien und nur GitHub Pages zeigt sie.
@@ -226,6 +247,7 @@ python3 -m http.server 8765                      # dann http://localhost:8765/
 node tools/test.js http://localhost:8765/ out/desk          # Desktop; Messwerte in out/desk.json
 node tools/test.js http://localhost:8765/ out/mobil mobile  # iPhone-Modus (MOBILE-Schalter)
 node tools/check-modules.js .                    # Modulreihenfolge prüfen
+node tools/profile.js http://localhost:8765/ out/prof.json  # V29: JS-Zeit je Bild, Draw Calls, Ladeprofil (ohne Zeichnen)
 python3 tools/build-single.py single/vespera-v21.html       # Einzeldatei (seit V22 nicht mehr gepflegt, nur GitHub Pages)
 ```
 
