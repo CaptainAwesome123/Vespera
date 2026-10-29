@@ -20,6 +20,7 @@ import { buildMap, boatInteractions } from './boat.js';
 import { buildInteractions } from './music.js';
 import { setupComposer, resize } from './bloom.js';
 import { buildLightPool, collectDetails, setPR, PR_LEVELS, prIdx } from './performance.js';
+import { buildPlayerModel } from './player-model.js';
 
 /* =====================================================================
    AUFBAU UND SPIELSCHLEIFE
@@ -93,6 +94,7 @@ export function build() {
   resize();
   setupStreetLayers();   // V21: Laternen und Stadtmobiliar als Chunk-Schichten
   primeChunks();
+  buildPlayerModel();    // V24: der Spieler als Figur (Third-Person-Ansicht, Taste V)
 }
 
 // Höhenkarte der Dächer (20-m-Raster), damit Luftschiffe über die Türme steigen statt hindurchzufahren

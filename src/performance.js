@@ -19,6 +19,8 @@ import { updateInteract, updateAudio } from './music.js';
 import { composer, resize, bloomPass } from './bloom.js';
 import { playing, paused } from './input.js';
 import { updateShips, skyline, shipDefs } from './main.js';
+import { DINE } from './venues.js';
+import { PM, updatePlayerModel, thirdPersonCamera } from './player-model.js';
 
 /* =====================================================================
    LEISTUNG: Lichter-Pool, Sichtweiten für Details, adaptive Auflösung
@@ -128,6 +130,7 @@ export function frame(now) {
   if (playing && !paused) updateBoat(dt);
   if (playing && DRIVE.on) driveCamera();
   else if (playing && BOAT.on) boatCamera();
+  else if (playing && PM.mesh && PM.view === 'third' && !player.fly && !DINE.seat) thirdPersonCamera(dt);
   else if (playing) {
     camera.position.set(player.p.x, player.p.y + (player.fly ? 0.8 : EYE), player.p.z);
     camera.rotation.set(player.pitch, player.yaw, 0);
@@ -136,6 +139,7 @@ export function frame(now) {
     camera.position.set(Math.sin(a) * 430, 150 + Math.sin(t * 0.07) * 30, Math.cos(a) * 430);
     camera.lookAt(0, 210, 0);
   }
+  updatePlayerModel(dt, playing && !DRIVE.on && !BOAT.on && !player.fly && !DINE.seat);
   U.uCam.value.copy(camera.position);
   updateNearPlane(dt);
   updateCars(dt);

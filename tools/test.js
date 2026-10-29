@@ -13,6 +13,7 @@ const SPOTS = [
   { name: 'belmont-platz', p: [0, 0.26, 120], yaw: 0, pitch: 0.22 },
   { name: 'ladenstrasse', p: [-330, 0.26, -380], yaw: 1.2, pitch: 0.05 },
   { name: 'hafen', p: [60, 0.26, 520], yaw: 0.12, pitch: 0.3 },
+  { name: 'dritte', p: [0, 0.26, 120], yaw: 0, pitch: -0.1, key: 'KeyV' },   // V24: Ansicht von hinten mit Spielermodell
   { name: 'flug', p: [-400, 220, 600], yaw: 0.6, pitch: -0.35, fly: true },
 ];
 (async () => {
@@ -62,7 +63,9 @@ const SPOTS = [
         if (document.getElementById('enter') && !document.getElementById('overlay').hidden) document.getElementById('enter').click();
         V.player.p.set(...s.p); V.player.v && V.player.v.set(0, 0, 0); V.player.yaw = s.yaw; V.player.pitch = s.pitch; V.player.fly = !!s.fly;
       }, s);
+      if (s.key) await p.keyboard.press(s.key);
       await p.waitForTimeout(1500);
+      if (s.key) console.log(s.name, await p.evaluate(() => { const V = vespera, pm = V.playerModel; return JSON.stringify({ view: pm.view, modelVisible: !!(pm.mesh && pm.mesh.visible), camBehind: +V.camera.position.distanceTo(V.player.p).toFixed(2) }); }));
     } else await p.waitForTimeout(1000);
     console.log(s.name, 'messen …', Date.now() - t0, 'ms'); const m = await measure();
     result.spots[s.name] = m;

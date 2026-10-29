@@ -1,9 +1,12 @@
 // V22 · Figuren aus MakeHuman (CC0): Körper, Kleidung, Haare, Augen, Brauen, Wimpern.
+// V24: Gesichtsmerkmale (Brauen, Nase, Mund, Kinn) je Körper für die gemalten Gesichter; Spielerkörper 'p'
+// (Herrenkörper mit eigenen Gesichtszügen) mit Gesichtskachel aus einem Referenzbild (tools/people/player-ref.jpg).
 // Baut assets/people/people.glb (Netze in der Ruhehaltung des Spiels, mit Glied-Zuordnung),
 // assets/people/people-atlas.webp (+ -m für Handys: Haut, Stoffe, Haare in einem Bild) und
 // assets/people/people.json (Gelenkpunkte, Netze je Art, Atlas-Einteilung).
 //
 // Aufruf: node tools/make-people.mjs <makehuman/data> <makehuman-data/public/data> [vorschau-ordner]
+//   (makehuman/data braucht 3dobjs, rigs, eyes, targets/macrodetails und für den Spieler targets/chin, mouth, cheek, nose)
 //   <makehuman/data>: github.com/makehumancommunity/makehuman, Ordner makehuman/data (CC0 seit 2020)
 //   <makehuman-data>: npm-Paket makehuman-data 0.0.2, Ordner public/data (Kleidung, Haare, Hautbilder
 //                     aus der MakeHuman-Grundausstattung, laut MakeHuman-Lizenz CC0)
@@ -28,7 +31,18 @@ await MeshoptSimplifier.ready; await MeshoptEncoder.ready;
 const BODIES = {
   m: { female: false, ethnic: { caucasian: 0.7, african: 0.15, asian: 0.15 }, abd: 0.075, heel: 0, footX: 0.9 },
   f: { female: true, ethnic: { caucasian: 0.7, african: 0.15, asian: 0.15 }, abd: 0.12, heel: 0.32, footX: 0.85 },
+  // Spieler: derselbe Herrenkörper (gleiche Gelenke, gleiche Kleidung), nur das Gesicht nach dem Referenzbild:
+  // kräftiges, breites Kinn, breiter lächelnder Mund, hohe Wangenknochen, gerade Nase. Schädel bleibt (Haare passen)
+  p: { female: false, ethnic: { caucasian: 0.7, african: 0.15, asian: 0.15 }, abd: 0.075, heel: 0, footX: 0.9, player: true,
+    extra: [['chin/chin-prominent-incr.target', 0.35], ['chin/chin-width-incr.target', 0.45], ['chin/chin-height-incr.target', 0.15],
+      ['mouth/mouth-scale-horiz-incr.target', 0.3], ['mouth/mouth-angles-up.target', 0.35], ['mouth/mouth-lowerlip-volume-incr.target', 0.2],
+      ['cheek/l-cheek-bones-incr.target', 0.35], ['cheek/r-cheek-bones-incr.target', 0.35], ['cheek/l-cheek-volume-decr.target', 0.2], ['cheek/r-cheek-volume-decr.target', 0.2],
+      ['nose/nose-point-width-decr.target', 0.25], ['nose/nose-scale-vert-incr.target', 0.15], ['nose/nose-hump-decr.target', 0.3]] },
 };
+// Referenzbild für das Gesicht des Spielers und die Lage seiner Merkmale im Bild (Pixel): Augen (rechtes, linkes
+// Auge der Figur = links, rechts im Bild), Mundwinkel, Kinnspitze. Nur das Gesicht wird übernommen, ohne Licht und Schatten.
+const PLAYER_REF = { file: path.join(path.dirname(new URL(import.meta.url).pathname), 'people', 'player-ref.jpg'),
+  eyeR: [90, 167], eyeL: [153, 153], mouthR: [100, 223], mouthL: [168, 215], chin: [137, 268] };
 // Kleidung, Haare und Kleinteile (Proxies); body: für welchen Körper; tex: Bereich im Atlas; fab: Stoffart des Spiels
 const PARTS = {
   'suit-m':    { body: 'm', src: 'clothes/male_elegantsuit01', fab: 'wool' },
@@ -48,8 +62,8 @@ const PARTS = {
   'lashes-f':  { body: 'f', src: 'eyelashes/Eyelashes01', brow: true },
 };
 const FAB = { skin: 1, hair: 2, wool: 3, silk: 4, cotton: 5, leather: 6, fur: 7, felt: 8, straw: 9, sequin: 10, knit: 11, metal: 12, satin: 13, stock: 14 };
-// Atlas: 4 x 5 Kacheln zu 512 px. Haut: Kachel je Geschlecht und Alter/Herkunft (Auswahl im Shader)
-const TILE = 512, AW = 4 * TILE, AH = 5 * TILE;
+// Atlas: 4 x 6 Kacheln zu 512 px. Haut: Kachel je Geschlecht und Alter/Herkunft (Auswahl im Shader); Reihe 5: Spieler
+const TILE = 512, AW = 4 * TILE, AH = 6 * TILE;
 const SKIN = {
   m: ['young_caucasian_male/textures/young_lightskinned_male_diffuse.png', 'middleage_caucasian_male/textures/middleage_lightskinned_male_diffuse.png', 'old_caucasian_male/textures/old_lightskinned_male_diffuse.png', 'young_african_male/textures/young_darkskinned_male_diffuse.png'],
   f: ['young_caucasian_female/textures/young_lightskinned_female_diffuse.png', 'middleage_caucasian_female/textures/middleage_lightskinned_female_diffuse.png', 'old_caucasian_female/textures/old_lightskinned_female_diffuse.png', 'young_african_female/textures/young_darkskinned_female_diffuse.png'],
@@ -63,6 +77,7 @@ const RECT = {
   heels: [3, 3, 0.25, 0.25],
   hairA_m: [0, 4, 0.5, 0.5], hairB_m: [0.5, 4, 0.5, 0.5], hairC_m: [0, 4.5, 0.5, 0.5],
   hairA_f: [1, 4, 1, 1], hairB_f: [2, 4, 1, 1], hairC_f: [3, 4, 1, 1],
+  skin_p: [0, 5, 1, 1], face_p: [1, 5, 1, 1],                      // Spieler: Körperhaut und Kopf in dreifacher Auflösung mit Gesicht
 };
 
 /* ---------------- Grunddaten ---------------- */
@@ -119,7 +134,7 @@ for (const [gk, cfg] of Object.entries(BODIES)) {
   for (let i = 0; i < n; i++) { const b = U.vid[i]; pos.set(skinPt([v[b * 3] * 0.1, v[b * 3 + 1] * 0.1, v[b * 3 + 2] * 0.1], W[b]), i * 3); }
   // Augen (Hilfsnetz im Grundnetz) mit den UV des Low-Poly-Auges
   const eyeF = base.faces.filter(f => f.g === 'helper-l-eye' || f.g === 'helper-r-eye');
-  const lp = readMhcloEyes();
+  const lp = cfg.player ? null : readMhcloEyes();
   bodies[gk] = { cfg, v, P, U, pos, eyeF, lp, skinPt };
 }
 function readMhcloEyes() {
@@ -154,6 +169,7 @@ const lift = {};
   let yf = 1e9; const bp = bodies.f.pos; for (let i = 1; i < bp.length; i += 3) yf = Math.min(yf, bp[i]); lift.f = -yf + 0.012;
 }
 const shiftY = (pos, d) => { for (let i = 1; i < pos.length; i += 3) pos[i] += d; };
+lift.p = lift.m;
 for (const gk in bodies) shiftY(bodies[gk].pos, lift[gk]);
 for (const k in parts) shiftY(parts[k].pos, lift[parts[k].def.body]);
 
@@ -175,7 +191,21 @@ for (const [gk, B] of Object.entries(bodies)) {
     headC: +headC.toFixed(4), headZ: +(eyeR[2] - 0.085).toFixed(4), neck: +((neck[1] + skull[1]) / 2 - 0.02).toFixed(4), neckZ: +neck[2].toFixed(4), waist: +spine3[1].toFixed(4),
     eye: [+(-eyeR[0]).toFixed(4), +eyeR[1].toFixed(4), +eyeR[2].toFixed(4)],
     // Fingergelenke: Abstand unter dem Handgelenk (Grundgelenke, Mittelgelenke des Mittelfingers)
-    kn: ['finger3-1.R', 'finger3-2.R'].map(b => { const pp = B.P.pose[b], j = M.jointPos(skel, v, skel.bones[b].head).map(x => x * 0.1); const q = F.add(pp.T, F.mv(pp.R, F.sub(j, pp.P))); return +(wr[1] - (q[1] + L)).toFixed(4); }) };
+    kn: ['finger3-1.R', 'finger3-2.R'].map(b => { const pp = B.P.pose[b], j = M.jointPos(skel, v, skel.bones[b].head).map(x => x * 0.1); const q = F.add(pp.T, F.mv(pp.R, F.sub(j, pp.P))); return +(wr[1] - (q[1] + L)).toFixed(4); }),
+    face: faceMarks(B, gk, eyeR) };
+}
+// V24: Gesichtsmerkmale (Meter, Ruhehaltung): Brauenbogen, Nasenspitze, Mundspalte, Mundwinkel, Kinn. Aus den Mundknochen
+// (oris) und dem Profil der Mittellinie; damit legen die gemalten Gesichter (FACE_ATLAS) Lippen, Bart und Schminke genau auf
+function faceMarks(B, gk, eyeR) {
+  const L = lift[gk], v = B.v, J = (b, e = 'head') => M.jointPos(skel, v, skel.bones[b][e]).map(x => x * 0.1);
+  const ey = eyeR[1], prof = [];
+  for (const f of base.faces) if (f.g === 'body') for (const i of f.v) { const x = v[i * 3] * 0.1; if (Math.abs(x) < 0.0015) prof.push([v[i * 3 + 1] * 0.1 + L, v[i * 3 + 2] * 0.1]); }
+  const maxZ = (y0, y1) => { let b = null; for (const p of prof) if (p[0] > y0 && p[0] < y1 && (!b || p[1] > b[1])) b = p; return b; };
+  const brow = maxZ(ey, ey + 0.04), nose = maxZ(ey - 0.06, ey - 0.015);
+  const up = J('oris05', 'tail'), lo = J('oris01', 'tail'), cor = J('oris03.L', 'tail'), chin = J('special04');
+  const r4 = x => +x.toFixed(4);
+  return { eyeX: r4(-eyeR[0]), eyeY: r4(ey), browY: r4(brow[0]), noseY: r4(nose[0]), noseZ: r4(nose[1]), mouthY: r4((up[1] + lo[1]) / 2 + L), mouthZ: r4(up[2]),
+    mouthW: r4(cor[0] + 0.005), chinY: r4(chin[1] + L + 0.012), chinZ: r4(maxZ(chin[1] + L, (up[1] + lo[1]) / 2 + L - 0.02)[1]) };
 }
 function jointBone(j) { return j.split('____')[0]; }
 console.log('RIG', JSON.stringify(RIG));
@@ -254,6 +284,69 @@ function paintMask(buf, isPaint) {
 }
 const sat = (b, i) => { const mx = Math.max(b[i], b[i + 1], b[i + 2]), mn = Math.min(b[i], b[i + 1], b[i + 2]); return mx ? (mx - mn) / mx : 0; };
 
+// V24 · Spielerkacheln: Körperhaut (junger hellhäutiger Herr) und Kopf in dreifacher Auflösung. Ins Gesicht kommt aus dem
+// Referenzbild nur die Zeichnung (Brauen, Lidfalten, Nase, Lippen, Lachfalten): Bild geteilt durch seine weichgezeichnete
+// Fassung, also ohne Licht und Schatten der Aufnahme, auf die Haut gelegt. Die Lage im Bild kommt über die Merkmale (PLAYER_REF)
+async function playerTiles() {
+  const skinFile = sk(SKIN.m[0]);
+  blit(await readRGBA(skinFile, TILE, TILE), RECT.skin_p);
+  const [bx, by, bw, bh] = HEADP.box;
+  const skin512 = await readRGBA(skinFile, TILE, TILE);
+  const head = await sharp(skin512, { raw: { width: TILE, height: TILE, channels: 4 } }).extract({ left: bx, top: by, width: bw, height: bh })
+    .resize(TILE, TILE, { fit: 'fill', kernel: 'lanczos3' }).raw().toBuffer();
+  for (let i = 3; i < head.length; i += 4) head[i] = 255;
+  if (fs.existsSync(PLAYER_REF.file)) {
+    const meta = await sharp(PLAYER_REF.file).metadata(), RW = meta.width, RH = meta.height;
+    const ref = await sharp(PLAYER_REF.file).removeAlpha().raw().toBuffer(), blur = await sharp(PLAYER_REF.file).removeAlpha().blur(5).raw().toBuffer();
+    // Merkmale am Spielerkopf (Meter) -> Bildpunkte: affine Abbildung nach kleinsten Quadraten
+    const fm = RIG.p.face, src = [[-fm.eyeX, fm.eyeY], [fm.eyeX, fm.eyeY], [-fm.mouthW, fm.mouthY], [fm.mouthW, fm.mouthY], [0, fm.chinY - 0.012]];
+    const dst = [PLAYER_REF.eyeR, PLAYER_REF.eyeL, PLAYER_REF.mouthR, PLAYER_REF.mouthL, PLAYER_REF.chin];
+    const A = affineFit(src, dst);
+    const R = rasterRect(HEADP, TILE);
+    const sst = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+    const samp = (buf, x, y) => { x = Math.min(RW - 1.001, Math.max(0, x)); y = Math.min(RH - 1.001, Math.max(0, y)); const x0 = Math.floor(x), y0 = Math.floor(y), fx = x - x0, fy = y - y0, o = [0, 0, 0];
+      for (const [dx, dy, w] of [[0, 0, (1 - fx) * (1 - fy)], [1, 0, fx * (1 - fy)], [0, 1, (1 - fx) * fy], [1, 1, fx * fy]]) { const k = ((y0 + dy) * RW + x0 + dx) * 3; for (let d = 0; d < 3; d++) o[d] += buf[k + d] * w; } return o; };
+    for (let t = 0; t < TILE * TILE; t++) {
+      if (!(R[t * 7 + 6] > 0)) continue;
+      const x = R[t * 7], y = R[t * 7 + 1], nz = R[t * 7 + 5];
+      // nur die Vorderseite des Gesichts, weich auslaufend; Stirn nur bis unter den Haaransatz des Bildes
+      const w = sst(0.3, 0.6, nz) * sst(0.056, 0.04, Math.abs(x)) * sst(fm.chinY - 0.026, fm.chinY - 0.01, y) * sst(fm.eyeY + 0.04, fm.eyeY + 0.026, y);
+      if (w < 0.003) continue;
+      const px = A[0] * x + A[1] * y + A[2], py = A[3] * x + A[4] * y + A[5];
+      const c = samp(ref, px, py), b = samp(blur, px, py), k = t * 4;
+      // Zeichnung als Verhältnis zur Umgebung; aufhellen nur wenig (Glanzlichter und Ränder vor dunklem Haar wären sonst helle Striche)
+      for (let d = 0; d < 3; d++) { const det = Math.min(1.22, Math.max(0.4, (c[d] + 4) / (b[d] + 4))); head[k + d] = Math.min(255, head[k + d] * (1 + (Math.pow(det, 1.15) - 1) * w * 0.95)); }
+    }
+  } else console.warn('Referenzbild fehlt:', PLAYER_REF.file);
+  blit(head, RECT.face_p);
+}
+// Rasterung des Kopfes in seiner Kachel: je Texel Lage (x, y, z) und Normale (x, y, z), Deckung
+function rasterRect(H, size) {
+  const R = new Float32Array(size * size * 7), I = H.idx, uv = H.uv, P = H.pos, N = H.nrm;
+  for (let t = 0; t < I.length; t += 3) {
+    const a = I[t], b = I[t + 1], c = I[t + 2]; if (!H.inHead[a] || !H.inHead[b] || !H.inHead[c]) continue;
+    const X = [uv[a * 2] * size, uv[b * 2] * size, uv[c * 2] * size], Y = [(1 - uv[a * 2 + 1]) * size, (1 - uv[b * 2 + 1]) * size, (1 - uv[c * 2 + 1]) * size];
+    const den = (Y[1] - Y[2]) * (X[0] - X[2]) + (X[2] - X[1]) * (Y[0] - Y[2]); if (Math.abs(den) < 1e-9) continue;
+    for (let py = Math.max(0, Math.floor(Math.min(...Y))); py <= Math.min(size - 1, Math.ceil(Math.max(...Y))); py++)
+      for (let px = Math.max(0, Math.floor(Math.min(...X))); px <= Math.min(size - 1, Math.ceil(Math.max(...X))); px++) {
+        const qx = px + 0.5, qy = py + 0.5;
+        const w0 = ((Y[1] - Y[2]) * (qx - X[2]) + (X[2] - X[1]) * (qy - Y[2])) / den, w1 = ((Y[2] - Y[0]) * (qx - X[2]) + (X[0] - X[2]) * (qy - Y[2])) / den, w2 = 1 - w0 - w1;
+        if (w0 < -0.03 || w1 < -0.03 || w2 < -0.03) continue;
+        const k = (py * size + px) * 7;
+        for (let d = 0; d < 3; d++) { R[k + d] = P[a * 3 + d] * w0 + P[b * 3 + d] * w1 + P[c * 3 + d] * w2; R[k + 3 + d] = N[a * 3 + d] * w0 + N[b * 3 + d] * w1 + N[c * 3 + d] * w2; }
+        R[k + 6] = 1;
+      }
+  }
+  return R;
+}
+// Affine Abbildung (x, y) -> (u, v) aus Punktpaaren, kleinste Quadrate: [a, b, c, d, e, f] mit u = a x + b y + c, v = d x + e y + f
+function affineFit(src, dst) {
+  const M3 = [[0, 0, 0], [0, 0, 0], [0, 0, 0]], bu = [0, 0, 0], bv = [0, 0, 0];
+  src.forEach(([x, y], i) => { const r = [x, y, 1]; for (let p = 0; p < 3; p++) { for (let q = 0; q < 3; q++) M3[p][q] += r[p] * r[q]; bu[p] += r[p] * dst[i][0]; bv[p] += r[p] * dst[i][1]; } });
+  const solve = b => { const m = M3.map((r, i) => [...r, b[i]]); for (let i = 0; i < 3; i++) { let piv = i; for (let k = i + 1; k < 3; k++) if (Math.abs(m[k][i]) > Math.abs(m[piv][i])) piv = k; [m[i], m[piv]] = [m[piv], m[i]];
+    for (let k = 0; k < 3; k++) if (k !== i) { const f = m[k][i] / m[i][i]; for (let q = i; q < 4; q++) m[k][q] -= f * m[i][q]; } } return [m[0][3] / m[0][0], m[1][3] / m[1][1], m[2][3] / m[2][2]]; };
+  return [...solve(bu), ...solve(bv)];
+}
 async function buildAtlas() {
   // Haut
   for (const [gk, list] of Object.entries(SKIN)) for (let k = 0; k < 4; k++) {
@@ -274,13 +367,15 @@ async function buildAtlas() {
   const shirtCol = [236, 233, 226];
   blit(paintMask(mk(), isCloth), RECT.suit);
   // Frack: Krawatte weg (weißes Hemd, die Fliege kommt als Teil dazu), Revers in Satin dunkler
-  blit(paintMask(mk(b => { for (let i = 0; i < b.length; i += 4) { const p = at(i); if (isTie(p) && !isCloth(b, i)) { b[i] = shirtCol[0]; b[i + 1] = shirtCol[1]; b[i + 2] = shirtCol[2]; } } }), isCloth), RECT.tux);
+  // V24: der ganze Krawattenstreifen wird Hemd (vorher blieben die dunklen Streifen der Krawatte stehen)
+  const isTieBand = (b, i, p) => isTie(p) && (!isCloth(b, i) || Math.abs(p[0]) < 0.022);
+  blit(paintMask(mk(b => { for (let i = 0; i < b.length; i += 4) { const p = at(i); if (isTieBand(b, i, p)) { b[i] = shirtCol[0]; b[i + 1] = shirtCol[1]; b[i + 2] = shirtCol[2]; } } }), isCloth), RECT.tux);
   // Uniform: Messingknöpfe zweireihig, dunkle Krawatte
   const btn = (p) => { if (p[3] !== 1 || p[2] < 0.06) return 0; for (const y of [0.0, 0.1, 0.2, 0.3]) for (const sx of [-0.055, 0.055]) { const d = Math.hypot(p[0] - sx, p[1] - (rigM.waist - 0.08 + y)); if (d < 0.011) return 1; } return 0; };
   blit(paintMask(mk(b => { for (let i = 0; i < b.length; i += 4) { const p = at(i); if (isTie(p) && !isCloth(b, i)) { b[i] = 30; b[i + 1] = 28; b[i + 2] = 32; } if (btn(p)) { b[i] = 200; b[i + 1] = 160; b[i + 2] = 80; } } }),
     (b, i) => isCloth(b, i) && !(b[i] === 200 && b[i + 1] === 160)), RECT.uniform);
   // Kellner: Jacke in Farbe der Figur, Hose schwarz, schwarze Fliege statt Krawatte
-  blit(paintMask(mk(b => { for (let i = 0; i < b.length; i += 4) { const p = at(i); if (isTie(p) && !isCloth(b, i)) { b[i] = shirtCol[0]; b[i + 1] = shirtCol[1]; b[i + 2] = shirtCol[2]; } if (p[3] === 1 && p[1] < rigM.hip - 0.02 && isCloth(b, i)) { b[i] = b[i + 1] = b[i + 2] = Math.min(255, lum(b[i], b[i + 1], b[i + 2]) * 0.35) | 1; } } }),
+  blit(paintMask(mk(b => { for (let i = 0; i < b.length; i += 4) { const p = at(i); if (isTieBand(b, i, p)) { b[i] = shirtCol[0]; b[i + 1] = shirtCol[1]; b[i + 2] = shirtCol[2]; } if (p[3] === 1 && p[1] < rigM.hip - 0.02 && isCloth(b, i)) { b[i] = b[i + 1] = b[i + 2] = Math.min(255, lum(b[i], b[i + 1], b[i + 2]) * 0.35) | 1; } } }),
     (b, i) => isCloth(b, i) && !(b[i] & 1 && b[i] === b[i + 1] && b[i] < 40)), RECT.waiter);
   // Latzhose: der Stoff wird gefärbt, Schnallen und Knöpfe bleiben
   const work = await readRGBA(parts['work-m'].tex, TILE, TILE);
@@ -304,6 +399,7 @@ async function buildAtlas() {
   }
   // Absatzschuhe: glattes Leder (Farbe kommt aus der Figur)
   { const [x0, y0, w, h] = rectPx(RECT.heels); for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const i = ((y0 + y) * AW + x0 + x) * 4; const g = 170 + 20 * Math.sin(x * 0.3) * Math.sin(y * 0.2); atlas[i] = atlas[i + 1] = atlas[i + 2] = g; atlas[i + 3] = 96; } }
+  await playerTiles();
   // Ränder auffüllen: leere Texel bekommen die Farbe des nächsten Nachbarn (keine Säume beim Mipmapping)
   dilate(atlas, AW, AH, 4);
   await sharp(atlas, { raw: { width: AW, height: AH, channels: 4 } }).webp({ quality: 86, alphaQuality: 90, effort: 5 }).toFile(path.join(OUT, 'people-atlas.webp'));
@@ -322,7 +418,7 @@ function dilate(buf, w, h, n) {
 
 /* ---------------- Netze zusammenstellen ---------------- */
 // Ein Netz fürs Spiel: Lage, Normale, Atlas-UV, Glied, Mischung, Stoff, Variante, Bereich, Verdeckung
-const meshes = {};
+const meshes = {}, HEADP = {};
 function addMesh(name, m) { meshes[name] = m; }
 // Körper: Verdeckung je Kleidungsstück als Bitmaske über die Grundnetz-Ecken
 const HIDEBIT = { 'suit-m': 1, 'work-m': 2, 'shoes-m': 4, 'boots-m': 8, 'lady-f': 16, 'heels-f': 32 };
@@ -330,13 +426,39 @@ for (const [gk, B] of Object.entries(bodies)) {
   const { U, pos } = B, n = U.vid.length, ws = U.vid.map(b => W[b]);
   const la = limbAttrs(ws, pos, gk);
   const hide = new Uint16Array(n);
-  for (const [pn, bit] of Object.entries(HIDEBIT)) { const P = parts[pn]; if (!P || P.def.body !== gk || !P.del) continue; for (let i = 0; i < n; i++) if (P.del[U.vid[i]]) hide[i] |= bit; }
-  const uv = toAtlasUV(U.uv, RECT['skin_' + gk]);    // Haut: erste Kachel; Shader verschiebt je Figur
-  const tex = new Float32Array(n).fill(2);
+  const clothOf = gk === 'p' ? 'm' : gk;            // der Spieler trägt die Herrenkleidung
+  for (const [pn, bit] of Object.entries(HIDEBIT)) { const P = parts[pn]; if (!P || P.def.body !== clothOf || !P.del) continue; for (let i = 0; i < n; i++) if (P.del[U.vid[i]]) hide[i] |= bit; }
+  const nrm = normals(pos, U.idx, U.vid);
+  let uv, tex;
+  if (gk === 'p') {
+    // Spieler: Kopfinseln der UV (Gesicht, Ohren) in eine eigene Kachel in dreifacher Auflösung, der Rest in seine Hautkachel.
+    // Art 6 = feste Haut (der Shader wählt keine Hautkachel nach Alter und Herkunft)
+    const isl = uvIslands(U.idx, n), head = new Set();
+    const cnt = new Map(), hi = new Map(); for (let i = 0; i < n; i++) { cnt.set(isl[i], (cnt.get(isl[i]) || 0) + 1); if (pos[i * 3 + 1] > RIG.m.neck - 0.02) hi.set(isl[i], (hi.get(isl[i]) || 0) + 1); }
+    // die größte Kopfinsel (Gesicht, Schädel, Ohren); Mundinneres und Augenwinkel bleiben in der Hautkachel
+    let best = -1, bc = 0; for (const [k, c] of cnt) if ((hi.get(k) || 0) > c * 0.8 && c > bc) { bc = c; best = k; } head.add(best);
+    let u0 = 1, v0 = 1, u1 = 0, v1 = 0; for (let i = 0; i < n; i++) if (head.has(isl[i])) { u0 = Math.min(u0, U.uv[i * 2]); u1 = Math.max(u1, U.uv[i * 2]); v0 = Math.min(v0, U.uv[i * 2 + 1]); v1 = Math.max(v1, U.uv[i * 2 + 1]); }
+    // auf ganze Pixel des 512er-Hautbilds runden (dann passt der Ausschnitt genau)
+    const px0 = Math.max(0, Math.floor(u0 * TILE) - 2), px1 = Math.min(TILE, Math.ceil(u1 * TILE) + 2), py0 = Math.max(0, Math.floor((1 - v1) * TILE) - 2), py1 = Math.min(TILE, Math.ceil((1 - v0) * TILE) + 2);
+    HEADP.box = [px0, py0, px1 - px0, py1 - py0];
+    const bu0 = px0 / TILE, bu1 = px1 / TILE, bv1 = 1 - py0 / TILE, bv0 = 1 - py1 / TILE;
+    const local = new Float32Array(U.uv.length), inHead = new Uint8Array(n);
+    for (let i = 0; i < n; i++) { if (head.has(isl[i])) { inHead[i] = 1; local[i * 2] = (U.uv[i * 2] - bu0) / (bu1 - bu0); local[i * 2 + 1] = (U.uv[i * 2 + 1] - bv0) / (bv1 - bv0); } else { local[i * 2] = U.uv[i * 2]; local[i * 2 + 1] = U.uv[i * 2 + 1]; } }
+    const a = toAtlasUV(local, RECT.face_p), b = toAtlasUV(local, RECT.skin_p);
+    uv = new Float32Array(n * 2); for (let i = 0; i < n; i++) { const s2 = inHead[i] ? a : b; uv[i * 2] = s2[i * 2]; uv[i * 2 + 1] = s2[i * 2 + 1]; }
+    tex = new Float32Array(n).fill(6);
+    Object.assign(HEADP, { pos, nrm, uv: local, inHead, idx: U.idx });
+  } else { uv = toAtlasUV(U.uv, RECT['skin_' + gk]); tex = new Float32Array(n).fill(2); }   // Haut: erste Kachel; Shader verschiebt je Figur
   const soft = new Float32Array(n * 3); for (let i = 0; i < n; i++) soft[i * 3] = FAB.skin;
-  addMesh('body-' + gk, { pos, nrm: normals(pos, U.idx, U.vid), uv, tex, idx: U.idx, limb: la.limb, blend: la.blend, reg: la.reg, soft, opt: new Float32Array(n), hide });
-  // Augen
-  const eyes = eyeMesh(B, gk); addMesh('eyes-' + gk, eyes);
+  addMesh('body-' + gk, { pos, nrm, uv, tex, idx: U.idx, limb: la.limb, blend: la.blend, reg: la.reg, soft, opt: new Float32Array(n), hide });
+  // Augen (der Spieler nimmt die des Herrenkörpers: der Schädel ist derselbe)
+  if (gk !== 'p') { const eyes = eyeMesh(B, gk); addMesh('eyes-' + gk, eyes); }
+}
+// Zusammenhängende UV-Inseln (Dreiecke, die Ecken teilen)
+function uvIslands(idx, n) {
+  const par = Int32Array.from({ length: n }, (_, i) => i), f = i => { while (par[i] !== i) { par[i] = par[par[i]]; i = par[i]; } return i; };
+  for (let t = 0; t < idx.length; t += 3) { const a = f(idx[t]), b = f(idx[t + 1]), c = f(idx[t + 2]); par[b] = a; par[f(c)] = a; }
+  const out = new Int32Array(n); for (let i = 0; i < n; i++) out[i] = f(i); return out;
 }
 function eyeMesh(B, gk) {
   const { ref, obj } = B.lp; const vpos = [], vw = [];
@@ -417,7 +539,7 @@ function simplify(m, ratio, err = 0.02) {
 }
 // Ziel: höchstens etwa 6000 Dreiecke je Figur in der mittleren Stufe (bis 45 m stehen oft hunderte Figuren);
 // Haare dürfen gröber werden (Fehler 0.05), in dem Abstand sieht man nur noch die Form
-const LOD1 = { 'body-m': 0.15, 'body-f': 0.15, 'suit-m': 0.18, 'work-m': 0.25, 'lady-f': 0.3, 'shoes-m': 0.15, 'boots-m': 0.2, 'heels-f': 0.25, 'eyes-m': 1, 'eyes-f': 1,
+const LOD1 = { 'body-m': 0.15, 'body-f': 0.15, 'body-p': 0.3, 'suit-m': 0.18, 'work-m': 0.25, 'lady-f': 0.3, 'shoes-m': 0.15, 'boots-m': 0.2, 'heels-f': 0.25, 'eyes-m': 1, 'eyes-f': 1,
   'hairA-m': 0.3, 'hairB-m': 0.4, 'hairC-m': 0.25, 'hairA-f': 0.3, 'hairB-f': 0.15, 'hairC-f': 0.2 };
 for (const [k, r] of Object.entries(LOD1)) if (meshes[k]) meshes[k + '@1'] = r < 1 ? simplify(meshes[k], r, /^hair/.test(k) ? 0.05 : 0.02) : meshes[k];
 

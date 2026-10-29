@@ -416,6 +416,12 @@ export function personBuild(kind, q) {
   const newsboy = c => y => { sph(0.125, 0, y + 0.08, 0.0, c, 1.08, 0.5, 1.12, 14, 6, FAB.wool); sph(0.02, 0, y + 0.14, 0.0, c, 1, 1, 1, 8, 6, FAB.wool); box(0.15, 0.012, 0.07, 0, y + 0.06, 0.115, c, 0.3, 0, 0, FAB.wool); };
   const cloche = c => y0 => { const y = y0 + 0.04; const g = hLathe([[0.122, y - 0.035], [0.124, y - 0.01], [0.118, y + 0.05], [0.095, y + 0.1], [0.05, y + 0.125], [0, y + 0.13]], { sz: 1.08, seg: sg(36), rings: sg(14), fab: FAB.felt }); g.translate(0, 0, -0.008); P0(g, c, FAB.felt); tor(0.12, 0.012, y - 0.005, -0.008, [0.5, 0.1, 0.12], 1.08, 0, FAB.silk); sph(0.022, 0.085, y + 0.0, 0.05, [0.5, 0.1, 0.12], 1, 0.6, 0.6, 8, 6, FAB.silk); };
   const wideBrim = c => y0 => { const y = y0 + 0.025; brimF(0.1, 0.22, y + 0.02, c, -0.01); sph(0.11, 0, y + 0.05, -0.01, c, 1.0, 0.8, 1.05, 14, 8, FAB.felt); sph(0.035, 0.09, y + 0.07, 0.07, [0.85, 0.3, 0.35], 1, 1, 1, 6, 5, FAB.silk); };
+  // V24: Turban mit Agraffe (Abendmode der Zwanziger), Homburg, Porkpie; Ohrringe für Kleid und Kostüm
+  const turban = c => y0 => { const y = y0 + 0.03; const g = hLathe([[0.118, y - 0.03], [0.124, y], [0.12, y + 0.05], [0.1, y + 0.095], [0.06, y + 0.118], [0, y + 0.122]], { sz: 1.1, seg: sg(36), rings: sg(14), fab: FAB.silk, fold: (th, yy) => 0.006 * Math.sin(th * 7 + yy * 60) }); g.translate(0, 0, -0.01); P0(g, c, FAB.silk); sph(0.016, 0.0, y + 0.05, 0.115, COL.gold, 1, 1.3, 0.5, 8, 6, FAB.metal); sph(0.008, 0.0, y + 0.05, 0.12, [0.7, 0.85, 1.0], 1, 1, 0.6, 6, 5, FAB.metal); P0(hTube([[0, y + 0.065, 0.11], [0.02, y + 0.13, 0.1], [0.05, y + 0.2, 0.06]], [0.008, 0.012, 0.003], { seg: 5, n: 6, swayKind: 1, sway: v => v * 0.8, fab: FAB.fur }), [0.95, 0.92, 0.85], FAB.fur); };
+  const homburg = c => y => { brimF(0.09, 0.175, y + 0.06, c, 0.02); const cr = hLathe([[0.104, y + 0.06], [0.105, y + 0.13], [0.098, y + 0.17], [0.06, y + 0.18], [0.0, y + 0.165]], { sz: 1.12, seg: sg(36), rings: sg(14), fab: FAB.felt, fold: (th, yy) => -0.014 * Math.exp(-((Math.sin(th) / 0.3) ** 2)) * hsm(y + 0.15, y + 0.18, yy) }); P0(cr, c, FAB.felt); cyl(0.106, 0.106, 0.032, 0, y + 0.064, 0, [0.04, 0.04, 0.045], 16, 0, 0, FAB.silk); };
+  const porkpie = c => y => { brimF(0.09, 0.15, y + 0.06, c, 0.016); cyl(0.104, 0.1, 0.075, 0, y + 0.06, 0, c, 16, 0, 0, FAB.felt); cyl(0.106, 0.106, 0.022, 0, y + 0.064, 0, [0.15, 0.1, 0.06], 16, 0, 0, FAB.silk); };
+  const earrings = tagged('hat', (y, pearl) => { for (const sx of [-1, 1]) { sph(0.004, sx * 0.073, y - 0.025, -0.006, COL.gold, 1, 1, 1, 4, 3); if (pearl) sph(0.0068, sx * 0.0735, y - 0.036, -0.005, [0.95, 0.93, 0.88], 1, 1.1, 1, 8, 6, FAB.satin);
+    else P0(hTube([[sx * 0.073, y - 0.027, -0.006], [sx * 0.0735, y - 0.045, -0.006], [sx * 0.0735, y - 0.065, -0.005]], [0.0016, 0.0016, 0.0016], { seg: 4, n: 4, swayKind: 5, sway: v => v * 0.6 }), COL.gold, FAB.metal); } });
   const headband = y => { tor(0.103, 0.008, y + 0.05, -0.016, COL.gold, 1.08, 0.15); for (let k = 0; k < 3; k++) P0(hTube([[0.065, y + 0.075, -0.03], [0.075 + k * 0.006, y + 0.14, -0.04], [0.06 + k * 0.012, y + 0.22, -0.07 - k * 0.01]], [0.007, 0.012, 0.004], { seg: 5, n: 8, az: 0.25, swayKind: 1, sway: v => v * 0.8, fab: FAB.fur }), [0.95, 0.92, 0.85], FAB.fur); };
   // Schuhe: Leisten mit Sohle, Absatz, Kappe und Schnürung; Damen mit hohem Absatz und Spange
   const shoes = tagged('shoes', (heel = false) => {
@@ -585,7 +591,7 @@ export function personBuild(kind, q) {
       tor(0.08, 0.03, 1.42, 0.01, scarf, 1, 0, FAB.knit);
       strip([[0.04, 1.4], [0.06, 1.25], [0.06, 1.1]], [0.06, 0.06, 0.055], 0.012, 0.01, scarf, FAB.knit, 6);
       arms(1.34, 0.56, PAINT, { hand: Math.random() < 0.5 ? COL.dark : COL.skin });
-      head(1.62); hats(1.62, [fedora(COL.dark), bowler([0.05, 0.045, 0.04]), null]);
+      head(1.62); hats(1.62, [fedora(COL.dark), bowler([0.05, 0.045, 0.04]), homburg([0.12, 0.11, 0.1])]);
       carry(1.34, ['case', 'cane', 'paper']);
     } else if (kind === 'police') {
       // Schutzmann: Uniformrock mit Messingknöpfen, Koppel mit Schulterriemen, Schirmmütze, Schlagstock
@@ -615,7 +621,7 @@ export function personBuild(kind, q) {
       band(0.9, 0.04, 0.006, [0.12, 0.08, 0.05], FAB.leather);
       tor(0.065, 0.015, 1.415, 0.02, PAINT, 1);
       arms(1.34, 0.56, PAINT, { rolled: true });
-      head(1.62); hats(1.62, [flatCap([0.2, 0.18, 0.15]), newsboy([0.14, 0.12, 0.1]), null]);
+      head(1.62); hats(1.62, [flatCap([0.2, 0.18, 0.15]), newsboy([0.14, 0.12, 0.1]), porkpie([0.24, 0.2, 0.15])]);
     } else if (kind === 'waiter') {
       // Kellner: kurze weiße Jacke (Instanzfarbe), Fliege, Kummerbund, Serviette über dem linken Unterarm
       BODY = lathe([[0.001, 0.86], [0.205, 0.86], [0.205, 0.92], [0.188, 1.04], [0.2, 1.22], ...SHO], PAINT, 0.74, { fold: jacketFold });
@@ -721,15 +727,15 @@ export function personBuild(kind, q) {
     }
     head(1.58);
     if (kind === 'gown') { TAG = 'hat'; tor(0.09, 0.005, 1.648, -0.012, COL.gold, 1.12, 0.3); sph(0.011, 0.055, 1.672, 0.06, [0.85, 0.95, 1.0], 1, 1, 0.6, 8, 6, FAB.metal); for (const sx of [-1, 1]) { sph(0.004, sx * 0.073, 1.555, -0.006, COL.gold, 1, 1, 1, 4, 3); P0(hTube([[sx * 0.073, 1.553, -0.006], [sx * 0.0735, 1.535, -0.006], [sx * 0.0735, 1.518, -0.005]], [0.0018, 0.0018, 0.0018], { seg: 4, n: 4, swayKind: 5, sway: v => v * 0.6 }), COL.gold, FAB.metal); sph(0.0075, sx * 0.0735, 1.512, -0.005, [0.95, 0.93, 0.88], 1, 1.25, 1, 8, 6, FAB.satin); } TAG = 'body'; }
-    else if (kind === 'dress') hats(1.58, [headband, cloche([0.3, 0.06, 0.08]), null]);
-    else { hats(1.58, [cloche(COL.dark), wideBrim([0.15, 0.12, 0.1]), cloche([0.2, 0.22, 0.3])]); carry(1.31, ['umbrella', 'bag', 'paper']); }
+    else if (kind === 'dress') { hats(1.58, [headband, cloche([0.3, 0.06, 0.08]), null]); earrings(1.58, 0); }
+    else { hats(1.58, [cloche(COL.dark), wideBrim([0.15, 0.12, 0.1]), turban([0.28, 0.18, 0.32])]); earrings(1.58, 1); carry(1.31, ['umbrella', 'bag', 'paper']); }
   }
   props();
   if (PB.mh) return P;
   return personMerge(P, kind);
 }
 // Hutmaske je Art: welche Hutvarianten das Haar bedecken (Bit 0-2), 8 = immer eine Mütze
-export const HATMASK = { coat: 3, suit: 3, worker: 3, kid: 7, lady: 7, dress: 2, police: 8, chauffeur: 8, sailor: 8, livery: 8 };
+export const HATMASK = { coat: 7, suit: 3, worker: 7, kid: 7, lady: 7, dress: 2, police: 8, chauffeur: 8, sailor: 8, livery: 8 };
 // Zusammenfügen mit Index; Farben, Glieder, Varianten, Stoffart und Schwung je Ecke
 export function personMerge(parts, kind) {
   let n = 0, ni = 0;
@@ -767,6 +773,8 @@ export function personMerge(parts, kind) {
 export const FACE_RES = MOBILE ? 128 : 320;
 // Merkmale je Gesicht, auch im Shader (humanShape) aus der Nummer berechnet: Schönheit -1..1 und Alter 0..1
 export const FACE_TRAIT = i => ({ b: ((i * 0.618034) % 1) * 2 - 1, age: (i * 0.754877 + 0.13) % 1 });
+// V24: welche Herrengesichter eine Brille tragen (gemalt und als Modell); dieselbe Regel steht im Shader (HUM_VS_POS)
+export const FACE_SPECS = i => i < 32 && (i * 7) % 13 < 2;
 export const FACE_ATLAS = (() => {
   const S = FACE_RES, M = MOBILE ? S / 2 : S, W = S * 8, rnd = mulberry32(3141);
   const cv = document.createElement('canvas'); cv.width = cv.height = W; const g = cv.getContext('2d');
@@ -988,7 +996,7 @@ export const FACE_ATLAS = (() => {
         // Koteletten bis zur Wange
         for (const sd of [-1, 1]) hairy(x => { x.beginPath(); x.moveTo(sd * 0.068, 0.012); x.lineTo(sd * 0.06, 0.012); x.quadraticCurveTo(sd * 0.055, -0.03, sd * 0.05, HL.mouthY + 0.004); x.quadraticCurveTo(sd * 0.06, HL.mouthY - 0.004, sd * 0.066, HL.mouthY + 0.01); x.closePath(); }, 150, sd < 0 ? -0.068 : 0.05, sd < 0 ? -0.05 : 0.068, HL.mouthY - 0.004, 0.012, -0.004);
       }
-      if (r() < 0.16) for (const [x, st, w] of [[g, 'rgba(200,160,80,0.95)', 0.0009], [gB, cls(2 / 3), 0.0012], [gR, grey(1), 0.0012]]) { x.strokeStyle = st; x.lineWidth = w; for (const sd of [-1, 1]) { x.beginPath(); x.arc(sd * ex, ey, 0.0145, 0, Math.PI * 2); x.stroke(); } x.beginPath(); x.moveTo(-ex + 0.0145, ey + 0.002); x.quadraticCurveTo(0, ey + 0.006, ex - 0.0145, ey + 0.002); x.stroke(); }
+      if (r() < 2 && FACE_SPECS(i)) for (const [x, st, w] of [[g, 'rgba(200,160,80,0.95)', 0.0009], [gB, cls(2 / 3), 0.0012], [gR, grey(1), 0.0012]]) { x.strokeStyle = st; x.lineWidth = w; for (const sd of [-1, 1]) { x.beginPath(); x.arc(sd * ex, ey, 0.0145, 0, Math.PI * 2); x.stroke(); } x.beginPath(); x.moveTo(-ex + 0.0145, ey + 0.002); x.quadraticCurveTo(0, ey + 0.006, ex - 0.0145, ey + 0.002); x.stroke(); }
     }
     for (const x of lay) x.restore();
   }
