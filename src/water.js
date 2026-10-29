@@ -15,18 +15,35 @@ import { WIND } from './wind.js';
    hängen vom Wind ab, ein feines Netz folgt der Kamera, Schaumkronen bei Böen;
    dieselben Wellen auf der CPU für Auftrieb: Boote heben, nicken und rollen
    ===================================================================== */
-export const GW = { n: 6, L: [34, 21, 13.5, 8.6, 5.4, 3.3], A0: [0.2, 0.13, 0.08, 0.05, 0.03, 0.018], da: [0, 0.55, -0.45, 0.95, -0.8, 0.3], m: 1, list: [] };
-U.uGW = { value: [0, 1, 2, 3, 4, 5].map(() => new T.Vector4()) };
+// V27: acht Wellenzüge statt sechs, dazu eine lange Dünung aus dem Fjord und kurzes Gekräusel; insgesamt etwa 50 % höher
+export const GW = { n: 8, L: [58, 34, 21, 13.5, 8.6, 5.4, 3.3, 2.1], A0: [0.3, 0.26, 0.17, 0.1, 0.06, 0.035, 0.02, 0.01], da: [0.2, 0, 0.55, -0.45, 0.95, -0.8, 0.3, -1.2], m: 1, list: [] };
+U.uGW = { value: [0, 1, 2, 3, 4, 5, 6, 7].map(() => new T.Vector4()) };
 U.uGWQ = { value: 0.55 };
 export function updateWaves(dt) {
   // Wellenhöhe folgt dem Wind (träge: das Meer braucht Zeit)
-  const tgt = 0.45 + WIND.s / 7 + WIND.gust * 0.25;
+  const tgt = Math.min(1.4, 0.45 + WIND.s / 7 + WIND.gust * 0.25);
   GW.m += (tgt - GW.m) * Math.min(1, dt * 0.15);
   GW.list.length = 0;
   for (let i = 0; i < GW.n; i++) {
-    const a = WIND.a + GW.da[i], k = 2 * Math.PI / GW.L[i], A = GW.A0[i] * GW.m * (i < 2 ? 1 : 0.8 + 0.4 * Math.min(1, WIND.s / 6));
+    const a = WIND.a + GW.da[i], k = 2 * Math.PI / GW.L[i], A = GW.A0[i] * GW.m * (i < 3 ? 1 : 0.8 + 0.4 * Math.min(1, WIND.s / 6));
     U.uGW.value[i].set(Math.cos(a), Math.sin(a), A, k);
     GW.list.push([Math.cos(a), Math.sin(a), A, k, Math.sqrt(9.81 * k), i * 1.7]);
+  }
+  shoreSpray(dt);
+}
+// V27: Wellen schlagen an Kai und Ufermauern hoch: in Kameranähe Gischt, wo ein Wellenkamm die Mauer trifft
+export const SPRAY = { t: 0 };
+export function shoreSpray(dt) {
+  if ((SPRAY.t -= dt) > 0) return;
+  SPRAY.t = MOBILE ? 0.35 : 0.18;
+  const cp = camera.position; if (cp.y > 80) return;
+  for (let k = 0; k < 3; k++) {
+    const a = Math.random() * Math.PI * 2, r = 8 + Math.random() * 70, x = cp.x + Math.cos(a) * r, z = cp.z + Math.sin(a) * r;
+    const d = landDist(x, z); if (d > 0 || d < -2.5) continue;
+    const h = waterH(x, z);
+    if (h < 0.18 * GW.m) continue;
+    const s = Math.min(1.6, h / 0.3);
+    fxEmit('spray', x, WATER_Y + 0.2 + h, z, 0, 2.2 * s, 0, Math.round(6 + 10 * s), 1.1 * s, 0.8 + 0.4 * s);
   }
 }
 // Wasserhöhe über WATER_Y an einem Punkt (mit einem Rückrechnungsschritt für die waagrechte Verschiebung)
@@ -57,20 +74,20 @@ export function waterGridGeo() {
   const g = new T.BufferGeometry(); g.setAttribute('position', new T.BufferAttribute(pos.subarray(0, o), 3)); g.setIndex(idx);
   return g;
 }
-export const WATER_VERT = `uniform float uTime; uniform vec4 uGW[6]; uniform float uGWQ; uniform vec3 uCam;
-  varying vec3 vW; varying float vD; varying vec2 vGG; varying float vJ;
+export const WATER_VERT = `uniform float uTime; uniform vec4 uGW[8]; uniform float uGWQ; uniform vec3 uCam;
+  varying vec3 vW; varying float vD; varying vec2 vGG; varying float vJ; varying float vH;
   void main(){
     vec4 w = modelMatrix * vec4(position, 1.0);
     float fade = 1.0 - smoothstep(260.0, 900.0, length(w.xz - uCam.xz));
     vec3 off = vec3(0.0); vec2 gg = vec2(0.0); float jac = 0.0;
-    for (int i = 0; i < 6; i++) {
+    for (int i = 0; i < 8; i++) {
       vec4 G = uGW[i]; vec2 d = G.xy; float A = G.z * fade, k = G.w, om = sqrt(9.81 * k);
       float th = k * dot(d, w.xz) - om * uTime + float(i) * 1.7, c = cos(th), s = sin(th);
       off.xz += d * (uGWQ * A * c); off.y += A * s;
       gg += d * (k * A * c); jac += uGWQ * k * A * s;
     }
-    w.xyz += off; vW = w.xyz; vGG = gg; vJ = jac;
-    vec4 mv = viewMatrix * w; vD = -mv.z; gl_Position = projectionMatrix * mv;
+    w.xyz += off; vW = w.xyz; vGG = gg; vJ = jac; vH = off.y;
+    vec4 mv = viewMatrix * w; vD = length(mv.xyz); gl_Position = projectionMatrix * mv;
   }`;
 // Schwimmlage eines Bootes aus vier Messpunkten: Hub, Stampfen, Rollen
 export function floatPose(x, z, h, L, B, t) {
@@ -202,7 +219,7 @@ export function buildHarborWaterMat() {
     vertexShader: WATER_VERT,
     fragmentShader: `uniform float uTime; uniform vec3 uFogColor; uniform float uFogDensity; uniform vec3 uMoonDir; uniform vec3 uCam; uniform vec3 uTeal;
       uniform sampler2D uRefl; uniform mat4 uReflMat; uniform float uReflOn; uniform vec4 uWake[4]; uniform float uWakeL[4]; uniform vec4 uWind;
-      varying vec3 vW; varying float vD; varying vec2 vGG; varying float vJ;
+      varying vec3 vW; varying float vD; varying vec2 vGG; varying float vJ; varying float vH;
       ${WATER_COMMON}
       ${LAND_GLSL()}
       // Feines Gekräusel: zwei Lagen Rauschen, die gegeneinander laufen
@@ -278,6 +295,14 @@ export function buildHarborWaterMat() {
           col += vec3(1.0, 0.72, 0.35) * bel * 0.6 * (0.1 + 0.9 * smoothstep(0.45, 0.8, wN(vec2(vW.x * 0.2, vW.z * 0.6 - uTime * 1.5))));
           col += uTeal * 0.25 * smoothstep(0.55, 0.85, wN(vec2(vW.x * 0.05 + g.x, vW.z * 0.4 - uTime * 0.6))) * exp(-dz / 250.0) * (0.5 + 0.5 * sin(vW.x * 0.06));
         }
+        // V27: Licht scheint durch die dünnen Wellenkämme (türkis von der Stadt, warm am Kai)
+        float crestH = smoothstep(0.12, 0.6, vH) * (1.0 - far);
+        col += (uTeal * 0.07 + vec3(0.05, 0.035, 0.015) * exp(-dz / 60.0)) * crestH * (0.4 + 0.6 * pow(1.0 - ndv, 2.0));
+        // Brandung: Schaumlinien laufen auf Kai und Ufer zu und brechen dort
+        float surf = smoothstep(14.0, 0.0, dz) * smoothstep(0.55, 0.95, sin(dz * 0.9 + uTime * 1.6 + wN(p * 0.15) * 4.0)) * smoothstep(0.4, 0.75, wN(p * vec2(0.35, 0.9) + uTime * 0.2));
+        // Schaumstreifen in Windrichtung, bei Wind deutlicher
+        vec2 wd = normalize(uWind.xy + 1e-4);
+        float streaks = smoothstep(0.62, 0.9, wN(vec2(dot(p, wd) * 0.05, dot(p, vec2(-wd.y, wd.x)) * 0.6) + uTime * 0.03)) * smoothstep(4.0, 9.0, uWind.z + uWind.w * 5.0) * (1.0 - far) * 0.35;
         // Mondglanz auf den Wellen
         col += vec3(0.9, 0.95, 1.0) * pow(max(dot(Rv, uMoonDir), 0.0), 260.0) * 0.8 * (1.0 - far);
         // Schaum an der Kaimauer und im Kielwasser
@@ -285,6 +310,7 @@ export function buildHarborWaterMat() {
         foam += clamp(foamW, 0.0, 1.0) * (0.6 + 0.4 * wN(p * 6.0 + uTime * 0.5)) * aa;
         // Schaumkronen auf den Wellenkämmen, wenn der Wind auffrischt
         foam += smoothstep(0.05, 0.13, vJ) * smoothstep(3.5, 8.0, uWind.z + uWind.w * 5.0) * smoothstep(0.5, 0.8, wN(p * 1.3 + uTime * 0.2)) * (1.0 - far) * 0.8;
+        foam += surf * 0.7 * aa + streaks;
         col = mix(col, vec3(0.32, 0.38, 0.4), clamp(foam, 0.0, 1.0) * 0.55);
         float fogF = vespFog(vD, vW.y, uCam.y, uFogDensity * (1.0 + 0.5 * uMist), 0.8);
         gl_FragColor = vec4(mix(col, uFogColor * 1.25, fogF), 1.0);
@@ -295,7 +321,7 @@ export function buildHarborWaterMat() {
 export function poolWaterMat(tint = [0.05, 0.42, 0.45]) {
   return new T.ShaderMaterial({
     uniforms: { ...U, uTint: { value: new T.Vector3(...tint) } },
-    vertexShader: `varying vec3 vW; varying float vD; void main(){ vec4 w = modelMatrix*vec4(position,1.0); vW=w.xyz; vec4 mv=viewMatrix*w; vD=-mv.z; gl_Position=projectionMatrix*mv; }`,
+    vertexShader: `varying vec3 vW; varying float vD; void main(){ vec4 w = modelMatrix*vec4(position,1.0); vW=w.xyz; vec4 mv=viewMatrix*w; vD=length(mv.xyz); gl_Position=projectionMatrix*mv; }`,
     fragmentShader: `uniform float uTime; uniform vec3 uFogColor; uniform float uFogDensity; uniform vec3 uMoonDir; uniform vec3 uCam; uniform vec3 uTint; varying vec3 vW; varying float vD;
       ${WATER_COMMON}
       void main(){

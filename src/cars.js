@@ -107,3 +107,67 @@ export function carDamageAttr(im) {
   for (let i = 0; i < n; i++) a[i * 4 + 3] = 1;
   im.geometry.setAttribute('aDmg', new T.InstancedBufferAttribute(a, 4));
 }
+
+/* =====================================================================
+   V27 · KAROSSERIE MIT RUNDUNGEN statt quer extrudierter Seitenprofile
+   carLoft: Körper aus Querschnitten entlang der Wagenachse (x). Jeder Schnitt ist eine Superellipse
+   (halbe Breite w, Unterkante yb, Oberkante yt, Rundung n: 2 = Ellipse, 6 = fast eckig);
+   so entstehen gewölbte Hauben, eingezogene Flanken und ein abfallendes Heck.
+   carFender: Kotflügel als gewölbtes Blech, das einem Pfad um das Rad folgt (Querschnitt mit Bombierung),
+   vorn bis ins Trittbrett gezogen, hinten als Tropfen.
+   ===================================================================== */
+export function carLoft(st, M = 22) {
+  const pos = [], idx = [], ring = st.length;
+  for (const s of st) {
+    const n = s.n ?? 4, yc = (s.yb + s.yt) / 2, hh = (s.yt - s.yb) / 2;
+    for (let j = 0; j < M; j++) {
+      const a = j / M * Math.PI * 2, c = Math.cos(a), sn = Math.sin(a);
+      pos.push(s.x, yc + hh * Math.sign(sn) * Math.pow(Math.abs(sn), 2 / n), s.w * Math.sign(c) * Math.pow(Math.abs(c), 2 / n));
+    }
+  }
+  for (let i = 0; i < ring - 1; i++) for (let j = 0; j < M; j++) {
+    const a = i * M + j, b = i * M + (j + 1) % M, c = a + M, d = b + M;
+    if (st[i].x < st[i + 1].x) idx.push(a, c, b, b, c, d); else idx.push(a, b, c, b, d, c);
+  }
+  // Enden zu
+  for (const [i, flip] of [[0, true], [ring - 1, false]]) {
+    const ci = pos.length / 3, s = st[i]; pos.push(s.x, (s.yb + s.yt) / 2, 0);
+    const back = (st[0].x > st[ring - 1].x) !== flip;
+    for (let j = 0; j < M; j++) { const a = i * M + j, b = i * M + (j + 1) % M; if (back) idx.push(ci, a, b); else idx.push(ci, b, a); }
+  }
+  const g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals();
+  return g;
+}
+// Pfad in der Seitenansicht (x, y), Querschnitt: Bombierung über die Breite W, Blechstärke T; z = Mitte des Kotflügels
+export function carSweep(path, z, W, Tk) {
+  const prof = [];
+  for (let k = 0; k <= 8; k++) { const u = -1 + 2 * k / 8; prof.push([Tk * Math.pow(Math.max(0, 1 - Math.abs(u) ** 3), 1 / 3) + 0.012, u * W / 2]); }
+  prof.push([0, W / 2], [0, -W / 2]);
+  const M = prof.length, pos = [], idx = [];
+  path.forEach(([x, y], i) => {
+    const p0 = path[Math.max(0, i - 1)], p1 = path[Math.min(path.length - 1, i + 1)];
+    let tx = p1[0] - p0[0], ty = p1[1] - p0[1]; const L = Math.hypot(tx, ty) || 1; tx /= L; ty /= L;
+    const nx = ty, ny = -tx;
+    for (const [o, w] of prof) pos.push(x + nx * o, y + ny * o, z + w);
+  });
+  for (let i = 0; i < path.length - 1; i++) for (let j = 0; j < M; j++) { const a = i * M + j, b = i * M + (j + 1) % M, c = a + M, d = b + M; idx.push(a, c, b, b, c, d); }
+  for (const [i, f] of [[0, 1], [path.length - 1, 0]]) { const ci = pos.length / 3, [x, y] = path[i]; pos.push(x, y, z); for (let j = 0; j < M; j++) { const a = i * M + j, b = i * M + (j + 1) % M; if (f) idx.push(ci, a, b); else idx.push(ci, b, a); } }
+  const g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals();
+  return g;
+}
+// Kotflügelpfad: Bogen um das Rad (Mitte cx, Achshöhe 0.44, Halbmesser r) von Winkel a0 bis a1, danach optional ein Schweif
+export function fenderPath(cx, r, a0, a1, tail) {
+  const pts = [];
+  for (let k = 0; k <= 14; k++) { const a = a0 + (a1 - a0) * k / 14; pts.push([cx + Math.cos(a) * r, 0.44 + Math.sin(a) * r]); }
+  if (tail) for (const p of tail) pts.push(p);
+  return pts;
+}
+// Drahtspeichenrad mit Weißwandreifen, Felgenring, Nabenkappe; Achse entlang z
+export function carWheel(push, sx, z, sz, c) {
+  push(new T.TorusGeometry(0.34, 0.1, 10, 24).translate(sx, 0.44, z), c.tyre);
+  push(new T.CylinderGeometry(0.31, 0.31, 0.02, 24, 1, true).rotateX(Math.PI / 2).translate(sx, 0.44, z + sz * 0.1), c.wall);
+  push(new T.TorusGeometry(0.245, 0.022, 6, 24).translate(sx, 0.44, z + sz * 0.035), c.chrome);
+  for (let k = 0; k < 16; k++) { const g = new T.BoxGeometry(0.01, 0.48, 0.01); g.rotateZ(k * Math.PI / 16 + (k % 2) * 0.06); g.translate(sx, 0.44, z + sz * ((k % 2) ? 0.05 : -0.01)); push(g, c.chrome); }
+  push(new T.SphereGeometry(0.1, 12, 6, 0, Math.PI * 2, 0, Math.PI / 2).rotateX(sz * Math.PI / 2).scale(1, 1, 0.7).translate(sx, 0.44, z + sz * 0.06), c.chrome);
+  push(new T.CylinderGeometry(0.03, 0.03, 0.06, 8).rotateX(Math.PI / 2).translate(sx, 0.44, z + sz * 0.14), c.gold);
+}

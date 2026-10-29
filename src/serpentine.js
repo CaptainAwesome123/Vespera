@@ -1,4 +1,4 @@
-import { shared, canvasTex, mulberry32, T, mergeGeos, scene, MOBILE, U, pick, R, rand, camera, ANISO, FOG_GLSL } from './core.js';
+import { shared, canvasTex, mulberry32, T, mergeGeos, scene, MOBILE, U, pick, R, rand, camera, ANISO, FOG_GLSL, FOGVIS } from './core.js';
 import { personGeoHi, personShare, HQ } from './people-model.js';
 import { stdMat, MAT, addCollider, glowTex, paintMat, mergeColored, PAINT, personLook } from './people-skeleton.js';
 import { lamps, trees, addGlow, NEON, addNeon, addSeg, shafts, spires, neons, segs, dedupeSegs, facadeMat, glowPts, roofs, curbs } from './facade-shader.js';
@@ -11,7 +11,7 @@ import { poolWaterMat, fountainJet } from './water.js';
 import { VILLA, deckY, TER, terrainHeight, ROAD_Z0, VIA, ROAD_W, terrainHeightRaw, terrainInfo, VALLEY_W, PORT_LOOPS, PORT_PEDS } from './harbour.js';
 import { makeGlowPoints, buildCitizens } from './ragdoll.js';
 import { cars } from './airships.js';
-import { carDamageAttr, carCabin } from './cars.js';
+import { carDamageAttr, carCabin, carLoft, carSweep, fenderPath, carWheel } from './cars.js';
 import { OBSTACLES, _m, _p, _q, _up, _s, TRUCK_N, deliveryMen, buildDrivers } from './traffic.js';
 import { dishModel, VENUE_PEDS } from './venues.js';
 import { carScenePeds } from './eating.js';
@@ -1210,7 +1210,7 @@ export function buildMountains() {
   geo.computeVertexNormals();
   const mat = new T.ShaderMaterial({
     uniforms: U,
-    vertexShader: `varying vec3 vW; varying vec3 vN; varying float vD; void main(){ vec4 w = modelMatrix*vec4(position,1.0); vW = w.xyz; vN = normalize(mat3(modelMatrix)*normal); vec4 mv = viewMatrix*w; vD = -mv.z; gl_Position = projectionMatrix*mv; }`,
+    vertexShader: `varying vec3 vW; varying vec3 vN; varying float vD; void main(){ vec4 w = modelMatrix*vec4(position,1.0); vW = w.xyz; vN = normalize(mat3(modelMatrix)*normal); vec4 mv = viewMatrix*w; vD = length(mv.xyz); gl_Position = projectionMatrix*mv; }`,
     fragmentShader: `uniform vec3 uFogColor; uniform float uFogDensity; uniform vec3 uMoonDir; uniform vec3 uTeal; uniform vec3 uVilla; uniform vec3 uCam; uniform float uSnowCover; uniform float uMoonLit; varying vec3 vW; varying vec3 vN; varying float vD;
       ${FOG_GLSL}
       float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7)))*43758.5453); }
@@ -1510,6 +1510,8 @@ export function cobbleTextures() {
 // Straßendetails im Shader, damit keine Stelle der anderen gleicht: Farbchargen der Steine, ausgebesserte Flecken,
 // Pfützen mit Spiegelglanz, Kanaldeckel und Gitterroste, Laub, Zeitungsfetzen, Ölflecken; auf dem Gehweg Kaugummi und Versorgungsdeckel
 export function streetDetail(mat, walk) {
+  // V27: walk === 'plaza' = Belmont-Platz (eigenes Fugenbild, daher ohne Plattenraster, Kaugummi und Roste)
+  const plaza = walk === 'plaza';
   const prev = mat.onBeforeCompile;
   mat.userData.street = true;
   mat.onBeforeCompile = sh => {
@@ -1529,7 +1531,7 @@ export function streetDetail(mat, walk) {
         // Farbchargen und ausgebesserte Flächen: großräumig wechselnde Tönung
         float big = sdN(sw * 0.045) * 0.6 + sdN(sw * 0.13 + 17.0) * 0.4;
         diffuseColor.rgb *= mix(vec3(0.9, 0.92, 0.95), vec3(1.08, 1.03, 0.96), big);
-        ${walk ? 'diffuseColor.rgb *= 0.9 + 0.2 * sdH(floor(sw / 1.0) + 3.1);' : 'diffuseColor.rgb *= mix(1.0, 0.82, smoothstep(0.62, 0.66, sdN(sw * 0.07 + 40.0)));'}
+        ${plaza ? '' : walk ? 'diffuseColor.rgb *= 0.9 + 0.2 * sdH(floor(sw / 1.0) + 3.1);' : 'diffuseColor.rgb *= mix(1.0, 0.82, smoothstep(0.62, 0.66, sdN(sw * 0.07 + 40.0)));'}
         // Pfützen
         // V25: je nasser, desto mehr und größere Pfützen; nasser Stein ist dunkler
         float pudN = sdN(sw * 0.09 + 5.0) * 0.75 + sdN(sw * 0.4) * 0.25;
@@ -1551,7 +1553,7 @@ export function streetDetail(mat, walk) {
         // Kanaldeckel aus Gusseisen mit Rippen und Ringen; Gitterroste
         vec2 mc = floor(sw / 13.0), mo = (vec2(sdH(mc + 1.3), sdH(mc + 7.7)) * 0.7 + 0.15) * 13.0;
         vec2 md = sw - mc * 13.0 - mo; float mr = length(md);
-        float manOn = step(${walk ? '0.92' : '0.8'}, sdH(mc + 4.4)) * sdTop;
+        float manOn = step(${walk ? '0.92' : '0.8'}, sdH(mc + 4.4)) * sdTop${plaza ? ' * 0.0' : ''};
         float man = manOn * step(mr, ${walk ? '0.0' : '0.36'});
         float manRim = manOn * step(abs(mr - 0.35), 0.02) * ${walk ? '0.0' : '1.0'};
         float rib = step(0.5, fract(atan(md.y, md.x) * 3.8197)) * step(0.1, mr) * step(mr, 0.28) + step(abs(mr - 0.3), 0.012) + step(abs(mr - 0.12), 0.01);
@@ -1569,7 +1571,7 @@ export function streetDetail(mat, walk) {
         float paper = step(lr, 0.008) * step(abs(lp.x), 0.1) * step(abs(lp.y), 0.07) * sdTop;
         diffuseColor.rgb = mix(diffuseColor.rgb, mix(vec3(0.32, 0.16, 0.05), vec3(0.4, 0.3, 0.08), sdH(lc)), leaf * sdFine);
         diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.62, 0.6, 0.55) * (0.85 + 0.15 * step(0.5, fract(lp.y * 40.0))), paper * sdFine);
-        ${walk ? 'diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.13, 0.13, 0.13), step(0.985, sdH(floor(sw * 6.0))) * sdTop * sdFine * step(length(fract(sw * 6.0) - 0.5), 0.3));' : ''}
+        ${walk && !plaza ? 'diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.13, 0.13, 0.13), step(0.985, sdH(floor(sw * 6.0))) * sdTop * sdFine * step(length(fract(sw * 6.0) - 0.5), 0.3));' : ''}
         float sdPud = pud * (1.0 - man) * (1.0 - grate);
         ${walk ? '' : `
         // Rinnstein entlang der Bordsteine (dunkler, nass) und Fußgängerüberwege aus Messingnägeln an den Kreuzungen (nur im Straßenraster)
@@ -2190,7 +2192,7 @@ export function buildTrees() {
 export function updateTreeLod(dt) {
   if ((treeTimer -= dt) > 0) return;
   treeTimer = 0.3;
-  const cp = camera.position, D2 = ((MOBILE ? 110 : 230) + Math.max(0, cp.y) * 0.5) ** 2, F2 = (2600) ** 2;
+  const cp = camera.position, D2 = ((MOBILE ? 110 : 230) + Math.max(0, cp.y) * 0.5) ** 2, F2 = Math.min(2600, FOGVIS.tall) ** 2;
   for (const st of TREE_SETS) {
     let a = 0, b = 0;
     st.pts.forEach((p, i) => {
@@ -2232,7 +2234,7 @@ export const parked = []; export let parkedCmp = null; shared.parkedTimer = 0;
 export function updateParked(dt) {
   if (!parkedCmp || (shared.parkedTimer -= dt) > 0) return;
   shared.parkedTimer = 0.15;
-  const cp = camera.position, D2 = (420 + Math.max(0, cp.y)) ** 2;
+  const cp = camera.position, D2 = Math.min(420 + Math.max(0, cp.y), FOGVIS.ped) ** 2;   // V27: im Nebel nur so weit, wie man sieht
   parkedCmp.begin();
   for (const c of parked) { if (c.hidden) continue; const d2 = (c.x - cp.x) ** 2 + (c.z - cp.z) ** 2 + cp.y * cp.y; if (d2 < D2) parkedCmp.put(c.m, c, c.c, d2); }
   parkedCmp.end();
@@ -2316,12 +2318,20 @@ export function carGeoHi(opts = {}) {
     const g = new T.ExtrudeGeometry(sh, { depth: depth - 2 * bevel, bevelEnabled: bevel > 0, bevelThickness: bevel, bevelSize: bevel, bevelSegments: 1, curveSegments: 6 });
     P.push([g.translate(0, 0, z - depth / 2 + bevel), c]);
   };
-  // Karosserie: lange Haube, Fahrgastraum, Kofferraum (Seitenprofile, quer extrudiert)
-  ext([[0.5, 0.62], [2.4, 0.62], [2.44, 1.18], [2.3, 1.24], [0.5, 1.3]], 1.12, 0, PAINT);
-  ext([[-2.42, 0.62], [0.62, 0.62], [0.62, 1.3], [-2.15, 1.33], [-2.4, 1.12]], 1.7, 0, PAINT);
+  // V27: Karosserie aus Querschnitten (carLoft in cars.js): gewölbte lange Haube, Fahrgastraum mit eingezogenen Flanken, rund abfallendes Heck
+  P.push([carLoft([
+    { x: 0.55, w: 0.58, yb: 0.62, yt: 1.29, n: 5 }, { x: 1.2, w: 0.575, yb: 0.62, yt: 1.27, n: 5 }, { x: 2.0, w: 0.55, yb: 0.63, yt: 1.23, n: 4.5 },
+    { x: 2.36, w: 0.52, yb: 0.64, yt: 1.2, n: 4 }, { x: 2.44, w: 0.49, yb: 0.66, yt: 1.16, n: 3.5 }]), PAINT]);
+  P.push([carLoft([
+    { x: -2.53, w: 0.42, yb: 0.76, yt: 0.86, n: 2.4 }, { x: -2.48, w: 0.62, yb: 0.69, yt: 0.99, n: 3 }, { x: -2.36, w: 0.75, yb: 0.63, yt: 1.15, n: 3.6 },
+    { x: -2.1, w: 0.83, yb: 0.6, yt: 1.29, n: 4.2 }, { x: -1.5, w: 0.86, yb: 0.58, yt: 1.335, n: 5 }, { x: -0.2, w: 0.865, yb: 0.58, yt: 1.33, n: 5 },
+    { x: 0.5, w: 0.85, yb: 0.6, yt: 1.32, n: 5 }, { x: 0.64, w: 0.8, yb: 0.62, yt: 1.3, n: 4.5 }], 26), PAINT]);
   OPT = 4;
   if (!opts.driver) ext([[-1.98, 1.3], [0.42, 1.3], [0.24, 1.93], [-1.82, 1.96], [-2.02, 1.72]], 1.58, 0, COL.glass, 0.02);
-  ext([[-1.96, 1.92], [0.28, 1.92], [0.22, 1.98], [-1.86, 2.04], [-1.99, 1.98]], 1.68, 0, PAINT, 0.04);
+  // gewölbtes Dach mit Regenrinne
+  P.push([carLoft([{ x: -2.02, w: 0.78, yb: 1.86, yt: 1.95, n: 2.6 }, { x: -1.85, w: 0.83, yb: 1.9, yt: 2.03, n: 3.2 }, { x: -0.8, w: 0.845, yb: 1.91, yt: 2.06, n: 3.4 }, { x: 0.1, w: 0.835, yb: 1.91, yt: 2.03, n: 3.2 }, { x: 0.3, w: 0.8, yb: 1.9, yt: 1.97, n: 2.8 }], 18), PAINT]);
+  for (const sz of [-1, 1]) B(2.25, 0.025, 0.025, -0.85, 1.905, sz * 0.84, COL.chrome);
+  B(0.2, 0.025, 1.52, 0.4, 1.96, 0, PAINT);                                             // Sonnenblende über der Frontscheibe
   for (const x of [0.3, -0.78, -1.88]) for (const sz of [-1, 1]) B(0.08, 0.66, 0.05, x, 1.63, sz * 0.8, PAINT);
   OPT = 0;
   B(0.08, 0.04, 1.6, 0.36, 1.31, 0, COL.chrome);                                        // Scheibenrahmen
@@ -2338,40 +2348,49 @@ export function carGeoHi(opts = {}) {
   for (let k = -4; k <= 4; k++) B(0.04, 0.54, 0.035, 2.5, 0.94, k * 0.095, COL.dark);
   B(0.06, 0.1, 0.06, 2.42, 1.3, 0, COL.chrome); P.push([new T.ConeGeometry(0.03, 0.16, 6).rotateZ(-Math.PI / 2.5).translate(2.45, 1.38, 0), COL.chrome]);
   for (const sz of [-1, 1]) {
-    P.push([new T.SphereGeometry(0.17, 14, 10, 0, Math.PI * 2, 0, Math.PI * 0.6).rotateZ(-Math.PI / 2).translate(2.38, 1.12, sz * 0.62), COL.chrome]);
-    P.push([new T.CircleGeometry(0.145, 14).rotateY(Math.PI / 2).translate(2.47, 1.12, sz * 0.62), [1.0, 0.95, 0.8]]);
+    // V27: große Scheinwerfer in Geschossform auf einem Querträger
+    P.push([new T.SphereGeometry(0.19, 18, 12, 0, Math.PI * 2, 0, Math.PI * 0.62).rotateZ(-Math.PI / 2).scale(1.35, 1, 1).translate(2.3, 1.12, sz * 0.64), COL.chrome]);
+    P.push([new T.CircleGeometry(0.165, 18).rotateY(Math.PI / 2).translate(2.395, 1.12, sz * 0.64), [1.0, 0.95, 0.8]]);
+    P.push([new T.TorusGeometry(0.17, 0.014, 4, 18).rotateY(Math.PI / 2).translate(2.4, 1.12, sz * 0.64), COL.chrome]);
     B(0.05, 0.05, 0.05, 2.32, 1.02, sz * 0.62, COL.chrome);
     P.push([new T.CylinderGeometry(0.05, 0.02, 0.22, 10).rotateZ(-Math.PI / 2).translate(2.3, 0.98, sz * 0.36), COL.chrome]);
     B(0.06, 0.08, 0.1, -2.44, 0.95, sz * 0.7, [0.6, 0.04, 0.04]);                       // Rücklichter
     B(0.02, 0.1, 0.05, 0.34, 1.42, sz * 0.88, COL.chrome);                               // Spiegelhalter
   }
-  B(0.08, 0.1, 1.84, 2.64, 0.58, 0, COL.chrome); B(0.08, 0.1, 1.84, -2.6, 0.62, 0, COL.chrome);
-  for (const sz of [-0.55, 0.55]) { B(0.2, 0.05, 0.05, 2.55, 0.58, sz, COL.chrome); B(0.2, 0.05, 0.05, -2.52, 0.62, sz, COL.chrome); }
+  P.push([new T.CylinderGeometry(0.025, 0.025, 1.1, 8).rotateX(Math.PI / 2).translate(2.32, 1.0, 0), COL.chrome]);   // Lampenträger
+  // V27: Stoßstangen als zwei runde Chromstäbe mit Hörnern, vorn und hinten
+  for (const [x, y] of [[2.64, 0.58], [-2.62, 0.62]]) {
+    for (const dy of [0.04, -0.05]) P.push([new T.CylinderGeometry(0.035, 0.035, 1.86, 10).rotateX(Math.PI / 2).translate(x, y + dy, 0), COL.chrome]);
+    for (const sz of [-0.55, 0.55]) { P.push([new T.CylinderGeometry(0.03, 0.03, 0.26, 8).translate(x + Math.sign(x) * 0.02, y + 0.06, sz), COL.chrome]); B(0.22, 0.04, 0.04, x - Math.sign(x) * 0.09, y, sz, COL.chrome); }
+    B(0.02, 0.12, 0.34, x - Math.sign(x) * 0.03, y + 0.2, 0, [0.85, 0.82, 0.7]);        // Nummernschild
+  }
+  // Kühlerfigur mit Flügeln
+  for (const sz of [-1, 1]) P.push([new T.BoxGeometry(0.1, 0.012, 0.09).rotateX(sz * 0.5).rotateZ(0.35).translate(2.4, 1.36, sz * 0.05), COL.chrome]);
   // Reserverad am Heck
   P.push([new T.TorusGeometry(0.36, 0.09, 6, 16).rotateY(Math.PI / 2).translate(-2.56, 1.0, 0), COL.tyre]);
   P.push([new T.CylinderGeometry(0.28, 0.28, 0.08, 18).rotateZ(Math.PI / 2).translate(-2.56, 1.0, 0), PAINT]);
-  // Kotflügel: geschwungene Bögen über den Rädern, vorn bis in die Trittbretter gezogen
-  const fender = (cx, tail) => {
-    const pts = [];
-    for (let k = 0; k <= 9; k++) { const a = Math.PI * (k / 9); pts.push([cx + Math.cos(a) * 0.6, 0.44 + Math.sin(a) * 0.6]); }
-    if (tail) { pts.push([cx - 0.95, 0.58], [cx - 1.2, 0.5], [cx - 1.2, 0.45], [cx - 0.92, 0.5]); }
-    for (let k = 9; k >= 0; k--) { const a = Math.PI * (k / 9); pts.push([cx + Math.cos(a) * 0.5, 0.44 + Math.sin(a) * 0.5]); }
-    return pts;
-  };
+
+  // V27: gewölbte Kotflügel, die dem Rad folgen; vorn bis ins Trittbrett gezogen, hinten als Tropfen mit Heckschürze
   for (const sz of [-1, 1]) {
-    ext(fender(1.55, true), 0.4, sz * 0.86, PAINT, 0.03);
-    ext(fender(-1.55, false), 0.4, sz * 0.86, PAINT, 0.03);
-    B(1.9, 0.05, 0.36, 0.0, 0.47, sz * 0.9, COL.dark);                                   // Trittbrett
-    for (const x of [0.4, -0.4]) B(0.3, 0.012, 0.3, x, 0.5, sz * 0.9, COL.chrome);
+    P.push([carSweep(fenderPath(1.55, 0.53, -0.38, Math.PI + 0.05, [[0.82, 0.5], [0.62, 0.47], [0.4, 0.46]]), sz * 0.87, 0.44, 0.075), PAINT]);
+    P.push([carSweep([[-0.95, 0.47], ...fenderPath(-1.55, 0.53, 0.15, Math.PI + 0.1, [[-2.2, 0.4], [-2.28, 0.46]])], sz * 0.87, 0.44, 0.075), PAINT]);
+    B(1.9, 0.05, 0.38, 0.0, 0.465, sz * 0.9, COL.dark);                                  // Trittbrett mit Gummimatten und Chromleisten
+    for (const x of [0.55, 0, -0.55]) B(0.42, 0.012, 0.3, x, 0.495, sz * 0.9, [0.06, 0.06, 0.06]);
+    B(1.9, 0.02, 0.02, 0.0, 0.5, sz * 1.08, COL.chrome);
+    // Türgriffe, Scharniere
+    for (const x of [0.44, -1.1]) B(0.12, 0.025, 0.035, x, 1.2, sz * 0.875, COL.chrome);
+    for (const x of [0.6, -0.96]) for (const y of [0.85, 1.15]) B(0.03, 0.06, 0.02, x, y, sz * 0.872, COL.chrome);
+    // Reserverad im vorderen Kotflügel mit lackierter Haube und Spiegel obendrauf
+    P.push([new T.TorusGeometry(0.33, 0.095, 8, 22).rotateY(sz * 0.12).translate(0.78, 0.86, sz * 1.0), COL.tyre]);
+    P.push([new T.CylinderGeometry(0.34, 0.34, 0.07, 22).rotateX(Math.PI / 2).rotateY(sz * 0.12).translate(0.78, 0.86, sz * 1.04), PAINT]);
+    P.push([new T.TorusGeometry(0.34, 0.012, 4, 22).rotateY(sz * 0.12).translate(0.78, 0.86, sz * 1.075), COL.chrome]);
+    B(0.02, 0.16, 0.02, 0.78, 1.28, sz * 1.0, COL.chrome); P.push([new T.CylinderGeometry(0.06, 0.06, 0.02, 12).rotateX(Math.PI / 2).translate(0.78, 1.38, sz * 1.0), COL.chrome]);
+    // Positionsleuchten auf den Kotflügeln, Begrenzungsleuchte am Windlauf
+    P.push([new T.SphereGeometry(0.045, 10, 6).scale(1.6, 1, 1).translate(1.62, 1.03, sz * 0.87), COL.chrome]);
+    P.push([new T.SphereGeometry(0.04, 10, 6).scale(1.4, 1, 1).translate(0.62, 1.36, sz * 0.66), COL.chrome]);
   }
   // Drahtspeichenräder mit Weißwandreifen
-  for (const sx of opts.noWheels ? [] : [1.55, -1.55]) for (const sz of [1, -1]) {
-    const z = sz * 0.86;
-    P.push([new T.TorusGeometry(0.34, 0.1, 7, 18).translate(sx, 0.44, z), COL.tyre]);
-    P.push([new T.CylinderGeometry(0.3, 0.3, 0.02, 18, 1, true).rotateX(Math.PI / 2).translate(sx, 0.44, z + sz * 0.1), COL.wall]);
-    P.push([new T.CylinderGeometry(0.075, 0.09, 0.2, 8).rotateX(Math.PI / 2).translate(sx, 0.44, z + sz * 0.02), COL.chrome]);
-    for (let k = 0; k < 8; k++) { const g = new T.BoxGeometry(0.014, 0.5, 0.014); g.rotateZ(k * Math.PI / 8); g.translate(sx, 0.44, z + sz * ((k % 2) ? 0.04 : -0.02)); P.push([g, COL.chrome]); }
-  }
+  for (const sx of opts.noWheels ? [] : [1.55, -1.55]) for (const sz of [1, -1]) carWheel((g, c) => P.push([g, c]), sx, sz * 0.86, sz, COL);
   carCabin((g, c, o = 0) => push0([g, c, 0, 0, o]), opts);
   return mergeColored(P);
 }
@@ -2400,7 +2419,7 @@ export class Crowd {
   // Nahe Figuren als feines Modell, entfernte als einfaches, ganz ferne gar nicht
   flag() {
     if (!this.vis) return;
-    const cp = camera.position, far2 = (this.far + Math.max(0, cp.y)) ** 2;
+    const cp = camera.position, far2 = Math.min(this.far + Math.max(0, cp.y), FOGVIS.ped) ** 2;
     for (const k in this.hi) { this.nr[k].begin(); this.hi[k].begin(); this.lo[k].begin(); }
     glances(this);
     for (const a of this.list) {
