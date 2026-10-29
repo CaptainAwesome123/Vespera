@@ -1,4 +1,4 @@
-import { shared, mulberry32, canvasTex, T, R, scene, U, MOBILE } from './core.js';
+import { shared, mulberry32, canvasTex, T, R, scene, U, MOBILE, bakeGroup } from './core.js';
 import { stdMat, MAT } from './people-skeleton.js';
 import { shafts } from './facade-shader.js';
 import { BEL } from './belmont.js';
@@ -135,6 +135,7 @@ export function buildAirship(L, R0, adIndex, beam, opts = {}) {
     ...(opts.passenger ? [] : [{ p: [L * 0.08, -R0 - 1.0, 0], c: [1.2, 0.75, 0.35], s: L * 0.12, ph: 0, bl: 0 }]),
   ]);
   grp.add(lights);
+  bakeGroup(grp);   // V29: Rumpf, Gondel, Flossen, Motoren, Propeller, Ringe: je Material ein Netz (vorher rund 50 Draw Calls je Luftschiff)
   if (beam) {
     const b = makeBeam(420, 28, 0.06);
     b.position.set(L * 0.1, -R0 - 3.4, 0); b.rotation.x = Math.PI; grp.add(b);

@@ -1,11 +1,8 @@
 import { shared, T, scene, camera, pick, R } from './core.js';
-import { stdMat, MAT, nearBoxes } from './people-skeleton.js';
-import { AV, ST, inRect, PLAZA } from './island.js';
-import { roadHeightAt, LAND } from './harbour.js';
+import { stdMat, MAT } from './people-skeleton.js';
 import { setAct, carGeoHi, parked } from './serpentine.js';
 import { cars } from './airships.js';
 import { _q, _up, _p, _m, _s } from './traffic.js';
-import { player, keys, touch } from './player.js';
 import { DINE, _dv, _dw, openMenu, freeSeatNear, sitDown, seatStandPoint, walkGait } from './venues.js';
 import { driveExit, driveEnter } from './driving.js';
 import { toast } from './boat.js';
@@ -46,7 +43,7 @@ export function fpHandBuild() {
   g.traverse(o => { if (o.isMesh) { o.frustumCulled = false; o.userData.noRefl = true; } });
   scene.add(g); FPH.g = g;
 }
-export const _fa = new T.Vector3(), _fb = new T.Vector3(), _fq = new T.Quaternion(), _fo = new T.Vector3();
+export const _fa = new T.Vector3(), _fb = new T.Vector3(), _fo = new T.Vector3();
 // Essen: t von 0 bis 1; base = Teller, tgt = Mund
 export function fpEat(t, base) {
   fpHandBuild();
@@ -254,44 +251,10 @@ export function updateCarReturns(dt) {
 
 /* ---------- Selbst fahren: an einem geparkten Wagen E drücken, dann von hinten (Verfolgerkamera) durch die Stadt ---------- */
 export const DRIVE = { on: false, mesh: null, src: null, x: 0, y: 0, z: 0, h: 0, v: 0, steer: 0, lookT: 0, col: null };
-export const WHEELBASE = 2.9;
-// Fahrbahn oder Gehweg: auf den Blöcken liegt der Bürgersteig 22 cm höher
-export function onStreet(x, z) {
-  const ia = Math.round((x + 990) / 110), a = AV[Math.max(0, Math.min(AV.length - 1, ia))];
-  if (Math.abs(x - a.x) < a.w / 2) return true;
-  for (const s of ST) if (Math.abs(z - s.z) < s.w / 2) return true;
-  return z > 490 || z < -973 || Math.abs(x) > 979 || inRect(x, z, PLAZA);
-}
 export function nearestParked(p, r) {
   let best = null, bd = r * r;
   for (const c of parked) { if (c.hidden || Math.abs(c.m.elements[13] - 0.22 - p.y) > 1.5) continue; const d = (c.x - p.x) ** 2 + (c.z - p.z) ** 2; if (d < bd) { bd = d; best = c; } }
   return best;
-}
-export function driveEnterV15(c) {
-  if (!DRIVE.mesh) {
-    DRIVE.mesh = new T.InstancedMesh(carGeoHi(), MAT.carPaint, 1);
-    DRIVE.mesh.frustumCulled = false; scene.add(DRIVE.mesh);
-  }
-  if (c) {
-    // den geparkten Wagen übernehmen: Lage, Richtung und Farbe
-    c.hidden = true; shared.parkedTimer = 0;
-    const e = c.m.elements;
-    DRIVE.x = e[12]; DRIVE.z = e[14]; DRIVE.h = Math.atan2(e[8], e[0]); DRIVE.col = c.c;
-    DRIVE.mesh.setColorAt(0, new T.Color(...c.c)); DRIVE.mesh.instanceColor.needsUpdate = true;
-  }
-  DRIVE.on = true; DRIVE.v = 0; DRIVE.steer = 0; DRIVE.y = onStreet(DRIVE.x, DRIVE.z) ? 0 : 0.22;
-  player.fly = false; player.on = null; player.v.set(0, 0, 0);
-  player.yaw = DRIVE.h - Math.PI / 2; player.pitch = -0.16;
-  toast('Am Steuer · E zum Aussteigen');
-}
-export function driveExitV15() {
-  if (!DRIVE.on) return;
-  DRIVE.on = false; DRIVE.v = 0;
-  // links neben der Fahrertür aussteigen
-  const lx = -Math.sin(DRIVE.h), lz = -Math.cos(DRIVE.h);
-  player.p.set(DRIVE.x + lx * 2.1, DRIVE.y + 0.05, DRIVE.z + lz * 2.1);
-  player.v.set(0, 0, 0); player.pitch = 0;
-  toast('Ausgestiegen');
 }
 export function driveInteractions() {
   INTERACT.unshift({ test: () => DRIVE.on, label: 'Aussteigen', act: driveExit });
@@ -303,71 +266,4 @@ export function driveInteractions() {
     },
     label: 'Einsteigen und fahren', act: () => driveEnter(DRIVE.pick),
   });
-}
-export const _dpV15 = { x: 0, y: 0, z: 0 };
-export function updateDriveV15(dt) {
-  if (player.fly) { driveExit(); return; }
-  const thr = (keys.KeyW || keys.ArrowUp ? 1 : 0) - (keys.KeyS || keys.ArrowDown ? 1 : 0) + touch.my;
-  const st = (keys.KeyD || keys.ArrowRight ? 1 : 0) - (keys.KeyA || keys.ArrowLeft ? 1 : 0) + touch.mx;
-  const fast = keys.ShiftLeft || keys.ShiftRight, vmax = fast ? 42 : 26;
-  let v = DRIVE.v;
-  if (thr > 0.05) v += (v < 0 ? 22 : (fast ? 11 : 7) * (1 - Math.max(0, v) / vmax)) * thr * dt;
-  else if (thr < -0.05) v += (v > 0 ? 22 : 5 * (1 + v / 9)) * thr * dt;
-  else v -= Math.sign(v) * Math.min(Math.abs(v), 2.5 * dt);
-  v *= 1 - 0.08 * dt;
-  // Lenkung: bei Tempo weniger Einschlag, zurück in die Mitte, wenn losgelassen
-  const target = -Math.max(-1, Math.min(1, st)) * 0.55 / (1 + Math.abs(v) * 0.05);
-  DRIVE.steer += (target - DRIVE.steer) * Math.min(1, dt * 6);
-  DRIVE.h += v * Math.tan(DRIVE.steer) / WHEELBASE * dt;
-  const fx = Math.cos(DRIVE.h), fz = -Math.sin(DRIVE.h);
-  let x = DRIVE.x + fx * v * dt, z = DRIVE.z + fz * v * dt;
-  // Höhe: Straße, Gehweg, Viadukt oder Tunnel
-  const rd = roadHeightAt(x, z, DRIVE.y + 1);
-  let y = rd.y > -1e8 ? rd.y : (onStreet(x, z) ? 0 : 0.22);
-  const onLand = Math.abs(x) < LAND.x && z > LAND.z0 && z < LAND.z1;
-  if (!onLand && rd.y < -1e8) { x = DRIVE.x; z = DRIVE.z; v *= -0.2; y = DRIVE.y; }
-  // Karosserie als zwei Kreise (vorn, hinten) gegen Mauern und Häuser
-  let hit = false;
-  const near = nearBoxes(x, z, 6);
-  for (const off of [1.45, -1.35]) {
-    const cx = x + fx * off, cz = z + fz * off, r = 1.05;
-    for (const b of near) {
-      if (b.y1 <= y + 0.6 || b.y0 >= y + 1.6) continue;
-      const qx = Math.max(b.x0, Math.min(b.x1, cx)), qz = Math.max(b.z0, Math.min(b.z1, cz));
-      const dx = cx - qx, dz = cz - qz, d2 = dx * dx + dz * dz;
-      if (d2 >= r * r) continue;
-      const d = Math.sqrt(d2);
-      if (d > 1e-4) { x += dx / d * (r - d); z += dz / d * (r - d); }
-      else { x = DRIVE.x; z = DRIVE.z; }
-      hit = true;
-    }
-  }
-  // andere Wagen: nicht hindurchfahren
-  for (const c of cars) {
-    if (c.wx === undefined) continue;
-    const dx = x - c.wx, dz = z - c.wz, d2 = dx * dx + dz * dz;
-    if (d2 < 9 && Math.abs(c.wy - y) < 2) { const d = Math.sqrt(d2) || 1; x += dx / d * (3 - d) * 0.5; z += dz / d * (3 - d) * 0.5; hit = true; }
-  }
-  if (hit) v *= Math.pow(0.02, dt * 4);
-  DRIVE.v = v; DRIVE.x = x; DRIVE.z = z; DRIVE.y += (y - DRIVE.y) * Math.min(1, dt * 12);
-  // Karosserie leicht in die Kurve und beim Bremsen nach vorn
-  const roll = -DRIVE.steer * Math.min(1, Math.abs(v) / 20) * 0.05;
-  _q.setFromEuler(new T.Euler(roll, DRIVE.h, 0, 'YXZ'));
-  _p.set(x, DRIVE.y + 0.22, z);
-  DRIVE.mesh.setMatrixAt(0, _m.compose(_p, _q, _s.setScalar(1))); DRIVE.mesh.instanceMatrix.needsUpdate = true;
-  player.p.set(x, DRIVE.y, z);
-  // Kamera folgt dem Wagen, solange man nicht selbst mit der Maus schaut
-  if ((DRIVE.lookT -= dt) <= 0) {
-    let want = DRIVE.h - Math.PI / 2 + (v < -1 ? Math.PI : 0), cur = player.yaw;
-    while (want - cur > Math.PI) want -= Math.PI * 2; while (want - cur < -Math.PI) want += Math.PI * 2;
-    player.yaw = cur + (want - cur) * Math.min(1, dt * 2.5);
-    player.pitch += (-0.16 - player.pitch) * Math.min(1, dt * 1.5);
-  }
-}
-export function driveCameraV15() {
-  const yaw = player.yaw, pitch = Math.max(-0.7, Math.min(0.35, player.pitch)), back = 7.2 + Math.abs(DRIVE.v) * 0.06;
-  const fx = -Math.sin(yaw) * Math.cos(pitch), fz = -Math.cos(yaw) * Math.cos(pitch), fy = Math.sin(pitch);
-  camera.position.set(DRIVE.x - fx * back, DRIVE.y + 2.3 - fy * back, DRIVE.z - fz * back);
-  camera.position.y = Math.max(camera.position.y, DRIVE.y + 0.8);
-  camera.rotation.set(pitch, yaw, 0);
 }

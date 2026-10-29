@@ -1,4 +1,4 @@
-import { U, T, mulberry32, canvasTex, mergeGeos, pick, R, scene, camera } from './core.js';
+import { U, T, mulberry32, canvasTex, mergeGeos, geoView, pick, R, scene, camera, fogHideDist } from './core.js';
 import { wantTexture } from './assets.js';
 import { stdMat, ENV, addCollider } from './people-skeleton.js';
 import { addNeon, NEON, lamps, addGlow, addSeg } from './facade-shader.js';
@@ -157,7 +157,7 @@ export function kit() {
     build(parent) {
       const P = portMats(), out = [];
       for (const k in G) {
-        const geos = G[k].map(([g]) => { g = g.index ? g.toNonIndexed() : g; if (!g.attributes.uv) g.setAttribute('uv', new T.BufferAttribute(new Float32Array(g.attributes.position.count * 2), 2)); if (!g.attributes.normal) g.computeVertexNormals(); return g; });
+        const geos = G[k].map(([g]) => { g = !g.attributes.normal && g.index ? g.toNonIndexed() : geoView(g); if (!g.attributes.uv) g.setAttribute('uv', new T.BufferAttribute(new Float32Array(g.attributes.position.count * 2), 2)); if (!g.attributes.normal) g.computeVertexNormals(); return g; });
         const m = mergeGeos(geos), col = new Float32Array(m.attributes.position.count * 3); let o = 0;
         geos.forEach((g, i) => { const c = G[k][i][1]; for (let j = 0; j < g.attributes.position.count; j++) col.set(c, (o + j) * 3); o += g.attributes.position.count; });
         m.setAttribute('color', new T.BufferAttribute(col, 3));
@@ -682,42 +682,6 @@ export const PORT_LOOPS = [], CRUISERS = [];
 export const FERRY = { s: 0, dir: 1, wait: 25, v: 0, curve: null, len: 1, g: null };
 
 /* ---------- Ufer der Stadtinsel: Kaimauer aus Granit, Brüstung mit Goldlicht, Laternen; Lücke nur für den Viadukt ---------- */
-export function buildShore() {
-  const K = kit(), X = LAND.x, Z0 = LAND.z0, Z1 = LAND.z1, gap = ROAD_W / 2 + 1;
-  // Mauern: [Mitte x, Mitte z, Länge x, Länge z, Brüstung-Seite]
-  const runs = [];
-  const side = (ax, az, bx, bz, nx, nz) => runs.push({ ax, az, bx, bz, nx, nz });
-  side(-X, Z0, -X, Z1, -1, 0); side(X, Z0, X, Z1, 1, 0);
-  side(-X, Z0, -gap, Z0, 0, -1); side(gap, Z0, X, Z0, 0, -1);
-  side(-X, Z1, -1000, Z1, 0, 1); side(1000, Z1, X, Z1, 0, 1);
-  for (const r of runs) {
-    const len = Math.hypot(r.bx - r.ax, r.bz - r.az), mx = (r.ax + r.bx) / 2, mz = (r.az + r.bz) / 2, ax = r.nx !== 0;
-    const W = (w, h, d, ox, y, k = 3) => ax ? Bx(w, h, len + d, mx + ox * r.nx, y, mz, k) : Bx(len + d, h, w, mx, y, mz + ox * r.nz, k);
-    // Mauerkörper bis unter den Seegrund, Sockelband an der Wasserlinie, Abdeckplatte
-    K.add('stone', W(5, 18, 0, -2.5, -9.05, 3), [0.62, 0.62, 0.66]);
-    K.add('stone', W(0.5, 0.9, 0.2, 0.15, WATER_Y + 0.2, 2), [0.38, 0.4, 0.42]);
-    K.add('stone', W(1.4, 0.16, 0.4, -0.55, 0.08, 2), [0.86, 0.84, 0.8]);
-    // Brüstung mit Pfeilern, oben ein Goldband
-    K.add('stone', W(0.42, 0.85, 0, -0.55, 0.58, 2), [0.8, 0.78, 0.74]);
-    K.add('stone', W(0.6, 0.12, 0, -0.55, 1.06, 2), [0.9, 0.88, 0.83]);
-    K.add('gold', ax ? new T.BoxGeometry(0.05, 0.05, len).translate(mx - 0.55 * r.nx, 1.14, mz) : new T.BoxGeometry(len, 0.05, 0.05).translate(mx, 1.14, mz - 0.55 * r.nz));
-    if (ax) addCollider(mx - 0.55 * r.nx - 0.3, 0, mz - len / 2, mx - 0.55 * r.nx + 0.3, 1.15, mz + len / 2);
-    else addCollider(mx - len / 2, 0, mz - 0.55 * r.nz - 0.3, mx + len / 2, 1.15, mz - 0.55 * r.nz + 0.3);
-    const n = Math.max(1, Math.round(len / 12));
-    for (let k = 0; k <= n; k++) {
-      const t = k / n, px = r.ax + (r.bx - r.ax) * t - 0.55 * r.nx, pz = r.az + (r.bz - r.az) * t - 0.55 * r.nz;
-      K.add('stone', Bx(0.75, 1.35, 0.75, px, 0.68, pz, 1), [0.88, 0.85, 0.8]);
-      K.add('gold', new T.ConeGeometry(0.3, 0.5, 4).rotateY(Math.PI / 4).translate(px, 1.6, pz));
-      if (k % 3 === 0) lamps.push({ x: px - 1.4 * r.nx, z: pz - 1.4 * r.nz, h: 5 });
-    }
-    // Eiserne Leitern hinunter zum Wasser
-    for (let k = 1; k < len / 90; k++) {
-      const t = k * 90 / len, px = r.ax + (r.bx - r.ax) * t + 0.08 * r.nx, pz = r.az + (r.bz - r.az) * t + 0.08 * r.nz;
-      for (let j = 0; j < 7; j++) K.add('iron', (ax ? new T.BoxGeometry(0.03, 0.03, 0.5) : new T.BoxGeometry(0.5, 0.03, 0.03)).translate(px, -0.15 - j * 0.3, pz));
-    }
-  }
-  K.build(scene);
-}
 /* ---------- Luftschiffhafen: Plattform im Wasser, Damm, Abfertigungshalle, Landeturm mit Fahrstuhl, Ankermast ---------- */
 export const ZEP = { state: 'dock', t: 0, s: 0, g: null, pf: null, gate: null, y0: 0, len: 1, curve: null, lines: null };
 export function buildAirport() {
@@ -869,9 +833,14 @@ export function updatePort(dt, t) {
   for (const pf of PLATFORMS) pfSave(pf);
   const cp = camera.position;
   portTimer -= dt;
-  const cull = portTimer <= 0; if (cull) portTimer = 0.5;
+  const cull = portTimer <= 0, dens = U.uFogDensity.value; if (cull) portTimer = 0.5;
   for (const v of VESSELS) {
-    if (cull) v.g.visible = (v.g.position.x - cp.x) ** 2 + (v.g.position.z - cp.z) ** 2 < (v.L > 20 ? 1500 : 700) ** 2;
+    if (cull) {
+      // V29: wie Laternen und Bäume (V27): was ganz im Bodennebel liegt, wird nicht gezeichnet (Höhe der Mastspitze über null)
+      if (v.top === undefined) v.top = new T.Box3().setFromObject(v.g).max.y + 0.5;
+      const lim = Math.min(v.L > 20 ? 1500 : 700, fogHideDist(v.top, cp.y, dens) + 8);
+      v.g.visible = (v.g.position.x - cp.x) ** 2 + (v.g.position.z - cp.z) ** 2 < lim * lim;
+    }
     if (v.kind !== 'moored' || !v.g.visible) continue;
     bobVessel(v, t);
   }
@@ -953,8 +922,6 @@ export const TER = (() => {
   return { rnd, noise, fbm };
 })();
 export const RIM = 1120, CLIFF = 178, VALLEY_W = 190;
-// Land der Stadtinsel (Pflasterfläche); im Süden schließt der Hafenkai an
-export const LAND = { x: 1040, z0: -1040, z1: 535 };
 export function terrainInfo(wx, wz) {
   const x = wx, z = wz + 100;
   const r = Math.hypot(x, z), sq = Math.max(Math.abs(x), Math.abs(z)), ang = Math.atan2(x, -z);

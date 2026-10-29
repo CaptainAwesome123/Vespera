@@ -168,11 +168,14 @@ export function buildPrecip() {
 }
 
 /* ---------- Leuchtende Flächen im Nebel verblassen lassen (siehe fog_fragment in core.js) ---------- */
+// V29: läuft alle 4 s über die ganze Szene; ohne eine neue Liste je Objekt und mit einem Merkzettel geprüfter Materialien
+const _fogSeen = new WeakSet();
+function fogAddMat(m) {
+  if (!m || _fogSeen.has(m)) return; _fogSeen.add(m);
+  if (m.fog && m.blending === T.AdditiveBlending && !m.isShaderMaterial && !(m.defines && 'FOG_ADD' in m.defines)) { m.defines = { ...(m.defines || {}), FOG_ADD: '' }; m.needsUpdate = true; }
+}
 export function fogAddScan() {
-  scene.traverse(o => {
-    const ms = Array.isArray(o.material) ? o.material : [o.material];
-    for (const m of ms) if (m && m.fog && m.blending === T.AdditiveBlending && !m.isShaderMaterial && !(m.defines && 'FOG_ADD' in m.defines)) { m.defines = { ...(m.defines || {}), FOG_ADD: '' }; m.needsUpdate = true; }
-  });
+  scene.traverse(o => { const m = o.material; if (Array.isArray(m)) for (const x of m) fogAddMat(x); else fogAddMat(m); });
 }
 
 /* ---------- Mondschatten (nur am PC): Gebäude und Autos werfen lange Schatten auf Straße und Gehweg ---------- */

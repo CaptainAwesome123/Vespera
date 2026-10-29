@@ -1,4 +1,4 @@
-import { shared, U, canvasTex, T, renderer, mergeGeos } from './core.js';
+import { shared, U, canvasTex, T, renderer, mergeGeos, geoView } from './core.js';
 import { HL, FACE_ATLAS, FACE_MAT } from './people-model.js';
 import { mocapGLSL, MOCAP } from './mocap.js';
 
@@ -1053,7 +1053,7 @@ export function getMats() {
 // Farbiges Zusammenfügen: jedes Teil bekommt eine Farbe; reines Weiß (1,1,1) wird später durch die Instanzfarbe ersetzt
 export const PAINT = [1, 1, 1];
 export function mergeColored(parts) {
-  const geos = parts.map(([g]) => { const isFace = g.userData.face; g = g.index ? g.toNonIndexed() : g; if (!isFace) g.setAttribute('uv', new T.BufferAttribute(new Float32Array(g.attributes.position.count * 2).fill(-1), 2)); return g; });
+  const geos = parts.map(([g]) => { const isFace = g.userData.face; g = geoView(g); if (!isFace) g.setAttribute('uv', new T.BufferAttribute(new Float32Array(g.attributes.position.count * 2).fill(-1), 2)); return g; });
   const merged = mergeGeos(geos);
   const col = new Float32Array(merged.attributes.position.count * 3);
   let o = 0;

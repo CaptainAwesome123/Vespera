@@ -14,7 +14,7 @@
    beiden Händen, kleine in der rechten Hand).
    ===================================================================== */
 import { T, scene, camera, MOBILE } from './core.js';
-import { nearBoxes, paintMat, mergeColored, MAT } from './people-skeleton.js';
+import { nearBoxes, paintMat, mergeColored } from './people-skeleton.js';
 import { groundAt, BODIES } from './driving.js';
 import { DRIVE } from './eating.js';
 import { VILLA } from './harbour.js';
@@ -91,7 +91,7 @@ const C = (g, c) => [g, c];
 const cyl = (rt, rb, h, y = 0, n = 14) => new T.CylinderGeometry(rt, rb, h, n).translate(0, y, 0);
 const box = (w, h, d, x = 0, y = 0, z = 0) => new T.BoxGeometry(w, h, d).translate(x, y, z);
 const lathe = (pts, n = 16) => new T.LatheGeometry(pts.map(([r, y]) => new T.Vector2(r, y)), n);
-const GOLD = [0.75, 0.56, 0.25], BRASS = [0.6, 0.45, 0.22], DARKWOOD = [0.22, 0.12, 0.06];
+const GOLD = [0.75, 0.56, 0.25], BRASS = [0.6, 0.45, 0.22];
 export const GEOS = {
   // Bugholzstuhl (Thonet Nr. 14): runder Sitz, gebogene Lehne, vier schräge Beine; Mitte auf halber Höhe 0.45 m
   chair: () => {

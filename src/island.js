@@ -201,12 +201,6 @@ export function roadEdgeDist(x, z) {
   for (const s of l) best = Math.min(best, distSeg(x, z, s.a, s.b) - s.e.w / 2);
   return best;
 }
-export function ringEdgeDist(x, z) {
-  const l = EDGE_HASH.get(Math.floor(x / 30) + ',' + Math.floor(z / 30)); if (!l) return 1e9;
-  let best = 1e9;
-  for (const s of l) if (s.e.kind !== 'grid') best = Math.min(best, distSeg(x, z, s.a, s.b) - s.e.w / 2);
-  return best;
-}
 
 /* ---------- Randviertel: Häuserzeilen folgen der Ringstraße, dahinter ein Gartenweg mit Villen, dazwischen Parks ---------- */
 export const OUTER = { houses: [], paths: [], plots: [], walks: [] };

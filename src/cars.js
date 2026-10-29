@@ -64,7 +64,7 @@ export function carGlassGeo() {
   pane(1.56, 0.66, 0.33, 1.615, 0, 0.28);
   for (const sz of [-1, 1]) { parts.push(new T.BoxGeometry(0.98, 0.56, 0.012).translate(-0.24, 1.63, sz * 0.795)); parts.push(new T.BoxGeometry(0.98, 0.52, 0.012).translate(-1.33, 1.62, sz * 0.795)); }
   pane(1.3, 0.5, -1.97, 1.6, 0, -0.5);
-  const g = mergeGeos(parts.map(p => p.index ? p.toNonIndexed() : p));
+  const g = mergeGeos(parts);
   g.setAttribute('aOpt', new T.BufferAttribute(new Float32Array(g.attributes.position.count).fill(4), 1));
   return g;
 }

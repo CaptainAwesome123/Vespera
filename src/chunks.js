@@ -16,7 +16,7 @@
               (die Daten bleiben im Hauptspeicher und werden beim nächsten Laden wieder hochgeladen).
    Entladen wird mit Hysterese (radius + UNLOAD_MARGIN), gebaut wird mit Budget je Bild, nächste zuerst.
    ===================================================================== */
-import { T, scene, camera, MOBILE, mulberry32 } from './core.js';
+import { scene, camera, MOBILE, mulberry32 } from './core.js';
 
 export const WORLD_SEED = 19271927;
 export const UNLOAD_MARGIN = 60;          // Meter über dem Laderadius, bevor eine Zelle wieder abgebaut wird
@@ -60,6 +60,9 @@ function disposeChunk(L, rec) {
   scene.remove(obj);
   if (L.dispose) L.dispose(obj, rec.cx, rec.cz);
   else obj.traverse(o => { if (o.geometry) o.geometry.dispose(); });
+  // V29: Instanzpuffer (Lage und Farbe je Laterne, Bank, Ware) gehören der Zelle: sofort auf der Grafikkarte freigeben,
+  // statt auf die Speicherbereinigung des Browsers zu warten (wird die Zelle wieder gebraucht, lädt der Renderer sie neu)
+  obj.traverse(o => { if (o.isInstancedMesh) o.dispose(); });
   rec.obj = null; rec.lod = -1; chunkStats.disposed++;
 }
 // Zellen im Umkreis aufzählen (Rechteck aus dem größten Laderadius, dann exakt nach Abstand gefiltert)

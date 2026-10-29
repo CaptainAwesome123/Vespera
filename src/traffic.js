@@ -1,7 +1,7 @@
 import { shared, rand, MOBILE, T, pick, scene, camera, U, mergeGeos, R, FOGVIS } from './core.js';
 import { MAT, mergeColored, paintMat, addCollider, PAINT, stdMat } from './people-skeleton.js';
 import { addSeg, addNeon, NEON, addGlow, steamPts } from './facade-shader.js';
-import { offsetPoly, resample, NET, bez, ELEVATED, AV, ST, blockAt, inRect, PLAZA, MEDIAN } from './island.js';
+import { offsetPoly, resample, NET, bez, ELEVATED, AV, ST, blockAt, inRect, PLAZA } from './island.js';
 import { IB, DEPOTS } from './shops.js';
 import { DOORS, makeSignTex } from './entrances.js';
 import { ROAD_Z0, VIA, deckY } from './harbour.js';
@@ -109,7 +109,6 @@ export function leaderGap(car) {
   }
   return [best - 5.2, bv];
 }
-export const _tq = { x: 0, z: 0 };
 export function updateTraffic(dt, t) {
   TRF.t = t;
   for (const L of TRF.lanes) if (L.cars.length > 1) L.cars.sort((a, b) => a.s - b.s);
@@ -331,72 +330,7 @@ export function updateTrafficLights() {
 
 
 export const CAR_DIST2 = 750 * 750;
-export function buildCarsV15() {
-  const lanes = [];
-  for (const a of AV) {
-    if (Math.abs(a.x) > 900) continue;
-    const off = a.x === 0 ? 15 : a.w / 4;
-    lanes.push({ x: a.x + off, z: 0, dx: 0, dz: -1, len: 1485, start: [a.x + off, 505] });
-    lanes.push({ x: a.x - off, z: 0, dx: 0, dz: 1, len: 1485, start: [a.x - off, -980] });
-  }
-  for (const s of ST) {
-    if (s.z < -900) continue;
-    const off = s.w / 4;
-    lanes.push({ dx: 1, dz: 0, len: 1800, start: [-900, s.z + off] });
-    lanes.push({ dx: -1, dz: 0, len: 1800, start: [900, s.z - off] });
-  }
-  for (const e of ELEVATED) {
-    const ax = e.axis === 'x', len = e.to - e.from;
-    lanes.push({ dx: ax ? 1 : 0, dz: ax ? 0 : 1, len, y: e.y, start: [ax ? e.from : e.at - 3.5, ax ? e.at + 3.5 : e.from] });
-    lanes.push({ dx: ax ? -1 : 0, dz: ax ? 0 : -1, len, y: e.y, start: [ax ? e.to : e.at + 3.5, ax ? e.at - 3.5 : e.to] });
-  }
-  // V23: der Viadukt gehört jetzt zum Straßennetz (Kante 'via'); der Verkehr dort kommt aus spawnTraffic
-  for (const l of lanes) for (let k = 0; k < (l.n || 4); k++) cars.push({ l, s: rand(0, l.len), v: rand(9, 15) });
-  const body = carGeo();
-  shared.carBodyGeo = body;
-  shared.carMesh = new T.InstancedMesh(body, MAT.carPaint, cars.length);
-  const paint = [[0.05, 0.05, 0.06], [0.28, 0.04, 0.06], [0.75, 0.68, 0.55], [0.05, 0.16, 0.1], [0.08, 0.1, 0.22], [0.5, 0.36, 0.16]];
-  const c = new T.Color();
-  cars.forEach((car, i) => { const p = car.col = pick(paint).map(v => v + (Math.random() - 0.5) * 0.012); shared.carMesh.setColorAt(i, c.setRGB(p[0], p[1], p[2])); });
-  shared.carMeshHi = new T.InstancedMesh(carGeoHi(), MAT.carPaint, cars.length);
-  for (const im of [shared.carMesh, shared.carMeshHi]) { im.count = 0; im.instanceMatrix.setUsage(T.DynamicDrawUsage); im.frustumCulled = false; scene.add(im); }
-  shared.carCmp = lodCompactor(shared.carMeshHi, shared.carMesh, LOD_CAR2);
-  const pts = [];
-  for (let i = 0; i < cars.length; i++) {
-    pts.push({ p: [0, 0, 0], c: [1.4, 1.25, 0.95], s: 0.9, ph: 0, bl: 0 }, { p: [0, 0, 0], c: [1.4, 1.25, 0.95], s: 0.9, ph: 0, bl: 0 });
-    pts.push({ p: [0, 0, 0], c: [1.4, 0.1, 0.06], s: 0.55, ph: 0, bl: 0 }, { p: [0, 0, 0], c: [1.4, 0.1, 0.06], s: 0.55, ph: 0, bl: 0 });
-  }
-  shared.carLights = makeGlowPoints(pts, true); scene.add(shared.carLights);
-}
 export const _m = new T.Matrix4(), _q = new T.Quaternion(), _s = new T.Vector3(), _p = new T.Vector3(), _up = new T.Vector3(0, 1, 0);
-export function updateCarsV15(dt) {
-  const pos = shared.carLights.geometry.attributes.position.array, cp = camera.position;
-  shared.carCmp.begin();
-  cars.forEach((car, i) => {
-    const { dx, dz, start } = car.l;
-    // vor dem selbst gefahrenen Wagen anhalten
-    let go = true;
-    if (DRIVE.on && car.wx !== undefined) { const rx = DRIVE.x - car.wx, rz = DRIVE.z - car.wz, al = rx * dx + rz * dz; go = !(al > 0 && al < 9 && Math.abs(rx * dz - rz * dx) < 2.4 && Math.abs(DRIVE.y - car.wy) < 2); }
-    if (go) car.s = (car.s + car.v * dt) % car.l.len;
-    const x = start[0] + dx * car.s, z = start[1] + dz * car.s;
-    const ly = car.l.yf ? car.l.yf(z) : (car.l.y || 0);
-    car.wx = x; car.wz = z; car.wy = ly;
-    const hidden = !car.l.y && !car.l.yf && (inRect(x, z, PLAZA, 3) || inRect(x, z, MEDIAN, 2) || z > 504);
-    const yaw = Math.atan2(-dz, dx);
-    _q.setFromAxisAngle(_up, yaw);
-    _p.set(x, 0.22 + ly, z);
-    const cd2 = (x - cp.x) ** 2 + (z - cp.z) ** 2 + (_p.y - cp.y) ** 2;
-    if (!hidden && cd2 < Math.min(CAR_DIST2, FOGVIS.ped * FOGVIS.ped)) shared.carCmp.put(_m.compose(_p, _q, _s.setScalar(1)), car, car.col, cd2);
-    const fx = dx, fz = dz, sx = -dz, sz = dx, y = hidden ? -50 : 0.95 + ly;
-    const o = i * 12;
-    pos[o] = x + fx * 2.62 + sx * 0.62; pos[o + 1] = y + 0.12; pos[o + 2] = z + fz * 2.62 + sz * 0.62;
-    pos[o + 3] = x + fx * 2.62 - sx * 0.62; pos[o + 4] = y + 0.12; pos[o + 5] = z + fz * 2.62 - sz * 0.62;
-    pos[o + 6] = x - fx * 2.35 + sx * 0.7; pos[o + 7] = y; pos[o + 8] = z - fz * 2.35 + sz * 0.7;
-    pos[o + 9] = x - fx * 2.35 - sx * 0.7; pos[o + 10] = y; pos[o + 11] = z - fz * 2.35 - sz * 0.7;
-  });
-  shared.carCmp.end();
-  shared.carLights.geometry.attributes.position.needsUpdate = true;
-}
 
 
 /* ---------- Lieferverkehr: Lastwagen bringen Waren von den Fabriken zu Läden, Lokalen und Hotels ---------- */

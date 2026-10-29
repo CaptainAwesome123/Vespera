@@ -14,7 +14,6 @@ import { T, U } from './core.js';
 import { registerLayer, invalidateLayer } from './chunks.js';
 import { manifest, loadManifest, prepareModels, instanceModel, bakeModel, applyTextures, loadTexture, GOODS_AT } from './assets.js';
 import { STREET } from './serpentine.js';
-import { curbs } from './facade-shader.js';
 import { paintMat, ENV } from './people-skeleton.js';
 import { decoLampGeo, decoLampMats } from './decolamp.js';
 
@@ -32,17 +31,6 @@ export function propsMat() { return props.mat || (props.mat = paintMat({ color: 
 
 /* ---------- Laternen ---------- */
 const _pm = new T.Matrix4(), _pq = new T.Quaternion(), _pp = new T.Vector3(), _ps = new T.Vector3(1, 1, 1), _pup = new T.Vector3(0, 1, 0);
-// Arm der Laterne zeigt zur Straße: zur nächsten Bordsteinkante hin (deren Straßenseite ist +o), sonst nach Süden
-export function lampYaw(l) {
-  let best = 1e9, yaw = 0;
-  for (const c of curbs) {
-    const L = Math.hypot(c.bx - c.ax, c.bz - c.az); if (!L) continue;
-    const dx = (c.bx - c.ax) / L, dz = (c.bz - c.az) / L, t = Math.max(0, Math.min(L, (l.x - c.ax) * dx + (l.z - c.az) * dz));
-    const px = c.ax + dx * t, pz = c.az + dz * t, d = Math.hypot(l.x - px, l.z - pz);
-    if (d < best) { best = d; const ox = -dz, oz = dx; yaw = Math.atan2(-oz, ox); }
-  }
-  return best < 12 ? yaw : Math.PI / 2;
-}
 function inCell(p, cx, cz, size) { return p.x >= cx * size && p.x < (cx + 1) * size && p.z >= cz * size && p.z < (cz + 1) * size; }
 function instanced(geo, mat, list, place, colored) {
   const im = new T.InstancedMesh(geo, mat, list.length);
