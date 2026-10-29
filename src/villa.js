@@ -653,7 +653,7 @@ export function buildVillaRooms(ctx) {
   const KY = YK, KH = HK;
   // Böden und Decken, Kollision (ohne die beiden Treppenschächte, ohne das Becken)
   col(-56, KY - 0.4, -24, 35, KY, 8); col(35, KY - 0.4, -24, 50, KY, -9); col(35, KY - 0.4, -1, 50, KY, 8); col(50, KY - 0.4, -24, 56, KY, 8);
-  col(-51.5, -0.7, -23, 11.2, 0, 7); col(-55, -0.7, -17.5, -51.5, 0, 7); col(11.2, -0.7, -17.5, 14.3, 0, 7); col(14.3, -0.7, -23, 55, 0, 7);
+  col(-51.5, -0.7, -23, 11.2, 0, 8); col(-55, -0.7, -17.5, -51.5, 0, 8); col(11.2, -0.7, -17.5, 14.3, 0, 8); col(14.3, -0.7, -23, 55, 0, 8); col(-56, -0.7, -24, -55, 0, 8); col(55, -0.7, -24, 56, 0, 8); col(-56, -0.7, -24, 56, 0, -23);
   // Flur mit Gewölbebögen, Laternen; Treppenschächte von Halle und Küche
   room('Kellerflur', KE, -54.4, 30, -16, -13, KY);
   floor(KE, 'stoneF', -54.4, 30, -16, -13, KY + 0.03); ceiling(KE, 'cream', -54.4, 30, -16, -13, KY + KH - 0.05);
