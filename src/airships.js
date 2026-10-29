@@ -1,4 +1,4 @@
-import { shared, mulberry32, canvasTex, T, R, scene, U } from './core.js';
+import { shared, mulberry32, canvasTex, T, R, scene, U, MOBILE } from './core.js';
 import { stdMat, MAT } from './people-skeleton.js';
 import { shafts } from './facade-shader.js';
 import { BEL } from './belmont.js';
@@ -155,8 +155,10 @@ export function buildShafts() {
       uniforms: U, transparent: true, depthWrite: false, blending: T.AdditiveBlending, side: T.DoubleSide,
       vertexShader: `attribute vec3 aCol; varying vec2 vUv; varying vec3 vC; varying float vD;
         void main(){ vUv = uv; vC = aCol; vec4 mv = modelViewMatrix*instanceMatrix*vec4(position,1.0); vD = -mv.z; gl_Position = projectionMatrix*mv; }`,
-      fragmentShader: `uniform float uTime; uniform float uFogDensity; varying vec2 vUv; varying vec3 vC; varying float vD;
+      fragmentShader: `uniform float uTime; uniform float uFogDensity; uniform float uMist; uniform float uCloud; varying vec2 vUv; varying vec3 vC; varying float vD;
         void main(){ float x = abs(vUv.x - 0.5)*2.0; float a = pow(1.0 - x, 2.2) * pow(1.0 - vUv.y, 1.7) * (0.85 + 0.15*sin(uTime*0.7 + vUv.y*9.0));
+          // V25: im Dunst stehen die Säulen kräftiger; unter einer Wolkendecke enden sie früher
+          a *= (0.75 + 0.35 * min(uMist, 2.0)) * (1.0 - uCloud * 0.5 * smoothstep(0.35, 0.8, vUv.y));
           a *= exp(-uFogDensity*uFogDensity*vD*vD*0.6); gl_FragColor = vec4(vC * a * 0.22, 1.0); }`,
     }), n);
     const m = new T.Matrix4();
@@ -165,32 +167,34 @@ export function buildShafts() {
     im.frustumCulled = false; im.renderOrder = 2; scene.add(im);
   }
 }
+export const GROUND_FOG = [];
 export function buildGroundFog() {
   const mat = new T.ShaderMaterial({
     uniforms: U, transparent: true, depthWrite: false, blending: T.AdditiveBlending, side: T.DoubleSide,
     vertexShader: `varying vec3 vW; varying float vD; void main(){ vec4 w = modelMatrix*vec4(position,1.0); vW = w.xyz; vec4 mv = viewMatrix*w; vD = -mv.z; gl_Position = projectionMatrix*mv; }`,
-    fragmentShader: `uniform float uTime; uniform vec3 uTeal; uniform vec3 uCam; uniform float uInside; varying vec3 vW; varying float vD;
+    fragmentShader: `uniform float uTime; uniform vec3 uTeal; uniform vec3 uCam; uniform float uInside; uniform float uMist; varying vec3 vW; varying float vD;
       float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7)))*43758.5453); }
       float noise(vec2 p){ vec2 i=floor(p), f=fract(p); f=f*f*(3.0-2.0*f); return mix(mix(hash(i),hash(i+vec2(1,0)),f.x), mix(hash(i+vec2(0,1)),hash(i+vec2(1,1)),f.x), f.y); }
       void main(){
         vec2 p = vW.xz*0.012 + vec2(uTime*0.008, -uTime*0.005);
         float n = noise(p)*0.6 + noise(p*2.3 + 7.0)*0.3 + noise(p*5.1 - 3.0)*0.1;
-        float a = smoothstep(0.3, 0.8, n) * 0.11;
+        // V25: mehr türkiser Nebel in den Straßen, dichter bei Dunst und Nebel
+        float a = smoothstep(0.3 - 0.08 * min(uMist, 2.0), 0.8, n) * 0.11 * (0.75 + 0.45 * min(uMist, 2.2));
         a *= smoothstep(6.0, 40.0, abs(uCam.y - vW.y)) * smoothstep(1500.0, 300.0, vD) * smoothstep(0.0, 60.0, vD);
         a *= 1.0 - uInside;
         gl_FragColor = vec4(uTeal * a, 1.0); }`,
   });
-  for (const y of [4, 11, 20, 32, -0.4]) {
+  for (const y of MOBILE ? [4, 11, 20, 32, -0.4] : [2, 4, 7, 11, 20, 32, -0.4]) {
     const m = new T.Mesh(new T.PlaneGeometry(y < 0 ? 3600 : 2600, y < 0 ? 3600 : 2400), mat);
-    m.rotation.x = -Math.PI / 2; m.position.set(0, y, 100); m.renderOrder = 1; m.frustumCulled = false; scene.add(m);
+    m.rotation.x = -Math.PI / 2; m.position.set(0, y, 100); m.renderOrder = 1; m.frustumCulled = false; scene.add(m); GROUND_FOG.push(m);
   }
 }
 
 /* ---------- Suchscheinwerfer ---------- */
 export const beamMat = (alpha) => new T.ShaderMaterial({
-  uniforms: { uA: { value: alpha }, uLen: { value: 1 } }, transparent: true, depthWrite: false, blending: T.AdditiveBlending, side: T.DoubleSide,
+  uniforms: { uA: { value: alpha }, uLen: { value: 1 }, uMist: U.uMist }, transparent: true, depthWrite: false, blending: T.AdditiveBlending, side: T.DoubleSide,
   vertexShader: `varying float vT; varying vec3 vN; varying vec3 vV; uniform float uLen; void main(){ vT = position.y/uLen; vN = normalize(normalMatrix*normal); vec4 mv = modelViewMatrix*vec4(position,1.0); vV = normalize(-mv.xyz); gl_Position = projectionMatrix*mv; }`,
-  fragmentShader: `uniform float uA; varying float vT; varying vec3 vN; varying vec3 vV; void main(){ float e = pow(abs(dot(normalize(vN), normalize(vV))), 1.5); float a = uA*pow(1.0 - vT, 1.6)*e; gl_FragColor = vec4(vec3(1.0, 0.86, 0.62)*a, 1.0); }`,
+  fragmentShader: `uniform float uA; uniform float uMist; varying float vT; varying vec3 vN; varying vec3 vV; void main(){ float e = pow(abs(dot(normalize(vN), normalize(vV))), 1.5); float a = uA*pow(1.0 - vT, 1.6)*e*(0.7 + 0.4*min(uMist, 2.0)); gl_FragColor = vec4(vec3(1.0, 0.86, 0.62)*a, 1.0); }`,
 });
 export function makeBeam(len, radius, alpha) {
   const g = new T.ConeGeometry(radius, len, 32, 1, true); g.translate(0, -len / 2, 0); g.rotateX(Math.PI);

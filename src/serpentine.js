@@ -1,4 +1,4 @@
-import { shared, canvasTex, mulberry32, T, mergeGeos, scene, MOBILE, U, pick, R, rand, camera, ANISO } from './core.js';
+import { shared, canvasTex, mulberry32, T, mergeGeos, scene, MOBILE, U, pick, R, rand, camera, ANISO, FOG_GLSL } from './core.js';
 import { personGeoHi, personShare, HQ } from './people-model.js';
 import { stdMat, MAT, addCollider, glowTex, paintMat, mergeColored, PAINT, personLook } from './people-skeleton.js';
 import { lamps, trees, addGlow, NEON, addNeon, addSeg, shafts, spires, neons, segs, dedupeSegs, facadeMat, glowPts, roofs, curbs } from './facade-shader.js';
@@ -1211,7 +1211,8 @@ export function buildMountains() {
   const mat = new T.ShaderMaterial({
     uniforms: U,
     vertexShader: `varying vec3 vW; varying vec3 vN; varying float vD; void main(){ vec4 w = modelMatrix*vec4(position,1.0); vW = w.xyz; vN = normalize(mat3(modelMatrix)*normal); vec4 mv = viewMatrix*w; vD = -mv.z; gl_Position = projectionMatrix*mv; }`,
-    fragmentShader: `uniform vec3 uFogColor; uniform float uFogDensity; uniform vec3 uMoonDir; uniform vec3 uTeal; uniform vec3 uVilla; varying vec3 vW; varying vec3 vN; varying float vD;
+    fragmentShader: `uniform vec3 uFogColor; uniform float uFogDensity; uniform vec3 uMoonDir; uniform vec3 uTeal; uniform vec3 uVilla; uniform vec3 uCam; uniform float uSnowCover; uniform float uMoonLit; varying vec3 vW; varying vec3 vN; varying float vD;
+      ${FOG_GLSL}
       float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7)))*43758.5453); }
       float vnoise(vec2 p){ vec2 i=floor(p), f=fract(p); f=f*f*(3.0-2.0*f); return mix(mix(hash(i),hash(i+vec2(1,0)),f.x), mix(hash(i+vec2(0,1)),hash(i+vec2(1,1)),f.x), f.y); }
       float fbm(vec2 p){ return vnoise(p)*0.5 + vnoise(p*2.03+3.1)*0.25 + vnoise(p*4.11+7.3)*0.125 + vnoise(p*8.3+1.7)*0.0625; }
@@ -1238,7 +1239,7 @@ export function buildMountains() {
         // Grasige, bewaldete Hänge unten, nackter Fels in den Steilwänden
         float meadow = smoothstep(0.45, 0.2, steep) * (1.0 - smoothstep(320.0, 520.0, vW.y)) * smoothstep(-170.0, -120.0, vW.y + 40.0*vnoise(vW.xz*0.01));
         rock = mix(rock, (vec3(0.012, 0.03, 0.026) + vec3(0.04, 0.07, 0.07)*moon) * (0.8 + 0.4*vnoise(vW.xz*0.08)), meadow*0.8);
-        float snowLine = 640.0 + 160.0*fbm(vW.xz*0.003) - 60.0*n0.y;
+        float snowLine = 640.0 + 160.0*fbm(vW.xz*0.003) - 60.0*n0.y - uSnowCover * 520.0;
         float snow = smoothstep(snowLine - 50.0, snowLine + 30.0, vW.y + 40.0*(vnoise(vW.xz*0.05) - 0.5)) * smoothstep(0.78, 0.38, steep + 0.15*(vnoise(vW.xz*0.2) - 0.5));
         vec3 snowCol = vec3(0.16, 0.2, 0.27) + vec3(0.55, 0.62, 0.78)*pow(moon, 1.4) + uTeal*0.06;
         vec3 col = mix(rock, snowCol, snow);
@@ -1247,7 +1248,7 @@ export function buildMountains() {
         float face = max(dot(n, toCity), 0.0);
         col += uTeal * 0.32 * face * exp(-max(vW.y + 180.0, 0.0)/420.0);
         col += vec3(0.9, 0.6, 0.3) * 0.22 * exp(-distance(vW, uVilla)/110.0);
-        float fogF = 1.0 - exp(-uFogDensity*uFogDensity*vD*vD*0.07);
+        float fogF = vespFog(vD, vW.y, uCam.y, uFogDensity, 0.07);
         vec3 fogCol = mix(uFogColor*1.35, uFogColor*0.5, smoothstep(0.0, 900.0, vW.y));
         gl_FragColor = vec4(mix(col, fogCol, clamp(fogF, 0.0, 1.0)), 1.0);
       }`,
@@ -1510,11 +1511,16 @@ export function cobbleTextures() {
 // Pfützen mit Spiegelglanz, Kanaldeckel und Gitterroste, Laub, Zeitungsfetzen, Ölflecken; auf dem Gehweg Kaugummi und Versorgungsdeckel
 export function streetDetail(mat, walk) {
   const prev = mat.onBeforeCompile;
+  mat.userData.street = true;
   mat.onBeforeCompile = sh => {
     if (prev) prev(sh);
+    // V25: Nässe, Schneedecke, Regenringe und die echte Spiegelung der Straße (water.js rendert sie bei Nässe in Bodenhöhe)
+    sh.uniforms.uTimeSd = U.uTime;
+    for (const k of ['uWet', 'uSnowCover', 'uRain', 'uRefl', 'uReflMat', 'uStreetRefl', 'uFogColor', 'uMoonDir', 'uMoonLit']) sh.uniforms[k] = U[k];
     sh.vertexShader = 'varying vec3 vSdW;\n' + sh.vertexShader.replace('#include <worldpos_vertex>', `#include <worldpos_vertex>
       vSdW = (modelMatrix * ${walk === true ? 'instanceMatrix * ' : ''}vec4(transformed, 1.0)).xyz;`);
-    sh.fragmentShader = `varying vec3 vSdW; float sdH(vec2 p){ p = fract(p*vec2(123.34, 456.21)); p += dot(p, p+45.32); return fract(p.x*p.y); }
+    sh.fragmentShader = `varying vec3 vSdW; uniform float uWet, uSnowCover, uRain, uTimeSd, uStreetRefl, uMoonLit; uniform sampler2D uRefl; uniform mat4 uReflMat; uniform vec3 uFogColor, uMoonDir;
+      float sdH(vec2 p){ p = fract(p*vec2(123.34, 456.21)); p += dot(p, p+45.32); return fract(p.x*p.y); }
       float sdN(vec2 p){ vec2 i = floor(p), f = fract(p); f = f*f*(3.0 - 2.0*f); return mix(mix(sdH(i), sdH(i + vec2(1.0, 0.0)), f.x), mix(sdH(i + vec2(0.0, 1.0)), sdH(i + vec2(1.0, 1.0)), f.x), f.y); }
       ` + sh.fragmentShader
       .replace('#include <map_fragment>', `#include <map_fragment>
@@ -1525,8 +1531,21 @@ export function streetDetail(mat, walk) {
         diffuseColor.rgb *= mix(vec3(0.9, 0.92, 0.95), vec3(1.08, 1.03, 0.96), big);
         ${walk ? 'diffuseColor.rgb *= 0.9 + 0.2 * sdH(floor(sw / 1.0) + 3.1);' : 'diffuseColor.rgb *= mix(1.0, 0.82, smoothstep(0.62, 0.66, sdN(sw * 0.07 + 40.0)));'}
         // Pfützen
-        float pud = smoothstep(0.66, 0.7, sdN(sw * 0.09 + 5.0) * 0.75 + sdN(sw * 0.4) * 0.25) * sdTop;
-        diffuseColor.rgb *= 1.0 - 0.45 * pud;
+        // V25: je nasser, desto mehr und größere Pfützen; nasser Stein ist dunkler
+        float pudN = sdN(sw * 0.09 + 5.0) * 0.75 + sdN(sw * 0.4) * 0.25;
+        float pud = smoothstep(0.71 - 0.13 * uWet, 0.75 - 0.13 * uWet, pudN) * sdTop;
+        diffuseColor.rgb *= (1.0 - 0.45 * pud) * (1.0 - 0.22 * uWet);
+        // Schneedecke: zuerst in Fugen und Rinnen, dann geschlossen; Fahrspuren bleiben dunkler
+        float sdSnow = uSnowCover * sdTop * smoothstep(0.2, 0.55, uSnowCover * 0.9 + sdN(sw * 0.35 + 3.0) * 0.45 - ${walk ? '0.15' : '0.3 * smoothstep(3.0, 0.0, abs(abs(fract(sw.x / 110.0 + 0.5) * 110.0 - 55.0) - 4.0))'});
+        // Regenringe in den Pfützen
+        vec2 sdRip = vec2(0.0);
+        if (uRain > 0.01) for (int k = 0; k < 2; k++) {
+          vec2 rp = sw * (k == 0 ? 2.2 : 3.4) + float(k) * 11.0, rc = floor(rp), rf = fract(rp) - 0.5;
+          float h0 = sdH(rc + 0.37), age = fract(uTimeSd * 1.6 + h0 * 9.0);
+          vec2 ro = rf - (vec2(sdH(rc + 1.7), sdH(rc + 4.1)) - 0.5) * 0.5; float rr = length(ro), R0 = age * 0.42;
+          sdRip += ro / max(rr, 0.01) * sin((rr - R0) * 70.0) * smoothstep(0.05, 0.0, abs(rr - R0)) * (1.0 - age) * step(h0, uRain);
+        }
+        sdRip *= sdFine;
         // Ölflecken
         ${walk ? '' : 'diffuseColor.rgb *= 1.0 - 0.3 * smoothstep(0.75, 0.82, sdN(sw * 0.6 + 9.0)) * step(0.7, sdN(sw * 0.05 + 2.0));'}
         // Kanaldeckel aus Gusseisen mit Rippen und Ringen; Gitterroste
@@ -1566,11 +1585,32 @@ export function streetDetail(mat, walk) {
         vec2 sq = fract(sw * 2.0) - 0.5; float stud = step(length(sq), 0.14) * inGrid * sdFine;
         float studRow = step(abs(fract((bzg > 0.0 ? azd - hwS : axd - hwA) * 2.0 / 1.0) - 0.5), 0.15);
         diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.55, 0.45, 0.28) * (0.8 + 0.4 * sdH(floor(sw * 2.0))), stud * clamp(studA + studS, 0.0, 1.0) * studRow);
-        sdPud *= 1.0 - gutter * 0.5;`}`)
+        sdPud *= 1.0 - gutter * 0.5;`}
+        sdPud *= 1.0 - sdSnow;
+        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.62, 0.68, 0.78), sdSnow);`)
       .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
-        roughnessFactor = mix(roughnessFactor, 0.04, sdPud); roughnessFactor = mix(roughnessFactor, 0.55, man);`)
+        roughnessFactor *= 1.0 - 0.45 * uWet; roughnessFactor = mix(roughnessFactor, 0.04, sdPud); roughnessFactor = mix(roughnessFactor, 0.55, man); roughnessFactor = mix(roughnessFactor, 0.8, sdSnow);`)
       .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
-        normal = normalize(mix(normal, normalize(vNormal), sdPud * 0.9));`);
+        normal = normalize(mix(normal, normalize(vNormal), max(sdPud * 0.9, sdSnow * 0.7)));
+        normal = normalize(normal + vec3(sdRip.x, 0.0, sdRip.y) * 0.25 * sdPud);`)
+      .replace('#include <output_fragment>', `{
+        // Spiegelung: Pfützen klar, nasses Pflaster verschwommen und zu Lichtsäulen gezogen; ohne echte Spiegelung (Handy) der Himmel und Nebel
+        vec3 sdV = normalize(cameraPosition - vSdW);
+        float sdFr = 0.02 + 0.98 * pow(1.0 - clamp(sdV.y, 0.0, 1.0), 5.0);
+        float sdK = (sdPud + 0.3 * uWet * (1.0 - sdPud)) * (1.0 - sdSnow) * sdTop;
+        vec3 sdR = uFogColor * 1.6 + vec3(0.6, 0.62, 0.7) * pow(max(dot(reflect(-sdV, vec3(0.0, 1.0, 0.0)), uMoonDir), 0.0), 300.0) * uMoonLit * 3.0;
+        if (uStreetRefl > 0.5 && sdK > 0.01) {
+          vec4 rc = uReflMat * vec4(vSdW.x, 0.0, vSdW.z, 1.0);
+          vec2 ruv = rc.xy / rc.w + sdRip * 0.01 * sdPud;
+          float blur = (1.0 - sdPud) * 0.03 + 0.004;
+          vec3 s0 = texture2D(uRefl, clamp(ruv, 0.002, 0.998)).rgb;
+          vec3 s1 = texture2D(uRefl, clamp(ruv + vec2(0.0, blur), 0.002, 0.998)).rgb, s2 = texture2D(uRefl, clamp(ruv - vec2(0.0, blur), 0.002, 0.998)).rgb;
+          vec3 s3 = texture2D(uRefl, clamp(ruv + vec2(0.0, blur * 2.2), 0.002, 0.998)).rgb;
+          sdR = mix(s0, (s0 + s1 + s2 + s3) * 0.25, 1.0 - sdPud);
+        }
+        outgoingLight = mix(outgoingLight, sdR, clamp(sdFr * sdK * 1.1, 0.0, 0.92));
+      }
+      #include <output_fragment>`);
   };
 }
 export function buildGround() {
@@ -1583,7 +1623,7 @@ export function buildGround() {
   const shp = new T.Shape(COAST.map(([x, z]) => { const dx = x - ISL.cx, dz = z - ISL.cz, L = Math.hypot(dx, dz) || 1; return new T.Vector2(x + dx / L * 1.2, -(z + (z > ISL.quay - 1 ? 1.2 : dz / L * 1.2))); }));
   const gg = new T.ShapeGeometry(shp).rotateX(-Math.PI / 2);
   { const p = gg.attributes.position, uv = gg.attributes.uv; for (let i = 0; i < p.count; i++) uv.setXY(i, p.getX(i) / 5, p.getZ(i) / 5); }
-  const g = new T.Mesh(gg, roadMat); g.frustumCulled = false; scene.add(g);
+  const g = new T.Mesh(gg, roadMat); g.frustumCulled = false; scene.add(g); STREET.ground = g;
   // Bürgersteige als eine InstancedMesh
   // Gehwegplatten mit Bordstein aus Granit: Texturkoordinaten aus der Weltlage, damit die Platten überall gleich groß sind
   const sl = slabTextures();
@@ -1654,10 +1694,12 @@ export function buildLampFx(heads) {
         vUv = vec2(position.x * 2.0, position.y);
         gl_Position = projectionMatrix * viewMatrix * vec4(xz.x, aL.y + 0.05, xz.y, 1.0);
       }`,
-    fragmentShader: `uniform float uTime; varying vec2 vUv; varying float vA;
+    fragmentShader: `uniform float uTime; uniform float uWet; uniform float uSnowCover; uniform float uStreetRefl; varying vec2 vUv; varying float vA;
       void main(){
         float a = exp(-vUv.x*vUv.x*5.0) * pow(sin(3.14159*clamp(vUv.y, 0.0, 1.0)), 0.8) * (1.0 - 0.6*vUv.y);
         a *= 0.88 + 0.12*sin(vUv.y*30.0 + uTime*0.7 + vUv.x*2.0);
+        // V25: nasser = längere, hellere Lichtbahnen; mit echter Spiegelung nur noch ein Rest, auf Schnee fast keine
+        a *= (0.5 + 1.1 * uWet) * (1.0 - 0.45 * uStreetRefl) * (1.0 - 0.8 * uSnowCover);
         gl_FragColor = vec4(vec3(1.0, 0.68, 0.36) * a * vA * 0.3, 1.0);
       }`,
   }));
@@ -1678,11 +1720,14 @@ export function buildLampFx(heads) {
         vT = -position.y; vN = normalize(vec3(normal.x, normal.y * 0.5, normal.z)); vV = normalize(uCam - wp);
         gl_Position = projectionMatrix * viewMatrix * vec4(wp, 1.0);
       }`,
-    fragmentShader: `varying float vT; varying float vA; varying vec3 vN; varying vec3 vV;
+    fragmentShader: `uniform float uMist; uniform float uRain; uniform float uSnow; uniform float uFrost; uniform float uTime; varying float vT; varying float vA; varying vec3 vN; varying vec3 vV;
       void main(){
         float e = pow(abs(dot(vN, vV)), 1.6);
         float a = e * pow(1.0 - vT, 1.4) * smoothstep(0.0, 0.06, vT) * vA;
-        gl_FragColor = vec4(vec3(1.0, 0.75, 0.42) * a * 0.075, 1.0);
+        // V25: im Nebel, im Regen und im Schneetreiben wird der Lichtkegel sichtbar dichter, Tropfen glitzern darin
+        float vol = 0.55 + 0.45 * uMist + 0.9 * uRain + 0.7 * uSnow + 0.4 * uFrost;
+        vol *= 1.0 + (uRain + uSnow) * 0.25 * sin(vT * 40.0 - uTime * 9.0);
+        gl_FragColor = vec4(vec3(1.0, 0.75, 0.42) * a * 0.075 * vol, 1.0);
       }`,
   }));
   cones.frustumCulled = false; cones.renderOrder = 3; scene.add(cones);

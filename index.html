@@ -147,11 +147,11 @@ kbd { font: 600 12px/1 var(--body); letter-spacing: 0.08em; color: var(--gold-hi
 <canvas id="c" aria-label="Vespera, 3D-Stadt"></canvas>
 
 <div class="hud" id="district"></div>
-<div class="hud" id="status"><span id="mode"><b>Zu Fuß</b></span><span id="alt">Höhe 0 m</span><span id="head">Kurs N</span><span id="clock">19:30 Uhr</span></div>
+<div class="hud" id="status"><span id="mode"><b>Zu Fuß</b></span><span id="alt">Höhe 0 m</span><span id="head">Kurs N</span><span id="clock">19:30 Uhr</span><span id="wx"></span></div>
 <div class="hud" id="npc"></div>
 <div class="hud" id="say"></div>
 <div class="hud" id="mapWrap"><canvas id="map" width="336" height="336"></canvas></div>
-<div class="hud" id="hint"><kbd>WASD</kbd> gehen · <kbd>F</kbd> fliegen · <kbd>V</kbd> Ansicht · <kbd>1</kbd>–<kbd>0</kbd> Aussichtspunkte · <kbd>E</kbd> benutzen / ansprechen · <kbd>Esc</kbd> Pause</div>
+<div class="hud" id="hint"><kbd>WASD</kbd> gehen · <kbd>F</kbd> fliegen · <kbd>V</kbd> Ansicht · <kbd>N</kbd> Wetter · <kbd>1</kbd>–<kbd>0</kbd> Aussichtspunkte · <kbd>E</kbd> benutzen / ansprechen · <kbd>Esc</kbd> Pause</div>
 <div class="hud" id="cross"></div>
 <div class="hud" id="toast"></div>
 <div class="hud" id="prompt"></div>
@@ -160,6 +160,7 @@ kbd { font: 600 12px/1 var(--body); letter-spacing: 0.08em; color: var(--gold-hi
 <div class="touch" id="touchUI" hidden>
   <button id="tFly" type="button">FLIEGEN</button>
   <button id="tView" type="button">ANSICHT</button>
+  <button id="tWx" type="button">WETTER</button>
   <button id="tUp" type="button">▲</button>
   <button id="tDown" type="button">▼</button>
   <button id="tUse" type="button" hidden>E</button>
@@ -190,6 +191,7 @@ kbd { font: 600 12px/1 var(--body); letter-spacing: 0.08em; color: var(--gold-hi
       <div><kbd>C</kbd><span>Im Flug sinken</span></div>
       <div><kbd>V</kbd><span>Ich-Ansicht / von hinten, Mausrad: Abstand</span></div>
       <div><kbd>G</kbd><span>Tanzen (Charleston, langsam, aus)</span></div>
+      <div><kbd>N</kbd><span>Wetter festlegen (klar, Polarlicht, Dunst, Nebel, Regen, Schnee, Eisnebel, automatisch)</span></div>
       <div><kbd>1 – 8</kbd><span>Aussichtspunkte</span></div>
       <div><kbd>E</kbd><span>Fahrstuhl, Türen</span></div>
       <div><kbd>M</kbd><span>Musik an und aus</span></div>

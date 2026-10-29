@@ -35,7 +35,8 @@ src/                der Spielcode als ES-Module, ein Abschnitt pro Datei
   harbour.js          Kai, Jachthafen, Fähre, Luftschiffhafen
   serpentine.js       Bergstraße zur Villa und Umgebung
   ragdoll.js          Gliederpuppen-Physik
-  sky.js              Himmel, Sterne, Mond
+  sky.js              Himmel der Polarnacht: drehender Sternhimmel, Mond mit Phase, Polarlicht (V25)
+  atmosphere.js       Wetter (Taste N), Nebeldichte, Regen, Schnee, Eisglitzern, Nässe, Schneedecke, Mondschatten (V25)
   airships.js         Luftschiffe
   cars.js             Autos mit Innenraum und Insassen
   traffic.js          Verkehr auf dem Straßennetz
@@ -145,6 +146,22 @@ bleiben die gebauten. Lädt `assets/people` nicht, läuft alles wie in V21.
   Feinkost), The Brass Lantern und Restaurant Aurora sind damit bestückt.
 - *Fotos:* Ladenböden aus Fliesen oder Parkett (Kit-Materialien `tile`, `parquet`), Brass-Lantern-Parkett,
   Fischgrät-Tanzfläche im Belmont-Ballsaal, Naturstein-Fassaden mit Foto-Gestein (`uStone`) als Feinstruktur.
+
+**V25: Polarnacht und Wetter.** Vespera liegt am Nordpol, es bleibt immer Nacht (kein Tag-Nacht-Wechsel).
+- *Himmel (`sky.js`):* Sterne drehen sich in 24 Spielstunden um den Zenit, der Polarstern steht senkrecht oben,
+  Milchstraße; der Mond zieht flach um den Horizont und zeigt die echte Phase von heute, danach läuft sie mit den
+  Spieltagen weiter; Polarlicht in Vorhängen; ein ganz schwacher Dämmerschimmer im Süden.
+- *Wetter (`atmosphere.js`):* klar, Polarlicht, türkiser Dunst, dichter Nebel, Regen, Schnee, Eisnebel; wechselt alle
+  3–6 Minuten von selbst, `N` (am Handy WETTER) legt eine Lage fest. URL: `?wetter=regen`, `?mond=0.5`, `?ohneSchatten`.
+- *Nebel:* Zum Dunst kommt ein Bodennebel, der unten dicht ist und nach oben dünner wird; gilt über gepatchte
+  Fog-Chunks für alle eingebauten Materialien und über `vespFog()` (`FOG_GLSL` in `core.js`) für die eigenen Shader.
+  Leuchtende Flächen bekommen `FOG_ADD` und verblassen im Nebel. Unter Dächern (Dachkarte `ROOF`) fast kein Nebel.
+  Nebelbänke über dem See, mehr türkiser Nebel zwischen den Häusern, Lichtkegel und Lichtsäulen dichter bei Nebel.
+- *Niederschlag:* Regenfäden und Schneeflocken auf der GPU in einem Kasten um die Kamera; unter Dächern trocken.
+- *Straße:* Nässe und Schneedecke folgen dem Wetter träge (`uWet`, `uSnowCover`); Pfützen wachsen, Regenringe in
+  Pfützen und auf dem Wasser; am PC spiegelt sich die Stadt bei Nässe echt im Pflaster (`renderReflection` mit
+  Ebene auf Straßenhöhe), auf dem Handy bleiben Himmel, Nebel und die Lichtbahnen der Laternen.
+- *Schatten (PC):* Der Mond wirft lange Schatten der Häuser und Autos auf Straße und Gehweg.
 
 Große Modelle: Draco/Meshopt sind noch nicht eingebunden; KTX2 braucht die Transcoder-Dateien vom CDN
 (`THREE_CDN` in `assets.js`). Die Einzeldatei bettet `assets/` als Daten-URLs ein; ab einigen MB lohnt sich das
