@@ -14,6 +14,8 @@ import { GROUND_FOG } from './airships.js';
    klar, Polarlicht, türkiser Dunst, dichter Nebel, Regen, Schnee, Eisnebel.
    Nässe und Schneedecke folgen träge (Pfützen bleiben nach dem Regen, Schnee taut langsam).
    ===================================================================== */
+// V30: Nordpol: diese leichte Schneedecke bleibt immer liegen (Untergrenze von uSnowCover)
+export const SNOW_BASE = 0.4;
 export const WEATHERS = [
   { id: 'klar', name: 'Klare Polarnacht', fog: 0.8, cloud: 0.12, aurora: 0.5, rain: 0, snow: 0, frost: 0.2, tint: [0.03, 0.125, 0.142], w: 2 },
   { id: 'polarlicht', name: 'Polarlicht', fog: 0.7, cloud: 0.04, aurora: 1.0, rain: 0, snow: 0, frost: 0.35, tint: [0.028, 0.13, 0.13], w: 2 },
@@ -41,7 +43,6 @@ const SYN = 29.530588853;   // synodischer Monat in Tagen
   if (ATMO.w.rain) U.uWet.value = 0.9;
   U.uSnowCover.value = ATMO.w.snow ? 0.8 : SNOW_BASE;
 }
-export const SNOW_BASE = 0.4;
 export const MOON_NAMES = ['Neumond', 'Zunehmende Sichel', 'Erstes Viertel', 'Zunehmender Mond', 'Vollmond', 'Abnehmender Mond', 'Letztes Viertel', 'Abnehmende Sichel'];
 export function moonName(ph) { return MOON_NAMES[Math.round(ph * 8) % 8]; }
 
