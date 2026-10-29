@@ -149,6 +149,12 @@ export function geoView(g) { const h = new T.BufferGeometry(); for (const k in g
 // V29: Teile behalten ihren Index (vorher wurde jedes Teil erst in lose Dreiecke zerlegt). Gleiche Dreiecke in
 // gleicher Reihenfolge, aber jede Ecke nur einmal gespeichert. Teile ohne Index bekommen einen fortlaufenden.
 // Wer nach dem Zusammenfügen Werte je Teil setzt, zählt mit g.attributes.position.count des Teils (wie bisher).
+// Attribut an Stelle o (in Ecken) kopieren; verschränkte oder längere Puffer (glTF) Wert für Wert
+const _getC = ['getX', 'getY', 'getZ', 'getW'];
+function putAttr(dst, a, o, s) {
+  if (!a.isInterleavedBufferAttribute && a.array.length === a.count * s) { dst.set(a.array, o * s); return; }
+  for (let i = 0; i < a.count; i++) for (let c = 0; c < s; c++) dst[(o + i) * s + c] = a[_getC[c]](i);
+}
 export function mergeGeos(geos) {
   let n = 0, ni = 0;
   for (const g of geos) { const c = g.attributes.position.count; n += c; ni += g.index ? g.index.count : c; }
@@ -156,9 +162,9 @@ export function mergeGeos(geos) {
   let o = 0, oi = 0;
   for (const g of geos) {
     const c = g.attributes.position.count;
-    pos.set(g.attributes.position.array, o * 3);
-    nor.set(g.attributes.normal.array, o * 3);
-    if (g.attributes.uv) uv.set(g.attributes.uv.array, o * 2);
+    putAttr(pos, g.attributes.position, o, 3);
+    putAttr(nor, g.attributes.normal, o, 3);
+    if (g.attributes.uv) putAttr(uv, g.attributes.uv, o, 2);
     if (g.index) { const I = g.index.array; for (let k = 0; k < I.length; k++) idx[oi + k] = I[k] + o; oi += I.length; }
     else { for (let k = 0; k < c; k++) idx[oi + k] = o + k; oi += c; }
     o += c;
