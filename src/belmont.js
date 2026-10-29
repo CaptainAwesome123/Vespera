@@ -5,12 +5,13 @@ import { addSeg, addNeon, addGlow, NEON, shafts, spires, lamps, trees } from './
 import { PLAZA, MEDIAN } from './island.js';
 import { crownFins, neonFrame, FAN_TEX, makeSignTex, lathe, DOORS, placeFurn, FURN } from './entrances.js';
 import { fanAtSingle, addNeonArc, setDance } from './dance.js';
-import { poolWaterMat, fountainJet } from './water.js';
 import { kit, Bx } from './harbour.js';
 import { Crowd, GOWNS } from './serpentine.js';
 import { makeBeam } from './airships.js';
 import { player } from './player.js';
 import { addLight } from './performance.js';
+import { plazaMaterial } from './plaza.js';
+import { buildFountain } from './fountain.js';
 
 /* =====================================================================
    THE BELMONT — das Grand Hotel im Zentrum
@@ -21,22 +22,8 @@ export function buildBelmont() {
   const P = 0.26;
   // Platz
   addCollider(PLAZA.x0, 0, PLAZA.z0, PLAZA.x1, P, PLAZA.z1);
-  const plazaTex = canvasTex(2048, 2048, (g, W, H) => {
-    g.fillStyle = '#231e2b'; g.fillRect(0, 0, W, H);
-    const sx = W / 198, cx = 99 * sx, cy = 133 * (H / 266);
-    for (let i = 0; i < 72; i++) {
-      const a0 = i / 72 * Math.PI * 2, a1 = (i + 1) / 72 * Math.PI * 2;
-      g.fillStyle = i % 2 ? '#2b2433' : '#1e1a25';
-      g.beginPath(); g.moveTo(cx, cy); g.arc(cx, cy, 2400, a0, a1); g.closePath(); g.fill();
-    }
-    g.strokeStyle = '#b48a46'; g.lineWidth = 6;
-    for (const r of [62, 70, 84]) { g.beginPath(); g.arc(cx, cy, r * sx, 0, Math.PI * 2); g.stroke(); }
-    g.lineWidth = 4; g.strokeRect(10, 10, W - 20, H - 20);
-    g.strokeRect(4 * sx, 4 * sx, W - 8 * sx, H - 8 * sx);
-    const fz = cy + 95 * (H / 266);
-    for (const r of [22, 26]) { g.beginPath(); g.arc(cx, fz, r * sx, 0, Math.PI * 2); g.stroke(); }
-  });
-  const plazaTop = new T.Mesh(new T.PlaneGeometry(198, 266), new T.MeshStandardMaterial({ map: plazaTex, roughness: 0.9, metalness: 0.05 }));
+  // V27: das Pflaster rechnet der Shader aus der Weltlage (src/plaza.js), scharf in jeder Nähe
+  const plazaTop = new T.Mesh(new T.PlaneGeometry(198, 266), plazaMaterial());
   plazaTop.rotation.x = -Math.PI / 2; plazaTop.position.set(0, P, 0); scene.add(plazaTop);
 
   const GR = [0.95, 0.72, 0.34], GD = [0.5, 0.36, 0.16];
@@ -166,16 +153,8 @@ export function buildBelmont() {
   // Flutlicht auf den Platz
   for (const [x, z] of [[-40, 70], [40, 70], [0, -70]]) addLight(0xffb066, 0.42, 120, 2, x, 14, z);
 
-  // Brunnen
-  const stoneMat = new T.MeshStandardMaterial({ color: 0x6b5f62, roughness: 0.5, metalness: 0.2 });
-  const basin = new T.Mesh(new T.CylinderGeometry(15, 15.5, 1.1, 48, 1, true), stoneMat); basin.position.set(0, P + 0.55, 95); scene.add(basin);
-  const rim = new T.Mesh(new T.TorusGeometry(15.1, 0.35, 8, 64), new T.MeshStandardMaterial({ color: 0xc9a25a, metalness: 0.9, roughness: 0.3, emissive: 0x281805 }));
-  rim.rotation.x = Math.PI / 2; rim.position.set(0, P + 1.1, 95); scene.add(rim);
-  const water = new T.Mesh(new T.CircleGeometry(15, 48), poolWaterMat([0.03, 0.2, 0.24]));
-  water.rotation.x = -Math.PI / 2; water.position.set(0, P + 0.8, 95); scene.add(water);
-  for (const [r, h, y] of [[4, 2.4, 1.2], [2.6, 2, 3.4], [1.4, 2, 5.4]]) { const t = new T.Mesh(new T.CylinderGeometry(r * 0.8, r, h, 24), stoneMat); t.position.set(0, P + y, 95); scene.add(t); }
-  addCollider(-15, 0, 80, 15, P + 1.1, 110);
-  fountainJet(0, P + 6.4, 95, 4.5, 0.9); for (let a = 0; a < 8; a++) fountainJet(Math.cos(a / 8 * 6.283) * 9, P + 0.8, 95 + Math.sin(a / 8 * 6.283) * 9, 2.2, 0.25);
+  // Brunnen (V27: eigener Baustein in src/fountain.js)
+  buildFountain(P);
   for (let a = 0; a < 12; a++) addGlow(Math.cos(a / 12 * Math.PI * 2) * 14, P + 1.2, 95 + Math.sin(a / 12 * Math.PI * 2) * 14, NEON.teal, 1.6);
 
   // Laternen und Bäume am Platz

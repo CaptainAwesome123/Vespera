@@ -8,7 +8,7 @@ Alle Dateien in `assets/` sind frei nutzbar (CC0 oder MIT). Die Originale wurden
 
 | Datei | Original | Urheber | Lizenz |
 |---|---|---|---|
-| `lantern.glb` | [Khronos glTF-Sample-Assets: Lantern](https://github.com/KhronosGroup/glTF-Sample-Assets/tree/main/Models/Lantern) | Microsoft (2017), Draco-Variante Frank Galligan | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) |
+| `lantern.glb` (seit V27 nur `?demo=props`; die Straßenlaternen sind jetzt gezeichnet, `src/decolamp.js`) | [Khronos glTF-Sample-Assets: Lantern](https://github.com/KhronosGroup/glTF-Sample-Assets/tree/main/Models/Lantern) | Microsoft (2017), Draco-Variante Frank Galligan | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) |
 | `kenney-bench.glb` | Kenney „Graveyard Kit“ (`bench.glb`) | [Kenney](https://kenney.nl) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) |
 | `kenney-trashcan.glb` | Kenney „Furniture Kit“ 2.0 (`trashcan.glb`) | [Kenney](https://kenney.nl) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) |
 | `kenney-goods.glb` | Kenney „Food Kit“: 21 Stücke (`apple`, `bottle`, `bottle-large`, `bread`, `cake`, `cheese`, `cocktail`, `croissant`, `cup-saucer`, `cupcake`, `glass-wine`, `loaf`, `loaf-baguette`, `muffin`, `orange`, `pear`, `pie`, `soda-bottle`, `whole-ham`, `wine-red`, `wine-white`) aus dem Spiegel [`pmndrs/market-assets`](https://github.com/pmndrs/market-assets), mit gltf-transform zu einer Datei zusammengelegt (ein Knoten je Stück, Draco-Kompression entfernt) | [Kenney](https://kenney.nl) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) |

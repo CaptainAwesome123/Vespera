@@ -1,4 +1,4 @@
-import { shared, rand, MOBILE, T, pick, scene, camera, U, mergeGeos, R } from './core.js';
+import { shared, rand, MOBILE, T, pick, scene, camera, U, mergeGeos, R, FOGVIS } from './core.js';
 import { MAT, mergeColored, paintMat, addCollider, PAINT, stdMat } from './people-skeleton.js';
 import { addSeg, addNeon, NEON, addGlow, steamPts } from './facade-shader.js';
 import { offsetPoly, resample, NET, bez, ELEVATED, AV, ST, blockAt, inRect, PLAZA, MEDIAN } from './island.js';
@@ -271,7 +271,7 @@ export function updateCars(dt) {
     _p.set(x, 0.22 + ly, z);
     car._x = x; car._y = 0.22 + ly; car._z = z; car._yr = car._yaw === undefined ? 0 : Math.atan2(Math.sin(yaw - car._yaw), Math.cos(yaw - car._yaw)) / Math.max(dt, 1e-3); car._yaw = yaw; car._hid = hidden;
     const cd2 = (x - cp.x) ** 2 + (z - cp.z) ** 2 + (_p.y - cp.y) ** 2;
-    if (!hidden && cd2 < CAR_DIST2) shared.carCmp.put(_m.compose(_p, _q, _s.setScalar(1)), car, car.col, cd2);
+    if (!hidden && cd2 < Math.min(CAR_DIST2, FOGVIS.ped * FOGVIS.ped)) shared.carCmp.put(_m.compose(_p, _q, _s.setScalar(1)), car, car.col, cd2);
     const fx = Math.cos(yaw), fz = -Math.sin(yaw), sx = -fz, sz = fx, y = hidden ? -50 : 0.95 + ly;
     const o = i * 12, dmg = car.dmg, hl0 = dmg && dmg[0] > 0.55 ? -60 : 0, hl1 = dmg && dmg[0] > 0.8 ? -60 : 0;
     pos[o] = x + fx * 2.62 + sx * 0.62; pos[o + 1] = y + 0.12 + hl0; pos[o + 2] = z + fz * 2.62 + sz * 0.62;
@@ -386,7 +386,7 @@ export function updateCarsV15(dt) {
     _q.setFromAxisAngle(_up, yaw);
     _p.set(x, 0.22 + ly, z);
     const cd2 = (x - cp.x) ** 2 + (z - cp.z) ** 2 + (_p.y - cp.y) ** 2;
-    if (!hidden && cd2 < CAR_DIST2) shared.carCmp.put(_m.compose(_p, _q, _s.setScalar(1)), car, car.col, cd2);
+    if (!hidden && cd2 < Math.min(CAR_DIST2, FOGVIS.ped * FOGVIS.ped)) shared.carCmp.put(_m.compose(_p, _q, _s.setScalar(1)), car, car.col, cd2);
     const fx = dx, fz = dz, sx = -dz, sz = dx, y = hidden ? -50 : 0.95 + ly;
     const o = i * 12;
     pos[o] = x + fx * 2.62 + sx * 0.62; pos[o + 1] = y + 0.12; pos[o + 2] = z + fz * 2.62 + sz * 0.62;
@@ -532,7 +532,7 @@ export function updateTrucks(dt) {
     const fx = Math.cos(tr.yaw), fz = -Math.sin(tr.yaw), sx = -fz, sz = fx;
     _q.setFromAxisAngle(_up, tr.yaw); _p.set(x, 0.22, z);
     const cd2 = (x - cp.x) ** 2 + (z - cp.z) ** 2;
-    if (cd2 < CAR_DIST2) truckCmp.put(_m.compose(_p, _q, _s.setScalar(1)), tr, tr.col);
+    if (cd2 < Math.min(CAR_DIST2, FOGVIS.ped * FOGVIS.ped)) truckCmp.put(_m.compose(_p, _q, _s.setScalar(1)), tr, tr.col);
     const o = i * 12, y = 1.72;
     pos[o] = x + fx * 4.05 + sx * 0.62; pos[o + 1] = y - 0.22; pos[o + 2] = z + fz * 4.05 + sz * 0.62;
     pos[o + 3] = x + fx * 4.05 - sx * 0.62; pos[o + 4] = y - 0.22; pos[o + 5] = z + fz * 4.05 - sz * 0.62;
@@ -648,8 +648,8 @@ export function updateTrams(dt) {
   tramLights.geometry.attributes.position.needsUpdate = true;
 }
 
-/* ---------- Goldstaub und Brunnenwasser ---------- */
-export let dust, fountain, fountainData = [], steam;
+/* ---------- Goldstaub und Dampf ---------- */
+export let dust, steam;   // V27: das Brunnenwasser ist jetzt in src/fountain.js (Teilchen im Shader)
 export function buildParticles() {
   const n = 1400, pos = new Float32Array(n * 3), ph = new Float32Array(n);
   for (let i = 0; i < n; i++) { pos.set([rand(0, 140), rand(0, 140), rand(0, 140)], i * 3); ph[i] = R(); }
@@ -683,23 +683,4 @@ export function buildParticles() {
     steam.frustumCulled = false; steam.renderOrder = 3; scene.add(steam);
   }
 
-  const fp = [];
-  for (let i = 0; i < 700; i++) {
-    const ring = i % 3;
-    fountainData.push({ ring, a: R() * Math.PI * 2, t0: R() * 2.4 });
-    fp.push({ p: [0, 0, 0], c: ring === 0 ? [0.9, 0.8, 0.55] : [0.4, 0.85, 0.85], s: 0.35, ph: 0, bl: 0 });
-  }
-  fountain = makeGlowPoints(fp, true); scene.add(fountain);
-}
-export function updateFountain(t) {
-  const a = fountain.geometry.attributes.position.array;
-  fountainData.forEach((f, i) => {
-    const life = f.ring === 0 ? 2.4 : 1.6;
-    const tt = (t + f.t0) % life;
-    let x, y, z;
-    if (f.ring === 0) { const v = 0.6; x = Math.cos(f.a) * v * tt; z = Math.sin(f.a) * v * tt; y = 6.4 + 11 * tt - 4.9 * tt * tt; }
-    else { const r0 = f.ring === 1 ? 4 : 11, v = f.ring === 1 ? 1.6 : -2.2; x = Math.cos(f.a) * (r0 + v * tt); z = Math.sin(f.a) * (r0 + v * tt); y = 1.0 + 6 * tt - 4.9 * tt * tt * 1.6; }
-    a[i * 3] = x; a[i * 3 + 1] = Math.max(y, 0.9) + 0.26; a[i * 3 + 2] = 95 + z;
-  });
-  fountain.geometry.attributes.position.needsUpdate = true;
 }

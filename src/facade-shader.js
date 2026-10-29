@@ -17,7 +17,7 @@ void main(){
   vN = normalize(mat3(modelMatrix * instanceMatrix) * normal);
   vScale = vec3(length(instanceMatrix[0].xyz), length(instanceMatrix[1].xyz), length(instanceMatrix[2].xyz));
   vLocal = position; vTint = aTint; vParams = aParams; vRib = aRib;
-  vec4 mv = viewMatrix * wp; vFogDepth = -mv.z;
+  vec4 mv = viewMatrix * wp; vFogDepth = length(mv.xyz);
   gl_Position = projectionMatrix * mv;
   // V23: Bits aus aFlag (siehe FL): 1 kein Dach, 2 keine Unterseite (Fläche fällt aus dem Bild), 4/8/16/32 Kante -x/+x/-z/+z liegt innen (keine Brüstung)
   float fb = aFlag;
@@ -68,6 +68,8 @@ void main(){
   float matT = floor(hash(vec2(seed, 5.3)) * 8.0), gloss = 0.0;
   vec2 wq = vec2(uW, vWorld.y);
   vec3 surf = masonry;
+  // V27: Fugenmaske (jm) und erhabenes Relief (rl) je Material, daraus unten ein echtes Relief im Mondlicht
+  float jm = ashJoint * fineFade, rl = 0.0;
   if (matT > 1.5 && matT < 2.5) {
     float ly = vWorld.y / 0.9, lj = fract(ly), lx = fract(uW / 1.5 + 0.5*mod(floor(ly), 2.0));
     float jj = 1.0 - smoothstep(0.004, 0.016, min(min(lj, 1.0 - lj)*0.9, min(lx, 1.0 - lx)*1.5));
@@ -76,6 +78,7 @@ void main(){
     surf = vTint * vec3(1.04, 1.0, 0.92) * (0.9 + 0.14*cloud + 0.08*(speck - 0.5)*fineFade) * (0.94 + 0.12*hash(vec2(floor(uW/1.5 + 0.5*mod(floor(ly), 2.0)), floor(ly)) + seed));
     surf = mix(surf, vTint*0.55, clamp(jj*0.5*fineFade + groove*0.85*midFade, 0.0, 1.0));
     surf *= 1.0 + 0.12*groove*step(0.5, lj)*midFade;
+    jm = max(jj*fineFade, groove*midFade);
   } else if (matT < 3.5) {
     vec2 tq = wq / 0.15, tf = fract(tq), ti = floor(tq);
     float tj = 1.0 - smoothstep(0.03, 0.09, min(min(tf.x, 1.0 - tf.x), min(tf.y, 1.0 - tf.y)));
@@ -83,6 +86,7 @@ void main(){
     vec3 glaze = gp < 0.25 ? vec3(0.32, 0.6, 0.55) : gp < 0.5 ? vec3(0.86, 0.8, 0.66) : gp < 0.75 ? vec3(0.42, 0.55, 0.38) : vec3(0.8, 0.6, 0.32);
     glaze *= dot(vTint, vec3(0.333)) * 1.4 * (0.88 + 0.22*hash(ti + seed)) * (0.95 + 0.1*vnoise(tf*3.0 + ti));
     surf = mix(glaze, glaze*0.62 + vTint*0.15, tj*fineFade*0.7); gloss = (1.0 - tj*fineFade) * 0.9;
+    jm = tj*fineFade*0.6;
   } else if (matT < 4.5) {
     vec2 pq = wq / 0.6, pf = fract(pq); float pid = hash(floor(pq) + seed);
     float motif = step(0.5, fract(seed*0.37));
@@ -92,6 +96,7 @@ void main(){
     float pj = 1.0 - smoothstep(0.01, 0.035, min(min(pf.x, 1.0 - pf.x), min(pf.y, 1.0 - pf.y)));
     vec3 terra = mix(vTint, vec3(0.78, 0.44, 0.27) * dot(vTint, vec3(0.5)) * 1.3, 0.65) * (0.9 + 0.18*pid);
     surf = terra * mix(1.0, shade, fineFade); surf = mix(surf, terra*0.55, pj*fineFade);
+    jm = pj*fineFade; rl = smoothstep(0.0, 0.2, rel)*smoothstep(1.0, 0.7, rel)*fineFade;
   } else if (matT < 5.5) {
     vec2 gq = wq / vec2(1.8, 1.2), gf = fract(gq); float gid = hash(floor(gq) + seed);
     float gj = 1.0 - smoothstep(0.003, 0.012, min(min(gf.x, 1.0 - gf.x)*1.8, min(gf.y, 1.0 - gf.y)*1.2));
@@ -99,6 +104,7 @@ void main(){
     vec3 gran = vTint * 0.75 * (0.85 + 0.25*gid);
     gran *= 1.0 + fineFade*(0.35*step(0.88, sp1) - 0.3*step(sp1, 0.12) + 0.15*(sp2 - 0.5));
     surf = mix(gran, gran*0.4, gj*fineFade); gloss = 0.55;
+    jm = gj*fineFade;
   } else if (matT < 6.5) {
     // Sandstein in Schichten: jede zweite Lage dunkler, grobe Körnung, Kanten leicht ausgebrochen
     float ly = vWorld.y / 0.75, lj = fract(ly), lrow = floor(ly), lx = fract(uW / 1.9 + 0.37*mod(lrow, 3.0));
@@ -106,12 +112,14 @@ void main(){
     float grain = vnoise(wq*18.0 + seed)*0.5 + hash(floor(wq*120.0))*0.5;
     vec3 sand = vTint * mix(vec3(1.05, 0.98, 0.86), vec3(0.78, 0.7, 0.62), step(0.5, mod(lrow, 2.0))) * (0.9 + 0.16*grain) * (0.94 + 0.12*hash(vec2(floor(uW / 1.9 + 0.37*mod(lrow, 3.0)), lrow) + seed));
     surf = mix(sand, sand*0.5, jj*fineFade);
+    jm = jj*fineFade;
   } else {
     // Weiß glasierter Klinker, unten dunkler Granitsockel
     vec2 kq = vec2(uW / 0.3 + 0.5*mod(floor(vWorld.y / 0.085), 2.0), vWorld.y / 0.085), kf = fract(kq), ki = floor(kq);
     float kj = 1.0 - smoothstep(0.03, 0.09, min(min(kf.x, 1.0 - kf.x)*0.3, min(kf.y, 1.0 - kf.y)*0.085) / 0.085);
     vec3 glz = vTint * vec3(1.25, 1.22, 1.15) * (0.9 + 0.16*hash(ki + seed));
     surf = mix(glz, glz*0.6, kj*fineFade*0.8); gloss = 0.5 * (1.0 - kj*fineFade);
+    jm = kj*fineFade;
     float plinth = step(hy, 1.1) * step(baseY, 0.6);
     surf = mix(surf, vTint*0.42*(0.9 + 0.2*hash(floor(wq*60.0))), plinth); gloss = mix(gloss, 0.6, plinth);
   }
@@ -132,6 +140,20 @@ void main(){
   // Glanz auf Fliesen und Granit: Spiegelung von Mond und Himmel
   vec3 vd0 = normalize(vWorld - uCam); vec3 vdir = vd0;
   float spec = pow(max(dot(reflect(vd0, n), uMoonDir), 0.0), 40.0);
+  // V27: Relief. Fugen liegen 1 cm tiefer, Terrakotta-Ornamente stehen vor; Rustika im Erdgeschoss (tiefe Lagerfugen).
+  // Die Normale entsteht aus den Bildschirm-Ableitungen dieser Höhe; Mondlicht von oben und Laternenschein von unten
+  // streifen die Kanten: die Unterkante jedes Steins glänzt warm, die Oberkante liegt im Schatten.
+  {
+    float rust = step(hy, 4.6) * step(baseY, 0.6) * (1.0 - brick) * step(matT, 1.5) * (1.0 - smoothstep(0.0, 0.05, min(fract(vWorld.y / 0.55), 1.0 - fract(vWorld.y / 0.55)) * 0.55)) * midFade;
+    float jmA = mix(max(jm, rust), brMortar * fineFade, brick);
+    float relH = -0.01 * jmA - 0.02 * rust + 0.008 * rl * (1.0 - brick);
+    vec3 dpx = dFdx(vWorld), dpy = dFdy(vWorld);
+    vec3 r1 = cross(dpy, n), r2 = cross(n, dpx); float bDet = dot(dpx, r1);
+    vec3 nb = normalize(abs(bDet) * n - sign(bDet) * (dFdx(relH) * r1 + dFdy(relH) * r2));
+    float bm = dot(nb, uMoonDir) - dot(n, uMoonDir), bg = n.y - nb.y;
+    stone *= clamp(1.0 + bm * 3.0 + bg * (1.2 + 2.5 * exp(-vWorld.y / 12.0)), 0.55, 1.6) * (1.0 - 0.28 * jmA * midFade);
+    stone += tex * vec3(1.0, 0.62, 0.3) * 0.25 * max(bg, 0.0) * exp(-vWorld.y / 10.0);
+  }
   stone += gloss * (spec * vec3(0.5, 0.55, 0.6) * 0.35 + uFogColor * 1.6 * pow(1.0 - abs(dot(n, -vd0)), 3.0) * 0.4 + vec3(1.0, 0.6, 0.3) * 0.05 * exp(-vWorld.y/10.0));
 
   bool xFace = abs(ln.x) > 0.5;
@@ -345,10 +367,36 @@ void main(){
   float escCol = step(abs(cell.x - floor(ncell*0.5)), 0.5) * brick * step(1.0, cell.y) * (1.0 - ground);
   float esc = escCol * clamp(step(f.y, 0.07) + step(abs(f.y - f.x), 0.05) + step(abs(f.x - 0.06), 0.02) + step(abs(f.x - 0.94), 0.02), 0.0, 1.0);
   if (style > 0.5 && style < 1.5 && pier < 0.5 && inX > 0.5) wall = stone*0.5 + vec3(0.012, 0.01, 0.008);
+  // V27: Fenstergewände aus hellem Werkstein, Sturz mit Schlussstein; je Haus an oder aus (Backsteinhäuser öfter)
+  float nearA = 1.0 - smoothstep(0.06, 0.16, px);
+  float gwOn = step(style, 0.5) * (1.0 - ground) * step(0.0, ux) * step(ux, ncell) * step(1.6, topDist) * step(0.45, hash(vec2(seed, 61.0)) + brick * 0.35) * nearA;
+  vec2 cm2 = vec2(usable / ncell, ch);
+  vec2 dW = (abs(f - 0.5) - vec2(wx, wy) * 0.5) * cm2;
+  float aboveW = (f.y - 0.5 - wy * 0.5) * ch;
+  float keyS = step(abs(f.x - 0.5) * cm2.x, 0.13) * step(aboveW, 0.42);
+  float lintel = gwOn * step(0.0, aboveW) * step(aboveW, 0.3) * step(dW.x, 0.24);
+  float surround = gwOn * step(0.0, max(dW.x, dW.y)) * step(max(dW.x, dW.y), 0.12) * (1.0 - step(0.0, aboveW));
+  float keyst = gwOn * step(0.0, aboveW) * keyS;
+  float gw = clamp(surround + lintel + keyst, 0.0, 1.0);
+  vec3 dressed = stone * vec3(1.25, 1.2, 1.12) * 1.35;
+  dressed *= 1.0 + 0.25 * step(0.24, aboveW) * (1.0 - keyS) - 0.35 * step(aboveW, 0.04) * lintel;   // Oberkante hell, Unterseite im Schatten
+  wall = mix(wall, dressed, gw);
+  // Zahnschnitt unter dem Goldband an der Traufe
+  float dentOn = step(-0.5, dens) * step(1.48, topDist) * step(topDist, 1.82) * step(4.0, vScale.y) * nearA;
+  wall = mix(wall, stone * mix(0.45, 1.4, step(0.45, fract(um / 0.34))) * (0.85 + 0.3 * step(1.72, topDist)), dentOn);
+  // Gurtgesims über dem Erdgeschoss
+  float belt = step(baseY, 0.6) * step(4.6, hy) * step(hy, 5.0) * step(style, 2.5) * step(6.0, vScale.y);
+  wall = mix(wall, stone * (step(4.68, hy) * 1.5 + 0.4), belt);
+  // Fallrohre aus Kupfer mit Grünspan an den Hauskanten, mit Schellen alle 2,4 m
+  float pipeOn = step(0.55, hash(vec2(seed, 71.0)) + brick * 0.3) * step(8.0, vScale.y) * step(-0.5, dens);
+  float pu = min(um, faceW - um) - 0.95, pipe = pipeOn * step(abs(pu), 0.065) * step(hy, vScale.y - 0.6) * nearA;
+  float clamp2 = step(fract(hy / 2.4), 0.03) * step(abs(pu), 0.1) * pipeOn * nearA;
+  vec3 copper = mix(vec3(0.1, 0.24, 0.2), vec3(0.2, 0.13, 0.07), step(0.6, vnoise(vec2(hy * 0.8, seed)))) * (0.35 + 0.65 * sqrt(max(1.0 - pu * pu / 0.0042, 0.0))) * (0.05 + 0.3 * moon + 0.2 * exp(-vWorld.y / 15.0));
   float edge = min(um, faceW - um);
   wall = mix(wall, stone*1.55, step(edge, 0.7) * step(-0.5, dens));
   vec3 det = mix(wall, winCol, inWin);
   det = mix(det, vec3(0.03, 0.028, 0.03), esc);
+  det = mix(det, copper, clamp(pipe + clamp2, 0.0, 1.0) * (1.0 - ground));
   // beleuchtete Kanneluren (vertikale Lichtrippen)
   float ribGlow = ribStrip * (0.55 + 0.45*smoothstep(0.0, 0.5, hy/max(vScale.y,1.0))) * (0.85 + 0.3*sin(hy*0.9));
   det = mix(det, vRib * (0.42 + 0.2*step(0.0, -sin(hy*2.0))), ribGlow);

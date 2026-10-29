@@ -1,5 +1,5 @@
-import { updateChunks } from './chunks.js';
-import { shared, T, scene, camera, MOBILE, renderer, U, FOG_DENSITY, hemi, moonLight, $ } from './core.js';
+import { updateChunks, layers } from './chunks.js';
+import { shared, T, scene, camera, MOBILE, renderer, U, FOG_DENSITY, hemi, moonLight, $, FOGVIS, fogHideDist } from './core.js';
 import { updateIndustry, updateShops } from './shops.js';
 import { inBelmont, interiorCrowd, updateBelmontDoor } from './belmont.js';
 import { WATER_Y, updateInterior } from './dance.js';
@@ -8,7 +8,7 @@ import { updatePort, carryPlayer, VILLA, terrainHeight } from './harbour.js';
 import { updateVilla, updateParked, updateLampLod, updateTreeLod, updateFireworks } from './serpentine.js';
 import { updatePedestrians, CLOCK, citizenNear, citizenDoing } from './ragdoll.js';
 import { searchlights } from './airships.js';
-import { updateCars, updateTrucks, updateTrams, updateFountain } from './traffic.js';
+import { updateCars, updateTrucks, updateTrams } from './traffic.js';
 import { player, updatePlayer, EYE } from './player.js';
 import { updateVenues } from './venues.js';
 import { DRIVE, updateCarScenes, updateCarReturns } from './eating.js';
@@ -66,6 +66,29 @@ export function updateDetails(dt) {
   cullTimer = 0.3;
   const cp = camera.position, k = 1 + Math.max(0, cp.y - 60) / 200;
   for (const d of detailCull) d.o.visible = d.p.distanceToSquared(cp) < d.d2 * k * k;
+}
+/* ---------- V27: was im Bodennebel verschwindet, wird nicht mehr gezeichnet ----------
+   Dichter Nebel allein spart keine Rechenzeit: die Grafikkarte zeichnet alles und färbt es dann türkis.
+   Erst wenn man weiß, ab welchem Abstand etwas vollständig im Nebel liegt, kann man es weglassen.
+   fogHideDist (core.js) rechnet das mit derselben Formel wie die Shader, getrennt nach Höhe der Dinge:
+   Menschen und Autos (2 m), Möbel und Läden (5 m), Laternen und Bäume (10 m). Türme und Silhouette
+   ragen aus dem Bodennebel heraus und bleiben immer stehen. Von oben (Flug, Villa) ist der Nebel dünn,
+   dann greift nichts davon. */
+export const FOGCULL = { t: 0, low: new Set(['furniture', 'goods', 'shops', 'props']), tall: new Set(['lamps']), hidden: 0 };
+export function updateFogCull(dt) {
+  if ((FOGCULL.t -= dt) > 0) return;
+  FOGCULL.t = 0.3;
+  const cp = camera.position, dens = U.uFogDensity.value;
+  FOGVIS.ped = fogHideDist(2, cp.y, dens) + 4; FOGVIS.low = fogHideDist(5, cp.y, dens) + 6; FOGVIS.tall = fogHideDist(10, cp.y, dens) + 8;
+  let hid = 0;
+  for (const L of layers) {
+    const lim = FOGCULL.tall.has(L.name) ? FOGVIS.tall : FOGCULL.low.has(L.name) ? FOGVIS.low : 0; if (!lim) continue;
+    for (const rec of L.chunks.values()) if (rec.obj) {
+      const x0 = rec.cx * L.size, z0 = rec.cz * L.size, dx = Math.max(x0 - cp.x, 0, cp.x - x0 - L.size), dz = Math.max(z0 - cp.z, 0, cp.z - z0 - L.size);
+      rec.obj.visible = dx * dx + dz * dz < lim * lim; if (!rec.obj.visible) hid++;
+    }
+  }
+  FOGCULL.hidden = hid;
 }
 // Auflösung passt sich der Bildrate an: unter etwa 42 Bildern pro Sekunde eine Stufe tiefer,
 // bei ruhigem Lauf langsam wieder höher, aber nie über eine Stufe, die schon zu langsam war.
@@ -162,6 +185,7 @@ export function frame(now) {
   updateLights(dt);
   updateDetails(dt);
   updateChunks(dt);
+  updateFogCull(dt);
   updateParked(dt);
   updateLampLod(dt); updateTreeLod(dt);
   updateInteract();
@@ -169,7 +193,6 @@ export function frame(now) {
   updatePedestrians(dt, t);
   updateIndustry(t);
   updateShips(t);
-  updateFountain(t);
   updateVenues(dt);
   updateShops(dt);
   updateCarScenes(dt); updateCarReturns(dt);

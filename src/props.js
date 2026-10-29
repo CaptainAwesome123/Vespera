@@ -1,9 +1,8 @@
 /* =====================================================================
    REQUISITEN AUS ECHTEN MODELLEN (V20/V21)
    Drei Chunk-Schichten, alle aus den Platzierungen, die beim Aufbau geplant wurden:
-     'lamps'      Straßenlaternen (serpentine.js plant sie in STREET.lamps). Nah: echtes Modell
-                  (assets/models/lantern.glb, Microsoft CC0) mit Arm zur Straße; fern: schlanker
-                  Kandelaber aus einfachen Formen; die leuchtende Laterne immer.
+     'lamps'      Straßenlaternen (serpentine.js plant sie in STREET.lamps). V27: Art-Déco-Kandelaber aus
+                  src/decolamp.js (nah fein mit Kanneluren und Goldfinnen, fern schlicht).
      'furniture'  Stadtmobiliar (STREET.furniture): Bank und Papierkorb aus Kenney-Modellen (CC0),
                   Hydrant, Briefkasten, Litfaßsäule, Uhr, Pflanzkübel, Kiosk aus den gezeichneten Formen.
      'props'      freie Platzierungen aus assets/manifest.json (placements) und ?demo=props.
@@ -17,6 +16,7 @@ import { manifest, loadManifest, prepareModels, instanceModel, bakeModel, applyT
 import { STREET } from './serpentine.js';
 import { curbs } from './facade-shader.js';
 import { paintMat, ENV } from './people-skeleton.js';
+import { decoLampGeo, decoLampMats } from './decolamp.js';
 
 export const PROPS_CELL = 250, PROPS_RADIUS = 700, PROPS_LOD_FAR = 260;
 export const STREET_CELL = 250, STREET_LOD = 330;              // Zellgröße und Entfernung, ab der nur noch die einfache Form steht
@@ -24,7 +24,6 @@ export const props = { placements: [], ready: false, baked: {}, mat: null };
 
 // Modelle je Verwendung: Name im Manifest, Farben je Materialname, Zielhöhe in Metern
 export const MODEL_USE = {
-  lamp: { model: 'lantern', center: false, envI: 0.5 },
   bench: { model: 'kenney-bench', height: 0.92, center: true, colors: { wood: [0.3, 0.17, 0.09], stone: [0.06, 0.06, 0.065] } },
   bin: { model: 'kenney-trashcan', height: 0.95, center: true, colors: { metal: [0.07, 0.07, 0.075], metalDark: [0.5, 0.38, 0.18] } },
 };
@@ -57,20 +56,14 @@ export function setupStreetLayers() {
     name: 'lamps', size: STREET_CELL, radius: cam => 400 + Math.max(0, cam.position.y) * 1.5, lods: [STREET_LOD],
     build(cx, cz, lod) {
       const here = STREET.lamps.filter(l => inCell(l, cx, cz, STREET_CELL)); if (!here.length) return null;
-      const g = new T.Group(), real = lod === 0 && props.baked.lamp;
-      if (real) {
-        const { geo, material, box } = props.baked.lamp, H = box.max.y - box.min.y;
-        g.add(instanced(geo, material, here, (l, i, im) => { const s = l.h / H; _pq.setFromAxisAngle(_pup, l.yaw ??= lampYaw(l)); im.setMatrixAt(i, _pm.compose(_pp.set(l.x, l.y, l.z), _pq, _ps.setScalar(s))); }));
-      } else {
-        const byGeo = new Map(); for (const l of here) { if (!byGeo.has(l.geo)) byGeo.set(l.geo, []); byGeo.get(l.geo).push(l); }
-        for (const [geo, list] of byGeo) g.add(instanced(geo, LP.poleMat, list, (l, i, im) => im.setMatrixAt(i, _pm.makeTranslation(l.x, l.y, l.z))));
-        g.add(instanced(LP.capGeo, LP.poleMat, here, (l, i, im) => im.setMatrixAt(i, _pm.makeTranslation(l.x, l.y + l.hs, l.z))));
+      // V27: Art-Déco-Kandelaber (src/decolamp.js), je Höhe ein Netz für Eisen und Gold und eins für das Milchglas
+      const g = new T.Group(), M = decoLampMats(), byH = new Map();
+      for (const l of here) { if (!byH.has(l.h)) byH.set(l.h, []); byH.get(l.h).push(l); }
+      for (const [h, list] of byH) {
+        const G = decoLampGeo(h, lod);
+        g.add(instanced(G.metal, M.metal, list, (l, i, im) => im.setMatrixAt(i, _pm.makeTranslation(l.x, l.y, l.z))));
+        g.add(instanced(G.glass, M.glass, list, (l, i, im) => im.setMatrixAt(i, _pm.makeTranslation(l.x, l.y, l.z))));
       }
-      // die leuchtende Laterne: beim echten Modell kleiner und in der Lampe, sonst auf dem Kandelaber
-      g.add(instanced(LP.lanternGeo, new T.MeshBasicMaterial({ color: new T.Color(1.6, 1.12, 0.62) }), here, (l, i, im) => {
-        if (real) { const a = l.yaw ?? 0, r = l.h * 0.33; im.setMatrixAt(i, _pm.makeScale(0.55, 0.55, 0.55).setPosition(l.x + Math.cos(a) * r, l.y + l.h * 0.74, l.z - Math.sin(a) * r)); }
-        else im.setMatrixAt(i, _pm.makeTranslation(l.x, l.y + l.hs, l.z));
-      }));
       return g;
     },
     dispose() { /* Geometrien gehören den Vorlagen */ },
@@ -141,7 +134,7 @@ export async function setupProps() {
     if (b) props.baked[use] = b;
   }
   // Instanzfarbe für Teile mit Farbe PAINT; die Kenney-Modelle bekommen feste Farben, Hydrant usw. bleiben bunt
-  if (Object.keys(props.baked).length) { invalidateLayer('lamps'); invalidateLayer('furniture'); }
+  if (Object.keys(props.baked).length) invalidateLayer('furniture');
   props.ready = true;
   applyTextures().catch(() => {});
   // Backstein für den Fassaden-Shader

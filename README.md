@@ -11,7 +11,7 @@ Alles (Stadt, Menschen, Autos, Luftschiffe, Wasser) wird prozedural erzeugt.
 index.html          Seite: HUD, Menü, Stile, importmap für three.js und der Modul-Einstieg src/boot.js
 assets/             echte Modelle und Texturen (siehe "Echte Modelle einbauen")
   manifest.json       Verzeichnis aller Dateien, Platzierungen in Weltkoordinaten
-  models/             glTF/GLB-Modelle: lantern.glb (Khronos/Microsoft, CC0), kenney-bench.glb, kenney-trashcan.glb (Kenney, CC0), deco-bollard.glb (Beispiel)
+  models/             glTF/GLB-Modelle: lantern.glb (Khronos/Microsoft, CC0, seit V27 nur noch in ?demo=props), kenney-bench.glb, kenney-trashcan.glb (Kenney, CC0), deco-bollard.glb (Beispiel)
   textures/           Fototexturen (512 px JPG): Backstein (three.js, MIT), schwarzer Marmor und Gold (ambientCG, CC0)
   people/             Menschen (V22): MakeHuman-Körper, Kleidung, Haare als GLB, Haut/Stoff-Atlas als WebP (CC0)
   LICENSES.md         Herkunft und Lizenz jeder Datei
@@ -30,8 +30,11 @@ src/                der Spielcode als ES-Module, ein Abschnitt pro Datei
   shops.js            44 begehbare Läden (V19); ihre Meshes sind die erste Chunk-Schicht
   entrances.js        Eingänge mit Stufen und Glastüren
   belmont.js          The Belmont: Turm, Lobby, Ballsaal, Drehtür
+  plaza.js            Belmont-Platz: Pflaster im Shader (V27)
+  fountain.js         Brunnen auf dem Belmont-Platz: Schalen, Bogenstrahlen, Wellen, Spritzer, Gischt (V27)
+  decolamp.js         Art-Déco-Kandelaber für die Straßen (V27)
   dance.js            Tanzpaare im Ballsaal
-  water.js            Wellen (Gerstner)
+  water.js            Wellen (Gerstner, acht Wellenzüge), Spiegelung, Gischt am Kai
   harbour.js          Kai, Jachthafen, Fähre, Luftschiffhafen
   serpentine.js       Bergstraße zur Villa und Umgebung
   ragdoll.js          Gliederpuppen-Physik
@@ -162,6 +165,32 @@ bleiben die gebauten. Lädt `assets/people` nicht, läuft alles wie in V21.
   Pfützen und auf dem Wasser; am PC spiegelt sich die Stadt bei Nässe echt im Pflaster (`renderReflection` mit
   Ebene auf Straßenhöhe), auf dem Handy bleiben Himmel, Nebel und die Lichtbahnen der Laternen.
 - *Schatten (PC):* Der Mond wirft lange Schatten der Häuser und Autos auf Straße und Gehweg.
+
+**V27: Grafik.**
+- *Belmont-Platz (`plaza.js`):* Das Pflaster ist keine Leinwand mehr (vorher etwa 10 Pixel je Meter), der Shader
+  rechnet es aus der Weltlage: Strahlenkranz aus zwei Graniten mit radial verlegten Platten, Messingringe und
+  -strahlen, Fächer (Muschel) um den Brunnen, Randband im Läuferverband, Fugen als Relief, Glimmer und Körnung,
+  dazu Nässe, Pfützen und Spiegelung aus `streetDetail` (Modus `'plaza'`).
+- *Brunnen (`fountain.js`):* drei Schalen auf gestuftem Pfeiler mit Wasserschleiern über die Ränder, 16 Bogenstrahlen
+  vom Beckenrand, hohe Mittelfontäne; Ringwellen von Schleier und Aufschlägen (gleiche Formel im Vertex- und
+  Fragment-Shader), weißes Wasser, Kaustik, Unterwasserlicht. Tropfen, Spritzer und Sprühnebel sind Teilchen, deren
+  Flugbahn ganz im Shader aus der Zeit entsteht (keine Arbeit je Bild auf der CPU).
+- *See (`water.js`):* acht statt sechs Wellenzüge, lange Dünung, etwa 50 % höher (Boote schaukeln mit, gleiche
+  Formel auf der CPU); Brandungslinien und Gischt an Kai und Ufer (`shoreSpray`), Licht scheint durch die Kämme,
+  Schaumstreifen in Windrichtung.
+- *Laternen (`decolamp.js`):* Art-Déco-Kandelaber statt der Khronos-Laterne: gestufter Sockel, kannelierte Trommel
+  und Schaft mit Messingmanschetten, Milchglaslaterne mit Bronzerippen, Zikkurat-Haube mit Goldfinnen.
+- *Fassaden (`facade-shader.js`):* Fugen und Terrakotta-Ornamente als echtes Relief (Normale aus der Fugenhöhe),
+  Rustika im Erdgeschoss, Fenstergewände mit Sturz und Schlussstein, Zahnschnitt unter der Traufe, Gurtgesims,
+  kupferne Fallrohre mit Schellen.
+- *Autos (`cars.js`, `carGeoHi` in `serpentine.js`):* Karosserie aus Querschnitten (`carLoft`) mit gewölbter Haube
+  und rundem Heck, Kotflügel als bombiertes Blech entlang des Rades (`carSweep`), 16-Speichen-Räder mit Nabenkappe,
+  Reserveräder in den Kotflügeln, Geschossscheinwerfer, runde Stoßstangen mit Hörnern, Türgriffe, Kühlerfigur.
+- *Nebel und Leistung:* Bodennebel dichter (`FOG_K` 12, Skalenhöhe 14 m), gleichmäßiger Dunst schwächer (`FOG_E2`),
+  dadurch bleiben Türme und Silhouette so sichtbar wie vorher. Der Nebel rechnet jetzt mit dem echten Abstand statt
+  der Bildtiefe. `fogHideDist()` (`core.js`) sagt, ab wo etwas einer bestimmten Höhe ganz im Nebel liegt;
+  `updateFogCull` (`performance.js`) blendet dort Laternen-, Möbel-, Waren- und Laden-Zellen aus, Menschen, Autos
+  und Bäume zeichnen nur bis dahin (`FOGVIS`). Dichter Nebel spart nur so Arbeit, nicht von allein.
 
 Große Modelle: Draco/Meshopt sind noch nicht eingebunden; KTX2 braucht die Transcoder-Dateien vom CDN
 (`THREE_CDN` in `assets.js`). Die Einzeldatei bettet `assets/` als Daten-URLs ein; ab einigen MB lohnt sich das

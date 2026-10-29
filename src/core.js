@@ -65,20 +65,35 @@ U.uBrick.value.needsUpdate = true; U.uStone.value.needsUpdate = true;
    Zum gewohnten Dunst (FogExp2) kommt ein Nebel, der am Boden dicht ist und nach oben ausdünnt (Skalenhöhe 16 m):
    die Straßen liegen im türkisen Schleier, die Türme ragen heraus. Integral der Dichte entlang des Sehstrahls.
    Gilt für alle eingebauten Materialien (Fog-Chunks unten) und die eigenen Shader (FOG_GLSL). */
-export const FOG_K = 7.0;
+// V27: Bodennebel dichter (FOG_K 7 -> 12) und flacher (Skalenhöhe 16 -> 14 m), der gleichmäßige Dunst schwächer (FOG_E2 0,75):
+// die Straßen versinken früher im Türkis, die Türme und die ferne Silhouette bleiben so sichtbar wie vorher.
+// fogOptical() rechnet dasselbe auf der CPU (performance.js blendet damit aus, was im Nebel ohnehin verschwindet).
+export const FOG_K = 12.0, FOG_SH = 14.0, FOG_E2 = 0.75;
 export const FOG_GLSL = `
 float vespHF(float d, float y, float cy, float dens){
-  float a = max(cy + 2.0, 0.0), b = max(y + 2.0, 0.0), ea = exp(-a / 16.0), eb = exp(-b / 16.0), dy = b - a;
-  float avg = abs(dy) < 0.05 ? ea : 16.0 * (ea - eb) / dy;
+  float a = max(cy + 2.0, 0.0), b = max(y + 2.0, 0.0), ea = exp(-a / ${FOG_SH.toFixed(1)}), eb = exp(-b / ${FOG_SH.toFixed(1)}), dy = b - a;
+  float avg = abs(dy) < 0.05 ? ea : ${FOG_SH.toFixed(1)} * (ea - eb) / dy;
   return dens * ${FOG_K.toFixed(2)} * d * avg;
 }
-float vespFog(float d, float y, float cy, float dens, float k){ return clamp(1.0 - exp(-dens*dens*d*d*k - vespHF(d, y, cy, dens)), 0.0, 1.0); }
+float vespFog(float d, float y, float cy, float dens, float k){ return clamp(1.0 - exp(-dens*dens*d*d*k*${FOG_E2.toFixed(2)} - vespHF(d, y, cy, dens)), 0.0, 1.0); }
 `;
+// optische Tiefe des Nebels zwischen Kamera (Höhe cy) und einem Punkt in Abstand d und Höhe y (wie vespFog mit k = 1)
+export function fogOptical(d, y, cy, dens) {
+  const a = Math.max(cy + 2, 0), b = Math.max(y + 2, 0), ea = Math.exp(-a / FOG_SH), eb = Math.exp(-b / FOG_SH), dy = b - a;
+  const avg = Math.abs(dy) < 0.05 ? ea : FOG_SH * (ea - eb) / dy;
+  return dens * dens * d * d * FOG_E2 + dens * FOG_K * d * avg;
+}
+// Abstand, ab dem ein Punkt in Höhe y zu mehr als 98,5 % im Nebel liegt (optische Tiefe 4,2); quadratische Gleichung in d
+export function fogHideDist(y, cy, dens) {
+  const a = dens * dens * FOG_E2, b = fogOptical(1, y, cy, dens) - a;
+  return a > 1e-12 ? (-b + Math.sqrt(b * b + 4 * a * 4.2)) / (2 * a) : 4.2 / Math.max(b, 1e-9);
+}
+export const FOGVIS = { ped: 1e9, low: 1e9, tall: 1e9 };
 T.ShaderChunk.fog_pars_vertex = `#ifdef USE_FOG
   varying float vFogDepth; varying float vFogWY;
 #endif`;
 T.ShaderChunk.fog_vertex = `#ifdef USE_FOG
-  vFogDepth = - mvPosition.z;
+  vFogDepth = length(mvPosition.xyz);   // V27: echter Abstand statt Bildtiefe (Nebel dreht nicht mehr mit dem Blick, Ausblenden im Nebel wird exakt)
   vFogWY = ((mvPosition.xyz - viewMatrix[3].xyz) * mat3(viewMatrix)).y;
 #endif`;
 T.ShaderChunk.fog_pars_fragment = `#ifdef USE_FOG
