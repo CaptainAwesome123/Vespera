@@ -4,7 +4,7 @@ import { updateIndustry, updateShops } from './shops.js';
 import { inBelmont, interiorCrowd, updateBelmontDoor } from './belmont.js';
 import { WATER_Y, updateInterior } from './dance.js';
 import { REFL, updateWaves, harborWater, renderReflection } from './water.js';
-import { updatePort, carryPlayer, VILLA } from './harbour.js';
+import { updatePort, carryPlayer, VILLA, terrainHeight } from './harbour.js';
 import { updateVilla, updateParked, updateLampLod, updateTreeLod, updateFireworks } from './serpentine.js';
 import { updatePedestrians, CLOCK, citizenNear, citizenDoing } from './ragdoll.js';
 import { searchlights } from './airships.js';
@@ -18,7 +18,7 @@ import { BOAT, updateBoatInput, updateBoat, boatCamera, districtAt, showDistrict
 import { updateInteract, updateAudio } from './music.js';
 import { composer, resize, bloomPass } from './bloom.js';
 import { playing, paused } from './input.js';
-import { updateShips } from './main.js';
+import { updateShips, skyline, shipDefs } from './main.js';
 
 /* =====================================================================
    LEISTUNG: Lichter-Pool, Sichtweiten für Details, adaptive Auflösung
@@ -87,6 +87,26 @@ export function adaptResolution(raw, now) {
   prTimer = 0;
 }
 
+// V23: Nahebene mit dem Abstand zur nächsten Fläche: zu Fuß 0,2 m (Wände, Teller), im Flug über den Dächern bis 4 m.
+// Der Tiefenpuffer wird damit in der Ferne bis zu zwanzigmal genauer, Gesimse und Leuchtleisten flackern nicht mehr.
+export const NEARP = { t: 0, v: 0.2 };
+export function nearTarget() {
+  const cp = camera.position;
+  if (!playing) return 1.0;
+  if (DRIVE.on || BOAT.on || !player.fly) return 0.2;
+  let ground = Math.max(skyline(cp.x, cp.z, 30), 0);
+  if (Math.hypot(cp.x, cp.z) > 1000) ground = Math.max(ground, terrainHeight(cp.x, cp.z));
+  if (Math.hypot(cp.x - VILLA.x, cp.z - VILLA.z) < 160) ground = Math.max(ground, VILLA.y + 56);
+  for (const s of shipDefs) if (s.g && s.g.position.distanceToSquared(cp) < (s.L + 30) ** 2) return 0.5;
+  const clear = cp.y - ground;
+  return clear < 6 ? 0.5 : Math.min(4, 0.5 + (clear - 6) * 0.12);
+}
+export function updateNearPlane(dt) {
+  if ((NEARP.t -= dt) > 0) return;
+  NEARP.t = 0.25;
+  const n = nearTarget();
+  if (Math.abs(n - camera.near) / camera.near > 0.12) { camera.near = n; camera.updateProjectionMatrix(); }
+}
 export let hudTimer = 0, elapsed = 0; shared.last = performance.now();
 export function frame(now) {
   const raw = (now - shared.last) / 1000, dt = Math.min(0.05, raw); shared.last = now; elapsed += dt;
@@ -117,6 +137,7 @@ export function frame(now) {
     camera.lookAt(0, 210, 0);
   }
   U.uCam.value.copy(camera.position);
+  updateNearPlane(dt);
   updateCars(dt);
   updateTrucks(dt);
   updateTrams(dt);

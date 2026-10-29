@@ -96,12 +96,15 @@ export function loadTexture(name) {
      height   Modell gleichmäßig auf diese Höhe (m) skalieren; scale: fester Faktor
      ground   Unterkante auf y = 0 legen (Standard an); center: x/z auf die Mitte des Umrisses legen
      envMap   Umgebungskarte für Modelle mit eigenen Texturen
+     node     nur diesen Knoten (Name) backen, z. B. ein einzelnes Stück aus einem Sammelmodell
    Ergebnis { geo, material, box }: material ist das Modellmaterial (mit Texturen), sonst null -> Aufrufer nimmt paintMat. */
 export function bakeModel(name, opts = {}) {
   const root = loadedModels.get(name); if (!root) return null;
   root.updateMatrixWorld(true);
   const geos = [], cols = []; let texMat = null;
-  root.traverse(o => {
+  let src = root;
+  if (opts.node) { let best = null, bd = 1e9; root.traverse(o => { if (o.name !== opts.node) return; let d = 0; for (let q = o; q.parent; q = q.parent) d++; if (d < bd) { bd = d; best = o; } }); if (!best) return null; src = best; }
+  src.traverse(o => {
     if (!o.isMesh) return;
     const g = (o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone()).applyMatrix4(o.matrixWorld);
     if (!g.attributes.normal) g.computeVertexNormals();
@@ -124,6 +127,13 @@ export function bakeModel(name, opts = {}) {
   if (texMat) { material = texMat.clone(); material.vertexColors = false; if (opts.envMap) { material.envMap = opts.envMap; material.envMapIntensity = opts.envI ?? 0.6; } }
   return { geo, material, box: b };
 }
+
+/* ---------- V23: Waren aus echten Modellen (Läden, Bar, Restaurant) ----------
+   Beim Aufbau melden Läden und Lokale hier, wo ein Stück stehen soll: { m: 'cake', x, y, z, yaw, h }
+   (h = größte Ausdehnung in Metern, y = Unterkante).
+   Die Schicht 'goods' (props.js) zeigt sie in der Nähe als InstancedMesh aus kenney-goods.glb. */
+export const GOODS_AT = [];
+export const goodsAt = (m, x, y, z, yaw = 0, h = 0.2) => { GOODS_AT.push({ m, x, y, z, yaw, h }); };
 
 /* ---------- V21: Fototexturen für bestehende Materialien ----------
    wantTexture(mat, { map: 'marble-color', normalMap: 'marble-normal', roughnessMap: 'marble-rough', repeat: [0.5, 0.5] })

@@ -1,4 +1,5 @@
 import { U, T, mulberry32, canvasTex, mergeGeos, pick, R, scene, camera } from './core.js';
+import { wantTexture } from './assets.js';
 import { stdMat, ENV, addCollider } from './people-skeleton.js';
 import { addNeon, NEON, lamps, addGlow, addSeg } from './facade-shader.js';
 import { QUAY, QX, landDist } from './island.js';
@@ -141,6 +142,10 @@ export function portMats() {
     inWood: vc({ map: WOODP.map, normalMap: WOODP.normal, roughness: 0.4, emissive: 0xffffff, emissiveMap: WOODP.map, emissiveIntensity: 0.45, envI: 0.5 }),
     carpet: vc({ map: CARPET, roughness: 1, emissive: 0xffffff, emissiveMap: CARPET, emissiveIntensity: 0.4 }),
     ceil: vc({ roughness: 0.8, emissive: new T.Color(0.32, 0.24, 0.15) }),
+    // V23: Böden aus Fotos (ambientCG, CC0): Fliesen für Feinkost, Apotheke, Friseur, Blumen; Parkett für Läden und Bar.
+    // Bis die Fotos geladen sind, stehen die gezeichneten Texturen; das Eigenleuchten folgt dem Foto
+    tile: wantTexture(vc({ map: QSTONE.map, normalMap: QSTONE.normal, roughness: 0.5, emissive: 0xffffff, emissiveMap: QSTONE.map, emissiveIntensity: 0.3, envI: 0.7 }), { map: 'tiles-color', normalMap: 'tiles-normal', roughnessMap: 'tiles-rough', normalScale: 0.7, roughness: 0.75, then: m => { m.emissiveMap = m.map; } }),
+    parquet: wantTexture(vc({ map: WOODP.map, normalMap: WOODP.normal, roughness: 0.4, emissive: 0xffffff, emissiveMap: WOODP.map, emissiveIntensity: 0.4, envI: 0.6 }), { map: 'parquet-color', normalMap: 'parquet-normal', roughnessMap: 'parquet-rough', normalScale: 0.6, roughness: 0.7, then: m => { m.emissiveMap = m.map; } }),
   };
   return PM;
 }

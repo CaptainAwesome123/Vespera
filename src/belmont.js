@@ -393,6 +393,25 @@ export function buildBelmontInterior() {
     g.globalAlpha = 0.45; sunburst(g, X(0), Z(-28), 7 * S, 32, '#b08840', 'rgba(40,20,8,0.0)'); g.globalAlpha = 1;
   });
   ballFloor.anisotropy = ANISO;
+  // V23: Tanzfläche aus echtem Parkett (ambientCG WoodFloor043, CC0), sobald das Foto geladen ist:
+  // Streifen von 1,8 m, abwechselnd um ±45° gedreht (Fischgrät), warm abgedunkelt, darüber Goldrand und Sonnenstrahl
+  wantTexture(new T.MeshBasicMaterial(), { map: 'parquet-color', then: m => {
+    const img = m.map.image, g = ballFloor.image.getContext('2d'), W = 2048, H = 896, S = W / 96, X = x => (x + 48) / 96 * W, Z = z => (z + 48) / 42 * H, tile = 2.4 * S;
+    g.save(); g.beginPath(); g.rect(X(-18), Z(-37), 36 * S, 18 * S); g.clip();
+    for (let col = 0; col < 20; col++) {
+      const x0 = X(-18) + col * 1.8 * S;
+      g.save(); g.beginPath(); g.rect(x0, Z(-37), 1.8 * S, 18 * S); g.clip();
+      g.translate(x0 + 0.9 * S, Z(-28)); g.rotate(col % 2 ? Math.PI / 4 : -Math.PI / 4);
+      for (let i = -6; i < 6; i++) for (let j = -6; j < 6; j++) g.drawImage(img, i * tile, j * tile, tile, tile);
+      g.restore();
+      g.fillStyle = 'rgba(20,10,4,0.5)'; g.fillRect(x0, Z(-37), 1.5, 18 * S);
+    }
+    g.fillStyle = 'rgba(40,18,6,0.38)'; g.fillRect(X(-18), Z(-37), 36 * S, 18 * S);
+    g.globalAlpha = 0.45; sunburst(g, X(0), Z(-28), 7 * S, 32, '#b08840', 'rgba(40,20,8,0.0)'); g.globalAlpha = 1;
+    g.restore();
+    g.strokeStyle = '#d8b060'; g.lineWidth = 8; g.strokeRect(X(-18), Z(-37), 36 * S, 18 * S);
+    ballFloor.needsUpdate = true;
+  } });
   const ballRough = canvasTex(256, 112, (g, W, H) => { g.fillStyle = '#262626'; g.fillRect(0, 0, W, H); g.fillStyle = '#707070'; g.fillRect((30 / 96) * W, (11 / 42) * H, (36 / 96) * W, (18 / 42) * H); });
   const bf = new T.Mesh(new T.PlaneGeometry(96, 42), stdMat({ map: ballFloor, roughnessMap: ballRough, roughness: 1, metalness: 0.08, envI: 0.85, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
   bf.rotation.x = -Math.PI / 2; bf.position.set(0, P + 0.01, -27); scene.add(bf);

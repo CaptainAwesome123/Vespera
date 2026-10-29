@@ -20,7 +20,7 @@ src/                der Spielcode als ES-Module, ein Abschnitt pro Datei
   core.js             Zufall mit festem Startwert, Renderer, Szene, MOBILE-Schalter, Hilfsfunktionen, `shared`
   chunks.js           Welt-Chunks: Zellen werden um den Spieler herum gebaut und wieder freigegeben (Streaming, LOD)
   assets.js           Asset-Pipeline: Manifest, glTF-Loader (mit KTX2), Textur-Loader, Zwischenspeicher
-  props.js            Chunk-Schichten 'lamps', 'furniture', 'props': Laternen, Stadtmobiliar und freie Platzierungen aus echten Modellen (V21)
+  props.js            Chunk-Schichten 'lamps', 'furniture', 'props', 'goods': Laternen, Stadtmobiliar, freie Platzierungen (V21) und Waren in Läden und Lokalen (V23) aus echten Modellen
   people-model.js     Menschen: Köpfe, Haar, Kleidung (V17)
   people-skeleton.js  Skelett im Shader, Gang, Laufen, Tanzen, Sitzen (V18); Gelenkmaße je Körper (HRIG, V22)
   people-mh.js        Menschen aus MakeHuman (V22): lädt assets/people, setzt die Figuren je Kleidungsart zusammen
@@ -127,6 +127,24 @@ des Spiels und schreibt `assets/people/`. Aufruf: `node tools/make-people.mjs <m
 `src/people-mh.js` die Figuren für die nahen und mittleren Stufen zusammen (Tabelle `MH_KIND`: Teile,
 Atlasbild, Farbe, welche gebauten Teile wie Hüte, Mäntel, Kleider und Werkzeuge bleiben); ferne Figuren
 bleiben die gebauten. Lädt `assets/people` nicht, läuft alles wie in V21.
+
+**V23: Gebäude, Waren, Böden.**
+- *Flackern:* Bauteile eines Hauses überlappen nicht mehr mit gleichen Flächen (Ecken als Mittelstück plus
+  Endkappen, Gesimse mit `bandC()` leicht vor der Wand, doppelte Teile entfernt `dedupeSegs()`); innen liegende
+  Flächen blendet das Attribut `aFlag` aus (`FL` in `facade-shader.js`). Die Kamera rückt ihre Nahebene je nach
+  Abstand zu Gebäuden nach vorn (`updateNearPlane` in `performance.js`), das gibt dem Tiefenpuffer Genauigkeit.
+- *Schriftzüge:* `placeSign` (`entrances.js`) sucht Seite, Höhe und Ausrichtung, an denen kein Bauteil vor dem
+  Schild steht; nur Schmuckteile (`deco`-Gruppen: Erker, Balkone, Lisenen) dürfen dafür weichen.
+- *Neue Hausformen:* `blade` (schmale Scheibe), `tiara` (Krone aus Bögen), `clock` (Uhrturm, `CLOCKS`), `zigtop`
+  (Zikkurat-Spitze), `row` (Reihe aus 2–5 schmalen Häusern verschiedener Höhe, `rowHouses`); Schieferdächer.
+- *Straßen:* Eine Nordstraße verbindet die Enden des Rings mit den Avenuen; die Kante `via` führt von dort über das
+  Viadukt zum Tunnel (`island.js`), auf ihr fahren die Autos des Straßennetzes. Am Viadukt steht ein Stadttor.
+- *Villa:* Eingang mit Vordach, Säulen, Glastüren und rotem Teppich zur Parkplatzseite (`VILLA_DOOR`).
+- *Waren:* `goodsAt()`/`ware()` melden Stücke aus `kenney-goods.glb` (Kenney Food Kit, CC0: Flaschen, Gläser,
+  Torten, Käse, Schinken, Brot, Obst); die Schicht `goods` (`props.js`) zeigt sie in der Nähe. Läden (Café, Bar,
+  Feinkost), The Brass Lantern und Restaurant Aurora sind damit bestückt.
+- *Fotos:* Ladenböden aus Fliesen oder Parkett (Kit-Materialien `tile`, `parquet`), Brass-Lantern-Parkett,
+  Fischgrät-Tanzfläche im Belmont-Ballsaal, Naturstein-Fassaden mit Foto-Gestein (`uStone`) als Feinstruktur.
 
 Große Modelle: Draco/Meshopt sind noch nicht eingebunden; KTX2 braucht die Transcoder-Dateien vom CDN
 (`THREE_CDN` in `assets.js`). Die Einzeldatei bettet `assets/` als Daten-URLs ein; ab einigen MB lohnt sich das

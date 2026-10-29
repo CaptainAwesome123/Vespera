@@ -13,7 +13,7 @@
    ===================================================================== */
 import { T, U } from './core.js';
 import { registerLayer, invalidateLayer } from './chunks.js';
-import { manifest, loadManifest, prepareModels, instanceModel, bakeModel, applyTextures, loadTexture } from './assets.js';
+import { manifest, loadManifest, prepareModels, instanceModel, bakeModel, applyTextures, loadTexture, GOODS_AT } from './assets.js';
 import { STREET } from './serpentine.js';
 import { curbs } from './facade-shader.js';
 import { paintMat, ENV } from './people-skeleton.js';
@@ -96,13 +96,42 @@ export function setupStreetLayers() {
   });
 }
 
+/* ---------- V23: Waren in Läden, Bar und Restaurant (Kenney Food Kit, CC0) ----------
+   GOODS_AT sammelt beim Aufbau { m, x, y, z, yaw, h }; je Ware wird der Knoten aus kenney-goods.glb
+   gebacken und je Platz so skaliert, dass seine größte Ausdehnung h Meter misst. Nur in der Nähe sichtbar (kleine Teile). */
+export const GOODS_CELL = 120;
+const goods = { baked: {}, mat: null };
+function setupGoods() {
+  goods.mat = paintMat({ color: 0xffffff, metalness: 0.04, roughness: 0.62, envI: 0.35, emissive: 0x0a0806 });
+  // je Ware auf 1 m größte Ausdehnung bringen: h am Platz ist dann die Größe des Stücks in Metern
+  for (const m of new Set(GOODS_AT.map(g => g.m))) {
+    const b = bakeModel('kenney-goods', { node: m, center: true }); if (!b) continue;
+    const e = Math.max(b.box.max.x - b.box.min.x, b.box.max.y - b.box.min.y, b.box.max.z - b.box.min.z) || 1;
+    b.geo.scale(1 / e, 1 / e, 1 / e); b.geo.computeBoundingSphere(); goods.baked[m] = b;
+  }
+  if (!Object.keys(goods.baked).length) return;
+  registerLayer({
+    name: 'goods', size: GOODS_CELL, radius: cam => 95 + Math.max(0, cam.position.y) * 0.3,
+    build(cx, cz) {
+      const here = GOODS_AT.filter(p => inCell(p, cx, cz, GOODS_CELL)); if (!here.length) return null;
+      const g = new T.Group(), by = new Map();
+      for (const p of here) if (goods.baked[p.m]) { if (!by.has(p.m)) by.set(p.m, []); by.get(p.m).push(p); }
+      for (const [m, list] of by) g.add(instanced(goods.baked[m].geo, goods.mat, list, (p, i, im) => { _pq.setFromAxisAngle(_pup, p.yaw); im.setMatrixAt(i, _pm.compose(_pp.set(p.x, p.y, p.z), _pq, _ps.setScalar(p.h))); }));
+      return g.children.length ? g : null;
+    },
+    dispose() {},
+  });
+}
+
 /* ---------- Modelle und Texturen nachladen, dann die Schichten einmal neu bauen ---------- */
 export async function setupProps() {
   await loadManifest();
   const demo = new URLSearchParams(location.search).get('demo') === 'props' && manifest.demo;
   props.placements = [...(manifest.placements || []), ...(demo ? manifest.demo.placements || [] : [])];
   const uses = Object.values(MODEL_USE).filter(u => manifest.models[u.model]);
-  await prepareModels([...props.placements.map(p => p.model), ...uses.map(u => u.model)]);
+  const wantGoods = GOODS_AT.length && manifest.models['kenney-goods'];
+  await prepareModels([...props.placements.map(p => p.model), ...uses.map(u => u.model), ...(wantGoods ? ['kenney-goods'] : [])]);
+  if (wantGoods) setupGoods();
   for (const [use, def] of Object.entries(MODEL_USE)) {
     const b = bakeModel(def.model, { ...def, envMap: ENV });
     if (b) props.baked[use] = b;
@@ -112,6 +141,7 @@ export async function setupProps() {
   props.ready = true;
   applyTextures().catch(() => {});
   // Backstein für den Fassaden-Shader
+  if (manifest.textures['stone-color']) loadTexture('stone-color').then(t => { t.encoding = T.LinearEncoding; t.wrapS = t.wrapT = T.RepeatWrapping; U.uStone.value = t; U.uStoneOn.value = 1; }).catch(() => {});
   if (manifest.textures['brick-color']) loadTexture('brick-color').then(t => { t.wrapS = t.wrapT = T.RepeatWrapping; U.uBrick.value = t; U.uBrickOn.value = 1; }).catch(() => {});
   if (!props.placements.length) return;
   registerLayer({
