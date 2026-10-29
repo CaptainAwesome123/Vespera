@@ -42,6 +42,16 @@ Netze vereinfacht (zweite Stufe für mittlere Entfernung) und mit meshoptimizer 
 (AGPL) ist nicht Teil des Spiels; verwendet sind nur die CC0-Daten. Das npm-Paket verweist für die Lizenz auf
 makehuman.org, wo die mitgelieferten Assets als CC0 freigegeben sind.
 
+## Bewegungen (V26)
+
+| Datei | Quelle | Urheber | Lizenz |
+|---|---|---|---|
+| `people/mocap.bin`, `people/mocap.json` | CMU Graphics Lab Motion Capture Database, Aufnahmen 35_01 und 35_17 (Gehen, Laufen), 93_03, 93_05, 93_07, 93_08 (Charleston, Gang einer Dame), 114_05 (Sitzen), 137_28 (Warten); BVH-Fassung von cgspeed über [Shriinivas/cmubvh](https://github.com/Shriinivas/cmubvh) | Carnegie Mellon University, [mocap.cs.cmu.edu](http://mocap.cs.cmu.edu) | frei, ohne Einschränkung („free for all uses“); Bitte um Nennung: *The data used in this project was obtained from mocap.cs.cmu.edu. The database was created with funding from NSF EIA-0196217.* |
+
+Bearbeitung (`tools/make-mocap.mjs`, Auswahl in `tools/mocap-clips.json`): Gelenkwinkel in die Kanäle des
+Figuren-Shaders umgerechnet (Becken, Oberkörper, Kopf, Fußziele für die Bein-IK, Arme), auf Beinlänge und
+Schrittlänge normiert, zu nahtlosen Schleifen geschnitten und auf 30 bzw. 15 Bilder je Sekunde verkleinert.
+
 ## Nicht enthalten (Stand V21)
 
 Für 1920er-Automobile, Hydranten, Litfaßsäulen und Pflasterstein-Fotos wurde keine frei lizenzierte Quelle

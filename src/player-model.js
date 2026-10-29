@@ -14,6 +14,7 @@ import { personShare } from './people-model.js';
 import { MHP } from './people-mh.js';
 import { player } from './player.js';
 import { nearBoxes } from './people-skeleton.js';
+import { LOOSE } from './physics.js';
 
 // Aussehen in einer Zahl (wie personLook): Gesicht 5 (haselnussbraune Augen), heller Hautton, blondes Haar, ohne Hut
 const PLAYER_LOOK = 5 + 64 * 0 + 320 * 2 + 7680 * 2;
@@ -43,7 +44,7 @@ PM.place = (x, y, z, yaw, st = {}) => {
   PM.mesh.setMatrixAt(0, _m.compose(_p, _q, _s)); PM.mesh.instanceMatrix.needsUpdate = true;
   const walking = (st.amp || 0) > 0.01;
   PM.gait.setXYZW(0, PM.seed, walking ? 1 : (st.act || 0), walking ? st.amp : 0, PLAYER_LOOK); PM.gait.needsUpdate = true;
-  PM.live.setXYZW(0, 0, st.phase || 0, 1, 1 + (st.smile ?? 0.15)); PM.live.needsUpdate = true;
+  PM.live.setXYZW(0, 0, st.phase || 0, 1, 1 + (st.smile ?? 0.4)); PM.live.needsUpdate = true;
 };
 PM.update = () => { if (PM.mesh) PM.mesh.visible = PM.show; };
 
@@ -64,18 +65,20 @@ export function updatePlayerModel(dt, on) {
   if (!PM.show) return;
   const vx = player.v.x, vz = player.v.z, sp = Math.hypot(vx, vz);
   // Körper dreht sich in die Laufrichtung, im Stand bleibt er, wie er stand
+  if (LOOSE.held) PM.dance = 0;
   if (sp > 0.6) { PM.dance = 0; const want = Math.atan2(vx, vz); let d = want - PM.yawB; d = Math.atan2(Math.sin(d), Math.cos(d)); PM.yawB += d * Math.min(1, dt * 10); }
-  const st = { smile: 0.15 };
+  const st = { smile: 0.4 };
   PM.air = player.onGround ? 0 : PM.air + dt;
   if (PM.air > 0.12) {
     // in der Luft: Laufschritt angehalten, Arme weit
     st.amp = 0.75; st.phase = Math.PI * 0.55;
   } else if (sp > 0.3) {
     // Gehen bis 2,6 m/s mit passender Schrittfolge; schneller wird gelaufen (Schritte nicht schneller als 1,6 je Sekunde)
-    const run = sp > 2.6, cad = run ? Math.min(1.6, sp / 2.3) : sp / 1.366;
+    // V26: mit etwas Großem in den Armen wird nicht gerannt (player.js bremst), mit etwas Kleinem schon
+    const H = LOOSE.held, run = sp > 2.6 && !(H && !H.small), cad = run ? Math.min(1.6, sp / 2.3) : sp / 1.366;
     PM.phase = (PM.phase + dt * cad * Math.PI * 2) % (Math.PI * 2 * 1000);
-    st.amp = run ? 0.75 : 0.4; st.phase = PM.phase;
-  } else st.act = PM.dance === 1 ? 22 : PM.dance === 2 ? 23 : 0;
+    st.amp = run ? 0.75 : H ? (H.small ? 0.62 : 0.55) : 0.4; st.phase = PM.phase;
+  } else st.act = LOOSE.held ? (LOOSE.held.small ? 41.5 : 41) : PM.dance === 1 ? 22 : PM.dance === 2 ? 23 : 0;
   if (PM.dance) st.smile = 0.6;
   PM.place(player.p.x, player.p.y, player.p.z, PM.yawB, st);
 }

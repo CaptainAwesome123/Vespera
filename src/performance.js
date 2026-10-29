@@ -22,6 +22,7 @@ import { updateShips, skyline, shipDefs } from './main.js';
 import { DINE } from './venues.js';
 import { PM, updatePlayerModel, thirdPersonCamera } from './player-model.js';
 import { ATMO, updateAtmosphere } from './atmosphere.js';
+import { updateLoose, updateSpawns } from './physics.js';
 
 /* =====================================================================
    LEISTUNG: Lichter-Pool, Sichtweiten für Details, adaptive Auflösung
@@ -128,6 +129,7 @@ export function frame(now) {
   if (playing) carryPlayer();
   if (playing && !paused) { if (DRIVE.on) updateDrive(dt); else if (BOAT.on) updateBoatInput(dt); else updatePlayer(dt); }
   if (playing) updateVehicleWorld(dt);
+  if (playing) { updateSpawns(); updateLoose(dt); }   // V26: lose Dinge
   if (playing && !paused) updateBoat(dt);
   if (playing && DRIVE.on) driveCamera();
   else if (playing && BOAT.on) boatCamera();

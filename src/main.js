@@ -22,6 +22,7 @@ import { setupComposer, resize } from './bloom.js';
 import { buildLightPool, collectDetails, setPR, PR_LEVELS, prIdx } from './performance.js';
 import { buildPlayerModel } from './player-model.js';
 import { buildAtmosphere } from './atmosphere.js';
+import { setupLoose } from './physics.js';
 
 /* =====================================================================
    AUFBAU UND SPIELSCHLEIFE
@@ -70,6 +71,7 @@ export function build() {
   driveInteractions();
   boatInteractions();
   venueInteractions();
+  setupLoose();   // V26: zuletzt, damit 'Ablegen' vor allen anderen Handlungen geprüft wird
   // Luftschiffe: eines am Ankermast des Belmont, die anderen auf Rundkursen
   const docked = buildAirship(150, 17, 1, false);
   shipDefs.push({ g: docked, docked: true, L: 150 });

@@ -14,6 +14,7 @@ const SPOTS = [
   { name: 'ladenstrasse', p: [-330, 0.26, -380], yaw: 1.2, pitch: 0.05 },
   { name: 'hafen', p: [60, 0.26, 520], yaw: 0.12, pitch: 0.3 },
   { name: 'dritte', p: [0, 0.26, 120], yaw: 0, pitch: -0.1, key: 'KeyV' },   // V24: Ansicht von hinten mit Spielermodell
+  { name: 'tragen', p: [-3.2, 0.26, 118.6], yaw: 0.9, pitch: -0.45, loose: true },   // V26: lose Dinge vor dem Belmont, aufheben und werfen
   { name: 'flug', p: [-400, 220, 600], yaw: 0.6, pitch: -0.35, fly: true },
 ];
 (async () => {
@@ -67,6 +68,13 @@ const SPOTS = [
       await p.waitForTimeout(1500);
       if (s.key) console.log(s.name, await p.evaluate(() => { const V = vespera, pm = V.playerModel; return JSON.stringify({ view: pm.view, modelVisible: !!(pm.mesh && pm.mesh.visible), camBehind: +V.camera.position.distanceTo(V.player.p).toFixed(2) }); }));
     } else await p.waitForTimeout(1000);
+    if (s.loose) console.log(s.name, await p.evaluate(async () => {
+      const L = vespera.loose, wait = ms => new Promise(r => setTimeout(r, ms)), info = () => L.bodies.map(b => b.name + '@' + b.x.toArray().map(v => v.toFixed(2)).join('/') + (b.awake ? '*' : ''));
+      const before = info(), n = L.bodies.length; let held = null, after = null;
+      const B = L.bodies.find(b => b.name === 'Hutschachtel') || L.bodies[0];
+      if (B) { L.pickUp(B); await wait(1500); held = B.x.toArray().map(v => v.toFixed(2)).join('/'); L.drop(true); await wait(2500); after = info(); }
+      return JSON.stringify({ bodies: n, before, held, after, stats: L.stats, mocap: vespera.mocap && vespera.mocap.ready });
+    }));
     console.log(s.name, 'messen …', Date.now() - t0, 'ms'); const m = await measure();
     result.spots[s.name] = m;
     console.log(s.name.padEnd(14), JSON.stringify(m));
