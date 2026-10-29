@@ -6,6 +6,10 @@ import { PLATFORMS, VILLA, roadHeightAt, terrainHeight } from './harbour.js';
 import { villaRoadAt } from './serpentine.js';
 import { DINE, standUp } from './venues.js';
 import { travel } from './music.js';
+import { LOOSE } from './physics.js';
+import { peds, turnHead } from './serpentine.js';
+import { knockDown } from './ragdoll.js';
+import { toast } from './boat.js';
 
 /* =====================================================================
    SPIELER: Gehen mit Schwerkraft, Fliegen frei im Raum
@@ -96,13 +100,16 @@ export function updatePlayer(dt) {
     _r.set(Math.cos(player.yaw), 0, -Math.sin(player.yaw));
     _w.copy(_f).multiplyScalar(fwd).addScaledVector(_r, side);
     if (_w.lengthSq() > 1) _w.normalize();
-    const sp = fast ? 13 : 5.2;
+    // V26: mit großen, schweren Dingen in den Armen langsamer
+    const H = LOOSE.held, heavy = H && !H.small ? Math.min(1, H.m / 14) : 0;
+    const sp = H && !H.small ? (fast ? 4.2 : 3.4) - heavy * 1.2 : fast ? 13 : 5.2;
     const k = 1 - Math.exp(-dt * (player.onGround ? 10 : 2));
     player.v.x += (_w.x * sp - player.v.x) * k;
     player.v.z += (_w.z * sp - player.v.z) * k;
     player.v.y = Math.max(player.v.y - 22 * dt, -70);
     if ((keys.Space) && player.onGround) { player.v.y = 7.2; player.onGround = false; }
     player.p.addScaledVector(player.v, dt);
+    bumpPeople(dt);
     const g = collide(player.p, false);
     if (player.p.y <= g) { player.p.y = g; player.v.y = 0; player.onGround = true; }
     else player.onGround = player.p.y - g < 0.05;
@@ -123,4 +130,22 @@ export function updatePlayer(dt) {
   const lim = 6000;
   player.p.x = Math.max(-lim, Math.min(lim, player.p.x));
   player.p.z = Math.max(-lim, Math.min(3000, player.p.z));
+}
+
+// V26: Menschen sind kein Nebel mehr: man rempelt sie an und muss um sie herum; wer im vollen Lauf hineinrennt, wirft sie um
+export function bumpPeople(dt) {
+  const p = player.p, sp = Math.hypot(player.v.x, player.v.z);
+  for (const pd of peds) {
+    if (!pd.a || !pd.a.on || pd.rag) continue;
+    const e = pd.a.m.elements, dx = p.x - e[12], dz = p.z - e[14];
+    if (dx * dx + dz * dz > 0.36 || Math.abs(p.y - e[13]) > 1.2) continue;
+    const d = Math.hypot(dx, dz) || 1e-3, R = 0.58;
+    if (d >= R) continue;
+    const nx = dx / d, nz = dz / d, vn = player.v.x * -nx + player.v.z * -nz;
+    if (sp > 8 && vn > 6 && !pd.sit && knockDown(pd, player.v.x * 0.55, player.v.z * 0.55, p.x, p.z)) { player.v.multiplyScalar(0.45); toast('Verzeihung!'); continue; }
+    // Spieler wird zurückgeschoben, verliert Schwung gegen die Person
+    p.x += nx * (R - d); p.z += nz * (R - d);
+    if (vn > 0) { player.v.x += nx * vn * 0.8; player.v.z += nz * vn * 0.8; }
+    turnHead(pd.a, p.x, p.z);
+  }
 }

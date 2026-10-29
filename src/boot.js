@@ -4,6 +4,7 @@ import './core.js';
 import './chunks.js';
 import './assets.js';
 import './props.js';
+import './mocap.js';
 import './people-model.js';
 import './people-skeleton.js';
 import './facade-shader.js';
@@ -33,12 +34,14 @@ import './bloom.js';
 import './input.js';
 import './main.js';
 import './performance.js';
+import './physics.js';
 
 import { shared, $, renderer, scene, camera } from './core.js';
 import { layers, chunkStats } from './chunks.js';
 import { assetStats, manifest } from './assets.js';
 import { setupProps } from './props.js';
 import { loadPeople, MHP } from './people-mh.js';
+import { loadMocap, MOCAP } from './mocap.js';
 import { player } from './player.js';
 import { isTouch } from './input.js';
 import { build } from './main.js';
@@ -46,12 +49,13 @@ import { frame } from './performance.js';
 import { STREET } from './serpentine.js';
 import { props } from './props.js';
 import { PM } from './player-model.js';
+import { LOOSE } from './physics.js';
 
 export async function start(data) {
   if (data && data.p) { player.p.set(...data.p); player.yaw = data.yaw; player.pitch = data.pitch; player.fly = data.fly; }
   // V22: MakeHuman-Figuren vor dem Aufbau laden (die Menge baut ihre Netze daraus); ohne sie bleiben die gebauten
   $('loading').textContent = 'Menschen der Stadt werden eingekleidet …';
-  await Promise.race([loadPeople(), new Promise(r => setTimeout(r, 20000))]);
+  await Promise.race([Promise.all([loadPeople(), loadMocap()]), new Promise(r => setTimeout(r, 20000))]);
   if (!MHP.ready) MHP.late = true;
   const lab = new URLSearchParams(location.search);
   if (lab.get('lab')) { const { startLab } = await import('./lab.js'); startLab(lab); return; }
@@ -62,7 +66,7 @@ export async function start(data) {
   requestAnimationFrame(t => { shared.last = t; frame(t); });
 }
 // Handgriff für Werkzeuge und Tests (Konsole: vespera.player.p, vespera.renderer.info, vespera.chunkStats ...)
-window.vespera = { renderer, scene, camera, player, shared, layers, chunkStats, assetStats, manifest, people: MHP, street: STREET, props, playerModel: PM };
+window.vespera = { loose: LOOSE, mocap: MOCAP, renderer, scene, camera, player, shared, layers, chunkStats, assetStats, manifest, people: MHP, street: STREET, props, playerModel: PM };
 window.claude?.hot?.snapshot?.(() => ({ p: player.p.toArray(), yaw: player.yaw, pitch: player.pitch, fly: player.fly }));
 
 export const fontsReady = (document.fonts && document.fonts.load)

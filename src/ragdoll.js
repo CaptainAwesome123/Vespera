@@ -4,6 +4,7 @@ import { MAT, HRIG } from './people-skeleton.js';
 import { FACTORIES, FACTORY_NAMES, FACTORY_LOOPS } from './shops.js';
 import { endMeet, _cc, peds, setAct, pedCrowd, loopPos, pedSocial, STAY, loopRound, SHIRTS, DRESSES, COATS } from './serpentine.js';
 import { BODIES, groundAt } from './driving.js';
+import { nearBoxes } from './people-skeleton.js';
 
 /* =====================================================================
    V17 · RAGDOLL: wer vom Wagen erfasst wird, fliegt als Gliederpuppe.
@@ -121,6 +122,16 @@ export function ragStep(s, dt) {
           Q[0] = P[0] - B.vx * dt * 0.85; Q[2] = P[2] - B.vz * dt * 0.85;
         }
       }
+      // V26: Wände, Mauern, Bänke und Tische: Punkte aus den Quadern schieben (oben drauf landen geht auch)
+      for (const b of s.boxes || []) {
+        if (P[0] < b.x0 - r || P[0] > b.x1 + r || P[2] < b.z0 - r || P[2] > b.z1 + r || P[1] < b.y0 || P[1] > b.y1 + r) continue;
+        const pen = [P[0] - (b.x0 - r), b.x1 + r - P[0], P[2] - (b.z0 - r), b.z1 + r - P[2], b.y1 + r - P[1]];
+        let k = 0; for (let m = 1; m < 5; m++) if (pen[m] < pen[k]) k = m;
+        if (k === 0) P[0] -= pen[0]; else if (k === 1) P[0] += pen[1]; else if (k === 2) P[2] -= pen[2]; else if (k === 3) P[2] += pen[3]; else P[1] += pen[4];
+        // Stoß nimmt Schwung; an der Wand rutscht der Körper ab
+        if (k < 4) { const f = 0.35; if (k < 2) Q[0] = P[0] + (P[0] - Q[0]) * f; else Q[2] = P[2] + (P[2] - Q[2]) * f; }
+        else { Q[1] = Math.min(Q[1], P[1]); Q[0] = P[0] - (P[0] - Q[0]) * 0.55; Q[2] = P[2] - (P[2] - Q[2]) * 0.55; }
+      }
       if (P[1] < s.gy + r) { const vy = P[1] - Q[1]; P[1] = s.gy + r; Q[1] = P[1] + Math.min(0, vy) * 0.15; const f = 0.55; Q[0] = P[0] - (P[0] - Q[0]) * f; Q[2] = P[2] - (P[2] - Q[2]) * f; }
     }
   }
@@ -150,6 +161,16 @@ export function ragPose(s) {
   }
   for (let k = 0; k < RAG_PARTS.length; k++) { const im = s.parts[k]; im.matrix.copy(M[k]); im.matrixWorld.copy(M[k]); }
 }
+// V26: umgerannt oder von einem geworfenen Ding getroffen: ohne Wagen, mit der Geschwindigkeit des Stoßes
+export function knockDown(pd, vx, vz, fromX, fromZ) {
+  if (pd.rag || pd.sit || !pd.a || !pd.a.on) return false;
+  const e = pd.a.m.elements, sp = Math.hypot(vx, vz) || 1;
+  const B = { x: e[12], z: e[14], y: e[13], vx, vz, h: Math.atan2(-vz / sp, vx / sp), hl: 0.3, hw: 0.3 };
+  const g = groundAt(e[12], e[14], e[13] + 0.3); pd.ragGy = g ? g.y : e[13];
+  if (!ragStart(pd, B)) return false;
+  pd.rag.gy = pd.ragGy; pd.rag.B = { x: fromX ?? e[12] - vx, z: fromZ ?? e[14] - vz };   // beim Aufstehen dorthin schauen, woher der Stoß kam
+  return true;
+}
 export function ragFree(s) { s.busy = false; for (const im of s.parts) im.visible = false; RAG.live.splice(RAG.live.indexOf(s), 1); s.pd.rag = null; }
 // Anfahrten erkennen (nur schnelle Wagen in der Nähe), Puppen rechnen, Aufstehen und Weitergehen
 export function updateRagdolls(dt) {
@@ -167,6 +188,7 @@ export function updateRagdolls(dt) {
   for (const s of RAG.live.slice()) {
     const pd = s.pd; s.t += dt;
     if (s.ph === 'fly') {
+      { const c = s.p[0]; s.boxes = []; for (const b of nearBoxes(c[0], c[2], 3)) if (b.y1 > c[1] - 2.5 && b.y0 < c[1] + 2.5 && b.x1 > c[0] - 3 && b.x0 < c[0] + 3 && b.z1 > c[2] - 3 && b.z0 < c[2] + 3) s.boxes.push(b); }
       ragStep(s, dt);
       const c = s.p[0], g = groundAt(c[0], c[2], c[1] + 0.5); if (g && Math.abs(g.y - s.gy) < 0.6) s.gy += (g.y - s.gy) * Math.min(1, dt * 8);
       let mv = 0; for (let i = 0; i < s.p.length; i++) mv += Math.abs(s.p[i][0] - s.q[i][0]) + Math.abs(s.p[i][1] - s.q[i][1]) + Math.abs(s.p[i][2] - s.q[i][2]);

@@ -120,6 +120,7 @@ export function updateAudio(dt) {
 /* ---------- Benutzen: Fahrstühle ---------- */
 export const INTERACT = [];
 export let activeUse = null;
+let shownLabel = null;
 export function travel(pos, yaw, pitch, name) {
   const f = $('fade'); f.style.opacity = 1;
   driveExit();
@@ -133,8 +134,8 @@ export function updateInteract() {
   let u = null;
   if (playing && !paused && !player.fly) for (const it of INTERACT) if (it.test(player.p)) { u = it; break; }
   if (!u && playing && !paused && !player.fly) { const c = citizenNear(player.p, 3.2); if (c) u = c.use ||= { label: 'Ansprechen: ' + c.name, act: () => citizenSay(c) }; }
-  if (u !== activeUse) {
-    activeUse = u;
+  if (u !== activeUse || (u && u.label !== shownLabel)) {   // V26: wechselnde Beschriftung (Aufheben: …)
+    activeUse = u; shownLabel = u ? u.label : null;
     const el = $('prompt');
     if (u) { el.innerHTML = '<kbd>E</kbd>'; el.append(u.label); el.style.opacity = 1; } else el.style.opacity = 0;
     if (isTouch) $('tUse').hidden = !u;

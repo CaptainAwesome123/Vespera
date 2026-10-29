@@ -115,13 +115,17 @@ function setupGoods() {
     build(cx, cz) {
       const here = GOODS_AT.filter(p => inCell(p, cx, cz, GOODS_CELL)); if (!here.length) return null;
       const g = new T.Group(), by = new Map();
-      for (const p of here) if (goods.baked[p.m]) { if (!by.has(p.m)) by.set(p.m, []); by.get(p.m).push(p); }
-      for (const [m, list] of by) g.add(instanced(goods.baked[m].geo, goods.mat, list, (p, i, im) => { _pq.setFromAxisAngle(_pup, p.yaw); im.setMatrixAt(i, _pm.compose(_pp.set(p.x, p.y, p.z), _pq, _ps.setScalar(p.h))); }));
+      // V26: aufgehobene Waren (src/physics.js) bleiben weg; jede Ware merkt sich ihre Instanz, damit sie beim Aufheben verschwindet
+      for (const p of here) if (goods.baked[p.m] && !p.taken) { if (!by.has(p.m)) by.set(p.m, []); by.get(p.m).push(p); }
+      for (const [m, list] of by) g.add(instanced(goods.baked[m].geo, goods.mat, list, (p, i, im) => { _pq.setFromAxisAngle(_pup, p.yaw); im.setMatrixAt(i, _pm.compose(_pp.set(p.x, p.y, p.z), _pq, _ps.setScalar(p.h))); p._im = im; p._i = i; }));
+      for (const im of g.children) im.userData.items = by.get([...by.keys()][g.children.indexOf(im)]);
       return g.children.length ? g : null;
     },
-    dispose() {},
+    dispose(obj) { for (const im of obj.children) for (const p of im.userData.items || []) if (p._im === im) p._im = null; },
   });
 }
+export const goodsBaked = m => goods.baked[m] || null;
+export const goodsMaterial = () => goods.mat;
 
 /* ---------- Modelle und Texturen nachladen, dann die Schichten einmal neu bauen ---------- */
 export async function setupProps() {

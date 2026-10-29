@@ -8,6 +8,7 @@ import { toggleMusic, activeUse } from './music.js';
 import { composer } from './bloom.js';
 import { PM, toggleView, toggleDance, zoomView } from './player-model.js';
 import { cycleWeather } from './atmosphere.js';
+import { LOOSE, drop, rotateHeld } from './physics.js';
 
 /* =====================================================================
    EINGABE
@@ -25,6 +26,7 @@ document.addEventListener('mousemove', e => {
 });
 canvas.addEventListener('mousedown', () => {
   if (!playing) return;
+  if (locked && LOOSE.held && !paused) { drop(true); return; }   // V26: Getragenes werfen
   if (!locked && !isTouch) tryLock();
   dragging = true;
 });
@@ -49,6 +51,7 @@ window.addEventListener('keydown', e => {
   if (e.code === 'KeyE' && activeUse) activeUse.act();
   if (e.code === 'KeyB') { shared.bloomOn = !shared.bloomOn && !!composer; toast(shared.bloomOn ? 'Leuchteffekt an' : 'Leuchteffekt aus'); }
   if (e.code === 'KeyN') cycleWeather();
+  if (e.code === 'KeyR' && LOOSE.held) rotateHeld();
   if (e.code === 'KeyV') toast(toggleView() === 'third' ? 'Ansicht von hinten' : 'Ich-Ansicht');
   if (e.code === 'KeyG') { if (PM.view !== 'third') toggleView(); const d = toggleDance(); toast(d === 1 ? 'Charleston' : d === 2 ? 'Langsamer Tanz' : 'Tanz aus'); }
   if (VIEWS[e.code]) goView(e.code);
@@ -107,6 +110,7 @@ export const endTouch = e => {
 canvas.addEventListener('touchend', endTouch); canvas.addEventListener('touchcancel', endTouch);
 $('tWx').addEventListener('click', cycleWeather);
 $('tUse').addEventListener('click', () => { if (activeUse) activeUse.act(); });
+$('tThrow').addEventListener('click', () => drop(true));
 $('tView').addEventListener('click', () => toast(toggleView() === 'third' ? 'Ansicht von hinten' : 'Ich-Ansicht'));
 window.addEventListener('wheel', e => { if (playing && PM.view === 'third') zoomView(e.deltaY); }, { passive: true });
 $('tFly').addEventListener('click', () => { player.fly = !player.fly; toast(player.fly ? 'Flugmodus' : 'Zu Fuß'); });

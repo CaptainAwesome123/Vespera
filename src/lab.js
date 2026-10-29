@@ -32,6 +32,9 @@ export function startLab(params) {
   A('tux', COATS[0], -1.2, -3, 0, [0, 20, 0], look(5, 0, 0)); A('gown', GOWNS[0], -1.28, -2.62, Math.PI, [0, 21, 0], look(33, 0, 2));
   A('tux', COATS[0], 1.2, -3, 0.4, [0.7, 22, 0], look(7, 1, 1)); A('dress', DRESSES[0], 1.2, -2.2, 0.4 + Math.PI, [0.7, 22, 0], look(47, 0, 0));
   A('suit', COATS[2], -3, -1.5, 1.57, [0.2, 4.6, 0.42], look(11, 1, 2)); A('coat', COATS[1], 3, -1.5, -1.57, [1.7, 4.6, 0.4], look(14, 0, 4));
+  // V26: Läufer, Dame im Gang, Charleston einzeln (seitlich zu sehen)
+  A('suit', COATS[4], -3, 1.5, 1.57, [0.9, 7.4, 0.75], look(12, 0, 1)); A('dress', DRESSES[2], 3, 1.5, -1.57, [2.9, 5.2, 0.4], look(41, 1, 3));
+  A('tux', COATS[0], 0, -5.5, 1.57, [1.9, 22, 0], look(6, 0, 2)); A('gown', GOWNS[1], 0, -7, -1.57, [3.9, 22, 0], look(44, 0, 1));
   C.finish();
   for (const a of C.list) C.set(a, a.lab.x, 0, a.lab.z, a.lab.yaw);
   buildPlayerModel();
@@ -45,6 +48,9 @@ export function startLab(params) {
     beine: [[-4.2, 0.75, -2.8], [-1.2, 0.55, -2.8]],
     beine2: [[4.2, 0.75, -2.6], [1.2, 0.55, -2.6]],
     spieler: [[0, 1.6, 4.0], [0, 1.0, 2.2]],
+    gang: [[0, 1.0, 5.5], [0, 0.9, 0.0]],
+    seite: [[-7.5, 1.1, 0.0], [0, 0.85, 0.0]],
+    charl: [[4.5, 1.2, -6.2], [0, 0.9, -6.2]],
     spielerkopf: [[0, 1.68, 2.95], [0, 1.67, 2.2]],
   };
   LAB.t = params.get('t') != null ? +params.get('t') : null;

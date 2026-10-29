@@ -173,7 +173,10 @@ export function stepPlayerCar(B, dt, inp) {
   // stehend: Bremse/Handbremse halten den Wagen fest
   if (su === 0 && (brk > 0.1 || inp.hb) && !thr) { u *= Math.max(0, 1 - dt * 12); }
   // Kammscher Kreis: was längs übertragen wird, fehlt quer
-  const mxf = mu * Fzf, mxr = mu * Fzr;
+  // V26: Reifen-Lastempfindlichkeit: in schnellen Kurven trägt das äußere Rad mehr, aber nicht im gleichen Maß mehr Haftung;
+  // die Achse verliert etwas Griff (vorn weniger als hinten: der Wagen schiebt erst sanft, dann bricht das Heck aus, wie bei echten Wagen)
+  const lat = VP.m * Math.abs(D.ayf) * VP.hcg / 1.45, lsF = 1 - 0.16 * Math.min(1, (lat * 0.5 / Fzf) ** 2), lsR = 1 - 0.2 * Math.min(1, (lat * 0.5 / Fzr) ** 2);
+  const mxf = mu * Fzf * lsF, mxr = mu * Fzr * lsR;
   D.lock = Math.abs(Fxf) > mxf ? 1 : 0;
   if (Math.abs(Fxf) > mxf) Fxf = Math.sign(Fxf) * mxf * 0.9;
   D.spinning = Fd !== 0 && Math.abs(Fxr) > mxr;

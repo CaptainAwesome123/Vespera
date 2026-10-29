@@ -1,5 +1,6 @@
 import { shared, U, canvasTex, T, renderer, mergeGeos } from './core.js';
 import { HL, FACE_ATLAS, FACE_MAT } from './people-model.js';
+import { mocapGLSL, MOCAP } from './mocap.js';
 
 /* =====================================================================
    V18 · SKELETT IM SHADER: weiche Gelenke (Schulter, Ellbogen, Handgelenk,
@@ -97,6 +98,7 @@ void armTo(float sd, vec3 H, float tw) {
   float ap, aa, e, at; armIK(sd, H, tw, ap, aa, e, at);
   if (sd < 0.0) { uaP.x = ap; uaA.x = aa; elF.x = e; uaT.x = at; } else { uaP.y = ap; uaA.y = aa; elF.y = e; uaT.y = at; }
 }
+${mocapGLSL()}
 // Werkzeug im Körperraum: Ursprung, Stiel entlang -Y; side zeigt grob in Richtung der lokalen Z-Achse
 void toolFrame(vec3 o, vec3 up, vec3 side) { toolO = o; toolY = normalize(up); toolX = normalize(cross(toolY, side)); toolZ = cross(toolX, toolY); toolOn = 1.0; }
 vec3 toolPt(vec3 l) { return toolO + toolX * l.x + toolY * l.y + toolZ * l.z; }
@@ -164,16 +166,34 @@ void poseWalk(float ph, float amp, float fem, float gs) {
     bounceV = sin(12.566 * c - 0.6) * 1.8;
     fgC = vec2(0.9);
   }
+  if (uMocapOn > 0.5) {
+    // V26: Gang und Lauf aus der Aufnahme; Phase c = 0 beim Aufsetzen der rechten Ferse, z auf die Schrittlänge L gestreckt
+    float mir = step(0.5, hh(aGait.x * 6.1)), L = runK < 0.5 ? mix(1.366, 1.164, fem) : mix(2.3, 2.0, fem);
+    mcSample(runK > 0.5 ? MC_RUN : (fem > 0.5 ? MC_WALKF : MC_WALKM), mir > 0.5 ? c + 0.5 : c, mir);
+    mcApply(L, fem, 1.0);
+    // gemächlich oder eilig: Ausschlag der Arme und des Beckens mit dem Tempo
+    float k = mix(0.8, 1.15, s01((A - 0.75) / 0.5)) * (1.0 - runK) + runK;
+    uaP = mix(vec2(0.03), uaP, k); pvR *= k; pvY *= k;
+    fgC = vec2(mix(0.35, 0.9, runK));
+  } else {
   legsTo(FR, FL);
   anF = vec2(pR + knF.x - thP.x + pvP, pL + knF.y - thP.y + pvP);
   // Kopf ruhig halten: Drehung und Neigung des Beckens und Oberkörpers ausgleichen
   nkY = -(pvY + spY); nkR = pvR - spR; nkP = -0.55 * (spP + pvP) + 0.04;
+  }
   // Kiste vor dem Bauch tragen
   if (carryK > 0.5) {
     toolFrame(vec3(0.0, 1.02 + 0.012 * sin(12.566 * c), 0.33), vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 1.0));
     armTo(-1.0, toolPt(vec3(-0.25, -0.02, 0.0)), 0.6); armTo(1.0, toolPt(vec3(0.25, -0.02, 0.0)), 0.6);
     wrF = vec2(0.2); fgC = vec2(1.1); spP -= 0.06; nkP += 0.05;
   }
+  // V26: kleines Ding (Flasche, Glas, Ware) in der rechten Hand vor sich tragen
+  if (amp > 0.6 && amp < 0.655) { armTo(-1.0, vec3(-0.13, 1.12, 0.4), 0.5); wrF.x = 0.1; fgC.x = 1.0; }
+}
+// V26: im Stand etwas tragen (Spieler): groß mit beiden Händen vor dem Bauch, klein in der Rechten
+void poseHold(float small) {
+  if (small > 0.5) { armTo(-1.0, vec3(-0.13, 1.12, 0.4), 0.5); wrF.x = 0.1; fgC.x = 1.0; }
+  else { armTo(-1.0, vec3(-0.25, 1.0, 0.33), 0.6); armTo(1.0, vec3(0.25, 1.0, 0.33), 0.6); wrF = vec2(0.2); fgC = vec2(1.1); spP -= 0.06; nkP += 0.05; }
 }
 // ---------- Stehen: Gewicht wandert langsam von einem Bein aufs andere ----------
 void poseStand(float fem, float gs) {
@@ -257,6 +277,17 @@ void poseFox(float follow, float fem) {
 }
 // ---------- Charleston ----------
 void poseCharleston(float fem, float gs) {
+  if (uMocapOn > 0.5) {
+    // V26: Charleston aus drei Aufnahmen (CMU, Person 93), je Figur eine, manche gespiegelt, jede an anderer Stelle
+    float v = floor(hh(aGait.x * 9.3) * 3.0), mir = step(0.5, hh(aGait.x * 4.7));
+    vec3 clip = v < 0.5 ? MC_CH1 : (v < 1.5 ? MC_CH2 : MC_CH3);
+    mcSample(clip, uTime / clip.z + hh(aGait.x * 2.3), mir);
+    // Paare tanzen nah beieinander: nicht zu weit vor und zurück
+    mcC0.z *= 0.75; mcC3.z *= 0.75; mcC4.z *= 0.75;
+    mcApply(1.0, fem, 0.0);
+    fgC = vec2(0.15); danceK = 1.0; flareK = 0.8; bounceV = sin(uTime * 6.2832 * ${DANCE.charl.toFixed(2)} * 0.5);
+    return;
+  }
   float b = uTime * ${DANCE.charl.toFixed(2)} + floor(aGait.x * 4.0), bt = mod(b, 4.0), ph = floor(b / 8.0);
   float v = floor(hh(ph * 1.7 + aGait.x * 9.0) * 4.0);
   float hx = hHx, ank = mix(0.09, 0.1, fem);
@@ -285,7 +316,10 @@ void poseSway(float fem) {
   danceK = 0.4; bounceV = sw;
 }
 // ---------- Sitzen: Oberschenkel waagrecht, Unterschenkel hängen ----------
-void poseSit() { sitK = 1.0; thP = vec2(1.5); knF = vec2(1.5); thA = vec2(0.04); thY = vec2(0.06); anF = vec2(0.1); pvO = vec3(0.0); pvR = 0.0; spR = 0.0; }
+void poseSit() { sitK = 1.0; thP = vec2(1.5); knF = vec2(1.5); thA = vec2(0.04); thY = vec2(0.06); anF = vec2(0.1); pvO = vec3(0.0); pvR = 0.0; spR = 0.0;
+  // V26: im Sitzen arbeitet der Oberkörper ein wenig (Aufnahme: Frau auf dem Stuhl, nur die Bewegung um die Mittellage)
+  if (uMocapOn > 0.5) { mcSample(MC_SIT, uTime / MC_SIT.z + hh(aGait.x * 3.1), step(0.5, hh(aGait.x * 8.3))); spP += 0.7 * (mcC1.z + mcC0.w); spR += 0.7 * (mcC1.w - mcC1.x); spY += 0.7 * (mcC2.x + mcC1.y); nkP += 0.6 * mcC2.y; nkR += 0.6 * mcC2.z; nkY += 0.6 * mcC2.w; }
+}
 // ---------- Am Steuer: Hände am Kranz, das Rad dreht mit, der Kopf schaut in die Kurve ----------
 void poseWheel(vec4 W, float tilt, float ang, float tt, float seated, float tool) {
   // W: Mitte xyz (Körperraum), Radius; Achse zeigt nach vorn und ist um tilt nach oben geneigt
@@ -315,6 +349,10 @@ void humanPose(float fem, float gs, float elder) {
     if (act < 21.5) poseFox(act - 20.0, fem);
     else if (act < 22.5) poseCharleston(fem, gs);
     else { poseStand(fem, gs); poseSway(fem); }
+  } else if (act > 40.5 && act < 41.9) {
+    poseStand(fem, gs);
+    if (uMocapOn > 0.5) { mcSample(MC_IDLE, uTime / MC_IDLE.z + hh(aGait.x * 5.9), 0.0); mcApply(1.0, fem, 0.0); nkY *= 0.5; }
+    poseHold(step(0.25, actI));
   } else if (act > 23.5 && act < 40.5) {
     // ---------- Arbeit und Steuer ----------
     poseStand(fem, gs); nkY *= 0.3;
@@ -416,6 +454,13 @@ void humanPose(float fem, float gs, float elder) {
     }
   } else {
     poseStand(fem, gs);
+    // V26: Stehen und Warten aus der Aufnahme (Gewicht verlagern, umsehen, Hände); Gesten und Reden legen sich darüber
+    if (uMocapOn > 0.5 && act < 1.5) {
+      mcSample(MC_IDLE, uTime / MC_IDLE.z + hh(aGait.x * 5.9), step(0.5, hh(aGait.x * 2.9)));
+      mcApply(1.0, fem, 0.0); nkY *= 0.8; fgC = vec2(0.45);
+      // Kopf nicht hängen lassen (die Aufnahme schaut oft zu Boden); der Spieler schaut geradeaus
+      spP = min(spP, 0.1); nkP = min(nkP, mix(0.14, 0.0, gPlayer) - spP - pvP);
+    }
     float talk = act < 0.5 ? actI : (act > 6.5 && act < 7.5 ? step(0.5, actI) * 0.8 : 0.0);
     if (act < 1.5) {
       poseIdle(act < 0.5 ? 1.0 - smoothstep(0.02, 0.25, actI) : 0.55, fem);
@@ -665,6 +710,10 @@ export const HUM_VS_RIG = `
     } else if (tkv > 4.5 && tkv < 5.5) {
       float dy = hP.y - rHeadC - fEyeY;
       if (dy > -0.002 && dy < 0.012 && hP.z > fEyeZ && abs(abs(hP.x) - fEyeX) < 0.02) hP.y -= clamp(vBlink, 0.0, 1.0) * (0.004 + 0.6 * dy);
+    } else if (tkv > 2.5 && tkv < 3.5 && gPlayer > 0.5) {
+      // V26: Spieler: volles, nach hinten gekämmtes Haar mit Tolle über der Stirn (wie im Foto)
+      vec3 d = hP - vec3(0.0, rHeadC, rHeadZ); float up = smoothstep(0.0, 0.07, d.y), fr = smoothstep(-0.01, 0.07, d.z);
+      hP = vec3(0.0, rHeadC, rHeadZ) + d * (1.0 + 0.07 * up); hP.y += 0.018 * up * fr; hP.z -= 0.006 * up * fr;
     } else if (abs(aSoft.x - 1.0) < 0.1 && aOpt < 0.5 && gSmile > 0.01) {
       vec3 q = hP - vec3(0.0, rHeadC + fMouthY, 0.0); float ax = abs(q.x);
       float wc = exp(-pow((ax - fMouthW) / 0.011, 2.0) - pow(q.y / 0.011, 2.0)) * step(fMouthZ - 0.045, hP.z);
@@ -757,7 +806,7 @@ export const HUM_VS_POS = `
           float pv = aOpt - 50.0, show = 0.0;
           if (pv < 1.5) show = step(abs(act - 24.0), 0.1);
           else if (pv < 2.5) show = step(abs(act - 26.0), 0.1);
-          else if (pv < 3.5) show = max(step(abs(act - 27.0), 0.1) * step(0.5, toolOn), carryK);
+          else if (pv < 3.5) show = max(step(abs(act - 27.0), 0.1) * step(0.5, toolOn), carryK * (1.0 - gPlayer));   // V26: der Spieler trägt echte Dinge
           else if (pv < 4.5) show = step(abs(act - 32.0), 0.1);
           else if (pv < 5.5) show = step(abs(act - 31.0), 0.1);
           else if (pv < 6.5) show = step(abs(act - 25.0), 0.1);
@@ -773,7 +822,7 @@ export const HUM_VS_POS = `
           float want = mod(floor(aGait.w / (grp < 0.5 ? 7680.0 : grp < 1.5 ? 23040.0 : grp < 2.5 ? 69120.0 : 207360.0)), grp > 2.5 ? 4.0 : 3.0);
           if (abs(vari - want) > 0.1 || (grp > 2.5 && (act > 1.5 || carryK > 0.5 || runK > 0.5))) transformed = vec3(0.0);
         }
-        vFaceUV = uv; vFaceId = mod(aGait.w, 7680.0); vClP = position; vPnt = step(2.97, color.r + color.g + color.b); vSoft = aSoft;
+        vFaceUV = uv; vFaceId = mod(aGait.w, 7680.0) + 7680.0 * gPlayer; vClP = position; vPnt = step(2.97, color.r + color.g + color.b); vSoft = aSoft;
         // Atlas der MakeHuman-Figuren: Haut je Figur aus vier Bildern (jung, mittel, alt, dunkel)
         vTexUV = aMH.xy; vTexK = aMH.z;
         if (aMH.z > 1.5 && aMH.z < 2.5) { float idv = mod(aGait.w, 7680.0), fid = mod(idv, 64.0), tone = mod(floor(idv / 64.0), 5.0), age = fract(fid * 0.754877 + 0.13);
@@ -795,9 +844,11 @@ vec3 hPerturb(vec3 surf_pos, vec3 surf_norm, vec2 dHdxy, float faceDirection) {
 export const HUM_FS_COLOR = () => `
         float hRough = -1.0, hMetal = -1.0, hB = 0.0, hSpark = 0.0;
         {
-          float idv = floor(vFaceId + 0.5), fid = mod(idv, 64.0), tone = mod(floor(idv / 64.0), 5.0), hairI = mod(floor(idv / 320.0), 6.0);
+          float plF = step(7679.5, vFaceId), idv = mod(floor(vFaceId + 0.5), 7680.0), fid = mod(idv, 64.0), tone = mod(floor(idv / 64.0), 5.0), hairI = mod(floor(idv / 320.0), 6.0);
           vec3 T5 = tone < 0.5 ? vec3(1.06, 1.03, 1.02) : tone < 1.5 ? vec3(0.97, 0.9, 0.84) : tone < 2.5 ? vec3(0.88, 0.8, 0.66) : tone < 3.5 ? vec3(0.62, 0.48, 0.38) : vec3(0.42, 0.31, 0.25);
           vec3 HC = hairI < 0.5 ? vec3(0.05, 0.035, 0.03) : hairI < 1.5 ? vec3(0.2, 0.12, 0.06) : hairI < 2.5 ? vec3(0.62, 0.48, 0.26) : hairI < 3.5 ? vec3(0.42, 0.14, 0.06) : hairI < 4.5 ? vec3(0.55, 0.5, 0.43) : vec3(0.11, 0.07, 0.04);
+          // V26: Spieler wie im Foto: goldbraunes Haar, an den Spitzen heller
+          if (plF > 0.5) HC = vec3(0.47, 0.32, 0.15);
           float fab = floor(vSoft.x + 0.5);
           vec3 vd = normalize(vViewPosition); float nv = abs(dot(normalize(vNormal), vd));
           // V22: MakeHuman-Figuren lesen Haut, Stoff, Haar und Augen aus dem Atlas (1 Stoff, 2 Haut, 3 Haar, 4 Auge, 5 Brauen/Wimpern)
@@ -807,7 +858,7 @@ export const HUM_FS_COLOR = () => `
             if (tK < 1.5) { float pk = 1.0 - smoothstep(0.55, 0.8, tx.a); diffuseColor.rgb = mix(tx.rgb, diffuseColor.rgb * tx.r * 2.2, pk); }
             else if (tK < 2.5) { vec3 ref = tone < 2.5 ? vec3(0.97, 0.9, 0.84) : vec3(0.62, 0.48, 0.38); diffuseColor.rgb = tx.rgb * clamp(T5 / ref, 0.55, 1.35); }
             else if (tK > 5.5) diffuseColor.rgb = tx.rgb;                                   // V24: Spieler, feste Haut
-            else if (tK < 3.5 || tK > 4.5) { if (tx.a < (tK > 4.5 ? 0.35 : 0.5)) discard; diffuseColor.rgb = HC * tx.r * (tK > 4.5 ? 1.2 : 1.9); }
+            else if (tK < 3.5 || tK > 4.5) { if (tx.a < (tK > 4.5 ? 0.35 : 0.5)) discard; diffuseColor.rgb = HC * tx.r * (tK > 4.5 ? 1.2 : 1.9); if (plF > 0.5 && tK < 3.5) diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.82, 0.62, 0.34) * tx.r * 1.5, smoothstep(0.45, 0.8, tx.r) * 0.6); }
             else {
               // V24: Auge: Iris je Figur gefärbt (braun, dunkel, blau, grün, grau, haselnuss), beim Lidschlag deckt das Lid
               float mx = max(tx.r, max(tx.g, tx.b)), sat = mx > 0.0 ? (mx - min(tx.r, min(tx.g, tx.b))) / mx : 0.0, ir = smoothstep(0.18, 0.4, sat) * step(mx, 0.85);
@@ -938,6 +989,7 @@ const WHITE1 = (() => { const t = new T.DataTexture(new Uint8Array([255, 255, 25
 export function humanShader(sh) {
   sh.uniforms.uTime = U.uTime; sh.uniforms.uFaces = { value: FACE_ATLAS }; sh.uniforms.uFaceMat = { value: FACE_MAT }; sh.uniforms.uWind = U.uWind;
   sh.uniforms.uPeople = { value: HRIG.tex || WHITE1 };
+  sh.uniforms.uMocap = MOCAP.uTex; sh.uniforms.uMocapOn = MOCAP.uOn;
   sh.vertexShader = HUM_VS_HEAD() + sh.vertexShader
     .replace('#include <beginnormal_vertex>', '#include <beginnormal_vertex>\n' + HUM_VS_RIG)
     .replace('#include <begin_vertex>', '#include <begin_vertex>\n' + HUM_VS_POS);
