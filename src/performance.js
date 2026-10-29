@@ -21,6 +21,7 @@ import { playing, paused } from './input.js';
 import { updateShips, skyline, shipDefs } from './main.js';
 import { DINE } from './venues.js';
 import { PM, updatePlayerModel, thirdPersonCamera } from './player-model.js';
+import { ATMO, updateAtmosphere } from './atmosphere.js';
 
 /* =====================================================================
    LEISTUNG: Lichter-Pool, Sichtweiten für Details, adaptive Auflösung
@@ -121,7 +122,7 @@ export function frame(now) {
   { // Sichtweite: in der Stadt dichter Dunst, von oben und vom Hang aus (Villa) klare Sicht auf die Lichter
     const cp = camera.position, ss = (a, b, x) => { const k = Math.min(1, Math.max(0, (x - a) / (b - a))); return k * k * (3 - 2 * k); };
     const k = Math.max(ss(60, 260, cp.y), ss(800, 1400, Math.hypot(cp.x, cp.z)));
-    scene.fog.density = U.uFogDensity.value = FOG_DENSITY * (0.85 - 0.56 * k);
+    scene.fog.density = U.uFogDensity.value = FOG_DENSITY * (0.85 - 0.56 * k) * ATMO.fogMul;   // V25: Wetter und Innenräume
   }
   updatePort(dt, t);
   if (playing) carryPlayer();
@@ -141,13 +142,14 @@ export function frame(now) {
   }
   updatePlayerModel(dt, playing && !DRIVE.on && !BOAT.on && !player.fly && !DINE.seat);
   U.uCam.value.copy(camera.position);
+  updateAtmosphere(dt);   // V25: Wetter, Mond, Nebel, Mondschatten
   updateNearPlane(dt);
   updateCars(dt);
   updateTrucks(dt);
   updateTrams(dt);
   const inside = playing && inBelmont(player.p.x, player.p.z, player.p.y) ? 1 : 0;
   U.uInside.value += (inside - U.uInside.value) * Math.min(1, dt * 4);
-  hemi.intensity = 0.9 - 0.65 * U.uInside.value; moonLight.intensity = 0.45 * (1 - U.uInside.value);
+  hemi.intensity = (0.9 + 0.12 * U.uSnowCover.value) * (1 - 0.72 * U.uInside.value); moonLight.intensity = ATMO.moonI * (1 - U.uInside.value);
   const nearBel = !playing || (Math.abs(camera.position.x) < 70 && Math.abs(camera.position.z) < 75 && camera.position.y < 45);
   if (interiorCrowd) interiorCrowd.show(nearBel);
   updateInterior(t, nearBel);

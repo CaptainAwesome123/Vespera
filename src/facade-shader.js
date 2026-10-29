@@ -1,4 +1,4 @@
-import { T, U } from './core.js';
+import { T, U, FOG_GLSL } from './core.js';
 import { addCollider } from './people-skeleton.js';
 
 /* =====================================================================
@@ -26,8 +26,9 @@ void main(){
 }`;
 export const facadeFS = `
 #define BRICK_MEAN vec3(0.519, 0.287, 0.184)
-uniform float uTime; uniform vec3 uFogColor; uniform float uFogDensity; uniform vec3 uMoonDir; uniform vec3 uTeal; uniform vec3 uCam; uniform sampler2D uBrick; uniform float uBrickOn; uniform sampler2D uStone; uniform float uStoneOn;
+uniform float uTime; uniform vec3 uFogColor; uniform float uFogDensity; uniform vec3 uMoonDir; uniform vec3 uTeal; uniform vec3 uCam; uniform sampler2D uBrick; uniform float uBrickOn; uniform sampler2D uStone; uniform float uStoneOn; uniform float uWet; uniform float uSnowCover;
 varying vec3 vWorld; varying vec3 vN; varying vec3 vLN; varying vec3 vT; varying vec3 vTint; varying vec4 vParams; varying vec3 vRib; varying vec3 vLocal; varying vec3 vScale; varying float vFogDepth; varying vec4 vEdge;
+${FOG_GLSL}
 float hash(vec2 p){ p = fract(p*vec2(123.34, 456.21)); p += dot(p, p+45.32); return fract(p.x*p.y); }
 float vnoise(vec2 p){ vec2 i = floor(p), f = fract(p); f = f*f*(3.0 - 2.0*f); return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y); }
 void main(){
@@ -422,10 +423,15 @@ void main(){
     float edgeR = min(min((vLocal.x + 0.5) * vScale.x + vEdge.x, (0.5 - vLocal.x) * vScale.x + vEdge.y), min((vLocal.z + 0.5) * vScale.z + vEdge.z, (0.5 - vLocal.z) * vScale.z + vEdge.w));
     roofC = mix(roofC, vTint * 0.35, step(edgeR, 0.6));
     col = roofC * (0.35 + 0.6 * moon) + vec3(0.012, 0.009, 0.022) + flood * vec3(0.08, 0.05, 0.02);
+    // V25: Schnee auf den Dächern, an der Brüstung vom Wind freigeweht
+    float sn = uSnowCover * smoothstep(0.25, 0.6, vnoise(rq * 0.3 + seed) * 0.6 + 0.4 - step(edgeR, 0.6) * 0.5);
+    col = mix(col, vec3(0.13, 0.17, 0.22) + vec3(0.45, 0.5, 0.62) * moon + uTeal * 0.05 + flood * vec3(0.12, 0.08, 0.04), sn);
   }
   if (ln.y < -0.5) { float low = 1.0 - smoothstep(4.0, 12.0, vWorld.y); col = vTint * mix(0.03, 0.3, low) + vec3(0.14, 0.09, 0.04) * low * (0.5 + 0.5*flood); }
 
-  float fogF = 1.0 - exp(-uFogDensity*uFogDensity*vFogDepth*vFogDepth);
+  // V25: nasse Wände dunkeln unten nach (Spritzwasser), Schnee legt sich auf Gesimse
+  col *= 1.0 - 0.18 * uWet * smoothstep(5.0, 0.4, vWorld.y) * step(ln.y, 0.5);
+  float fogF = vespFog(vFogDepth, vWorld.y, uCam.y, uFogDensity, 1.0);
   vec3 fogCol = mix(uFogColor*2.2, uFogColor, smoothstep(0.0, 140.0, vWorld.y));
   gl_FragColor = vec4(mix(col, fogCol, clamp(fogF, 0.0, 1.0)), 1.0);
 }`;

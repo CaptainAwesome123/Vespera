@@ -7,6 +7,7 @@ import { toast, VIEWS, goView, showDistrict, districtAt } from './boat.js';
 import { toggleMusic, activeUse } from './music.js';
 import { composer } from './bloom.js';
 import { PM, toggleView, toggleDance, zoomView } from './player-model.js';
+import { cycleWeather } from './atmosphere.js';
 
 /* =====================================================================
    EINGABE
@@ -47,6 +48,7 @@ window.addEventListener('keydown', e => {
   if (e.code === 'KeyM') toggleMusic();
   if (e.code === 'KeyE' && activeUse) activeUse.act();
   if (e.code === 'KeyB') { shared.bloomOn = !shared.bloomOn && !!composer; toast(shared.bloomOn ? 'Leuchteffekt an' : 'Leuchteffekt aus'); }
+  if (e.code === 'KeyN') cycleWeather();
   if (e.code === 'KeyV') toast(toggleView() === 'third' ? 'Ansicht von hinten' : 'Ich-Ansicht');
   if (e.code === 'KeyG') { if (PM.view !== 'third') toggleView(); const d = toggleDance(); toast(d === 1 ? 'Charleston' : d === 2 ? 'Langsamer Tanz' : 'Tanz aus'); }
   if (VIEWS[e.code]) goView(e.code);
@@ -103,6 +105,7 @@ export const endTouch = e => {
   }
 };
 canvas.addEventListener('touchend', endTouch); canvas.addEventListener('touchcancel', endTouch);
+$('tWx').addEventListener('click', cycleWeather);
 $('tUse').addEventListener('click', () => { if (activeUse) activeUse.act(); });
 $('tView').addEventListener('click', () => toast(toggleView() === 'third' ? 'Ansicht von hinten' : 'Ich-Ansicht'));
 window.addEventListener('wheel', e => { if (playing && PM.view === 'third') zoomView(e.deltaY); }, { passive: true });

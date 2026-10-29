@@ -1,4 +1,4 @@
-import { U, T, MOBILE, renderer, scene, camera } from './core.js';
+import { U, T, MOBILE, renderer, scene, camera, FOG_GLSL } from './core.js';
 import { addCollider } from './people-skeleton.js';
 import { lamps, addSeg, addGlow, NEON } from './facade-shader.js';
 import { ISL, landDist, QX, QUAY } from './island.js';
@@ -6,7 +6,7 @@ import { neonFrame } from './entrances.js';
 import { interiorCrowd } from './belmont.js';
 import { WATER_Y } from './dance.js';
 import { VILLA } from './harbour.js';
-import { pedCrowd } from './serpentine.js';
+import { pedCrowd, STREET } from './serpentine.js';
 import { fxEmit } from './particles.js';
 import { WIND } from './wind.js';
 
@@ -101,7 +101,8 @@ export const LAND_GLSL = () => `
   float landDistG(vec2 p){ vec2 d = p - vec2(${ISL.cx.toFixed(1)}, ${ISL.cz.toFixed(1)}); float th = atan(d.x, -d.y); return min(coastRG(th) - length(d), ${ISL.quay.toFixed(1)} - p.y); }`;
 
 /* ---------- Wasser: Hafenbecken mit Wellen, Mondglitzern, Spiegelungen der Lichter; Pools und Brunnen ---------- */
-export const WATER_COMMON = `
+export const WATER_COMMON = `${FOG_GLSL}
+  uniform float uAurora; uniform float uMoonLit; uniform float uRain; uniform float uMist;
   float wH(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
   float wN(vec2 p){ vec2 i = floor(p), f = fract(p); f = f*f*(3.0 - 2.0*f); return mix(mix(wH(i), wH(i + vec2(1, 0)), f.x), mix(wH(i + vec2(0, 1)), wH(i + vec2(1, 1)), f.x), f.y); }
   // Wellen: mehrere Richtungen und Längen, dazu feines Gekräusel aus Rauschen
@@ -120,7 +121,9 @@ export const WATER_COMMON = `
   vec3 skyRefl(vec3 R, vec3 fogC, vec3 moonD){
     vec3 c = mix(fogC * 1.8, vec3(0.012, 0.03, 0.06), smoothstep(0.0, 0.45, R.y));
     float md = max(dot(R, moonD), 0.0);
-    c += vec3(1.2, 1.15, 1.0) * pow(md, 900.0) * 6.0 + vec3(0.5, 0.55, 0.6) * pow(md, 40.0) * 0.25;
+    c += (vec3(1.2, 1.15, 1.0) * pow(md, 900.0) * 6.0 + vec3(0.5, 0.55, 0.6) * pow(md, 40.0) * 0.25) * uMoonLit;
+    // V25: das Polarlicht spiegelt sich als grün-türkiser Schimmer
+    c += vec3(0.05, 0.42, 0.26) * uAurora * smoothstep(0.08, 0.35, R.y) * (1.0 - smoothstep(0.5, 0.9, R.y)) * 0.35;
     return c;
   }`;
 // Echte Spiegelung (am PC): die Szene wird an der Wasserfläche gespiegelt in ein halb so großes Bild gerendert;
@@ -135,11 +138,21 @@ export function setupReflection() {
   REFL.rt = new T.WebGLRenderTarget(Math.max(2, Math.round(sz.x * 0.5)), Math.max(2, Math.round(sz.y * 0.5)), { type: T.HalfFloatType });
   REFL.rt.texture.generateMipmaps = false;
   U.uRefl.value = REFL.rt.texture;
+  REFL.dummy = new T.DataTexture(new Uint8Array([0, 0, 0, 255]), 1, 1); REFL.dummy.needsUpdate = true;
   REFL.cam.layers.set(1);
   // Was sich spiegeln soll: alles außer Kleinkram (Figuren, Autos, Möbel, Partikel); Wasser selbst nie
-  const skip = new Set();
+  const skip = REFL.skip = new Set();
   for (const c of [pedCrowd, interiorCrowd, VILLA.crowd]) if (c) for (const k in c.hi) { skip.add(c.hi[k].im); skip.add(c.lo[k].im); }
   scene.traverse(o => { if (!skip.has(o) && o !== harborWater && !o.userData.noRefl) o.layers.enable(1); });
+}
+// V25: Laternen und Stadtmobiliar kommen später als Chunks dazu: alle paar Sekunden ins Spiegelbild aufnehmen (Ladeneinrichtung nicht, die sieht man draußen kaum)
+export const REFL_LAYERS = new Set(['lamps', 'furniture', 'props']);
+export function reflSweep() {
+  if (!REFL.rt) return;
+  for (const o of scene.children) if (o.isGroup && !o.userData.reflSeen && REFL_LAYERS.has(o.userData.chunk?.layer)) {
+    let n = 0; o.traverse(c => { n++; if (!REFL.skip.has(c) && !c.userData.noRefl) c.layers.enable(1); });
+    if (n > 1) o.userData.reflSeen = true;
+  }
 }
 export function resizeReflection() {
   if (!REFL.rt) return;
@@ -147,14 +160,17 @@ export function resizeReflection() {
   REFL.rt.setSize(Math.max(2, Math.round(sz.x * 0.5)), Math.max(2, Math.round(sz.y * 0.5)));
 }
 export function renderReflection() {
-  if (!REFL.rt || REFL.off) { U.uReflOn.value = 0; return; }
+  if (!REFL.rt || REFL.off) { U.uReflOn.value = 0; U.uStreetRefl.value = 0; return; }
   const cam = camera, vc = REFL.cam, V = _rv, cp = cam.position;
   // nur wenn das Hafenbecken überhaupt zu sehen sein kann
   const see = cp.y > WATER_Y + 0.2 && (cp.z > 300 || cp.y > 90 || landDist(cp.x, cp.z) < 170 || Math.hypot(cp.x - VILLA.x, cp.z - VILLA.z) < 400) && U.uInside.value < 0.5;
-  U.uReflOn.value = see ? 1 : 0;
-  if (!see) return;
+  // V25: sonst, wenn die Straßen nass sind und man unten in der Stadt steht, spiegelt sich die Stadt im Pflaster (Ebene auf Straßenhöhe)
+  const street = !see && U.uWet.value > 0.2 && U.uSnowCover.value < 0.8 && cp.y > 0.3 && cp.y < 60 && U.uInside.value < 0.5 && landDist(cp.x, cp.z) > 0;
+  U.uReflOn.value = see ? 1 : 0; U.uStreetRefl.value = street ? 1 : 0;
+  if (!see && !street) return;
+  const PY = see ? WATER_Y : 0;
   cam.updateMatrixWorld();
-  V.rp.set(cp.x, WATER_Y, cp.z); V.cp.copy(cp);
+  V.rp.set(cp.x, PY, cp.z); V.cp.copy(cp);
   V.view.subVectors(V.rp, V.cp).reflect(V.n).negate().add(V.rp);
   V.rot.extractRotation(cam.matrixWorld);
   V.look.set(0, 0, -1).applyMatrix4(V.rot).add(V.cp);
@@ -170,11 +186,14 @@ export function renderReflection() {
   V.clip.multiplyScalar(2 / V.clip.dot(V.q));
   e[2] = V.clip.x; e[6] = V.clip.y; e[10] = V.clip.z + 1 - 0.003; e[14] = V.clip.w;
   vc.projectionMatrixInverse.copy(vc.projectionMatrix).invert();
-  harborWater.visible = false;
+  harborWater.visible = false; if (street && STREET.ground) STREET.ground.visible = false;
   const prev = renderer.getRenderTarget();
+  // das Spiegelbild darf sich beim Zeichnen nicht selbst lesen (Gehwege und Pfützen tasten uRefl ab)
+  U.uRefl.value = REFL.dummy;
   renderer.setRenderTarget(REFL.rt); renderer.clear(); renderer.render(scene, vc);
   renderer.setRenderTarget(prev);
-  harborWater.visible = true;
+  U.uRefl.value = REFL.rt.texture;
+  harborWater.visible = true; if (STREET.ground) STREET.ground.visible = true;
 }
 export let harborWater = null;
 export function buildHarborWaterMat() {
@@ -198,6 +217,14 @@ export function buildHarborWaterMat() {
         float far = smoothstep(120.0, 1400.0, vD), aa = clamp(1.0 - fwidth(p.x) * 0.9, 0.0, 1.0);
         vec2 g = waveGrad(p, uTime, 1.0) * mix(0.5 + uWind.z * 0.05, 0.35, far) + vGG / 0.35;
         g += ripple(p, uTime) * 0.05 * aa;
+        // V25: Regentropfen ziehen kleine Ringe
+        if (uRain > 0.01 && vD < 90.0) for (int k = 0; k < 2; k++) {
+          vec2 rp = p * (k == 0 ? 1.3 : 2.1) + float(k) * 17.0, rc = floor(rp), rf = fract(rp) - 0.5;
+          float h0 = fract(sin(dot(rc, vec2(12.9898, 78.233))) * 43758.5453), age = fract(uTime * 1.3 + h0 * 7.0);
+          vec2 ro = rf - (vec2(fract(h0 * 13.0), fract(h0 * 29.0)) - 0.5) * 0.5; float rr = length(ro);
+          float ring = sin((rr - age * 0.45) * 60.0) * smoothstep(0.06, 0.0, abs(rr - age * 0.45)) * (1.0 - age) * step(h0, uRain);
+          g += ro / max(rr, 0.01) * ring * 0.9 * (1.0 - smoothstep(30.0, 90.0, vD));
+        }
         // Bugwellen und Kielwasser: V-förmige Kelvin-Wellen, verquirltes Wasser hinter der Schraube, Schaum am Rumpf
         float foamW = 0.0;
         for (int i = 0; i < 4; i++) {
@@ -259,8 +286,8 @@ export function buildHarborWaterMat() {
         // Schaumkronen auf den Wellenkämmen, wenn der Wind auffrischt
         foam += smoothstep(0.05, 0.13, vJ) * smoothstep(3.5, 8.0, uWind.z + uWind.w * 5.0) * smoothstep(0.5, 0.8, wN(p * 1.3 + uTime * 0.2)) * (1.0 - far) * 0.8;
         col = mix(col, vec3(0.32, 0.38, 0.4), clamp(foam, 0.0, 1.0) * 0.55);
-        float fogF = 1.0 - exp(-uFogDensity*uFogDensity*vD*vD*0.8);
-        gl_FragColor = vec4(mix(col, uFogColor, clamp(fogF, 0.0, 1.0)), 1.0);
+        float fogF = vespFog(vD, vW.y, uCam.y, uFogDensity * (1.0 + 0.5 * uMist), 0.8);
+        gl_FragColor = vec4(mix(col, uFogColor * 1.25, fogF), 1.0);
       }`,
   });
 }
@@ -283,8 +310,8 @@ export function poolWaterMat(tint = [0.05, 0.42, 0.45]) {
         float caus = pow(1.0 - min(c1, c2) * 2.0, 8.0);
         vec3 col = uTint * (0.55 + 0.6 * caus) + vec3(0.6, 0.9, 0.9) * caus * 0.25;
         col = mix(col, skyRefl(reflect(-V, N), uFogColor, uMoonDir) * 1.5, fres * 0.8);
-        float fogF = 1.0 - exp(-uFogDensity*uFogDensity*vD*vD*0.8);
-        gl_FragColor = vec4(mix(col, uFogColor, clamp(fogF, 0.0, 1.0)), 1.0);
+        float fogF = vespFog(vD, vW.y, uCam.y, uFogDensity, 0.8);
+        gl_FragColor = vec4(mix(col, uFogColor, fogF), 1.0);
       }`,
   });
 }

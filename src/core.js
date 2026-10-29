@@ -28,7 +28,7 @@ export const ANISO = Math.min(16, renderer.capabilities.getMaxAnisotropy());
 renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, MOBILE ? 1 : 1.5));
 renderer.setSize(window.innerWidth, window.innerHeight);
 export const scene = new T.Scene();
-export const FOG_COLOR = new T.Color(0.035, 0.12, 0.155);
+export const FOG_COLOR = new T.Color(0.03, 0.125, 0.142);   // V25: etwas türkiser
 export const FOG_DENSITY = 0.00085;
 export const TEAL = new T.Color(0.18, 0.62, 0.66);
 scene.fog = new T.FogExp2(FOG_COLOR, FOG_DENSITY);
@@ -52,8 +52,57 @@ export const U = {
   uBrickOn: { value: 0 },
   uStone: { value: new T.DataTexture(new Uint8Array([128, 128, 128, 255]), 1, 1) }, // V23: Foto-Gestein (ambientCG Rock020) als Feinstruktur für Quader, Kalk- und Sandstein, Granit
   uStoneOn: { value: 0 },
+  // V25 · Polarnacht und Wetter (atmosphere.js): Regen, Schnee, Eisglitzern, Nässe und Schneedecke am Boden, Polarlicht, Bewölkung, Mondphase
+  uRain: { value: 0 }, uSnow: { value: 0 }, uFrost: { value: 0 }, uWet: { value: 0.3 }, uSnowCover: { value: 0 },
+  uAurora: { value: 0.4 }, uCloud: { value: 0.3 }, uMoonPhase: { value: 0.5 }, uMoonLit: { value: 1 }, uMist: { value: 1 },
+  uStreetRefl: { value: 0 },
+  uRoofMap: { value: new T.DataTexture(new Uint8Array([0, 0, 0, 255]), 1, 1) }, uRoofBox: { value: new T.Vector4(-1200, -1200, 2400, 255) },
 };
+U.uRoofMap.value.needsUpdate = true;
 U.uBrick.value.needsUpdate = true; U.uStone.value.needsUpdate = true;
+
+/* ---------- V25: Bodennebel ----------
+   Zum gewohnten Dunst (FogExp2) kommt ein Nebel, der am Boden dicht ist und nach oben ausdünnt (Skalenhöhe 16 m):
+   die Straßen liegen im türkisen Schleier, die Türme ragen heraus. Integral der Dichte entlang des Sehstrahls.
+   Gilt für alle eingebauten Materialien (Fog-Chunks unten) und die eigenen Shader (FOG_GLSL). */
+export const FOG_K = 7.0;
+export const FOG_GLSL = `
+float vespHF(float d, float y, float cy, float dens){
+  float a = max(cy + 2.0, 0.0), b = max(y + 2.0, 0.0), ea = exp(-a / 16.0), eb = exp(-b / 16.0), dy = b - a;
+  float avg = abs(dy) < 0.05 ? ea : 16.0 * (ea - eb) / dy;
+  return dens * ${FOG_K.toFixed(2)} * d * avg;
+}
+float vespFog(float d, float y, float cy, float dens, float k){ return clamp(1.0 - exp(-dens*dens*d*d*k - vespHF(d, y, cy, dens)), 0.0, 1.0); }
+`;
+T.ShaderChunk.fog_pars_vertex = `#ifdef USE_FOG
+  varying float vFogDepth; varying float vFogWY;
+#endif`;
+T.ShaderChunk.fog_vertex = `#ifdef USE_FOG
+  vFogDepth = - mvPosition.z;
+  vFogWY = ((mvPosition.xyz - viewMatrix[3].xyz) * mat3(viewMatrix)).y;
+#endif`;
+T.ShaderChunk.fog_pars_fragment = `#ifdef USE_FOG
+  uniform vec3 fogColor; varying float vFogDepth; varying float vFogWY;
+  #ifdef FOG_EXP2
+    uniform float fogDensity;
+  #else
+    uniform float fogNear; uniform float fogFar;
+  #endif
+  ${FOG_GLSL}
+#endif`;
+// Leuchtende (additive) Flächen verblassen im Nebel, statt die Nebelfarbe aufzuaddieren (FOG_ADD setzt atmosphere.js)
+T.ShaderChunk.fog_fragment = `#ifdef USE_FOG
+  #ifdef FOG_EXP2
+    float fogFactor = vespFog(vFogDepth, vFogWY, cameraPosition.y, fogDensity, 1.0);
+  #else
+    float fogFactor = smoothstep(fogNear, fogFar, vFogDepth);
+  #endif
+  #ifdef FOG_ADD
+    gl_FragColor.rgb *= 1.0 - fogFactor;
+  #else
+    gl_FragColor.rgb = mix(gl_FragColor.rgb, fogColor, fogFactor);
+  #endif
+#endif`;
 
 export const hemi = new T.HemisphereLight(new T.Color(0.1, 0.18, 0.3), new T.Color(0.12, 0.42, 0.44), 0.9);
 scene.add(hemi);
