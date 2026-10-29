@@ -24,14 +24,26 @@ function rigGLSL() {
   rElX = ${v('el', 0)}; rElY = ${v('el', 1)}; rElZ = ${v('el', 2)}; rWrX = ${v('wr', 0)}; rWrY = ${v('wr', 1)}; rWrZ = ${v('wr', 2)};
   hHip = ${v('hip')}; hHx = ${v('hx')}; rKnee = ${v('knee')}; rAnk = ${v('ank')};
   rHeadC = ${v('headC')}; rHeadZ = ${v('headZ')}; rNeck = ${v('neck')}; rNeckZ = ${v('neckZ')}; rWaist = ${v('waist')}; rKn1 = ${v('kn', 0)}; rKn2 = ${v('kn', 1)};
+  ${faceGLSL()}
 }`;
+}
+// V24: Gesichtsmerkmale relativ zur Kopfmitte (Augen, Brauen, Nase, Mund, Kinn); gebaute Köpfe nach HL, MakeHuman nach people.json
+function faceGLSL() {
+  const f = x => (+x).toFixed(4), P = { eyeX: HL.eyeX, eyeY: HL.eyeY, browY: HL.browY, noseY: HL.noseY, mouthY: HL.mouthY, mouthW: 0.02, chinY: HL.chinY, eyeZ: 0.1, mouthZ: 0.12 };
+  const M = g => { const r = HRIG[g], fc = r && r.face; if (!fc) return P;
+    return { eyeX: fc.eyeX, eyeY: fc.eyeY - r.headC, browY: fc.browY - r.headC, noseY: fc.noseY - r.headC, mouthY: fc.mouthY - r.headC, mouthW: fc.mouthW, chinY: fc.chinY - r.headC, eyeZ: r.eye[2], mouthZ: fc.mouthZ }; };
+  const m = M('m'), w = M('f');
+  const v = k => `mix(${f(P[k])}, mix(${f(m[k])}, ${f(w[k])}, fem), mh)`;
+  return ['eyeX', 'eyeY', 'browY', 'noseY', 'mouthY', 'mouthW', 'chinY', 'eyeZ', 'mouthZ'].map(k => `f${k[0].toUpperCase() + k.slice(1)} = ${v(k)};`).join(' ');
 }
 export const HUM_VS_HEAD = () => `
 attribute vec2 aLimb; attribute vec4 aGait; attribute float aOpt; attribute vec3 aSoft;
 attribute vec4 aMH;   // V22: Atlas-UV, Stoffart, Mischgewicht + 2 (fehlt bei gebauten Figuren = 0)
+attribute vec4 aLive; // V24: Kopfdrehung zu jemandem (rad), Beginn der Drehung (s) bzw. Schrittphase des Spielers, 1 = Spieler, 1 + Lächeln (fehlt = 0,0,0,1)
 uniform float uTime; uniform vec4 uWind;
 varying vec2 vFaceUV; varying float vFaceId; varying vec3 vClP; varying float vPnt; varying vec3 vSoft; varying float vBlink; varying vec2 vGaze; varying vec4 vLook;
-varying vec2 vTexUV; varying float vTexK;
+varying vec2 vTexUV; varying float vTexK; varying float vFold;
+float fEyeX, fEyeY, fBrowY, fNoseY, fMouthY, fMouthW, fChinY, fEyeZ, fMouthZ, gPh, gPlayer, gSmile, gTurn;
 float rTop, rShX, rShZ, rElX, rElY, rElZ, rWrX, rWrY, rWrZ, rKnee, rAnk, rHeadC, rHeadZ, rNeck, rNeckZ, rWaist, rKn1, rKn2, hMH;
 vec2 thP, thA, thY, knF, anF, uaP, uaA, uaT, elF, wrF, fgC;
 float spP, spR, spY, nkP, nkY, nkR, pvP, pvR, pvY, sitK, chew, jawO, danceK, flareK, bounceV, walkC, walkA, hAct, runK, carryK, toolOn, legIKon;
@@ -228,13 +240,14 @@ void poseFox(float follow, float fem) {
   float lL = sin(3.14159 * f0) + sin(3.14159 * f2), lR = sin(3.14159 * f1) + sin(3.14159 * f3);
   vec2 B = foxBody(u); L -= B; Rf -= B;
   float quick = step(4.0, u), slow = 1.0 - quick;
-  pvO.y = slow * (-0.028 + 0.02 * sin(3.14159 * fract(u / 2.0))) + quick * 0.012;
+  // V24: weichere Knie und deutliches Heben und Senken (tief im Schritt, hoch beim Schließen)
+  pvO.y = slow * (-0.055 + 0.035 * sin(3.14159 * fract(u / 2.0))) + quick * (-0.01 + 0.02 * sin(3.14159 * fract(u)));
   float ank = mix(0.09, 0.1, fem);
   vec3 FR, FL;
-  if (follow > 0.5) { FR = vec3(-L.x, ank + 0.035 * lL, -L.y); FL = vec3(-Rf.x, ank + 0.035 * lR, -Rf.y); }
-  else { FR = vec3(Rf.x, ank + 0.035 * lR, Rf.y); FL = vec3(L.x, ank + 0.035 * lL, L.y); }
+  if (follow > 0.5) { FR = vec3(-L.x, ank + 0.055 * lL, -L.y); FL = vec3(-Rf.x, ank + 0.055 * lR, -Rf.y); }
+  else { FR = vec3(Rf.x, ank + 0.055 * lR, Rf.y); FL = vec3(L.x, ank + 0.055 * lL, L.y); }
   pvY = 0.07 * sin(3.14159 * u / 2.0) * slow; spY = -pvY * 1.3;
-  spR = 0.06 * sin(3.14159 * u / 3.0 + 1.0);
+  spR = 0.06 * sin(3.14159 * u / 3.0 + 1.0); pvR = 0.045 * (lR - lL);
   legsTo(FR, FL);
   anF = vec2(-0.3 * quick) + 0.25 * vec2(follow > 0.5 ? -lL : lR, follow > 0.5 ? -lR : lL) + vec2(knF.x - thP.x, knF.y - thP.y);
   thY = vec2(0.05);
@@ -249,9 +262,10 @@ void poseCharleston(float fem, float gs) {
   float hx = hHx, ank = mix(0.09, 0.1, fem);
   float fwd = bt < 2.0 ? sin(3.14159 * bt / 2.0) : 0.0, kick = bt >= 2.0 ? sin(3.14159 * (bt - 2.0) / 2.0) : 0.0;
   float sw = cos(6.2832 * b);
-  pvO.y = -0.03 - 0.025 * (0.5 + 0.5 * sw);
-  vec3 FR = vec3(-hx - 0.02, ank + 0.06 * fwd * fwd, 0.3 * fwd), FL = vec3(hx + 0.02, ank + 0.24 * kick, -0.26 * kick);
+  pvO.y = -0.05 - 0.045 * (0.5 + 0.5 * sw);   // V24: tiefer federn, Knie arbeiten mit
+  vec3 FR = vec3(-hx - 0.02, ank + 0.1 * fwd, 0.3 * fwd), FL = vec3(hx + 0.02, ank + 0.24 * kick, -0.26 * kick);
   if (v > 2.5) { FR = vec3(-hx - 0.06 - 0.05 * sw, ank, 0.0); FL = vec3(hx + 0.06 + 0.05 * sw, ank, 0.0); pvO.y = -0.12 - 0.03 * sw; }
+  pvY = 0.1 * sw * step(v, 2.5); pvR = 0.05 * (fwd - kick);
   legsTo(FR, FL);
   thY = vec2(0.42 * sw);
   anF = vec2(-0.35 * fwd - 0.15, -0.6 * kick - 0.15);
@@ -296,7 +310,7 @@ void humanPose(float fem, float gs, float elder) {
   float act = (1.0 - walking) * floor(aGait.y + 0.001), actI = fract(aGait.y); hAct = act;
   if (act > 98.5) return;
   float tt = uTime * (0.9 + 0.2 * fract(aGait.x * 3.7)) + aGait.x * 7.0;
-  if (walking > 0.5) { poseWalk(uTime * aGait.y + aGait.x, amp, fem, gs); }
+  if (walking > 0.5) { poseWalk(gPh, amp, fem, gs); }
   else if (act > 19.5 && act < 23.5) {
     if (act < 21.5) poseFox(act - 20.0, fem);
     else if (act < 22.5) poseCharleston(fem, gs);
@@ -445,7 +459,7 @@ void humanPose(float fem, float gs, float elder) {
     float yaw = atan(hd.x, hd.z), pit = atan(hd.y, length(hd.xz));
     float want = step(hh(aGait.x * 3.3), 0.78) * smoothstep(0.15, 0.45, 0.5 + 0.5 * sin(uTime * (0.23 + 0.1 * hh(aGait.x)) + aGait.x * 9.0));
     float busy = max(danceK, step(23.5, act) * (1.0 - step(31.5, act)) * 0.7) + step(31.5, act) * step(act, 34.5) * 0.6;
-    lookK = want * smoothstep(8.0, 4.0, dist) * smoothstep(2.2, 1.5, abs(yaw)) * (1.0 - busy) * (1.0 - step(98.5, act));
+    lookK = want * smoothstep(8.0, 4.0, dist) * smoothstep(2.2, 1.5, abs(yaw)) * (1.0 - busy) * (1.0 - step(98.5, act)) * (1.0 - gPlayer);
     float hy = clamp(yaw, -1.15, 1.15);
     spY += 0.22 * hy * lookK; nkY = mix(nkY, hy * 0.97 - (pvY + spY), lookK); nkP = mix(nkP, -pit * 0.8 - (spP + pvP) + 0.03, lookK * 0.85);
     lookY = clamp(yaw - hy * 0.97, -0.6, 0.6) * lookK; lookP = clamp(pit - pit * 0.8, -0.4, 0.4) * lookK;
@@ -455,6 +469,10 @@ void humanPose(float fem, float gs, float elder) {
       if (fem < 0.5) { uaP.x = mix(uaP.x, 2.45, greet); elF.x = mix(elF.x, 2.3, greet); uaA.x = mix(uaA.x, 0.35, greet); uaT.x = mix(uaT.x, 0.5, greet); fgC.x = mix(fgC.x, 0.2, greet); }
       nkP += 0.14 * greet * (0.5 + 0.5 * sin(uTime * 3.0));
     }
+    // V24: Kopf zu Vorübergehenden oder zum Gesprächspartner drehen (Ziel und Zeitpunkt aus aLive), lächeln beim Grüßen und Tanzen
+    float tk = gTurn * (1.0 - lookK) * (1.0 - danceK) * (1.0 - 0.7 * busy);
+    spY += 0.22 * tk; nkY += 0.78 * tk;
+    gSmile = clamp(gSmile + 0.7 * greet + 0.45 * danceK + 0.25 * lookK * step(hh(aGait.x * 2.9), 0.5), 0.0, 1.0);
   }
   // Ältere: gebeugt; gemächliche Leute lassen den Kopf etwas hängen
   spP += elder * (0.1 + 0.05 * walking); nkP += elder * 0.08 + step(0.33, gs) * (1.0 - step(0.66, gs)) * 0.06 * walking;
@@ -572,7 +590,7 @@ void humanShape(inout vec3 p, float L, float fem, float fid, float op) {
     float skin = step(abs(aSoft.x - 1.0), 0.1) * (1.0 - step(0.5, op));
     if (skin > 0.5) {
       float ax = abs(q.x), fr = smoothstep(0.0, 0.05, q.z);
-      float noseY = ${HL.noseY.toFixed(4)}, mouthY = ${HL.mouthY.toFixed(4)}, chinY = ${HL.chinY.toFixed(4)}, eyeY = ${HL.eyeY.toFixed(4)};
+      float noseY = fNoseY, mouthY = fMouthY, chinY = fChinY, eyeY = fEyeY;
       float gN = exp(-pow(q.x / 0.013, 2.0) - pow((q.y - noseY + 0.004) / 0.019, 2.0)) * fr;
       q.z += (0.0045 * nS + 0.0015 * nL) * gN;                                                  // Nasengröße
       q.y -= 0.0045 * nL * exp(-pow(q.x / 0.012, 2.0) - pow((q.y - noseY + 0.01) / 0.01, 2.0)) * fr;          // Nasenspitze tiefer
@@ -610,6 +628,8 @@ void humanShape(inout vec3 p, float L, float fem, float fid, float op) {
 export const HUM_VS_RIG = `
   float hFemV = step(32.0, mod(aGait.w, 64.0)), hGs = fract(sin(aGait.x * 91.7) * 437.5);
   hFem = hFemV; hMH = step(1.5, aMH.w); rigSet(hFemV, hMH);
+  gPlayer = step(0.5, aLive.z); gPh = gPlayer > 0.5 ? aLive.y : uTime * aGait.y + aGait.x; gSmile = clamp(aLive.w - 1.0, 0.0, 1.0) + 0.22 * hh(aGait.x * 5.3);
+  gTurn = gPlayer > 0.5 ? 0.0 : aLive.x * smoothstep(aLive.y, aLive.y + 0.6, uTime) * (1.0 - smoothstep(aLive.y + 2.6, aLive.y + 3.3, uTime));
   float hHairI = mod(floor(aGait.w / 320.0), 6.0), hElder = step(3.5, hHairI) * step(hHairI, 4.5);
   // Kamera im Körperraum der Figur
   {
@@ -632,7 +652,32 @@ export const HUM_VS_RIG = `
     hP.x = mix(hP.x, hP.x * sy / max(sx, 1e-3), wq); hP.z = mix(hP.z, (hP.z - rHeadZ) * sy / max(sz, 1e-3) + rHeadZ, wq);
   }
   #endif
-  humanShape(hP, aLimb.x, hFemV, mod(aGait.w, 64.0), aOpt);
+  if (gPlayer < 0.5) humanShape(hP, aLimb.x, hFemV, mod(aGait.w, 64.0), aOpt);
+  // V24: Lidschlag, Blick, Lächeln (am MakeHuman-Kopf drehen sich die Augäpfel, die Wimpern gehen mit dem Lid)
+  vBlink = step(fract(uTime * 0.21 + hh(aGait.x) * 7.0), 0.022) + step(abs(fract(uTime * 0.21 + hh(aGait.x) * 7.0) - 0.06), 0.012);
+  { float sac = floor(uTime * 0.7 + hh(aGait.x * 2.0) * 5.0); vec2 idle = (vec2(hh(sac + aGait.x), hh(sac * 1.3 + aGait.x * 2.0)) - 0.5) * vec2(0.5, 0.25);
+    vGaze = mix(idle, vec2(lookY, lookP), lookK); vGaze.x += 0.5 * gTurn * (1.0 - lookK); }
+  if (hMH > 0.5 && aLimb.x < 0.5) {
+    float tkv = floor(aMH.z + 0.5);
+    if (tkv > 3.5 && tkv < 4.5) {
+      vec3 ec = vec3(sign(hP.x) * fEyeX, rHeadC + fEyeY, fEyeZ), d = rY(rX(hP - ec, -clamp(vGaze.y, -0.4, 0.4) * 0.6), clamp(vGaze.x, -0.6, 0.6) * 0.75);
+      hP = ec + d; hN = rY(rX(hN, -clamp(vGaze.y, -0.4, 0.4) * 0.6), clamp(vGaze.x, -0.6, 0.6) * 0.75);
+    } else if (tkv > 4.5 && tkv < 5.5) {
+      float dy = hP.y - rHeadC - fEyeY;
+      if (dy > -0.002 && dy < 0.012 && hP.z > fEyeZ && abs(abs(hP.x) - fEyeX) < 0.02) hP.y -= clamp(vBlink, 0.0, 1.0) * (0.004 + 0.6 * dy);
+    } else if (abs(aSoft.x - 1.0) < 0.1 && aOpt < 0.5 && gSmile > 0.01) {
+      vec3 q = hP - vec3(0.0, rHeadC + fMouthY, 0.0); float ax = abs(q.x);
+      float wc = exp(-pow((ax - fMouthW) / 0.011, 2.0) - pow(q.y / 0.011, 2.0)) * step(fMouthZ - 0.045, hP.z);
+      float wk = exp(-pow((ax - fMouthW - 0.014) / 0.016, 2.0) - pow((q.y - 0.024) / 0.014, 2.0)) * step(fMouthZ - 0.06, hP.z);
+      hP.y += gSmile * (0.0034 * wc + 0.002 * wk); hP.x += sign(q.x) * gSmile * 0.0016 * wc; hP.z += gSmile * 0.0014 * wk;
+    }
+  }
+  // V24: Stoff staucht sich in gebeugten Ellbogen, Knien und (im Sitzen) in der Leiste
+  vFold = 0.0;
+  { float L = aLimb.x;
+    if ((L > 2.5 && L < 4.5) || L > 6.5) { float e = (L < 3.5 || (L > 6.5 && L < 7.5)) ? elF.x : elF.y; vFold = exp(-pow((hP.y - rElY) / 0.07, 2.0)) * clamp(e / 1.6, 0.0, 1.0); }
+    else if (L > 0.5) { float k = (L < 1.5 || (L > 4.5 && L < 5.5)) ? knF.x : knF.y; vFold = exp(-pow((hP.y - rKnee) / 0.08, 2.0)) * clamp(k / 1.4, 0.0, 1.0) + sitK * 0.8 * exp(-pow((hP.y - hHip + 0.05) / 0.08, 2.0)); }
+    else vFold = sitK * 0.6 * exp(-pow((hP.y - hHip) / 0.06, 2.0)); }
   // Atmen: Brustkorb hebt sich
   if (aLimb.x < 0.5 && aOpt < 0.5) hP.xz *= 1.0 + 0.014 * sin(uTime * (1.4 + 0.4 * hGs + 1.2 * runK) + aGait.x) * smoothstep(1.0, 1.25, hP.y) * (1.0 - smoothstep(1.38, 1.46, hP.y)) * (1.0 - step(98.5, hAct)) * (1.0 + runK);
   // Kiefer: kauen, reden, lachen, gähnen
@@ -665,7 +710,7 @@ export const HUM_VS_RIG = `
     float gust = 0.6 + 0.4 * sin(uTime * 2.3 + position.x * 30.0 + position.y * 17.0 + aGait.x) + uWind.w * 0.5;
     float wv = hSw * hSw;
     vec3 o = wW * 0.0045 * gust * wv * (1.0 + runK);
-    float ph = uTime * aGait.y + aGait.x;
+    float ph = gPh;
     float wk = step(0.01, aGait.z) * (1.0 + 1.5 * runK);
     if (hSk < 1.5) {
       o += vec3(-pvO.x * 0.9 - nkY * 0.012, -0.007 * bounceV * (wk * walkA + danceK * 1.5), -0.006 * wk * walkA - 0.004 * spP) * hSw;
@@ -687,17 +732,15 @@ export const HUM_VS_RIG = `
     hP += o;
   }
   objectNormal = normalize(hN);
-  vBlink = step(fract(uTime * 0.21 + hh(aGait.x) * 7.0), 0.022) + step(abs(fract(uTime * 0.21 + hh(aGait.x) * 7.0) - 0.06), 0.012);
-  // Augen: zur Kamera, sonst kleine Sprünge
-  { float sac = floor(uTime * 0.7 + hh(aGait.x * 2.0) * 5.0); vec2 idle = (vec2(hh(sac + aGait.x), hh(sac * 1.3 + aGait.x * 2.0)) - 0.5) * vec2(0.5, 0.25);
-    vGaze = mix(idle, vec2(lookY, lookP), lookK); }
   vLook = vec4(hh(aGait.x * 1.37 + mod(aGait.w, 64.0) * 0.173), 0.0, 0.0, 0.0);
 `;
 export const HUM_VS_POS = `
         transformed = hP;
         // Varianten (Hut, Frisur, Krawatte) einer Figur: die übrigen fallen in einen Punkt zusammen
         float act = hAct, walking = step(0.01, aGait.z), actI = fract(aGait.y), tt = uTime * (0.9 + 0.2 * fract(aGait.x * 3.7)) + aGait.x * 7.0;
-        if (aOpt > 40.5 && aOpt < 46.5) {
+        // V24: Brille nur, wenn das Gesicht eine hat (FACE_SPECS: gleiche Regel wie im Gesichteratlas)
+        if (aOpt > 70.5 && aOpt < 72.5) { float fidv = mod(mod(aGait.w, 7680.0), 64.0); if (hFem > 0.5 || mod(fidv * 7.0, 13.0) > 1.5) transformed = vec3(0.0); }
+        else if (aOpt > 40.5 && aOpt < 46.5) {
           float pv = aOpt - 40.0, show = 0.0;
           if (pv < 1.5) show = (abs(act - 5.0) < 0.5 || abs(act - 11.0) < 0.5) ? 1.0 : 0.0;
           else if (pv < 4.5) {
@@ -738,7 +781,8 @@ export const HUM_VS_POS = `
 
 export const HUM_FS_HEAD = `uniform sampler2D uFaces, uFaceMat, uPeople; uniform float uTime;
 varying vec2 vFaceUV; varying float vFaceId; varying vec3 vClP; varying float vPnt; varying vec3 vSoft; varying float vBlink; varying vec2 vGaze; varying vec4 vLook;
-varying vec2 vTexUV; varying float vTexK;
+varying vec2 vTexUV; varying float vTexK; varying float vFold;
+float hSSS = 0.0;   // V24: Haut lässt Licht ein Stück hinein (weicher, rötlicher Übergang zum Schatten)
 float clH(vec3 p){ return fract(sin(dot(p, vec3(12.9898, 78.233, 37.719))) * 43758.5453); }
 float vN3(vec3 p){ vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
   return mix(mix(mix(clH(i), clH(i + vec3(1,0,0)), f.x), mix(clH(i + vec3(0,1,0)), clH(i + vec3(1,1,0)), f.x), f.y), mix(mix(clH(i + vec3(0,0,1)), clH(i + vec3(1,0,1)), f.x), mix(clH(i + vec3(0,1,1)), clH(i + vec3(1,1,1)), f.x), f.y), f.z); }
@@ -748,7 +792,7 @@ vec3 hPerturb(vec3 surf_pos, vec3 surf_norm, vec2 dHdxy, float faceDirection) {
   return normalize(abs(fDet) * surf_norm - vGrad);
 }
 `;
-export const HUM_FS_COLOR = `
+export const HUM_FS_COLOR = () => `
         float hRough = -1.0, hMetal = -1.0, hB = 0.0, hSpark = 0.0;
         {
           float idv = floor(vFaceId + 0.5), fid = mod(idv, 64.0), tone = mod(floor(idv / 64.0), 5.0), hairI = mod(floor(idv / 320.0), 6.0);
@@ -762,8 +806,16 @@ export const HUM_FS_COLOR = `
             tx = texture2D(uPeople, vTexUV);
             if (tK < 1.5) { float pk = 1.0 - smoothstep(0.55, 0.8, tx.a); diffuseColor.rgb = mix(tx.rgb, diffuseColor.rgb * tx.r * 2.2, pk); }
             else if (tK < 2.5) { vec3 ref = tone < 2.5 ? vec3(0.97, 0.9, 0.84) : vec3(0.62, 0.48, 0.38); diffuseColor.rgb = tx.rgb * clamp(T5 / ref, 0.55, 1.35); }
+            else if (tK > 5.5) diffuseColor.rgb = tx.rgb;                                   // V24: Spieler, feste Haut
             else if (tK < 3.5 || tK > 4.5) { if (tx.a < (tK > 4.5 ? 0.35 : 0.5)) discard; diffuseColor.rgb = HC * tx.r * (tK > 4.5 ? 1.2 : 1.9); }
-            else diffuseColor.rgb = tx.rgb;
+            else {
+              // V24: Auge: Iris je Figur gefärbt (braun, dunkel, blau, grün, grau, haselnuss), beim Lidschlag deckt das Lid
+              float mx = max(tx.r, max(tx.g, tx.b)), sat = mx > 0.0 ? (mx - min(tx.r, min(tx.g, tx.b))) / mx : 0.0, ir = smoothstep(0.18, 0.4, sat) * step(mx, 0.85);
+              float ic = floor(hh2(fid * 3.1 + 0.7) * 6.0);
+              vec3 IC = ic < 0.5 ? vec3(0.42, 0.25, 0.13) : ic < 1.5 ? vec3(0.22, 0.13, 0.07) : ic < 2.5 ? vec3(0.3, 0.48, 0.66) : ic < 3.5 ? vec3(0.34, 0.47, 0.3) : ic < 4.5 ? vec3(0.45, 0.48, 0.52) : vec3(0.5, 0.36, 0.16);
+              vec3 e = mix(tx.rgb, IC * dot(tx.rgb, vec3(0.3, 0.59, 0.11)) * 2.6, ir);
+              diffuseColor.rgb = mix(e, vec3(0.78, 0.56, 0.46) * T5 * 0.85, clamp(vBlink, 0.0, 1.0));
+            }
           }
           float aa = clamp(1.6 - fwidth(vClP.y) * 260.0, 0.0, 1.0), aa2 = clamp(1.6 - fwidth(vClP.y) * 700.0, 0.0, 1.0);
           if (fab < 0.5) {
@@ -774,11 +826,19 @@ export const HUM_FS_COLOR = `
           } else if (fab < 1.5) {
             // Haut: Hautton, Gesicht aus dem Atlas, feine Poren
             if (tK < 0.5) diffuseColor.rgb *= T5;
-            hRough = tK > 3.5 && tK < 4.5 ? 0.12 : 0.62; hB = (vN3(vClP * 420.0) - 0.5) * 0.06 * aa2;
+            hRough = tK > 3.5 && tK < 4.5 ? 0.06 : 0.6; hB = (vN3(vClP * 420.0) - 0.5) * 0.06 * aa2;
+            // V24: Poren und feine Hautlinien (Relief), auf Stirn, Nase und Wangen dichter; Haut lässt Licht durch
+            if (tK < 3.5 || tK > 5.5) { hB += ((vN3(vClP * 1500.0) - 0.5) * 0.35 + (vN3(vClP * vec3(300.0, 2400.0, 300.0)) - 0.5) * 0.12) * clamp(1.6 - fwidth(vClP.y) * 1400.0, 0.0, 1.0); hSSS = 1.0; }
             if (vFaceUV.x >= 0.0) {
               vec2 cell = vec2(mod(fid, 8.0), floor(fid / 8.0)), fuv = (cell + clamp(vFaceUV, 0.01, 0.99)) / 8.0;
               vec4 f = texture2D(uFaces, fuv); vec3 m = texture2D(uFaceMat, fuv).rgb;
               float cls = m.b;
+              if (tK > 1.5) {
+                // V24: MakeHuman-Köpfe bekommen Schminke, Bart, Falten, Rötungen und Lippen aus dem Gesichteratlas;
+                // gemalte Augen und Brauen entfallen (Augäpfel und Brauen sind eigene Netze)
+                vec2 fp = (vFaceUV - 0.5) * vec2(${HL.fw.toFixed(3)}, ${HL.fh.toFixed(3)}) + vec2(0.0, ${HL.fy.toFixed(3)});
+                if (cls > 0.83 || (cls > 0.17 && cls < 0.5 && abs(fp.x) < 0.05 && fp.y > ${(HL.eyeY + 0.007).toFixed(4)})) f.a = 0.0;
+              }
               if (cls < 0.17) diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * f.rgb * 2.0, f.a);
               else if (cls < 0.5) diffuseColor.rgb = mix(diffuseColor.rgb, HC * (0.65 + 0.5 * f.r), f.a);
               else if (cls < 0.83) diffuseColor.rgb = mix(diffuseColor.rgb, f.rgb, f.a);
@@ -788,7 +848,7 @@ export const HUM_FS_COLOR = `
                 vec4 f2 = texture2D(uFaces, fuv2); float c2 = texture2D(uFaceMat, fuv2).b;
                 vec3 ec = c2 > 0.83 ? f2.rgb : vec3(0.8, 0.76, 0.72);
                 vec3 lid = diffuseColor.rgb * 0.82; diffuseColor.rgb = mix(diffuseColor.rgb, mix(ec, lid, clamp(vBlink, 0.0, 1.0)), f.a); }
-              hRough = mix(0.66, 0.08, m.r * (1.0 - step(0.83, cls) * vBlink * 0.8)); hB += (m.g - 0.5) * 1.3;
+              hRough = mix(0.66, 0.08, m.r * (1.0 - step(0.83, cls) * vBlink * 0.8) * f.a); hB += (m.g - 0.5) * 1.3;
             }
           } else if (fab < 2.5) {
             // Haar: Farbe der Figur, Strähnen quer zur Wuchsrichtung, dunkler am Ansatz, Glanzband
@@ -805,16 +865,20 @@ export const HUM_FS_COLOR = `
             if (fab < 3.5) {
               // Wolle: Köperbindung (schräge Grate), dazu das Muster der Figur; Fasern fangen an der Kante Licht
               float ta = (p.x + p.z + p.y * 1.3) * 300.0, fa = clamp(1.0 - fwidth(ta) * 1.2, 0.0, 1.0);
+              // V24: helle Stellen auf dunklem Anzugstoff sind Hemdbrust: glatt, ohne Köper und Muster
+              float shirt = tK > 0.5 ? smoothstep(0.4, 0.62, dot(c, vec3(0.3, 0.59, 0.11))) : 0.0;
+              fa *= 1.0 - shirt;
               float twill = 0.5 + 0.5 * sin(ta * 6.2832);
-              hB = (twill - 0.5) * 0.5 * fa + (vN3(p * 520.0) - 0.5) * 0.4 * aa2;
+              hB = (twill - 0.5) * 0.5 * fa + (vN3(p * 520.0) - 0.5) * 0.4 * aa2 * (1.0 - shirt);
               c *= 0.97 + 0.04 * twill * fa + 0.05 * (vN3(p * 90.0) - 0.5);
-              if (vPnt > 0.5) {
+              if (vPnt > 0.5 && shirt < 0.5) {
                 float pat = floor(idv / 1920.0); vec3 lite = max(c * 1.9, vec3(0.16));
                 if (pat > 0.5 && pat < 1.5) c = mix(c, lite, step(0.9, fract(u * 48.0)) * aa * 0.7);
                 else if (pat > 1.5 && pat < 2.5) { float n = clH(floor(p * 160.0)), n2 = clH(floor(p * 60.0) + 3.0); c *= 0.84 + 0.22 * n * aa + 0.08 * n2; c += vec3(0.05, 0.03, 0.01) * step(0.93, n) * aa; }
                 else if (pat > 2.5) { float a = step(0.5, fract(u * 9.0)), b = step(0.5, fract(p.y * 9.0)); float fine = step(0.5, fract((u + p.y) * 36.0)); c *= mix(1.0, 0.84 + 0.1 * (a + b) + 0.06 * fine, aa); c = mix(c, lite * vec3(1.0, 0.75, 0.6), step(0.95, fract(u * 9.0 + 0.25)) * aa * 0.4); }
               }
               c += c * 0.45 * pow(1.0 - nv, 3.0); hRough = 0.88;
+              { float fl = sin(p.y * 230.0 + vN3(p * 25.0) * 7.0); hB += fl * vFold * 1.6; c *= 1.0 - 0.1 * vFold * (0.5 + 0.5 * fl); }   // V24: Falten in Ellbogen und Knien
             } else if (fab < 4.5 || (fab > 12.5 && fab < 13.5)) {
               // Seide und Satin: Glanz, der über die Falten wandert; feine Kettfäden
               float wa = p.y * 900.0 + p.x * 30.0, fa = clamp(1.0 - fwidth(wa) * 1.5, 0.0, 1.0);
@@ -826,6 +890,7 @@ export const HUM_FS_COLOR = `
               float wa = (p.x + p.z) * 700.0, wb = p.y * 700.0, fa = clamp(1.0 - max(fwidth(wa), fwidth(wb)) * 1.5, 0.0, 1.0);
               float w = sin(wa * 6.2832) * sin(wb * 6.2832);
               hB = w * 0.25 * fa + (vN3(p * 300.0) - 0.5) * 0.3 * aa; c *= 0.97 + 0.04 * w * fa; hRough = 0.7;
+              { float fl = sin(p.y * 260.0 + vN3(p * 30.0) * 7.0); hB += fl * vFold * 1.8; c *= 1.0 - 0.12 * vFold * (0.5 + 0.5 * fl); }
             } else if (fab < 6.5) {
               // Leder: poliert, mit feinen Knitterfalten
               hB = (vN3(p * vec3(160.0, 300.0, 160.0)) - 0.5) * 0.35 * aa; c *= 0.9 + 0.2 * pow(1.0 - nv, 2.0); hRough = 0.36;
@@ -861,6 +926,13 @@ export const HUM_FS_COLOR = `
           ao *= 1.0 - 0.12 * smoothstep(0.92, 0.88, vClP.y) * smoothstep(0.75, 0.88, vClP.y) * step(abs(vClP.x), 0.06);
           diffuseColor.rgb *= ao;
         }`;
+// V24: Licht auf der Haut. Diffuses Licht greift etwas um die Schattengrenze herum (Rot weiter als Blau), wie bei Haut,
+// in die Licht ein paar Millimeter eindringt; Glanzlicht bleibt wie es ist
+const SSS_CHUNK = T.ShaderChunk.lights_physical_pars_fragment.replace('reflectedLight.directDiffuse += irradiance * BRDF_Lambert( material.diffuseColor );',
+  `vec3 irrD = irradiance;
+  if (hSSS > 0.0) { float nl = dot(geometry.normal, directLight.direction); vec3 w = clamp((vec3(nl) + vec3(0.5, 0.3, 0.22)) / vec3(1.5, 1.3, 1.22), 0.0, 1.0); irrD = mix(irradiance, pow(w, vec3(1.5)) * directLight.color * vec3(1.0, 0.96, 0.94), hSSS); }
+  reflectedLight.directDiffuse += irrD * BRDF_Lambert( material.diffuseColor );`);
+if (SSS_CHUNK === T.ShaderChunk.lights_physical_pars_fragment) console.warn('Hautlicht: Licht-Baustein von three.js nicht gefunden');
 // Glanz, Metall und Relief nach den Stoffarten
 const WHITE1 = (() => { const t = new T.DataTexture(new Uint8Array([255, 255, 255, 255]), 1, 1); t.needsUpdate = true; return t; })();
 export function humanShader(sh) {
@@ -869,8 +941,9 @@ export function humanShader(sh) {
   sh.vertexShader = HUM_VS_HEAD() + sh.vertexShader
     .replace('#include <beginnormal_vertex>', '#include <beginnormal_vertex>\n' + HUM_VS_RIG)
     .replace('#include <begin_vertex>', '#include <begin_vertex>\n' + HUM_VS_POS);
-  sh.fragmentShader = HUM_FS_HEAD + 'float hFemF(float idv) { return step(32.0, mod(idv, 64.0)); }\n' + sh.fragmentShader
-    .replace('#include <color_fragment>', '#include <color_fragment>\n' + HUM_FS_COLOR)
+  sh.fragmentShader = HUM_FS_HEAD + 'float hFemF(float idv) { return step(32.0, mod(idv, 64.0)); }\nfloat hh2(float n) { return fract(sin(n * 12.9898 + 4.1) * 43758.5453); }\n' + sh.fragmentShader
+    .replace('#include <lights_physical_pars_fragment>', SSS_CHUNK)
+    .replace('#include <color_fragment>', '#include <color_fragment>\n' + HUM_FS_COLOR())
     .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\n if (hRough >= 0.0) roughnessFactor = hRough;')
     .replace('#include <metalnessmap_fragment>', '#include <metalnessmap_fragment>\n if (hMetal >= 0.0) metalnessFactor = hMetal;')
     .replace('#include <normal_fragment_maps>', '#include <normal_fragment_maps>\n { vec2 dh = vec2(dFdx(hB), dFdy(hB)) * 0.0022; normal = hPerturb(-vViewPosition, normal, dh, faceDirection); }')

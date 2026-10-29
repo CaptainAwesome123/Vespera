@@ -12,7 +12,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { resolveAsset, assetStats } from './assets.js';
 import { HRIG } from './people-skeleton.js';
-import { PB, personBuild, personMerge, HATMASK, FAB } from './people-model.js';
+import { PB, personBuild, personMerge, HATMASK, FAB, HL, faceUV } from './people-model.js';
 
 export const MHP = { ready: false, late: false, src: {}, meta: null, err: null, ms: 0 };
 
@@ -67,7 +67,13 @@ export const MH_KIND = {
   lady:      { g: 'f', parts: ['lady-f', 'heels-f'], tile: 'lady', keep: ['hat', 'carry', 'props'] },
   gown:      { g: 'f', parts: ['heels-f'], keep: ['body', 'hat', 'props'], cover: { from: 0.02, to: 1.366, mg: 0.012 }, gloves: GLOVE_SATIN, longGloves: true },
   dress:     { g: 'f', parts: ['heels-f'], keep: ['body', 'hat', 'props'], cover: { from: 0.42, to: 1.366, mg: 0.01 } },
+  // V24: der Spieler (nach den Referenzbildern): Frack, Fliege, weiße Rose am Revers, Einstecktuch; eigenes Gesicht, blondes Haar mit Seitenscheitel
+  player:    { g: 'm', body: 'p', parts: ['suit-m', 'shoes-m'], tile: 'tux', color: [0.025, 0.025, 0.03], keep: ['bow', 'props'], player: true },
 };
+// V24: Brillen (3D, rund, Goldrand) für diese Arten; welche Figur eine trägt, entscheidet das Gesicht (FACE_SPECS, auch im Shader)
+const SPECS_KINDS = { suit: 1, coat: 1, worker: 1, chauffeur: 1, waiter: 1 };
+// Einstecktuch für Anzug und Frack am MakeHuman-Sakko
+const POCKET_KINDS = { suit: 1, tux: 1, player: 1, coat: 0 };
 const NOPAINT = [0.98, 0.98, 0.98];      // nicht ganz weiß: bekommt nicht die Farbe der Figur
 
 // Höhen der gebauten Figur -> Höhen am MakeHuman-Körper (stückweise linear)
@@ -121,6 +127,23 @@ function fitCover(parts, gk, K, bodySrc, extraSrc) {
   return { y0: ym(K.cover.from) + 0.02, y1: ym(K.cover.to) - 0.03 };
 }
 
+// V24: Gesichtskoordinaten für den gemalten Gesichteratlas: die Merkmale des MakeHuman-Kopfes (people.json, face) werden
+// stückweise linear auf die des gemalten Gesichts gelegt (HL), damit Lippen, Bart, Lidschatten und Falten genau sitzen
+const faceMapCache = {};
+function faceMapper(gk) {
+  if (faceMapCache[gk]) return faceMapCache[gk];
+  const r = HRIG[gk], fc = r && r.face; if (!fc) return null;
+  const hc = r.headC, kx = HL.eyeX / fc.eyeX;
+  const pts = [[fc.chinY - hc, HL.chinY], [fc.mouthY - hc, HL.mouthY], [fc.noseY - hc, HL.noseY], [fc.eyeY - hc, HL.eyeY], [fc.browY - hc, HL.browY]];
+  const my = y => { if (y <= pts[0][0]) return pts[0][1] + (y - pts[0][0]); for (let k = 1; k < pts.length; k++) if (y <= pts[k][0]) { const a = pts[k - 1], b = pts[k]; return a[1] + (b[1] - a[1]) * (y - a[0]) / (b[0] - a[0]); } const l = pts[pts.length - 1]; return l[1] + (y - l[0]); };
+  return (faceMapCache[gk] = (x, y, z) => faceUV(x * kx, my(y - hc), (z - r.headZ) / 0.09));
+}
+// Vorderseite des Sakkos (für Einstecktuch und Rose): vorderster Punkt nahe (x, y)
+function suitFront(x, y) {
+  const s = MHP.src['suit-m']; let z = null;
+  if (s) for (let i = 0; i < s.count; i++) { const dx = s.position[i * 3] - x, dy = s.position[i * 3 + 1] - y; if (dx * dx + dy * dy < 0.012 * 0.012 && (z === null || s.position[i * 3 + 2] > z)) z = s.position[i * 3 + 2]; }
+  return z ?? 0.12;
+}
 // Kragen vorn (für Fliegen): höchster Punkt des Hemdkragens in der Mitte
 const collarCache = {};
 function collarFront(gk) {
@@ -130,6 +153,41 @@ function collarFront(gk) {
   return (collarCache[gk] = best || [0, r.neck - 0.03, 0.07]);
 }
 
+/* ---------- V24: Zubehör am MakeHuman-Körper: Brille, Einstecktuch, Rose ---------- */
+function extraParts(K, kind, rig, keep) {
+  const fc = rig.face; if (!fc) return;
+  const P = (g, c, limb, fab, opt = 0) => keep.push([g, c, limb, limb ? rig.top : 0, opt, fab, 'extra']);
+  if (SPECS_KINDS[kind]) {
+    // runde Brille: zwei Ringe vor den Augen, Steg über der Nase, Bügel zu den Ohren (Variante 71, Shader blendet je Gesicht ein)
+    const z = fc.noseZ - 0.028, y = fc.eyeY + 0.001, R = 0.0158, rim = [0.62, 0.48, 0.24];
+    for (const sx of [-1, 1]) {
+      P(new T.TorusGeometry(R, 0.0011, 5, 22).translate(sx * fc.eyeX, y, z), rim, 0, FAB.metal, 71);
+      P(new T.CylinderGeometry(R * 0.96, R * 0.96, 0.0006, 20).rotateX(Math.PI / 2).translate(sx * fc.eyeX, y, z), [0.75, 0.8, 0.82], 0, FAB.silk, 71);   // Glas
+      const a = new T.Vector3(sx * (fc.eyeX + R), y + 0.002, z - 0.002), b = new T.Vector3(sx * 0.071, y + 0.006, rig.headZ - 0.005), d = b.clone().sub(a);
+      P(new T.CylinderGeometry(0.0009, 0.0009, d.length(), 4).translate(0, d.length() / 2, 0).applyQuaternion(new T.Quaternion().setFromUnitVectors(new T.Vector3(0, 1, 0), d.clone().normalize())).translate(a.x, a.y, a.z), rim, 0, FAB.metal, 71);
+    }
+    P(new T.TorusGeometry(fc.eyeX - R, 0.001, 4, 10, Math.PI).translate(0, y + 0.002, z + 0.002), rim, 0, FAB.metal, 71);
+  }
+  if (POCKET_KINDS[kind]) {
+    // Einstecktuch in der linken Brusttasche (links der Figur = +x)
+    const x = 0.105, y = rig.top - 0.17, z = suitFront(x, y);
+    const g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute([-0.024, 0, 0, 0.024, 0, 0, -0.012, 0.03, 0, 0.0, 0.022, 0, 0.014, 0.032, 0], 3)); g.setIndex([0, 1, 3, 0, 3, 2, 1, 4, 3]);
+    g.translate(x, y, z + 0.004); g.computeVertexNormals(); P(g, [0.97, 0.97, 0.95], 0, FAB.silk);
+  }
+  if (K.player) {
+    // weiße Rose am linken Revers: Blütenblätter in Lagen, Kelch und Stiel, ein Blatt
+    const x = 0.098, y = rig.top - 0.075, z = suitFront(x, y) + 0.012, white = [0.96, 0.95, 0.9], green = [0.18, 0.32, 0.12];
+    P(new T.SphereGeometry(0.008, 10, 8).scale(1, 1, 0.8).translate(x, y, z + 0.004), [0.93, 0.91, 0.82], 0, FAB.silk);
+    for (let L = 0; L < 3; L++) for (let k = 0; k < 5 + L; k++) {
+      const a = k / (5 + L) * Math.PI * 2 + L * 0.6, r = 0.006 + L * 0.0045;
+      P(new T.SphereGeometry(0.0065 + L * 0.002, 8, 6).scale(1, 0.75, 0.35).rotateZ(a).rotateX(-0.4 - L * 0.25).translate(x + Math.cos(a) * r, y + Math.sin(a) * r, z - L * 0.003), white, 0, FAB.silk);
+    }
+    P(new T.SphereGeometry(0.006, 8, 6).scale(1, 1, 0.8).translate(x, y - 0.012, z - 0.006), green, 0, FAB.cotton);
+    P(new T.CylinderGeometry(0.0018, 0.0015, 0.03, 5).translate(0, -0.015, 0).rotateZ(0.25).translate(x, y - 0.014, z - 0.007), green, 0, FAB.cotton);
+    P(new T.SphereGeometry(0.009, 8, 6).scale(1, 0.45, 0.2).rotateZ(-0.7).translate(x + 0.012, y - 0.02, z - 0.008), [0.14, 0.28, 0.1], 0, FAB.cotton);
+  }
+}
+
 /* ---------- Eine Art zusammensetzen ---------- */
 export function mhPersonGeo(kind, q) {
   const K = MH_KIND[kind] || MH_KIND.suit, gk = K.g, rig = HRIG[gk], fine = q > 1.5, lod = fine ? '' : '@1';
@@ -137,7 +195,7 @@ export function mhPersonGeo(kind, q) {
   const meta = MHP.meta, RECT = meta.atlas.rect, AW = meta.atlas.w, AH = meta.atlas.h, TILE = meta.atlas.tile, hm = HATMASK[kind] || 0;
   // Zubehör aus personBuild (Hüte, Requisiten, Werkzeuge, Mäntel und Kleider)
   PB.mh = { rig, gloves: null }; let parts;
-  try { parts = personBuild(kind, q); } finally { K._gloves = PB.mh.gloves; PB.mh = null; }
+  try { parts = personBuild(K.player ? 'tux' : kind, q); } finally { K._gloves = PB.mh.gloves; PB.mh = null; }
   const keep = parts.filter(p => K.keep.includes(p[6]));
   const procHC = gk === 'f' ? 1.58 : 1.62, cf = collarFront(gk);
   for (const p of keep) {
@@ -146,7 +204,8 @@ export function mhPersonGeo(kind, q) {
     else if (p[6] === 'bow') g.translate(0, cf[1] - 0.028 - 1.474, cf[2] + 0.004 - 0.066);
     if (p[2] >= 3 && p[2] <= 8 && p[2] !== 5 && p[2] !== 6) p[3] = rig.top;     // Arm-Glieder drehen an der MakeHuman-Schulter
   }
-  const bodySrc = S('body-' + gk), coverParts = keep.filter(p => p[6] === 'body');
+  extraParts(K, kind, rig, keep);
+  const bodySrc = S('body-' + (K.body || gk)), coverParts = keep.filter(p => p[6] === 'body');
   const cover = K.cover && coverParts.length ? fitCover(coverParts, gk, K, MHP.src['body-' + gk], K.coat ? MHP.src['suit-m'] : null) : null;
 
   // Sammelfelder
@@ -165,8 +224,10 @@ export function mhPersonGeo(kind, q) {
       if (glove && src._reg && (src._reg[i] === 6 || (K.longGloves && src._reg[i] === 5)) && o.isBody) { c = glove; tk = 0; fab = glove === GLOVE_SATIN ? FAB.satin : FAB.leather; }
       A.pos.push(src.position[i * 3], src.position[i * 3 + 1], src.position[i * 3 + 2]);
       A.nrm.push(src.normal[i * 3], src.normal[i * 3 + 1], src.normal[i * 3 + 2]);
-      A.uv.push(-1, -1); A.col.push(c[0], c[1], c[2]);
-      A.limb.push(src._limb[i * 2], src._limb[i * 2 + 1]); A.opt.push(src._opt[i]);
+      const fu = o.face ? o.face(i) : null;
+      if (fu) A.uv.push(fu[0], fu[1]); else A.uv.push(-1, -1);
+      A.col.push(c[0], c[1], c[2]);
+      A.limb.push(src._limb[i * 2], src._limb[i * 2 + 1]); A.opt.push(o.opt0 ? 0 : src._opt[i]);
       let sk = src._soft[i * 3 + 2]; if (sk === 1) sk += 16 * hm;
       A.soft.push(fab, src._soft[i * 3 + 1], sk);
       A.tuv.push(src.uv[i * 2] + du, src.uv[i * 2 + 1] + dv); A.tk.push(tk); A.bl.push(src._blend[i]);
@@ -177,10 +238,14 @@ export function mhPersonGeo(kind, q) {
   // Körper: unter der Kleidung verdeckte Dreiecke fallen weg
   const bits = meta.hideBits; let mask = 0; for (const p of K.parts) mask |= bits[p] || 0;
   const inCover = (src, i) => cover && src.position[i * 3 + 1] > cover.y0 && src.position[i * 3 + 1] < cover.y1;
-  add(bodySrc, { isBody: true, drop: i => (bodySrc._hide[i] & mask) !== 0 || (inCover(bodySrc, i) && bodySrc._reg[i] !== 4 && bodySrc._reg[i] !== 5 && bodySrc._reg[i] !== 6 && bodySrc._reg[i] !== 1) });
+  // V24: Kopf und Hals vorn bekommen Gesichtskoordinaten (gemalte Schminke, Bärte, Falten); der Spieler hat sein eigenes Gesicht
+  const fm = K.player ? null : faceMapper(gk), r = rig, chin = r.face ? r.face.chinY - 0.045 : r.neck - 0.05;
+  const face = fm ? i => { const g = bodySrc._reg[i], y = bodySrc.position[i * 3 + 1]; return (g === 1 || g === 2) && y > chin ? fm(bodySrc.position[i * 3], y, bodySrc.position[i * 3 + 2]) : null; } : null;
+  add(bodySrc, { isBody: true, face, drop: i => (bodySrc._hide[i] & mask) !== 0 || (inCover(bodySrc, i) && bodySrc._reg[i] !== 4 && bodySrc._reg[i] !== 5 && bodySrc._reg[i] !== 6 && bodySrc._reg[i] !== 1) });
   add(S('eyes-' + gk));
-  for (const h of ['A', 'B', 'C']) add(S(`hair${h}-${gk}`));
-  if (fine) { add(S('brows-' + gk)); add(S('lashes-' + gk)); }
+  if (K.player) add(S(`hairA-${gk}`), { opt0: true });       // Seitenscheitel mit Schwung (MakeHuman short02), immer
+  else for (const h of ['A', 'B', 'C']) add(S(`hair${h}-${gk}`));
+  add(S('brows-' + gk)); if (fine) add(S('lashes-' + gk));
   for (const pn of K.parts) {
     const src = S(pn); if (!src) continue;
     const o = {};

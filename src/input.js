@@ -6,6 +6,7 @@ import { initWindAudio } from './wind.js';
 import { toast, VIEWS, goView, showDistrict, districtAt } from './boat.js';
 import { toggleMusic, activeUse } from './music.js';
 import { composer } from './bloom.js';
+import { PM, toggleView, toggleDance, zoomView } from './player-model.js';
 
 /* =====================================================================
    EINGABE
@@ -46,6 +47,8 @@ window.addEventListener('keydown', e => {
   if (e.code === 'KeyM') toggleMusic();
   if (e.code === 'KeyE' && activeUse) activeUse.act();
   if (e.code === 'KeyB') { shared.bloomOn = !shared.bloomOn && !!composer; toast(shared.bloomOn ? 'Leuchteffekt an' : 'Leuchteffekt aus'); }
+  if (e.code === 'KeyV') toast(toggleView() === 'third' ? 'Ansicht von hinten' : 'Ich-Ansicht');
+  if (e.code === 'KeyG') { if (PM.view !== 'third') toggleView(); const d = toggleDance(); toast(d === 1 ? 'Charleston' : d === 2 ? 'Langsamer Tanz' : 'Tanz aus'); }
   if (VIEWS[e.code]) goView(e.code);
   if (e.code === 'Space' || e.code.startsWith('Arrow')) e.preventDefault();
 });
@@ -101,6 +104,8 @@ export const endTouch = e => {
 };
 canvas.addEventListener('touchend', endTouch); canvas.addEventListener('touchcancel', endTouch);
 $('tUse').addEventListener('click', () => { if (activeUse) activeUse.act(); });
+$('tView').addEventListener('click', () => toast(toggleView() === 'third' ? 'Ansicht von hinten' : 'Ich-Ansicht'));
+window.addEventListener('wheel', e => { if (playing && PM.view === 'third') zoomView(e.deltaY); }, { passive: true });
 $('tFly').addEventListener('click', () => { player.fly = !player.fly; toast(player.fly ? 'Flugmodus' : 'Zu Fuß'); });
 for (const [id, k] of [['tUp', 'up'], ['tDown', 'down']]) {
   const b = $(id);

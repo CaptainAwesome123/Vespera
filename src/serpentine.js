@@ -2334,13 +2334,14 @@ export function carGeoHi(opts = {}) {
 export class Crowd {
   constructor(kinds, max) { this.nr = {}; this.hi = {}; this.lo = {}; this.list = []; this.max = max; this.kinds = kinds; this.vis = true; this.far = 320; }
   // Statur: jede Figur etwas schmaler oder kräftiger
-  add(kind, color, face) { const fem = kind === 'lady' || kind === 'gown' || kind === 'dress'; this.list.push({ kind, color, m: new T.Matrix4(), on: false, bw: fem ? 0.9 + Math.random() * 0.16 : 0.9 + Math.random() * 0.26, gait: [Math.random() * 6.28, 0, 0, face ?? personLook(kind)] }); return this.list[this.list.length - 1]; }
+  add(kind, color, face) { const fem = kind === 'lady' || kind === 'gown' || kind === 'dress'; this.list.push({ kind, color, m: new T.Matrix4(), on: false, bw: fem ? 0.9 + Math.random() * 0.16 : 0.9 + Math.random() * 0.26, gait: [Math.random() * 6.28, 0, 0, face ?? personLook(kind)], live: [0, -9, 0, 1] }); return this.list[this.list.length - 1]; }
   finish() {
     for (const k of this.kinds) {
       const n = this.list.filter(a => a.kind === k).length;
       if (!n) continue;
       for (const [store, geo] of [[this.nr, personShare(k, MOBILE ? 1 : 2)], [this.hi, personShare(k, 1)], [this.lo, personGeo(k)]]) {
         geo.setAttribute('aGait', new T.InstancedBufferAttribute(new Float32Array(n * 4), 4));
+        if (store !== this.lo) geo.setAttribute('aLive', new T.InstancedBufferAttribute(new Float32Array(n * 4).fill(1), 4));
         const im = new T.InstancedMesh(geo, MAT.cloth, n); im.count = 0; for (let j = 0; j < n; j++) im.setColorAt(j, new T.Color(1, 1, 1));
         im.instanceMatrix.setUsage(T.DynamicDrawUsage); im.frustumCulled = false; scene.add(im);
         store[k] = compactor(im); store[k].im = im;
@@ -2356,9 +2357,11 @@ export class Crowd {
     if (!this.vis) return;
     const cp = camera.position, far2 = (this.far + Math.max(0, cp.y)) ** 2;
     for (const k in this.hi) { this.nr[k].begin(); this.hi[k].begin(); this.lo[k].begin(); }
+    glances(this);
     for (const a of this.list) {
       if (!a.on) continue;
       const e = a.m.elements, d2 = (e[12] - cp.x) ** 2 + (e[13] - cp.y) ** 2 + (e[14] - cp.z) ** 2;
+      if (d2 < 900 && NEAR.length < 64) NEAR.push(a);
       if (d2 < HQ.near2) this.nr[a.kind].put(a.m, a, a.color, a.gait);
       else if (d2 < LOD_PERSON2) this.hi[a.kind].put(a.m, a, a.color, a.gait);
       else if (d2 < far2) this.lo[a.kind].put(a.m, a, a.color, a.gait);
@@ -2366,6 +2369,34 @@ export class Crowd {
     for (const k in this.hi) { this.nr[k].end(); this.hi[k].end(); this.lo[k].end(); for (const st of [this.nr, this.hi, this.lo]) st[k].im.visible = st[k].n > 0; }
   }
   show(v) { this.vis = v; for (const k in this.hi) { this.nr[k].im.visible = v; this.hi[k].im.visible = v; this.lo[k].im.visible = v; } }
+}
+// V24: Köpfe drehen sich zu Vorübergehenden (aus der Liste naher Figuren des letzten Bildes)
+const NEAR = [];
+function glances(C) {
+  const now = U.uTime.value;
+  if (NEAR.length > 1 && now - (C.gt || 0) > 0.2) {
+    C.gt = now;
+    for (let k = 0; k < 3; k++) {
+      const a = NEAR[Math.floor(Math.random() * NEAR.length)];
+      if (now - a.live[1] < 5 || Math.random() < 0.5) continue;
+      const e = a.m.elements, anyone = Math.random() < 0.3; let best = null, bd = 25;
+      for (const b of NEAR) {
+        if (b === a || (!anyone && b.gait[2] < 0.05)) continue;   // meist fällt auf, wer vorbeigeht, manchmal ein Nachbar
+        const f = b.m.elements, d = (f[12] - e[12]) ** 2 + (f[14] - e[14]) ** 2;
+        if (d > 0.5 && d < bd) { bd = d; best = b; }
+      }
+      if (best) turnHead(a, best.m.elements[12], best.m.elements[14]);
+    }
+  }
+  NEAR.length = 0;
+}
+// Kopf (und Blick) einer Figur für ein paar Sekunden zu einem Punkt drehen
+export function turnHead(a, x, z) {
+  if (!a.live) return;
+  const e = a.m.elements, yaw = Math.atan2(e[8], e[10]);
+  let d = Math.atan2(x - e[12], z - e[14]) - yaw; d = Math.atan2(Math.sin(d), Math.cos(d));
+  if (Math.abs(d) > 1.9) return;   // hinter sich schaut niemand
+  a.live[0] = Math.max(-1.05, Math.min(1.05, d)); a.live[1] = U.uTime.value; a.gv = (a.gv | 0) + 1;
 }
 export const LOD_PERSON2 = 45 * 45, LOD_CAR2 = 90 * 90;
 // Zwei Detailstufen hinter einer Schnittstelle: put() entscheidet nach Abstand
@@ -2382,9 +2413,9 @@ export function compactor(im) {
     put(m, k, c, gait) {
       const n = this.n++; im.setMatrixAt(n, m);
       if (DA) { const d = k.dmg; if (d || DA.getX(n) + DA.getY(n) + DA.getZ(n) > 0 || DA.getW(n) < 1) { DA.setXYZW(n, d ? d[0] : 0, d ? d[1] : 0, d ? d[2] : 0, d ? 1 - d[3] : 1); this.dDirty = true; } }
-      if (key[n] !== k || gv[n] !== (k.gv | 0)) { key[n] = k; gv[n] = k.gv | 0; im.setColorAt(n, _cc.setRGB(c[0], c[1], c[2])); const ga = im.geometry.attributes.aGait; if (ga && gait) ga.setXYZW(n, gait[0], gait[1], gait[2], gait[3] || 0); this.dirty = true; }
+      if (key[n] !== k || gv[n] !== (k.gv | 0)) { key[n] = k; gv[n] = k.gv | 0; im.setColorAt(n, _cc.setRGB(c[0], c[1], c[2])); const ga = im.geometry.attributes.aGait; if (ga && gait) ga.setXYZW(n, gait[0], gait[1], gait[2], gait[3] || 0); const la = im.geometry.attributes.aLive; if (la) { const l = k.live; if (l) la.setXYZW(n, l[0], l[1], l[2], l[3]); else la.setXYZW(n, 0, -9, 0, 1); } this.dirty = true; }
     },
-    end() { im.count = this.n; im.instanceMatrix.needsUpdate = true; if (this.dDirty && DA) { DA.needsUpdate = true; this.dDirty = false; } if (this.dirty && im.instanceColor) { im.instanceColor.needsUpdate = true; if (im.geometry.attributes.aGait) im.geometry.attributes.aGait.needsUpdate = true; this.dirty = false; } },
+    end() { im.count = this.n; im.instanceMatrix.needsUpdate = true; if (this.dDirty && DA) { DA.needsUpdate = true; this.dDirty = false; } if (this.dirty && im.instanceColor) { im.instanceColor.needsUpdate = true; if (im.geometry.attributes.aGait) im.geometry.attributes.aGait.needsUpdate = true; if (im.geometry.attributes.aLive) im.geometry.attributes.aLive.needsUpdate = true; this.dirty = false; } },
   };
 }
 export const _e = new T.Euler();
@@ -2549,7 +2580,8 @@ export function pedSocial(dt) {
       else if (i === spk) v = base + 0.9;
       else { const r = Math.random(); v = c.sit ? (r < 0.3 ? 11.4 : 7.2) : (r < 0.5 ? 1.6 : r < 0.65 ? 5.6 : r < 0.8 ? 15.5 : r < 0.88 ? 16.5 : 0.3); }
       if (pd.eat && !laugh) v = c.sit ? 19.4 : 17.4;
-      setAct(pd, v); });
+      setAct(pd, v);
+      const sp = c.m[spk].a; if (i !== spk && sp && pd.a.on && !laugh) { const f = sp.m.elements; turnHead(pd.a, f[12], f[14]); } });
     c.t = laugh ? 2.2 : 2.5 + Math.random() * 3;
   }
   // Begegnungen auf dem Gehweg: wer sich entgegenkommt, bleibt manchmal stehen

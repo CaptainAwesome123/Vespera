@@ -45,6 +45,7 @@ import { build } from './main.js';
 import { frame } from './performance.js';
 import { STREET } from './serpentine.js';
 import { props } from './props.js';
+import { PM } from './player-model.js';
 
 export async function start(data) {
   if (data && data.p) { player.p.set(...data.p); player.yaw = data.yaw; player.pitch = data.pitch; player.fly = data.fly; }
@@ -52,6 +53,8 @@ export async function start(data) {
   $('loading').textContent = 'Menschen der Stadt werden eingekleidet …';
   await Promise.race([loadPeople(), new Promise(r => setTimeout(r, 20000))]);
   if (!MHP.ready) MHP.late = true;
+  const lab = new URLSearchParams(location.search);
+  if (lab.get('lab')) { const { startLab } = await import('./lab.js'); startLab(lab); return; }
   build();
   setupProps().catch(e => console.warn('Requisiten:', e));
   $('enter').disabled = false;
@@ -59,7 +62,7 @@ export async function start(data) {
   requestAnimationFrame(t => { shared.last = t; frame(t); });
 }
 // Handgriff für Werkzeuge und Tests (Konsole: vespera.player.p, vespera.renderer.info, vespera.chunkStats ...)
-window.vespera = { renderer, scene, camera, player, shared, layers, chunkStats, assetStats, manifest, people: MHP, street: STREET, props };
+window.vespera = { renderer, scene, camera, player, shared, layers, chunkStats, assetStats, manifest, people: MHP, street: STREET, props, playerModel: PM };
 window.claude?.hot?.snapshot?.(() => ({ p: player.p.toArray(), yaw: player.yaw, pitch: player.pitch, fly: player.fly }));
 
 export const fontsReady = (document.fonts && document.fonts.load)
