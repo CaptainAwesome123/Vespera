@@ -5,7 +5,7 @@ import { lamps, trees, addGlow, NEON, addNeon, addSeg, shafts, spires, neons, se
 import { buildGroundMask, groundGrass, COAST, ISL, buildSidewalks, blocks, inRect, PLAZA, MEDIAN, BRIDGE_LOOPS } from './island.js';
 import { buildHouseDoors } from './building-forms.js';
 import { IB, FACTORY_LOOPS, FACTORY_IDLERS } from './shops.js';
-import { makeSignTex, FAN_TEX, lathe, placeFurn, FURN, crownFins, caps, domes, buildEntrances, DOORS, TERRACE, CLOCKS } from './entrances.js';
+import { makeSignTex, FAN_TEX, lathe, crownFins, caps, domes, buildEntrances, DOORS, TERRACE, CLOCKS } from './entrances.js';
 import { WATER_Y, setDance, placeCouple } from './dance.js';
 import { poolWaterMat, fountainJet } from './water.js';
 import { VILLA, deckY, TER, terrainHeight, ROAD_Z0, VIA, ROAD_W, terrainHeightRaw, terrainInfo, VALLEY_W, PORT_LOOPS, PORT_PEDS } from './harbour.js';
@@ -1305,10 +1305,15 @@ export function texSet(W, draw, strength = 2.2, S = 0) {
   if (!MOBILE) sharpen(g, N, 0.5);
   const hd = gh.getImageData(0, 0, N, N).data, nc = document.createElement('canvas'); nc.width = nc.height = N;
   const nctx = nc.getContext('2d'), out = nctx.createImageData(N, N), o = out.data;
-  const H = (x, y) => hd[(((y + N) % N) * N + ((x + N) % N)) * 4] / 255;
-  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
-    const dx = (H(x + 1, y) - H(x - 1, y)) * strength * S / 2, dy = (H(x, y + 1) - H(x, y - 1)) * strength * S / 2, l = Math.hypot(dx, dy, 1), i = (y * N + x) * 4;
-    o[i] = (-dx / l * 0.5 + 0.5) * 255; o[i + 1] = (dy / l * 0.5 + 0.5) * 255; o[i + 2] = (1 / l * 0.5 + 0.5) * 255; o[i + 3] = 255;
+  // Höhe als Zahl 0..1 einmal vorab, Nachbarn ohne Modulo je Pixel (gleiche Rechnung wie vorher, nur schneller)
+  const hf = new Float64Array(N * N); for (let j = 0; j < N * N; j++) hf[j] = hd[j * 4] / 255;
+  for (let y = 0; y < N; y++) {
+    const r0 = y * N, rm = ((y + N - 1) % N) * N, rp = ((y + 1) % N) * N;
+    for (let x = 0; x < N; x++) {
+      const xm = x === 0 ? N - 1 : x - 1, xp = x === N - 1 ? 0 : x + 1;
+      const dx = (hf[r0 + xp] - hf[r0 + xm]) * strength * S / 2, dy = (hf[rp + x] - hf[rm + x]) * strength * S / 2, l = Math.hypot(dx, dy, 1), i = (r0 + x) * 4;
+      o[i] = (-dx / l * 0.5 + 0.5) * 255; o[i + 1] = (dy / l * 0.5 + 0.5) * 255; o[i + 2] = (1 / l * 0.5 + 0.5) * 255; o[i + 3] = 255;
+    }
   }
   nctx.putImageData(out, 0, 0);
   const map = new T.CanvasTexture(c), rough = new T.CanvasTexture(r), normal = new T.CanvasTexture(nc);
@@ -1941,28 +1946,6 @@ export const BARK = texSet(256, (g, gr, gh, W) => {
   for (let k = 0; k < 40; k++) { g.fillStyle = `rgba(${150 + rr() * 60},${140 + rr() * 50},${110 + rr() * 40},0.25)`; g.beginPath(); g.ellipse(rr() * W, rr() * W, 6 + rr() * 16, 10 + rr() * 22, 0, 0, 7); g.fill(); }
 }, 3.0);
 BARK.map.repeat.set(2, 3); BARK.normal.repeat.set(2, 3); BARK.rough.repeat.set(2, 3);
-// Wind: Stamm steht, Krone schwingt mit der Höhe, Blattkarten flattern; jede Pflanze mit eigener Phase
-export function windPatchV15(mat, strength = 1, flutter = 0) {
-  mat.onBeforeCompile = sh => {
-    sh.uniforms.uTime = U.uTime;
-    sh.vertexShader = 'uniform float uTime;\n' + sh.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
-      {
-        #ifdef USE_INSTANCING
-          vec2 ip = instanceMatrix[3].xz;
-        #else
-          vec2 ip = vec2(0.0);
-        #endif
-        float ph = dot(ip, vec2(0.13, 0.071));
-        float gust = 0.6 + 0.4 * sin(uTime * 0.23 + ip.x * 0.004);
-        float h = max(position.y - 1.5, 0.0);
-        float bend = pow(h / 6.0, 1.6) * ${strength.toFixed(2)} * gust;
-        float sw = sin(uTime * 0.9 + ph) * 0.6 + sin(uTime * 1.73 + ph * 1.3) * 0.3 + sin(uTime * 3.1 + ph * 2.1) * 0.1;
-        transformed.x += sw * 0.09 * bend; transformed.z += sw * 0.04 * bend + 0.03 * bend;
-        ${flutter ? `transformed += normal * sin(uTime * 7.0 + dot(position, vec3(3.1, 2.3, 1.7)) + ph) * ${flutter.toFixed(3)} * gust * step(1.0, position.y);` : ''}
-      }`);
-  };
-  return mat;
-}
 export function treeGeos(sp) {
   const rr = mulberry32(sp === 'plane' ? 11 : sp === 'linden' ? 22 : 33);
   const bark = [], blobs = [], cards = [];
@@ -2309,9 +2292,25 @@ export class Crowd {
       }
     }
   }
+  // V29: Matrix direkt aus Gierwinkel und Neigung (statt Euler -> Quaternion -> Matrix); wer still steht oder sitzt,
+  // bekommt dieselben Werte wie im letzten Bild, dann bleibt die Matrix einfach stehen
   set(a, x, y, z, yaw, sc = 1, tilt = 0) {
-    _q.setFromEuler(_e.set(tilt, yaw, 0, 'YXZ')); _s.set(sc * a.bw, sc, sc * (0.55 + 0.45 * a.bw)); _p.set(x, y, z);
-    a.m.compose(_p, _q, _s); a.on = true;
+    a.on = true;
+    const k = a.k6 || (a.k6 = [NaN, 0, 0, 0, 0, 0]);
+    if (k[0] === x && k[1] === y && k[2] === z && k[3] === yaw && k[4] === sc && k[5] === tilt) return;
+    k[0] = x; k[1] = y; k[2] = z; k[3] = yaw; k[4] = sc; k[5] = tilt;
+    const c = Math.cos(yaw), s = Math.sin(yaw), sx = sc * a.bw, sy = sc, sz = sc * (0.55 + 0.45 * a.bw), te = a.m.elements;
+    if (tilt) {
+      const ct = Math.cos(tilt), st = Math.sin(tilt);
+      te[0] = c * sx; te[1] = 0; te[2] = -s * sx;
+      te[4] = s * st * sy; te[5] = ct * sy; te[6] = c * st * sy;
+      te[8] = s * ct * sz; te[9] = -st * sz; te[10] = c * ct * sz;
+    } else {
+      te[0] = c * sx; te[1] = 0; te[2] = -s * sx;
+      te[4] = 0; te[5] = sy; te[6] = 0;
+      te[8] = s * sz; te[9] = 0; te[10] = c * sz;
+    }
+    te[3] = 0; te[7] = 0; te[11] = 0; te[12] = x; te[13] = y; te[14] = z; te[15] = 1;
   }
   // Nahe Figuren als feines Modell, entfernte als einfaches, ganz ferne gar nicht
   flag() {

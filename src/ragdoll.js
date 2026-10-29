@@ -1,4 +1,4 @@
-import { shared, MOBILE, T, scene, mulberry32, $, U } from './core.js';
+import { shared, MOBILE, T, scene, camera, mulberry32, $, U } from './core.js';
 import { personShare } from './people-model.js';
 import { MAT, HRIG } from './people-skeleton.js';
 import { FACTORIES, FACTORY_NAMES, FACTORY_LOOPS } from './shops.js';
@@ -62,7 +62,7 @@ export function ragSlot() {
   }
   return s;
 }
-export const _gq = new T.Quaternion(), _gq2 = new T.Quaternion(), _gm = new T.Matrix4(), _gv = new T.Vector3(), _gv2 = new T.Vector3(), _gS = new T.Vector3(), _gP = new T.Vector3(), _gQ = new T.Quaternion();
+export const _gv = new T.Vector3(), _gS = new T.Vector3(), _gP = new T.Vector3(), _gQ = new T.Quaternion();
 // Anfahren: Figur wird zur Puppe; Wagengeschwindigkeit geht vor allem in die Beine
 export function ragStart(pd, B) {
   const s = ragSlot(); if (!s) return false;
@@ -137,7 +137,6 @@ export function ragStep(s, dt) {
   }
 }
 // Körperteile an ihre Punkte hängen: Rumpf zuerst, dann Glied für Glied am Gelenk des Elternteils
-export const _gM = [], _gQs = [];
 export function ragPose(s) {
   const p = s.p, R = s.rest, S = s.S;
   const up = new T.Vector3(p[1][0] - p[0][0], p[1][1] - p[0][1], p[1][2] - p[0][2]).normalize();
@@ -234,11 +233,33 @@ export function updateRagdolls(dt) {
   }
 }
 
+// erste Tür (in der Reihenfolge von lp.doors), für die |t - t0| < w und |t - t1| < w gilt
+export function doorNear(lp, t0, t1, w) {
+  let D = lp.doorT;
+  if (!D) { D = lp.doorT = lp.doors.map((g, i) => ({ t: g.t, i, g })).sort((a, b) => a.t - b.t); }
+  const lo = Math.max(t0, t1) - w - 1e-9, hi = Math.min(t0, t1) + w + 1e-9;   // etwas weiter suchen, entschieden wird exakt wie vorher
+  if (!(lo < hi)) return null;
+  let a = 0, b = D.length;
+  while (a < b) { const m = (a + b) >> 1; if (D[m].t <= lo) a = m + 1; else b = m; }
+  let best = null;
+  for (let k = a; k < D.length && D[k].t < hi; k++) { const d = D[k]; if (Math.abs(d.t - t0) < w && Math.abs(d.t - t1) < w && (!best || d.i < best.i)) best = d; }
+  return best && best.g;
+}
+// kleinster waagrechter Abstand (zum Quadrat) von der Kamera zum Rechteck um einen Rundweg
+export function loopDist2(lp, cp) {
+  let b = lp.bb;
+  if (!b) { b = lp.bb = [1e9, 1e9, -1e9, -1e9]; for (const sg of lp.segs) for (const q of [sg.a, sg.b]) { b[0] = Math.min(b[0], q[0]); b[1] = Math.min(b[1], q[1]); b[2] = Math.max(b[2], q[0]); b[3] = Math.max(b[3], q[1]); } }
+  const dx = Math.max(b[0] - cp.x, 0, cp.x - b[2]), dz = Math.max(b[1] - cp.z, 0, cp.z - b[3]);
+  return dx * dx + dz * dz;
+}
 export function updatePedestrians(dt, t) {
   if (!pedCrowd) return;
   updateCitizens(dt);
   pedSocial(dt);
   updateRagdolls(dt);
+  // V29: Rundwege, die ganz außerhalb der Sichtweite der Passanten liegen (pedCrowd.far, Nebel nicht mitgerechnet), brauchen
+  // keine neue Lage: die Leute laufen weiter (t), aber Ort und Matrix werden erst gerechnet, wenn der Weg wieder in Reichweite ist
+  const cp = camera.position, farR = pedCrowd.far + Math.max(0, cp.y) + 40, far2 = farR * farR;
   for (const pd of peds) {
     const lp = pd.lp;
     if (pd.st === 5 || pd.st === 6 || pd.rag || pd.back) continue;
@@ -280,12 +301,13 @@ export function updatePedestrians(dt, t) {
     pd.t = (pd.t + pd.v * dt + lp.total) % lp.total;
     pd.cool -= dt;
     if (lp.doors && pd.cool <= 0) {
-      for (const g of lp.doors) if (Math.abs(g.t - t0) < Math.abs(pd.v * dt) + 0.02 && Math.abs(g.t - pd.t) < Math.abs(pd.v * dt) + 0.02) {
-        if (Math.random() < 0.4) { pd.st = 1; pd.k = 0; pd.go = g; pd.t = g.t; } else pd.cool = 4;
-        break;
-      }
+      // V29: nur die Türen im schmalen Fenster um den Schritt prüfen (Türen nach t sortiert, Suche halbiert); gewählt wird wie
+      // vorher die erste passende in der Reihenfolge von lp.doors
+      const w = Math.abs(pd.v * dt) + 0.02, g = doorNear(lp, t0, pd.t, w);
+      if (g) { if (Math.random() < 0.4) { pd.st = 1; pd.k = 0; pd.go = g; pd.t = g.t; } else pd.cool = 4; }
       if (pd.st) continue;
     }
+    if (pd.a.k6 && loopDist2(lp, cp) > far2) { pd.a.on = true; continue; }   // einmal gesetzt sein muss die Matrix (sonst stünde die Figur bei 0,0,0)
     const [x, z, dirx, dirz] = loopRound(lp, pd.t, Math.sign(pd.v)), lat = pd.lat || 0;
     pedCrowd.set(pd.a, x + dirz * lat, lp.y, z - dirx * lat, Math.atan2(dirx, dirz), pd.sc);
   }

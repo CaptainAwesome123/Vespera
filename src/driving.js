@@ -374,7 +374,6 @@ export function collidePair(A, O) {
 }
 
 /* ---------- Welt: alle beweglichen Wagen, Federung, Wasser, Darstellung ---------- */
-export let vehTimer = 0;
 export function updateVehicles(dt) {
   OBSTACLES.length = 0;
   const cp = camera.position;

@@ -9,6 +9,22 @@ import * as THREE from 'three';
    ===================================================================== */
 
 export const T = THREE;
+
+/* ---------- V29: Matrizen nur neu rechnen, wenn sich etwas bewegt hat ----------
+   three.js setzt jede Matrix in jedem Bild neu zusammen (rund 3000 Objekte) und multipliziert sie mit der Matrix der
+   Eltern, auch wenn sich nichts bewegt. Hier merkt sich jedes Objekt Lage, Drehung und Größe der letzten Rechnung;
+   sind sie gleich, bleibt die Matrix stehen und die Kinder müssen nicht nachgezogen werden. Neu eingehängte Objekte
+   rechnen einmal neu (die Eltern könnten andere sein). Das Ergebnis ist bitgleich, nur die Arbeit fällt weg. */
+{
+  const P = THREE.Object3D.prototype, upd = P.updateMatrix, add = P.add;
+  P.updateMatrix = function () {
+    const p = this.position, q = this.quaternion, s = this.scale, c = this._mc || (this._mc = new Float64Array(10).fill(NaN));
+    if (c[0] === p.x && c[1] === p.y && c[2] === p.z && c[3] === q._x && c[4] === q._y && c[5] === q._z && c[6] === q._w && c[7] === s.x && c[8] === s.y && c[9] === s.z) return;
+    c[0] = p.x; c[1] = p.y; c[2] = p.z; c[3] = q._x; c[4] = q._y; c[5] = q._z; c[6] = q._w; c[7] = s.x; c[8] = s.y; c[9] = s.z;
+    upd.call(this);
+  };
+  P.add = function (...objs) { for (const o of objs) if (o && o._mc) o._mc[0] = NaN; return add.apply(this, objs); };
+}
 // Zustand, den mehrere Dateien schreiben (frühere gemeinsame Variablen der einen großen Datei)
 export const shared = { SINK: undefined, carBodyGeo: undefined, carMesh: undefined, carMeshHi: undefined, carCmp: undefined, carLights: undefined, parkedTimer: undefined, bloomOn: undefined, lastDistrict: undefined, districtTimer: undefined, toastTimer: undefined, sayTimer: undefined, last: undefined };
 export const $ = id => document.getElementById(id);
@@ -23,7 +39,9 @@ export const pick = arr => arr[Math.floor(R() * arr.length)];
 export const canvas = $('c');
 // Handys und Tablets (vor allem iPhone/iPad) haben wenig Grafikspeicher: dort kleinere Texturen, weniger Figuren, niedrigere Auflösung
 export const MOBILE = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent));
-export const renderer = new T.WebGLRenderer({ canvas, antialias: !MOBILE, powerPreference: 'high-performance' });
+// V29: Kantenglättung macht der Composer in seinem eigenen Ziel (4x MSAA). Auf der Leinwand landet nur noch ein bildfüllendes
+// Rechteck, dort wäre Antialiasing ein zweiter, unsichtbarer Mehrfach-Puffer in voller Größe. Nur die Testbühne (?lab) zeichnet direkt.
+export const renderer = new T.WebGLRenderer({ canvas, antialias: !MOBILE && /[?&]lab=/.test(location.search), powerPreference: 'high-performance' });
 export const ANISO = Math.min(16, renderer.capabilities.getMaxAnisotropy());
 renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, MOBILE ? 1 : 1.5));
 renderer.setSize(window.innerWidth, window.innerHeight);
@@ -126,22 +144,46 @@ moonLight.position.copy(MOON_DIR).multiplyScalar(1000);
 scene.add(moonLight);
 
 /* ---------- Kleine Helfer ---------- */
+// Hülle um dieselben Puffer: Attribute ergänzen, ohne das (vielleicht mehrfach benutzte) Original zu verändern
+export function geoView(g) { const h = new T.BufferGeometry(); for (const k in g.attributes) h.setAttribute(k, g.attributes[k]); h.setIndex(g.index); h.userData = g.userData; return h; }
+// V29: Teile behalten ihren Index (vorher wurde jedes Teil erst in lose Dreiecke zerlegt). Gleiche Dreiecke in
+// gleicher Reihenfolge, aber jede Ecke nur einmal gespeichert. Teile ohne Index bekommen einen fortlaufenden.
+// Wer nach dem Zusammenfügen Werte je Teil setzt, zählt mit g.attributes.position.count des Teils (wie bisher).
 export function mergeGeos(geos) {
-  const parts = geos.map(g => g.index ? g.toNonIndexed() : g);
-  let n = 0; parts.forEach(g => n += g.attributes.position.count);
-  const pos = new Float32Array(n * 3), nor = new Float32Array(n * 3), uv = new Float32Array(n * 2);
-  let o = 0;
-  for (const g of parts) {
+  let n = 0, ni = 0;
+  for (const g of geos) { const c = g.attributes.position.count; n += c; ni += g.index ? g.index.count : c; }
+  const pos = new Float32Array(n * 3), nor = new Float32Array(n * 3), uv = new Float32Array(n * 2), idx = n > 65535 ? new Uint32Array(ni) : new Uint16Array(ni);
+  let o = 0, oi = 0;
+  for (const g of geos) {
+    const c = g.attributes.position.count;
     pos.set(g.attributes.position.array, o * 3);
     nor.set(g.attributes.normal.array, o * 3);
     if (g.attributes.uv) uv.set(g.attributes.uv.array, o * 2);
-    o += g.attributes.position.count;
+    if (g.index) { const I = g.index.array; for (let k = 0; k < I.length; k++) idx[oi + k] = I[k] + o; oi += I.length; }
+    else { for (let k = 0; k < c; k++) idx[oi + k] = o + k; oi += c; }
+    o += c;
   }
   const m = new T.BufferGeometry();
   m.setAttribute('position', new T.BufferAttribute(pos, 3));
   m.setAttribute('normal', new T.BufferAttribute(nor, 3));
   m.setAttribute('uv', new T.BufferAttribute(uv, 2));
+  m.setIndex(new T.BufferAttribute(idx, 1));
   return m;
+}
+// V29: feste Einzelteile einer Gruppe je Material zu einem Netz verschmelzen (ein Draw Call statt Dutzender).
+// Nur undurchsichtige Teile ohne eigene Bewegung; die Lage jedes Teils relativ zur Gruppe wird in die Geometrie gerechnet.
+export function bakeGroup(grp) {
+  grp.updateMatrixWorld(true);
+  const inv = new T.Matrix4().copy(grp.matrixWorld).invert(), by = new Map(), rm = [];
+  grp.traverse(o => {
+    if (!o.isMesh || o.isInstancedMesh || o.material.transparent || Array.isArray(o.material) || !o.geometry.attributes.normal) return;
+    const g = o.geometry.clone().applyMatrix4(new T.Matrix4().multiplyMatrices(inv, o.matrixWorld));
+    (by.get(o.material) || by.set(o.material, []).get(o.material)).push(g); rm.push(o);
+  });
+  for (const o of rm) o.parent.remove(o);
+  grp.traverse(o => { if (o.isGroup && o !== grp && !o.children.length) rm.push(o); });
+  for (const o of rm) if (o.parent) o.parent.remove(o);
+  for (const [mat, list] of by) grp.add(new T.Mesh(mergeGeos(list), mat));
 }
 // Texturen werden mit doppelter Auflösung gezeichnet, solange sie nicht zu groß werden (scharfe Schrift und Böden)
 export function canvasTex(w, h, draw) {

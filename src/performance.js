@@ -36,11 +36,21 @@ export function buildLightPool() {
   for (let k = 0; k < 4; k++) { const l = new T.PointLight(0xffc27a, 0, 50, 1.6); l.userData = { a: null, w: 0 }; scene.add(l); lightPool.push(l); }
 }
 export let lightTimer = 0;
+const _ranked = [], _rankK = [];
 export function updateLights(dt) {
   if ((lightTimer -= dt) <= 0) {
     lightTimer = 0.2;
     const cp = camera.position, ins = playing && inBelmont(player.p.x, player.p.z, player.p.y);
-    const ranked = LIGHTS.filter(a => a.inside === ins).map(a => [a, cp.distanceTo(a.p) / a.d]).filter(x => x[1] < 1.5).sort((x, y) => x[1] - y[1]).slice(0, lightPool.length).map(x => x[0]);
+    // die nächsten (Abstand im Verhältnis zur Reichweite) ohne Zwischenlisten: Einfügen in eine kurze sortierte Liste
+    const ranked = _ranked, rk = _rankK, N = lightPool.length; ranked.length = 0;
+    for (const a of LIGHTS) {
+      if (a.inside !== ins) continue;
+      const k = cp.distanceTo(a.p) / a.d; if (k >= 1.5) continue;
+      let i = ranked.length; if (i === N && k >= rk[N - 1]) continue;
+      if (i === N) i--;
+      while (i > 0 && rk[i - 1] > k) { ranked[i] = ranked[i - 1]; rk[i] = rk[i - 1]; i--; }
+      ranked[i] = a; rk[i] = k;
+    }
     for (const l of lightPool) if (l.userData.a && !ranked.includes(l.userData.a)) l.userData.a = null;
     for (const a of ranked) if (!lightPool.some(l => l.userData.a === a)) {
       const l = lightPool.find(l => !l.userData.a); if (!l) break;

@@ -1,6 +1,6 @@
-import { T, MOBILE, R, pick, rand, scene, mergeGeos, canvasTex } from './core.js';
+import { T, MOBILE, R, pick, rand, scene, mergeGeos, geoView, canvasTex } from './core.js';
 import { stdMat, MAT } from './people-skeleton.js';
-import { addGlow, NEON } from './facade-shader.js';
+import { NEON } from './facade-shader.js';
 import { VILLA } from './harbour.js';
 import { FURN, placeFurn, lathe, FAN_TEX } from './entrances.js';
 import { worldUV, wallpaperTex, GOWNS } from './serpentine.js';
@@ -789,7 +789,7 @@ export function buildVillaRooms(ctx) {
   const cs = VR.cs, sn = VR.sn;
   for (const key in B) {
     const [zone, mk] = key.split('|');
-    const list = B[key].map(g => { if (g.index) g = g.toNonIndexed(); if (!g.attributes.uv) g.setAttribute('uv', new T.BufferAttribute(new Float32Array(g.attributes.position.count * 2), 2)); if (!g.attributes.normal) g.computeVertexNormals(); return g; });
+    const list = B[key].map(g => { g = !g.attributes.normal && g.index ? g.toNonIndexed() : geoView(g); if (!g.attributes.uv) g.setAttribute('uv', new T.BufferAttribute(new Float32Array(g.attributes.position.count * 2), 2)); if (!g.attributes.normal) g.computeVertexNormals(); return g; });
     const g = mergeGeos(list); g.rotateY(ry); g.translate(VILLA.x, by, VILLA.z);
     if (WUV[mk]) worldUV(g, WUV[mk]);
     const mat = mats[mk]; if (!mat) { console.warn('Villa: Material fehlt', mk); continue; }

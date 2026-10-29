@@ -106,8 +106,8 @@ export function bakeModel(name, opts = {}) {
   if (opts.node) { let best = null, bd = 1e9; root.traverse(o => { if (o.name !== opts.node) return; let d = 0; for (let q = o; q.parent; q = q.parent) d++; if (d < bd) { bd = d; best = o; } }); if (!best) return null; src = best; }
   src.traverse(o => {
     if (!o.isMesh) return;
-    const g = (o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone()).applyMatrix4(o.matrixWorld);
-    if (!g.attributes.normal) g.computeVertexNormals();
+    let g = o.geometry.clone().applyMatrix4(o.matrixWorld);
+    if (!g.attributes.normal) { if (g.index) g = g.toNonIndexed(); g.computeVertexNormals(); }
     const m = Array.isArray(o.material) ? o.material[0] : o.material;
     const c = (opts.colors && opts.colors[m.name]) || (m.color ? m.color.toArray() : [1, 1, 1]);
     if (m.map && !texMat) texMat = m;
