@@ -363,6 +363,9 @@ void main(){
   float cornice = step(9.0, mod(cell.y, 10.0)) * step(0.82, f.y) * (1.0 - brick) * step(3.0, topDist);
   wall = mix(wall, stone*1.6, cornice);
   wall = mix(wall, stone*0.5, step(9.0, mod(cell.y, 10.0)) * step(0.76, f.y) * step(f.y, 0.82) * (1.0 - brick) * step(3.0, topDist));
+  // V30: Schnee auf Fensterbänken und auf der Oberkante der Gesimse (dauernde leichte Decke am Nordpol)
+  float snL = clamp(0.3 + 0.75*uSnowCover, 0.0, 1.0) * (sill * step(0.5 - wy*0.5 - 0.055, f.y) * step(0.0, ux) * step(ux, ncell) + cornice * step(0.95, f.y)) * (1.0 - ground);
+  wall = mix(wall, vec3(0.06, 0.07, 0.09) + vec3(0.2, 0.23, 0.3) * moon + uTeal * 0.04, snL * 0.85);
   // Feuerleitern an Backsteinhäusern
   float escCol = step(abs(cell.x - floor(ncell*0.5)), 0.5) * brick * step(1.0, cell.y) * (1.0 - ground);
   float esc = escCol * clamp(step(f.y, 0.07) + step(abs(f.y - f.x), 0.05) + step(abs(f.x - 0.06), 0.02) + step(abs(f.x - 0.94), 0.02), 0.0, 1.0);

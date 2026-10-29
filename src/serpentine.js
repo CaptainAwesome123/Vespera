@@ -1,4 +1,4 @@
-import { shared, canvasTex, mulberry32, T, mergeGeos, scene, MOBILE, U, pick, R, rand, camera, ANISO, FOG_GLSL, FOGVIS } from './core.js';
+import { shared, canvasTex, mulberry32, T, mergeGeos, scene, MOBILE, U, pick, R, rand, camera, ANISO, FOG_GLSL, FOGVIS, snowy } from './core.js';
 import { personGeoHi, personShare, HQ } from './people-model.js';
 import { stdMat, MAT, addCollider, glowTex, paintMat, mergeColored, PAINT, personLook } from './people-skeleton.js';
 import { lamps, trees, addGlow, NEON, addNeon, addSeg, shafts, spires, neons, segs, dedupeSegs, facadeMat, glowPts, roofs, curbs } from './facade-shader.js';
@@ -1137,7 +1137,13 @@ export function buildMountains() {
         float meadow = smoothstep(0.45, 0.2, steep) * (1.0 - smoothstep(320.0, 520.0, vW.y)) * smoothstep(-170.0, -120.0, vW.y + 40.0*vnoise(vW.xz*0.01));
         rock = mix(rock, (vec3(0.012, 0.03, 0.026) + vec3(0.04, 0.07, 0.07)*moon) * (0.8 + 0.4*vnoise(vW.xz*0.08)), meadow*0.8);
         float snowLine = 640.0 + 160.0*fbm(vW.xz*0.003) - 60.0*n0.y - uSnowCover * 520.0;
-        float snow = smoothstep(snowLine - 50.0, snowLine + 30.0, vW.y + 40.0*(vnoise(vW.xz*0.05) - 0.5)) * smoothstep(0.78, 0.38, steep + 0.15*(vnoise(vW.xz*0.2) - 0.5));
+        float snow = smoothstep(snowLine - 50.0, snowLine + 30.0, vW.y + 40.0*(vnoise(vW.xz*0.05) - 0.5)) * smoothstep(0.86, 0.42, steep + 0.15*(vnoise(vW.xz*0.2) - 0.5));
+        // V30: Schnee auch an den Klippen: liegt auf Bändern und Simsen der Felsschichten, in Rinnen und auf flacheren Stufen; nur die
+        // senkrechten Wände bleiben dunkel. Unten im Tal eine dünne, fleckige Decke über Wiese und Hängen.
+        float ledge = smoothstep(0.55, 0.85, n.y) * smoothstep(0.45, 0.62, vnoise(vec2(vW.y*0.09, (vW.x + vW.z)*0.01)) + 0.25*fbm(vW.xz*0.04));
+        float crev = smoothstep(0.6, 0.8, fbm(vW.xz*0.02 + vW.y*0.004)) * smoothstep(0.98, 0.55, steep);
+        snow = max(snow, (max(ledge, crev) * 0.85) * smoothstep(-160.0, -60.0, vW.y) * clamp(0.6 + uSnowCover, 0.0, 1.0));
+        snow = max(snow, smoothstep(0.42, 0.18, steep) * smoothstep(0.35, 0.65, fbm(vW.xz*0.03) + uSnowCover * 0.5) * 0.75);
         vec3 snowCol = vec3(0.16, 0.2, 0.27) + vec3(0.55, 0.62, 0.78)*pow(moon, 1.4) + uTeal*0.06;
         vec3 col = mix(rock, snowCol, snow);
         // Stadtschein auf den Hängen, die zur Stadt zeigen
@@ -1155,7 +1161,7 @@ export function buildMountains() {
   buildSerpTerrain(mat);
   // Tannenwald im Tal und an den unteren Hängen
   const pine = mergeGeos([new T.ConeGeometry(2.6, 7, 6).translate(0, 5.5, 0), new T.ConeGeometry(1.9, 6, 6).translate(0, 9.5, 0), new T.CylinderGeometry(0.3, 0.4, 2.2, 5).translate(0, 1.1, 0)]);
-  const pm = new T.InstancedMesh(pine, new T.MeshStandardMaterial({ color: 0x0f2a28, roughness: 0.95 }), 2600);
+  const pm = new T.InstancedMesh(pine, snowy(new T.MeshStandardMaterial({ color: 0x0f2a28, roughness: 0.95 }), 0.9), 2600);
   const mm = new T.Matrix4(); let np = 0;
   for (let tries = 0; tries < 9000 && np < 2600; tries++) {
     const ang = rnd() * Math.PI * 2, rr = 1130 + rnd() * 1100;
@@ -1394,7 +1400,8 @@ export function cobbleTextures() {
     for (let y = -ch; y < W + ch; y += ch) for (let x = ((y / ch + 2) % 2) * cw / 2 - cw; x < W + cw; x += cw) {
       const v = 0.72 + rr() * 0.55, wet = rr(), tint = rr();
       const px = x + rr() * 2 - 1, py = y + rr() * 2 - 1, w0 = cw - 2.6 - rr() * 1.2, h0 = ch - 2.6 - rr() * 1.2;
-      const base = [58 + 8 * tint, 68, 74 - 6 * tint].map(q => Math.round(q * v));
+      // V30: hellere Steine mit mehr Farbchargen (bläulicher und warmer Granit), damit das Pflaster im Nachtlicht lesbar bleibt
+      const base = [74 + 22 * tint, 80 + 4 * tint, 88 - 14 * tint].map(q => Math.round(q * v));
       const gg = g.createLinearGradient(0, py, 0, py + h0);
       gg.addColorStop(0, `rgb(${base.map(q => Math.min(255, q + 14)).join(',')})`); gg.addColorStop(1, `rgb(${base.map(q => Math.round(q * 0.78)).join(',')})`);
       g.fillStyle = gg; g.beginPath(); g.roundRect(px + 1.3, py + 1.3, w0, h0, 5); g.fill();
@@ -1420,10 +1427,12 @@ export function streetDetail(mat, walk) {
     if (prev) prev(sh);
     // V25: Nässe, Schneedecke, Regenringe und die echte Spiegelung der Straße (water.js rendert sie bei Nässe in Bodenhöhe)
     sh.uniforms.uTimeSd = U.uTime;
-    for (const k of ['uWet', 'uSnowCover', 'uRain', 'uRefl', 'uReflMat', 'uStreetRefl', 'uFogColor', 'uMoonDir', 'uMoonLit']) sh.uniforms[k] = U[k];
+    for (const k of ['uWet', 'uSnowCover', 'uRain', 'uRefl', 'uReflMat', 'uStreetRefl', 'uFogColor', 'uMoonDir', 'uMoonLit', 'uLamps']) sh.uniforms[k] = U[k];
     sh.vertexShader = 'varying vec3 vSdW;\n' + sh.vertexShader.replace('#include <worldpos_vertex>', `#include <worldpos_vertex>
       vSdW = (modelMatrix * ${walk === true ? 'instanceMatrix * ' : ''}vec4(transformed, 1.0)).xyz;`);
-    sh.fragmentShader = `varying vec3 vSdW; uniform float uWet, uSnowCover, uRain, uTimeSd, uStreetRefl, uMoonLit; uniform sampler2D uRefl; uniform mat4 uReflMat; uniform vec3 uFogColor, uMoonDir;
+    sh.fragmentShader = `#define SD_NL ${LAMP_N}
+      uniform vec4 uLamps[16];
+      varying vec3 vSdW; uniform float uWet, uSnowCover, uRain, uTimeSd, uStreetRefl, uMoonLit; uniform sampler2D uRefl; uniform mat4 uReflMat; uniform vec3 uFogColor, uMoonDir;
       float sdH(vec2 p){ p = fract(p*vec2(123.34, 456.21)); p += dot(p, p+45.32); return fract(p.x*p.y); }
       float sdN(vec2 p){ vec2 i = floor(p), f = fract(p); f = f*f*(3.0 - 2.0*f); return mix(mix(sdH(i), sdH(i + vec2(1.0, 0.0)), f.x), mix(sdH(i + vec2(0.0, 1.0)), sdH(i + vec2(1.0, 1.0)), f.x), f.y); }
       ` + sh.fragmentShader
@@ -1440,7 +1449,11 @@ export function streetDetail(mat, walk) {
         float pud = smoothstep(0.71 - 0.13 * uWet, 0.75 - 0.13 * uWet, pudN) * sdTop;
         diffuseColor.rgb *= (1.0 - 0.45 * pud) * (1.0 - 0.22 * uWet);
         // Schneedecke: zuerst in Fugen und Rinnen, dann geschlossen; Fahrspuren bleiben dunkler
-        float sdSnow = uSnowCover * sdTop * smoothstep(0.2, 0.55, uSnowCover * 0.9 + sdN(sw * 0.35 + 3.0) * 0.45 - ${walk ? '0.15' : '0.3 * smoothstep(3.0, 0.0, abs(abs(fract(sw.x / 110.0 + 0.5) * 110.0 - 55.0) - 4.0))'});
+        // V30: die dauernde leichte Decke (uSnowCover ab 0,4) liegt in Flecken und in den Fugen, Fahrspuren und Laufwege bleiben frei
+        float sdSnow = min(uSnowCover * 1.25, 1.0) * sdTop * smoothstep(0.2, 0.55, uSnowCover * 0.9 + sdN(sw * 0.35 + 3.0) * 0.45 + sdN(sw * 1.7 + 8.0) * 0.12 - ${walk ? '0.2' : '0.42 * smoothstep(3.0, 0.0, abs(abs(fract(sw.x / 110.0 + 0.5) * 110.0 - 55.0) - 4.0)) - 0.12'});
+        #ifdef USE_MAP
+          sdSnow = max(sdSnow, (1.0 - smoothstep(0.1, 0.17, sampledDiffuseColor.g)) * smoothstep(0.25, 0.6, uSnowCover) * 0.8 * sdTop * sdFine${plaza ? ' * 0.0' : ''});
+        #endif
         // Regenringe in den Pfützen
         vec2 sdRip = vec2(0.0);
         if (uRain > 0.01) for (int k = 0; k < 2; k++) {
@@ -1481,15 +1494,24 @@ export function streetDetail(mat, walk) {
         float hwA = 11.0, axd = abs(mod(sw.x + 990.0 + 55.0, 110.0) - 55.0); if (abs(sw.x) < 55.0) { axd = abs(sw.x); hwA = 22.0; }
         float hwS = 7.0, azd = abs(mod(sw.y + 980.0 + 35.0, 70.0) - 35.0); if (abs(sw.y - 490.0) < 35.0) { azd = abs(sw.y - 490.0); hwS = 15.0; }
         float bxg = axd - hwA, bzg = azd - hwS;
-        float dCurb = bxg > 0.0 ? -bzg : (bzg > 0.0 ? -bxg : length(vec2(bxg, bzg)));
+        // V30: Abstand zur Bordkante mit den gerundeten Blockecken (Radius 5 m wie in island.js), vorher lief die Rinne an den Ecken spitz
+        vec2 cq = -vec2(bxg, bzg) + 5.0; float dCurb = length(max(cq, 0.0)) + min(max(cq.x, cq.y), 0.0) - 5.0;
         float gutter = (1.0 - smoothstep(0.15, 0.7, dCurb)) * inGrid * step(0.0, dCurb);
         diffuseColor.rgb *= 1.0 - 0.28 * gutter;
+        // Rinnstein: drei Reihen längs gelegter Granitsteine (45 cm), heller als das Pflaster, Fugen quer, in der Mitte ein nasser Wasserfilm
+        float gStrip = (1.0 - step(0.45, dCurb)) * step(0.0, dCurb) * inGrid;
+        float gAlong = abs(bxg) < abs(bzg) ? sw.y : sw.x;
+        float gRow = floor(dCurb / 0.15), gJ = step(0.46, abs(fract(gAlong / 0.42 + sdH(vec2(gRow, 3.0))) - 0.5)) + step(0.45, abs(fract(dCurb / 0.15) - 0.5));
+        vec3 gStone = vec3(0.3, 0.31, 0.32) * (0.8 + 0.35 * sdH(vec2(floor(gAlong / 0.42 + sdH(vec2(gRow, 3.0))), gRow)));
+        diffuseColor.rgb = mix(diffuseColor.rgb, gStone * (1.0 - 0.65 * min(gJ, 1.0)), gStrip * 0.9);
+        float gFilm = gStrip * smoothstep(0.08, 0.0, abs(dCurb - 0.2)) * (0.4 + 0.6 * uWet);
         float studA = step(abs(azd - (hwS + 1.4)), 0.9) * step(axd, hwA - 0.3) * step(bzg, 2.4);
         float studS = step(abs(axd - (hwA + 1.4)), 0.9) * step(azd, hwS - 0.3) * step(bxg, 2.4);
         vec2 sq = fract(sw * 2.0) - 0.5; float stud = step(length(sq), 0.14) * inGrid * sdFine;
         float studRow = step(abs(fract((bzg > 0.0 ? azd - hwS : axd - hwA) * 2.0 / 1.0) - 0.5), 0.15);
         diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.55, 0.45, 0.28) * (0.8 + 0.4 * sdH(floor(sw * 2.0))), stud * clamp(studA + studS, 0.0, 1.0) * studRow);
-        sdPud *= 1.0 - gutter * 0.5;`}
+        sdPud = max(sdPud * (1.0 - gutter * 0.5), gFilm);
+        sdSnow = max(sdSnow * (1.0 - gStrip * 0.5), gStrip * (1.0 - step(0.15, dCurb)) * smoothstep(0.3, 0.7, uSnowCover));`}
         sdPud *= 1.0 - sdSnow;
         diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.62, 0.68, 0.78), sdSnow);`)
       .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
@@ -1498,8 +1520,26 @@ export function streetDetail(mat, walk) {
         normal = normalize(mix(normal, normalize(vNormal), max(sdPud * 0.9, sdSnow * 0.7)));
         normal = normalize(normal + vec3(sdRip.x, 0.0, sdRip.y) * 0.25 * sdPud);`)
       .replace('#include <output_fragment>', `{
-        // Spiegelung: Pfützen klar, nasses Pflaster verschwommen und zu Lichtsäulen gezogen; ohne echte Spiegelung (Handy) der Himmel und Nebel
         vec3 sdV = normalize(cameraPosition - vSdW);
+        // V30: warmes Laternenlicht: Lichtkreis um jeden Mast und ein gestreckter Glanz auf nassen Steinen, Pfützen und Schnee
+        {
+          vec3 nW = normalize((vec4(normal, 0.0) * viewMatrix).xyz);
+          float wetK = clamp(0.25 + 0.6 * uWet + 0.6 * sdPud, 0.0, 1.0) * (1.0 - 0.7 * sdSnow);
+          float shin = mix(18.0, 260.0, wetK);
+          vec3 lD = vec3(0.0), lS = vec3(0.0);
+          for (int i = 0; i < SD_NL; i++) {
+            vec4 lp = uLamps[i]; vec3 Lv = lp.xyz - vSdW; float d2 = dot(Lv, Lv);
+            if (lp.w <= 0.0 || d2 > 400.0) continue;
+            vec3 L = Lv * inversesqrt(d2);
+            float att = lp.w * smoothstep(400.0, 60.0, d2) / (1.0 + 0.09 * d2);
+            lD += att * max(dot(nW, L), 0.0);
+            vec3 H = normalize(L + sdV);
+            lS += att * pow(max(dot(nW, H), 0.0), shin) * (shin + 8.0) * 0.04;
+          }
+          vec3 lampC = vec3(1.0, 0.66, 0.32);
+          outgoingLight += lampC * (diffuseColor.rgb * lD * 2.2 + lS * wetK * 0.35 * (1.0 - sdSnow) + vec3(0.55, 0.6, 0.7) * lD * sdSnow * 0.5);
+        }
+        // Spiegelung: Pfützen klar, nasses Pflaster verschwommen und zu Lichtsäulen gezogen; ohne echte Spiegelung (Handy) der Himmel und Nebel
         float sdFr = 0.02 + 0.98 * pow(1.0 - clamp(sdV.y, 0.0, 1.0), 5.0);
         float sdK = (sdPud + 0.3 * uWet * (1.0 - sdPud)) * (1.0 - sdSnow) * sdTop;
         vec3 sdR = uFogColor * 1.6 + vec3(0.6, 0.62, 0.7) * pow(max(dot(reflect(-sdV, vec3(0.0, 1.0, 0.0)), uMoonDir), 0.0), 300.0) * uMoonLit * 3.0;
@@ -1556,7 +1596,7 @@ export function buildGround() {
   // Parkflächen
   const parks = blocks.filter(b => b.park);
   if (parks.length) {
-    const lawn = new T.InstancedMesh(new T.BoxGeometry(1, 1, 1), worldUVMat(stdMat({ map: GRASS.map, normalMap: GRASS.normal, roughnessMap: GRASS.rough, roughness: 1, color: 0x9ab09a, envI: 0.2, emissive: 0x050a05, emissiveMap: GRASS.map }), 2.5), parks.length);
+    const lawn = new T.InstancedMesh(new T.BoxGeometry(1, 1, 1), snowy(worldUVMat(stdMat({ map: GRASS.map, normalMap: GRASS.normal, roughnessMap: GRASS.rough, roughness: 1, color: 0x9ab09a, envI: 0.2, emissive: 0x050a05, emissiveMap: GRASS.map }), 2.5), 0.85), parks.length);
     parks.forEach((b, i) => { m.makeScale(b.x1 - b.x0 - 9, 0.05, b.z1 - b.z0 - 9).setPosition((b.x0 + b.x1) / 2, 0.245, (b.z0 + b.z1) / 2); lawn.setMatrixAt(i, m); });
     lawn.frustumCulled = false; scene.add(lawn);
     buildParkPlants(parks);
@@ -1567,9 +1607,24 @@ export function buildGround() {
 export const LAMP_SETS = []; export let lampTimer = 0;
 // V21: Laternen und Stadtmobiliar werden hier nur geplant; gebaut werden sie als Chunk-Schichten in props.js
 export const STREET = { lamps: [], lampParts: null, furniture: null };
+// V30: die LAMP_N nächsten Laternen gehen als Lichtquellen an den Straßenshader (uLamps)
+export const LAMP_N = MOBILE ? 8 : 16;
+const _lampD = new Float32Array(16), _lampL = [];
+function updateStreetLamps(cp) {
+  let n = 0;
+  for (const l of STREET.lamps) {
+    const d = (l.x - cp.x) ** 2 + (l.z - cp.z) ** 2; if (d > 3600) continue;
+    let i; if (n < LAMP_N) i = n++; else if (d < _lampD[LAMP_N - 1]) i = LAMP_N - 1; else continue;
+    while (i > 0 && _lampD[i - 1] > d) { _lampD[i] = _lampD[i - 1]; _lampL[i] = _lampL[i - 1]; i--; }
+    _lampD[i] = d; _lampL[i] = l;
+  }
+  const A = U.uLamps.value, out = cp.y > 80 || U.uInside.value > 0.5;
+  for (let i = 0; i < 16; i++) { const l = i < n && !out ? _lampL[i] : null; if (l) A[i].set(l.x, l.y + l.hs + 0.3, l.z, 1); else A[i].set(0, -1000, 0, 0); }
+}
 export function updateLampLod(dt) {
   if ((lampTimer -= dt) > 0) return;
   lampTimer = 0.25;
+  updateStreetLamps(camera.position);
   const cp = camera.position, D2 = (260 + Math.max(0, cp.y) * 1.5) ** 2;
   for (const st of LAMP_SETS) {
     let n = 0;
@@ -2052,10 +2107,10 @@ export function buildParkPlants(parks) {
 export const TREE_SETS = []; export let treeTimer = 0;
 export function buildTrees() {
   if (!trees.length) return;
-  const barkMat = windPatch(stdMat({ map: BARK.map, normalMap: BARK.normal, roughnessMap: BARK.rough, roughness: 1, color: 0x9a8a78, envI: 0.2, emissive: 0x0a0806 }), 0.5);
-  const leafMat = windPatch(stdMat({ map: LEAF_TEX, alphaTest: 0.45, side: T.DoubleSide, roughness: 0.75, metalness: 0, envI: 0.35, emissive: 0x0b1408, emissiveMap: LEAF_TEX }), 1, 0.05);
-  const blobMat = windPatch(stdMat({ color: 0x1d3a22, roughness: 0.9, envI: 0.2, emissive: 0x060c06 }), 1);
-  const loMat = windPatch(stdMat({ color: 0x24442a, roughness: 0.9, envI: 0.2, emissive: 0x070d07 }), 1);
+  const barkMat = snowy(windPatch(stdMat({ map: BARK.map, normalMap: BARK.normal, roughnessMap: BARK.rough, roughness: 1, color: 0x9a8a78, envI: 0.2, emissive: 0x0a0806 }), 0.5), 0.5);
+  const leafMat = snowy(windPatch(stdMat({ map: LEAF_TEX, alphaTest: 0.45, side: T.DoubleSide, roughness: 0.75, metalness: 0, envI: 0.35, emissive: 0x0b1408, emissiveMap: LEAF_TEX }), 1, 0.05), 0.6);
+  const blobMat = snowy(windPatch(stdMat({ color: 0x1d3a22, roughness: 0.9, envI: 0.2, emissive: 0x060c06 }), 1), 0.8);
+  const loMat = snowy(windPatch(stdMat({ color: 0x24442a, roughness: 0.9, envI: 0.2, emissive: 0x070d07 }), 1), 0.8);
   const bySp = {};
   const rr = mulberry32(8899);
   for (const t of trees) { const sp = t.sp || (rr() < 0.55 ? 'plane' : 'linden'); (bySp[sp] ||= []).push(t); }
