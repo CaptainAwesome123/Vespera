@@ -114,15 +114,18 @@ export function fogHideDist(y, cy, dens) {
   return a > 1e-12 ? (-b + Math.sqrt(b * b + 4 * a * c)) / (2 * a) : c / Math.max(b, 1e-9);
 }
 export const FOGVIS = { ped: 1e9, low: 1e9, tall: 1e9 };
+// V31: der Abstand wird je Bildpunkt aus der (linear interpolierbaren) Blickraum-Lage gerechnet. Vorher kam length() je Ecke und wurde
+// über das Dreieck gemittelt: auf dem Straßenboden (wenige riesige Dreiecke bis an die Küste) lag so überall der Abstand der fernen
+// Ecken an, die Fahrbahn versank bis vor die Füße in flachem Türkis.
 T.ShaderChunk.fog_pars_vertex = `#ifdef USE_FOG
-  varying float vFogDepth; varying float vFogWY;
+  varying vec3 vFogP; varying float vFogWY;
 #endif`;
 T.ShaderChunk.fog_vertex = `#ifdef USE_FOG
-  vFogDepth = length(mvPosition.xyz);   // V27: echter Abstand statt Bildtiefe (Nebel dreht nicht mehr mit dem Blick, Ausblenden im Nebel wird exakt)
+  vFogP = mvPosition.xyz;   // V27: echter Abstand statt Bildtiefe (Nebel dreht nicht mehr mit dem Blick, Ausblenden im Nebel wird exakt)
   vFogWY = ((mvPosition.xyz - viewMatrix[3].xyz) * mat3(viewMatrix)).y;
 #endif`;
 T.ShaderChunk.fog_pars_fragment = `#ifdef USE_FOG
-  uniform vec3 fogColor; varying float vFogDepth; varying float vFogWY;
+  uniform vec3 fogColor; varying vec3 vFogP; varying float vFogWY;
   #ifdef FOG_EXP2
     uniform float fogDensity;
   #else
@@ -132,6 +135,7 @@ T.ShaderChunk.fog_pars_fragment = `#ifdef USE_FOG
 #endif`;
 // Leuchtende (additive) Flächen verblassen im Nebel, statt die Nebelfarbe aufzuaddieren (FOG_ADD setzt atmosphere.js)
 T.ShaderChunk.fog_fragment = `#ifdef USE_FOG
+  float vFogDepth = length(vFogP);
   #ifdef FOG_EXP2
     float fogFactor = vespFog(vFogDepth, vFogWY, cameraPosition.y, fogDensity, 1.0);
   #else
