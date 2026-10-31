@@ -1,7 +1,8 @@
 import { wantTexture } from './assets.js';
-import { canvasTex, T, scene, mulberry32, ANISO, mergeGeos, pick, R, rand } from './core.js';
+import { canvasTex, T, scene, mulberry32, ANISO, mergeGeos, pick, R, rand, MOBILE, camera } from './core.js';
+import { RUNNER_TEX, decoRugTex, friezeTex, muralTex, damaskTex } from './deco-tex.js';
 import { addCollider, stdMat, MAT } from './people-skeleton.js';
-import { addSeg, addNeon, addGlow, NEON, shafts, spires, lamps, trees } from './facade-shader.js';
+import { addSeg, addNeon, addGlow, NEON, shafts, spires, lamps, trees, FL } from './facade-shader.js';
 import { PLAZA, MEDIAN } from './island.js';
 import { crownFins, neonFrame, FAN_TEX, makeSignTex, lathe, DOORS, placeFurn, FURN } from './entrances.js';
 import { fanAtSingle, addNeonArc, setDance } from './dance.js';
@@ -58,19 +59,21 @@ export function buildBelmont() {
   // Turmstufen
   addSeg({ x: 0, z: 0, w: 62, d: 62, y0: BEL.podium, y1: BEL.s1, tint: cream, seed: 503, style: 1, dens: 0.6, flood: 1, rib: GR });
   addSeg({ x: 0, z: 0, w: 50, d: 50, y0: BEL.s1, y1: BEL.s2, tint: cream, seed: 504, style: 1, dens: 0.66, flood: 1, rib: GR });
-  addSeg({ x: 0, z: 0, w: 40, d: 40, y0: BEL.s2, y1: BEL.s3, tint: [0.3, 0.26, 0.24], seed: 505, style: 2, dens: 1, flood: 1 });
+  // V33: die unteren 13 m dieser Stufe sind jetzt Alexanders Penthouse-Suite hinter Glas (src/penthouse.js); die Fassade beginnt darüber
+  addSeg({ x: 0, z: 0, w: 40, d: 40, y0: BEL.s2 + 13, y1: BEL.s3, tint: [0.3, 0.26, 0.24], seed: 505, style: 2, dens: 1, flood: 1, fl: FL.noBot });
   addSeg({ x: 0, z: 0, w: 28, d: 28, y0: BEL.s3, y1: BEL.s4, tint: cream, seed: 506, style: 1, dens: 0.7, flood: 1, rib: GR });
   addSeg({ x: 0, z: 0, w: 18, d: 18, y0: BEL.s4, y1: BEL.s5, tint: [0.3, 0.26, 0.24], seed: 507, style: 2, dens: 1, flood: 1 });
   crownFins(0, 0, 62, 62, BEL.s1, 7, GR);
   crownFins(0, 0, 40, 40, BEL.s3, 6, GR);
   crownFins(0, 0, 28, 28, BEL.s4, 5, GR);
   crownFins(0, 0, 18, 18, BEL.s5, 6, GR);
-  // Kanneluren an den Turmstufen
+  // Kanneluren an den Turmstufen (V33: an der Terrasse auf 250 m enden sie bündig, sonst stünden sie im neuen Boden)
   for (const [w, y0, y1] of [[62, BEL.podium, BEL.s1], [50, BEL.s1, BEL.s2], [28, BEL.s3, BEL.s4]]) {
     const step = w > 40 ? 5 : 4;
     for (let k = -w / 2 + step; k < w / 2; k += step) for (const [ox, oz] of [[0, 1], [0, -1], [1, 0], [-1, 0]]) {
       if (Math.abs(Math.abs(k) - w / 2) < 1) continue;
-      addSeg({ x: ox ? ox * (w / 2 + 0.3) : k, z: oz ? oz * (w / 2 + 0.3) : k, w: ox ? 0.6 : 1.2, d: oz ? 0.6 : 1.2, y0, y1: y1 + 2, tint: cream, seed: 546, style: 0, dens: 0, flood: 0.5, rib: GD }, false);
+      if (w === 50 && ((oz === 1 && Math.abs(k) < 16.5) || (ox && Math.abs(k) < 9.5))) continue;   // V33: dort hängen die neuen Terrassen-Auskragungen
+      addSeg({ x: ox ? ox * (w / 2 + 0.3) : k, z: oz ? oz * (w / 2 + 0.3) : k, w: ox ? 0.6 : 1.2, d: oz ? 0.6 : 1.2, y0, y1: y1 + (y1 === BEL.s2 ? 0 : 2), tint: cream, seed: 546, style: 0, dens: 0, flood: 0.5, rib: GD }, false);
     }
   }
   shafts.push({ x: 0, z: 0, y: BEL.s5, h: 900, w: 24, c: [1.0, 0.78, 0.4] });
@@ -89,7 +92,7 @@ export function buildBelmont() {
     const fx = ox * 32.2, fz = oz * 32.2;
     addSeg({ x: fx, z: fz, w: ox ? 2.6 : 6, d: oz ? 2.6 : 6, y0: BEL.podium, y1: BEL.s1 + 16, tint: cream, seed: 520, style: 0, dens: 0, flood: 1 });
     for (const k of [-1.6, 0, 1.6]) addNeon(fx + ox * 1.35 + (oz ? k : 0), (BEL.podium + BEL.s1 + 16) / 2, fz + oz * 1.35 + (ox ? k : 0), ox ? 0.15 : 0.35, BEL.s1 + 16 - BEL.podium, oz ? 0.15 : 0.35, NEON.gold);
-    addNeon(ox * 25.2, (BEL.s1 + BEL.s2) / 2, oz * 25.2, ox ? 0.2 : 1.2, BEL.s2 - BEL.s1, oz ? 0.2 : 1.2, NEON.gold);
+    addNeon(ox * 25.2, (BEL.s1 + BEL.s2 - 6.6) / 2, oz * 25.2, ox ? 0.2 : 1.2, BEL.s2 - BEL.s1 - 6.6, oz ? 0.2 : 1.2, NEON.gold);   // V33: endet unter den Konsolen der Terrasse
     addNeon(ox * 14.2, (BEL.s3 + BEL.s4) / 2, oz * 14.2, ox ? 0.2 : 0.9, BEL.s4 - BEL.s3, oz ? 0.2 : 0.9, NEON.pearl);
   }
   neonFrame(0, BEL.podium, 0, 100, 100, NEON.gold);
@@ -97,12 +100,7 @@ export function buildBelmont() {
   neonFrame(0, BEL.s3, 0, 40, 40, NEON.gold);
   neonFrame(0, BEL.s4, 0, 28, 28, NEON.gold);
   neonFrame(0, BEL.s5, 0, 18, 18, NEON.pearl);
-  // Ballsaal-Terrasse: Balustrade und Laternen
-  for (const [ox, oz] of [[0, 1], [0, -1], [1, 0], [-1, 0]]) {
-    addNeon(ox * 24.8, BEL.s2 + 1.1, oz * 24.8, ox ? 0.12 : 49.6, 0.12, oz ? 0.12 : 49.6, [0.32, 0.23, 0.1]);
-    addCollider(ox ? ox * 24.8 - 0.3 : -25, BEL.s2, oz ? oz * 24.8 - 0.3 : -25, ox ? ox * 24.8 + 0.3 : 25, BEL.s2 + 1.1, oz ? oz * 24.8 + 0.3 : 25);
-    for (let k = -18; k <= 18; k += 9) addGlow(ox ? ox * 24.8 : k, BEL.s2 + 1.4, oz ? oz * 24.8 : k, [0.9, 0.62, 0.3], 0.5);
-  }
+  // V33: Terrasse (Brüstung, Auskragungen, Möbel) baut jetzt src/penthouse.js
   // Turmspitze und Ankermast
   spires.push({ x: 0, z: 0, y0: BEL.s5, h: BEL.spire - BEL.s5, b: 15 });
   addCollider(-4, BEL.s5, -4, 4, BEL.spire - 20, 4);
@@ -112,15 +110,14 @@ export function buildBelmont() {
   ring.rotation.x = Math.PI / 2; ring.position.set(0, BEL.mast - 2, 0); scene.add(ring);
   addGlow(0, BEL.mast + 1, 0, [1.6, 0.2, 0.12], 6, 0, 1);
   addGlow(0, BEL.s5 + 4, 0, NEON.gold, 26);
-  addGlow(0, BEL.s2 + 10, 0, [0.8, 0.55, 0.28], 40);
 
   // Sonnenstrahl-Fächer an der Krone
   const fan = FAN_TEX;
-  const fanMat = new T.MeshBasicMaterial({ map: fan, transparent: true, color: new T.Color(1.4, 1.2, 0.9), depthWrite: false, side: T.DoubleSide });
+  const fanMat = new T.MeshBasicMaterial({ map: fan, transparent: true, color: new T.Color(1.4, 1.2, 0.9), depthWrite: false, side: T.DoubleSide, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -4 });
   const fanAt = (y, half, wd) => {
     for (const [ox, oz] of [[0, 1], [0, -1], [1, 0], [-1, 0]]) {
       const m = new T.Mesh(new T.PlaneGeometry(wd, wd / 2), fanMat);
-      m.position.set(ox * (half + 0.12), y + wd / 4, oz * (half + 0.12));
+      m.position.set(ox * (half + 0.3), y + wd / 4, oz * (half + 0.3));   // V33: 30 statt 12 cm vor der Wand (flackerte aus der Ferne)
       m.rotation.y = Math.atan2(ox, oz); scene.add(m);
     }
   };
@@ -144,11 +141,11 @@ export function buildBelmont() {
     g.font = '110px Limelight, Georgia, serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
     g.fillText('THE BELMONT', W / 2, H / 2 + 6);
   });
-  const name = new T.Mesh(new T.PlaneGeometry(44, 6.9), new T.MeshBasicMaterial({ map: nameTex, transparent: true, color: new T.Color(1.4, 1.25, 1), depthWrite: false }));
+  const name = new T.Mesh(new T.PlaneGeometry(44, 6.9), new T.MeshBasicMaterial({ map: nameTex, transparent: true, color: new T.Color(1.4, 1.25, 1), depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -4 }));
   name.position.set(0, 26.5, 50.15); scene.add(name);
   const vTex = makeSignTex('BELMONT', '#f6c76a', true);
-  const vSign = new T.Mesh(new T.PlaneGeometry(9, 9 * vTex.H / vTex.W), new T.MeshBasicMaterial({ map: vTex.t, color: new T.Color(1.3, 1.25, 1.15) }));
-  vSign.position.set(0, 120, 33.55); scene.add(vSign);
+  const vSign = new T.Mesh(new T.PlaneGeometry(9, 9 * vTex.H / vTex.W), new T.MeshBasicMaterial({ map: vTex.t, color: new T.Color(1.3, 1.25, 1.15), polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -4 }));
+  vSign.position.set(0, 120, 33.75);   // V33: lag nur 5 cm vor der Mittelrippe und flackerte aus der Ferne scene.add(vSign);
 
   // Flutlicht auf den Platz
   for (const [x, z] of [[-40, 70], [40, 70], [0, -70]]) addLight(0xffb066, 0.42, 120, 2, x, 14, z);
@@ -252,6 +249,7 @@ export function buildBelmontDoor() {
   addCollider(-2.4, P + 3.3, Z - 0.15, 2.4, H, Z + 0.15);
 }
 export function updateBelmontDoor(dt) {
+  if (BALL_DECO.g) { const c = camera.position; BALL_DECO.g.visible = Math.abs(c.x) < 70 && Math.abs(c.z) < 75 && c.y < 45; }
   if (!BDOOR.wings) return;
   const p = player.p, d = Math.hypot(p.x, p.z - 49);
   // Drehtür dreht, wenn jemand näher als 7 m ist, langsam auslaufend
@@ -329,6 +327,7 @@ export function buildBelmontInterior() {
     crystal: new T.MeshBasicMaterial({ color: new T.Color(1.25, 1.18, 1.05) }),
     bottles: new T.MeshBasicMaterial({ color: new T.Color(0.9, 0.55, 0.22) }),
     drumhead: stdMat({ color: 0xe8e0d0, roughness: 0.6, envI: 0.2 }),
+    runner: stdMat({ map: RUNNER_TEX(), color: 0xffffff, roughness: 0.95, envI: 0.1 }),
     bass: stdMat({ color: 0x5a2a12, roughness: 0.3, envI: 0.6 }),
   };
 
@@ -562,20 +561,36 @@ export function buildBelmontInterior() {
     if (y0 < 1) col(x - 0.45, 0, -13.85, x + 0.45, y1, -12.95);
   }
   // Zwei Freitreppen hinauf zur ersten Galerie
-  const nSteps = 26, rise = (G1 - P) / nSteps, run = 27 / nSteps;
+  // V33: Geländer auf beiden Seiten, richtig geneigt (vorher fiel der Handlauf nach oben hin ab und stand nur innen),
+  // Messingdocken auf jeder Stufe, Antrittspfosten mit Leuchtkugel, Läufer aus Samt auf Stufen und Setzstufen
+  const nSteps = 26, rise = (G1 - P) / nSteps, run = 27 / nSteps, ang = Math.atan2(G1 - P, 27), L = Math.hypot(27, G1 - P);
+  const railY = z => P + (z + 40) / 27 * (G1 - P) + 0.95;
   for (const sx of [-1, 1]) {
-    const x0 = sx > 0 ? 33 : -39, x1 = sx > 0 ? 39 : -33;
+    const x0 = sx > 0 ? 33 : -39, x1 = sx > 0 ? 39 : -33, xm = (x0 + x1) / 2;
     for (let k = 0; k < nSteps; k++) {
       const z0 = -40 + k * run, top = P + (k + 1) * rise;
-      put('dark', boxW(6, top, run + 0.02, (x0 + x1) / 2, top / 2, z0 + run / 2, 3));
-      put('gold', new T.BoxGeometry(6, 0.04, 0.06).translate((x0 + x1) / 2, top + 0.01, z0 + 0.03));
+      put('dark', boxW(6, top, run + 0.02, xm, top / 2, z0 + run / 2, 3));
+      put('gold', new T.BoxGeometry(6, 0.04, 0.06).translate(xm, top + 0.01, z0 + 0.03));
+      put('runner', boxW(3.4, 0.025, run - 0.04, xm, top + 0.012, z0 + run / 2 + 0.02, 1.2));
+      put('runner', boxW(3.4, rise - 0.03, 0.02, xm, top - rise / 2, z0 - 0.012, 1.2));
+      for (const ex of [-1.75, 1.75]) put('gold', new T.CylinderGeometry(0.014, 0.014, run, 6).rotateX(Math.PI / 2).translate(xm + ex, top + 0.03, z0 + run / 2));
       col(x0, 0, z0, x1, top, z0 + run);
     }
-    const inner = sx > 0 ? 33 : -33, ang = Math.atan2(G1 - P, 27);
-    const L = Math.hypot(27, G1 - P);
-    put('gold', new T.BoxGeometry(0.16, 0.12, L).rotateX(ang).translate(inner, (P + G1) / 2 + 1.05, -26.5));
-    put('dark', new T.BoxGeometry(0.3, 1.0, L).rotateX(ang).translate(inner, (P + G1) / 2 + 0.5, -26.5));
-    col(Math.min(inner, inner - sx * 0.3) - 0.1, 0, -40, Math.max(inner, inner - sx * 0.3) + 0.1, G1 + 1.1, -13);
+    for (const rx of [x0 + 0.18, x1 - 0.18]) {
+      // Handlauf und Fußleiste parallel zur Stufenlinie
+      put('gold', new T.BoxGeometry(0.13, 0.09, L).rotateX(-ang).translate(rx, (P + G1) / 2 + 0.95, -26.5));
+      put('dark', new T.BoxGeometry(0.22, 0.2, L).rotateX(-ang).translate(rx, (P + G1) / 2 + 0.1 + rise * 0.5, -26.5));
+      put('gold', new T.BoxGeometry(0.05, 0.05, L).rotateX(-ang).translate(rx, (P + G1) / 2 + 0.55, -26.5));
+      for (let k = 0; k < nSteps; k++) for (const f of [0.25, 0.75]) {
+        const z = -40 + (k + f) * run, top = P + (k + 1) * rise, h = railY(z) - top;
+        put('gold', new T.CylinderGeometry(0.022, 0.03, h, 6).translate(rx, top + h / 2, z));
+      }
+      // Antrittspfosten unten (schwarzer Marmor, Goldkugel mit Licht) und oben
+      put('dark', boxW(0.36, 1.25, 0.36, rx, P + 0.625, -40.2, 2)); put('gold', new T.BoxGeometry(0.42, 0.08, 0.42).translate(rx, P + 1.29, -40.2));
+      put('lamp', new T.SphereGeometry(0.17, 14, 10).translate(rx, P + 1.5, -40.2)); glow(rx, P + 1.5, -40.2, [1.4, 1.0, 0.55], 1.1);
+      put('gold', boxW(0.26, 1.1, 0.26, rx, G1 + 0.55, -13.1, 2)); put('gold', new T.SphereGeometry(0.12, 12, 8).translate(rx, G1 + 1.2, -13.1));
+      col(rx - 0.12, 0, -40.4, rx + 0.12, G1 + 1.1, -13);
+    }
     palm(sx * 36, -42, 3.0);
   }
   // Bühne mit Musikmuschel und großem Sonnenstrahl
@@ -623,6 +638,9 @@ export function buildBelmontInterior() {
   glow(-47, 3.8, -29, [1.2, 0.7, 0.3], 9);
   for (const z of [-36, -29, -22]) glow(-44, P + 1.6, z, [1.3, 0.9, 0.5], 1.2);
   palm(-45, -45, 3.2); palm(45, -45, 3.2); palm(-45, -10, 2.8); palm(45, -10, 2.8);
+
+  // ---------- V33: Ballsaal mit mehr Ausstattung ----------
+  buildBallroomDeco({ P, G1, G2, BALL_H, S0, tables, put, col, glow, M });
 
   // ---------- Lichter ----------
   for (const [x, y, z, i, d] of [[0, 12, 22, 1.2, 70], [0, 13, 40, 0.7, 40], [0, 24, -24, 0.9, 70], [-28, 15, -30, 0.7, 50], [28, 15, -30, 0.7, 50], [0, 10, -40, 0.6, 22]]) {
@@ -676,10 +694,109 @@ export function buildBelmontInterior() {
   for (let k = 0; k < 4; k++) { const z = 8 + k * 9, x = rand(-20, 20); tux(x, P, z, rand(0, 6)); gown(x + 0.7, P, z + 0.3, rand(0, 6)); }
   for (let k = 0; k < 8; k++) walkersIn.push({ a: (k % 2 ? tux : gown)(0, P, 0, 0), cx: k < 4 ? -8 : 8, cz: 22, rx: 3 + k % 3, rz: 18 + 3 * (k % 2), sp: (0.03 + 0.008 * k) * (k % 3 ? 1 : -1), ph: k * 1.3, lobby: true });
   for (const w of walkersIn) { w.a.gait[1] = 5.2; w.a.gait[2] = 0.36; }
-  // Fahrstuhltür auf der Ballsaal-Terrasse
-  const td = new T.Mesh(new T.BoxGeometry(3.4, 4.8, 0.12), MAT.gold); td.position.set(0, BEL.s2 + 2.4, 20.06); scene.add(td);
-  fanPlane(0, BEL.s2 + 4.9, 20.22, 4, 0); addGlow(0, BEL.s2 + 7.2, 20.5, [1.4, 0.95, 0.5], 2);
   C.finish();
   for (const a of C.list) if (a.x !== undefined) C.set(a, a.x, a.y, a.z, a.yaw);
   C.flag();
+}
+
+/* =====================================================================
+   V33 · BALLSAAL: Teppiche unter den Tischen, Goldfries an den Galerien, Wandbild über der Galerie,
+   Spiegel mit Wandleuchten, Bühnenvorhang und Rampenlicht, Blumen und Champagnerschalen auf den Tischen,
+   eine Champagnerpyramide, Urnen mit Blumen, zwei Bronzetänzerinnen, Deckenmedaillon, Damastfelder
+   Alles in eigenen Netzen (BALL_DECO), die nur in der Nähe des Belmont gezeichnet werden.
+   ===================================================================== */
+export const BALL_DECO = { g: null };
+function buildBallroomDeco({ P, G1, G2, BALL_H, S0, tables, put, col, glow, M }) {
+  const grp = new T.Group(); BALL_DECO.g = grp; scene.add(grp);
+  const batch = {}, add = (k, g) => (batch[k] ||= []).push(g);
+  const plane = (w, h, uvx = 1, uvy = 1) => { const g = new T.PlaneGeometry(w, h); const uv = g.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * uvx, uv.getY(i) * uvy); return g; };
+  const rugT = decoRugTex('#0d2f33', '#c9a050', '#4a0c14', 10.5, 24);
+  const DM = {
+    rug: stdMat({ map: rugT, roughness: 1, envI: 0.1, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 }),
+    frieze: new T.MeshBasicMaterial({ map: friezeTex(), color: new T.Color(1.15, 1.05, 0.9) }),
+    mural: new T.MeshBasicMaterial({ map: muralTex(5), color: new T.Color(0.95, 0.92, 0.88) }),
+    mirror: stdMat({ color: 0xc9d0d4, metalness: 1, roughness: 0.04, envI: 1.4 }),
+    curtain: stdMat({ color: 0x5a0d16, roughness: 0.85, envI: 0.15, side: T.DoubleSide }),
+    damask: stdMat({ map: damaskTex('#123c3e', '#1d5356'), roughness: 0.55, metalness: 0.15, envI: 0.4 }),
+    bloom: stdMat({ color: 0xf2e6e0, roughness: 0.7, envI: 0.2, emissive: 0x2a1a18 }),
+    rose: stdMat({ color: 0x9a1828, roughness: 0.7, envI: 0.2, emissive: 0x200408 }),
+    bronze: stdMat({ color: 0x8a5a2a, metalness: 0.95, roughness: 0.32, envI: 0.9, emissive: 0x100804 }),
+  };
+  // Teppiche unter den Tischreihen links und rechts der Tanzfläche
+  for (const sx of [-1, 1]) { const m = new T.Mesh(new T.PlaneGeometry(10.5, 24), DM.rug); m.rotation.x = -Math.PI / 2; m.position.set(sx * 24.75, P + 0.02, -28); grp.add(m); }
+  // Goldfries vorn an den Galerieplatten (Seiten und Querseite), je 0,6 m hoch
+  for (const y of [G1, G2]) {
+    add('frieze', plane(96, 0.56, 96 / 4.8, 1).rotateY(Math.PI).translate(0, y - 0.32, -13.015));
+    for (const sx of [-1, 1]) add('frieze', plane(35, 0.56, 35 / 4.8, 1).rotateY(-sx * Math.PI / 2).translate(sx * 40.985, y - 0.32, -30.5));
+  }
+  // Wandbild über der oberen Galerie (Trennwand, Blick nach Norden), mit Goldrahmen
+  add('mural', plane(38, 9.5).rotateY(Math.PI).translate(0, 24.6, -6.04));
+  for (const [w, h, x, y] of [[38.8, 0.35, 0, 29.5], [38.8, 0.35, 0, 19.7], [0.35, 10.2, -19.4, 24.6], [0.35, 10.2, 19.4, 24.6]]) put('gold', new T.BoxGeometry(w, h, 0.2).translate(x, y, -6.12));
+  // Spiegel mit Goldrahmen an der Ostwand unter der Galerie, dazwischen Wandleuchten
+  for (const z of [-43, -37, -31, -25, -19]) {
+    add('mirror', new T.PlaneGeometry(2.3, 4.8).rotateY(-Math.PI / 2).translate(47.83, P + 3.4, z));
+    for (const [h, w, dy, dz] of [[0.18, 2.66, 2.48, 0], [0.18, 2.66, -2.48, 0], [5.1, 0.18, 0, 1.24], [5.1, 0.18, 0, -1.24]]) put('gold', new T.BoxGeometry(0.12, h, w).translate(47.8, P + 3.4 + dy, z + dz));
+    for (let k = 0; k < 5; k++) put('gold', new T.BoxGeometry(0.06, 0.05, 0.9 - k * 0.15).translate(47.76, P + 5.25 + k * 0.08, z));
+    const zs = z + 3; put('gold', new T.CylinderGeometry(0.05, 0.12, 0.5, 8).rotateZ(Math.PI / 2).translate(47.6, P + 4.2, zs)); put('lamp', new T.ConeGeometry(0.22, 0.45, 10, 1, true).rotateX(Math.PI).translate(47.45, P + 4.55, zs));
+    glow(47.4, P + 4.6, zs, [1.35, 0.95, 0.55], 1.6);
+  }
+  // Damast-Seidenfelder hinter den Galerien (beide Seitenwände, erste und zweite Ebene)
+  for (const sx of [-1, 1]) for (const [y0, y1] of [[G1 + 0.4, G2 - 1.0], [G2 + 0.4, G2 + 4.1]]) for (let z = -43; z <= -18; z += 6) {
+    add('damask', plane(4.6, y1 - y0, 4.6 / 2, (y1 - y0) / 2).rotateY(-sx * Math.PI / 2).translate(sx * 47.84, (y0 + y1) / 2, z));
+    put('gold', new T.BoxGeometry(0.08, 0.08, 4.8).translate(sx * 47.8, y1 + 0.04, z)); put('gold', new T.BoxGeometry(0.08, 0.08, 4.8).translate(sx * 47.8, y0 - 0.04, z));
+  }
+  // Bühne: Samtvorhang in Falten links und rechts, Querbehang, Rampenlicht
+  const folds = (w, h, n, amp) => { const g = new T.PlaneGeometry(w, h, n * 6, 1), p = g.attributes.position; for (let i = 0; i < p.count; i++) p.setZ(i, Math.sin(p.getX(i) / w * n * Math.PI * 2) * amp); g.computeVertexNormals(); return g; };
+  for (const sx of [-1, 1]) {
+    const c = folds(3.4, 21, 7, 0.16); const tie = 0.75;
+    const pos = c.attributes.position; for (let i = 0; i < pos.count; i++) { const y = pos.getY(i), t = Math.max(0, (-y + 2) / 10.5); pos.setX(i, pos.getX(i) * (1 - 0.45 * t * t) + sx * 1.0 * t * t * tie); }
+    c.computeVertexNormals();
+    add('curtain', c.translate(sx * 17.6, S0 + 10.5, -45.6));
+    put('gold', new T.TorusGeometry(0.42, 0.06, 6, 16).rotateY(Math.PI / 2).translate(sx * 17.6 + sx * 0.6, S0 + 4.2, -45.4));
+  }
+  add('curtain', folds(38, 3.4, 26, 0.12).translate(0, BALL_H - 6.2, -45.2));
+  for (let k = 0; k < 13; k++) { const x = -18 + k * 3; add('curtain', new T.SphereGeometry(1.5, 10, 6, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2).scale(1, 0.55, 0.25).translate(x + 1.5, BALL_H - 7.9, -45.05)); }
+  put('gold', new T.BoxGeometry(38.4, 0.25, 0.25).translate(0, BALL_H - 4.4, -45.1));
+  for (let x = -13.5; x <= 13.5; x += 1.5) { put('gold', new T.SphereGeometry(0.12, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2).translate(x, S0, -39.15)); glow(x, S0 + 0.12, -39.2, [1.4, 1.05, 0.6], 0.5); }
+  // Tische: Blumengesteck in Kristallvase, zwei Champagnerschalen, Kerze
+  const coupe = (x, y, z, s = 1) => { add('crystalD', new T.LatheGeometry([[0.035, 0], [0.035, 0.008], [0.006, 0.02], [0.006, 0.1], [0.05, 0.12], [0.06, 0.15]].map(([r, h]) => new T.Vector2(r * s, h * s)), 10).translate(x, y, z)); };
+  const flowers = (x, y, z, s, n, mix) => {
+    for (let k = 0; k < n; k++) { const a = k * 2.399, r = (0.04 + 0.05 * Math.sqrt(k / n)) * s * 2.2, h = (0.12 + 0.1 * (1 - k / n)) * s; add(mix && k % 3 === 0 ? 'rose' : 'bloom', new T.SphereGeometry(0.035 * s * 1.6, 7, 5).translate(x + Math.cos(a) * r, y + h, z + Math.sin(a) * r)); }
+    for (let k = 0; k < 6; k++) { const a = k * 1.05; put('leaf', new T.PlaneGeometry(0.06 * s, 0.22 * s).translate(0, 0.11 * s, 0).rotateX(-0.9).rotateY(a).translate(x, y + 0.04 * s, z)); }
+  };
+  for (const [x, z] of tables) {
+    add('crystalD', new T.LatheGeometry([[0.05, 0], [0.07, 0.04], [0.05, 0.16], [0.07, 0.2]].map(([r, h]) => new T.Vector2(r, h)), 10).translate(x - 0.25, P + 0.81, z - 0.2));
+    flowers(x - 0.25, P + 0.98, z - 0.2, 1, MOBILE ? 7 : 12, true);
+    coupe(x + 0.3, P + 0.81, z - 0.35); coupe(x - 0.35, P + 0.81, z + 0.35);
+  }
+  // Champagnerpyramide vor der Galerie
+  put('linen', new T.CylinderGeometry(1.0, 1.05, 0.05, 20).translate(0, P + 0.78, -16.2)); put('gold', new T.CylinderGeometry(1.02, 1.08, 0.5, 20, 1, true).translate(0, P + 0.53, -16.2));
+  col(-1.05, 0, -17.25, 1.05, 0.85, -15.15);
+  for (let lv = 0, y = P + 0.81; lv < 5; lv++, y += 0.15) { const n = 5 - lv; for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) coupe((i - (n - 1) / 2) * 0.13, y, -16.2 + (j - (n - 1) / 2) * 0.13, 0.95); }
+  glow(0, P + 1.3, -16.2, [1.4, 1.1, 0.6], 2.4);
+  // Urnen mit Blumen an den Ecken der Tanzfläche
+  for (const sx of [-1, 1]) for (const z of [-38.2, -17.8]) {
+    const x = sx * 19.2;
+    put('dark', new T.CylinderGeometry(0.42, 0.5, 1.1, 16).translate(x, P + 0.55, z)); put('gold', new T.TorusGeometry(0.44, 0.04, 6, 20).rotateX(Math.PI / 2).translate(x, P + 1.1, z));
+    put('gold', new T.LatheGeometry([[0.12, 0], [0.3, 0.1], [0.36, 0.4], [0.24, 0.62], [0.36, 0.72]].map(([r, h]) => new T.Vector2(r, h)), 16).translate(x, P + 1.12, z));
+    flowers(x, P + 1.75, z, 4.2, MOBILE ? 12 : 22, true);
+    col(x - 0.5, 0, z - 0.5, x + 0.5, 1.8, z + 0.5);
+  }
+  // Zwei Bronzetänzerinnen auf Sockeln neben der Bühnentreppe
+  for (const sx of [-1, 1]) {
+    const x = sx * 8, z = -38.2, y0 = P + 1.3;
+    put('dark', boxW(1.1, 1.3, 1.1, x, P + 0.65, z, 2)); put('gold', new T.BoxGeometry(1.2, 0.08, 1.2).translate(x, y0, z));
+    add('bronze', new T.LatheGeometry([[0.28, 0], [0.2, 0.15], [0.09, 0.9], [0.13, 1.2], [0.1, 1.45], [0.06, 1.55]].map(([r, h]) => new T.Vector2(r, h)), 14).scale(1, 1, 0.7).translate(x, y0, z));
+    add('bronze', new T.SphereGeometry(0.11, 12, 8).translate(x + sx * 0.04, y0 + 1.68, z));
+    add('bronze', new T.CylinderGeometry(0.03, 0.035, 0.9, 6).translate(0, 0.45, 0).rotateZ(-sx * 2.5).translate(x + sx * 0.1, y0 + 1.45, z));
+    add('bronze', new T.CylinderGeometry(0.03, 0.035, 0.85, 6).translate(0, 0.42, 0).rotateZ(sx * 1.2).translate(x - sx * 0.1, y0 + 1.4, z));
+    add('bronze', new T.TorusGeometry(0.75, 0.025, 5, 24, Math.PI * 1.2).rotateZ(0.4).translate(x, y0 + 1.6, z - 0.05));
+    col(x - 0.55, 0, z - 0.55, x + 0.55, y0 + 2, z + 0.55);
+  }
+  // Deckenmedaillon um den großen Kronleuchter: drei Goldringe, Strahlen, ein Lichtkranz
+  for (const r of [5.5, 7.2, 9.0]) put('gold', new T.TorusGeometry(r, 0.12, 6, 64).rotateX(Math.PI / 2).translate(0, BALL_H - 0.15, -28));
+  for (let k = 0; k < 24; k++) { const a = k / 24 * Math.PI * 2; put('gold', new T.BoxGeometry(3.4, 0.06, 0.12).translate(7.25, 0, 0).rotateY(a).translate(0, BALL_H - 0.12, -28)); }
+  for (let k = 0; k < 16; k++) { const a = k / 16 * Math.PI * 2; glow(Math.cos(a) * 8.1, BALL_H - 0.5, -28 + Math.sin(a) * 8.1, [1.2, 0.85, 0.45], 1.6); }
+  DM.crystalD = M.crystal;
+  for (const k in batch) { const m = new T.Mesh(mergeGeos(batch[k]), DM[k]); m.frustumCulled = false; grp.add(m); }
 }

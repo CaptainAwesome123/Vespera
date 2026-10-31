@@ -176,8 +176,10 @@ void main(){
   float inX = 1.0 - smoothstep(wx*0.5 - fw.x*0.7, wx*0.5 + fw.x*0.7, abs(f.x - 0.5));
   float inWin = inX * (1.0 - smoothstep(wy*0.5 - fw.y*0.7, wy*0.5 + fw.y*0.7, abs(f.y - 0.5)));
   if (style > 1.5) {
+    // V33: Bogenfenster mit weicher Kante (vorher harte Stufen: an hohen Türmen wie dem Belmont flimmerten die Bögen beim Gehen)
     vec2 q = vec2((f.x - 0.5)/(wx*0.5), max(f.y - 0.62, 0.0)/0.3);
-    inWin = inX * step(abs(f.y - 0.5), wy*0.5) * step(dot(q,q), 1.0);
+    float qw = max(fw.x/(wx*0.5), fw.y/0.3) * 0.7 + 1e-4;
+    inWin = inX * (1.0 - smoothstep(wy*0.5 - fw.y*0.7, wy*0.5 + fw.y*0.7, abs(f.y - 0.5))) * (1.0 - smoothstep(1.0 - qw, 1.0 + qw, length(q)));
   }
   inWin *= step(0.0, ux) * step(ux, ncell);
   inWin *= step(1.6, topDist) * step(style, 2.5);
@@ -185,7 +187,8 @@ void main(){
   inWin *= 1.0 - ground;
   float ribOn = step(0.01, dot(vRib, vec3(1.0)));
   float pier = (style > 0.5 && style < 1.5 && ncell > 5.0) ? step(mod(cell.x, 4.0), 0.5) : 0.0;
-  float ribStrip = ribOn * step(min(f.x, 1.0 - f.x), 0.07) * step(1.0, cell.x) * step(cell.x, ncell - 1.0) * (1.0 - ground);
+  // V33: Lichtrippen mit weicher Kante nach Bildschirmgröße (vorher harte Linien, die in der Ferne flackerten)
+  float ribStrip = ribOn * (1.0 - smoothstep(0.07 - fw.x*0.7, 0.07 + fw.x*0.7, min(f.x, 1.0 - f.x))) * step(1.0, cell.x) * step(cell.x, ncell - 1.0) * (1.0 - ground);
   inWin *= 1.0 - pier;
   // V19: Fenster sitzen hinter der Fassadenebene. Der Blick trifft die Glasebene versetzt (Parallaxe); verlässt er die Öffnung, sieht man die steinerne Laibung
   vec3 rvW = vec3(dot(vdir, normalize(vT)), vdir.y, max(dot(vdir, -n), 0.06));
@@ -395,8 +398,8 @@ void main(){
   float pu = min(um, faceW - um) - 0.95, pipe = pipeOn * step(abs(pu), 0.065) * step(hy, vScale.y - 0.6) * nearA;
   float clamp2 = step(fract(hy / 2.4), 0.03) * step(abs(pu), 0.1) * pipeOn * nearA;
   vec3 copper = mix(vec3(0.1, 0.24, 0.2), vec3(0.2, 0.13, 0.07), step(0.6, vnoise(vec2(hy * 0.8, seed)))) * (0.35 + 0.65 * sqrt(max(1.0 - pu * pu / 0.0042, 0.0))) * (0.05 + 0.3 * moon + 0.2 * exp(-vWorld.y / 15.0));
-  float edge = min(um, faceW - um);
-  wall = mix(wall, stone*1.55, step(edge, 0.7) * step(-0.5, dens));
+  float edge = min(um, faceW - um), fwE = max(fwidth(um) * 0.7, 1e-4), edgeM = 1.0 - smoothstep(0.7 - fwE, 0.7 + fwE, edge);
+  wall = mix(wall, stone*1.55, edgeM * step(-0.5, dens));
   vec3 det = mix(wall, winCol, inWin);
   det = mix(det, vec3(0.03, 0.028, 0.03), esc);
   det = mix(det, copper, clamp(pipe + clamp2, 0.0, 1.0) * (1.0 - ground));
@@ -404,7 +407,7 @@ void main(){
   float ribGlow = ribStrip * (0.55 + 0.45*smoothstep(0.0, 0.5, hy/max(vScale.y,1.0))) * (0.85 + 0.3*sin(hy*0.9));
   det = mix(det, vRib * (0.42 + 0.2*step(0.0, -sin(hy*2.0))), ribGlow);
   float narrow = step(faceW, 2.5);
-  det = mix(det, vRib * mix(0.62, 0.32 + 0.2*step(0.0, -sin(hy*1.6)), narrow), ribOn * step(edge, 0.7) * (1.0 - ground));
+  det = mix(det, vRib * mix(0.62, 0.32 + 0.2*step(0.0, -sin(hy*1.6)), narrow), ribOn * edgeM * (1.0 - ground));
 
   if (ground > 0.5) {
     float sx = um / 6.0; vec2 sc = vec2(floor(sx), faceId + seed*2.3); float sf = fract(sx);
@@ -451,10 +454,14 @@ void main(){
 
   float aa = smoothstep(0.08, 0.28, px) * (1.0 - ground);
   vec3 avgWin = mix(glass, vec3(1.0, 0.62, 0.3)*0.75, dens);
+  if (style > 1.5) avgWin = mix(glass, vec3(1.0, 0.8, 0.5)*1.2, dens) * 0.8;   // V33: hohe Bogenfenster leuchten heller (gleicher Eindruck nah und fern)
   vec3 avg = mix(wall, avgWin, wx*wy*(1.0 - pier*0.25));
+  avg = mix(avg, vRib*0.45, ribOn*(1.0 - ground)*0.14);   // V33: Rippen verschwinden in der Ferne nicht, sie gehen in die Mittelfarbe über
   vec3 col = mix(det, avg, aa);
 
-  float band = clamp(step(topDist, 0.9) + step(1.25, topDist)*step(topDist, 1.45), 0.0, 1.0) * step(-0.5, dens);
+  // V33: Goldbänder an der Traufe mit weicher Kante (dünne Linien flimmerten aus der Ferne)
+  float fwT = max(fwidth(topDist) * 0.7, 1e-4);
+  float band = clamp(1.0 - smoothstep(0.9 - fwT, 0.9 + fwT, topDist) + smoothstep(1.25 - fwT, 1.25 + fwT, topDist) - smoothstep(1.45 - fwT, 1.45 + fwT, topDist), 0.0, 1.0) * step(-0.5, dens);
   vec3 gold = vec3(0.95, 0.7, 0.32);
   vec3 goldLit = gold*(0.1 + 0.28*moon + 0.55*flood*exp(-hy/60.0) + 0.12*exp(-vWorld.y/30.0));
   col = mix(col, goldLit, band);

@@ -16,6 +16,8 @@ const SPOTS = [
   { name: 'dritte', p: [0, 0.26, 120], yaw: 0, pitch: -0.1, key: 'KeyV' },   // V24: Ansicht von hinten mit Spielermodell
   { name: 'tragen', p: [-3.2, 0.26, 118.6], yaw: 0.9, pitch: -0.45, loose: true },   // V26: lose Dinge vor dem Belmont, aufheben und werfen
   { name: 'flug', p: [-400, 220, 600], yaw: 0.6, pitch: -0.35, fly: true },
+  { name: 'ballsaal', p: [30, 0.26, -12], yaw: 0.6, pitch: 0.05 },                     // V33: Ballsaal mit neuer Ausstattung
+  { name: 'penthouse', p: [0, 250, 17], yaw: 0, pitch: 0.05 },                       // V33: Alexanders Penthouse-Suite
 ];
 (async () => {
   const b = await chromium.launch({ args: ['--use-gl=swiftshader', '--enable-webgl', '--ignore-gpu-blocklist', '--no-sandbox', '--enable-precise-memory-info'] });

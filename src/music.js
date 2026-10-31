@@ -1,5 +1,6 @@
 import { rand, R, $ } from './core.js';
 import { inBelmont, BEL, BI } from './belmont.js';
+import { PH, inPenthouse } from './penthouse.js';
 import { VILLA } from './harbour.js';
 import { citizenNear, citizenSay } from './ragdoll.js';
 import { player } from './player.js';
@@ -106,7 +107,7 @@ export function updateAudio(dt) {
   const inBall = inBelmont(p.x, p.z, p.y) && p.z < -5, inLobby = inBelmont(p.x, p.z, p.y) && !inBall;
   const dv = Math.hypot(p.x - VILLA.x, p.z - VILLA.z);
   let jz = 0, cut = 8000;
-  if (inBall) jz = 0.9; else if (inLobby) { jz = 0.45; cut = 900; } else if (dv < 200 && Math.abs(p.y - VILLA.y) < 60) { jz = 0.8 * Math.min(1, (200 - dv) / 120); cut = 3500; }
+  if (inBall) jz = 0.9; else if (inLobby) { jz = 0.45; cut = 900; } else if (inPenthouse(p)) { jz = 0.35; cut = 1600; }   // V33: das Grammophon im Salon else if (dv < 200 && Math.abs(p.y - VILLA.y) < 60) { jz = 0.8 * Math.min(1, (200 - dv) / 120); cut = 3500; }
   else if (Math.hypot(p.x, p.z) < 70 && p.y < 40) { jz = 0.15; cut = 500; }
   if (jz > 0.4 && !audio && !bandHint && playing) { bandHint = true; toast('Die Band spielt · M für Musik'); }
   if (!audio) return;
@@ -127,8 +128,9 @@ export function travel(pos, yaw, pitch, name) {
   setTimeout(() => { player.p.set(...pos); player.v.set(0, 0, 0); player.on = null; player.yaw = yaw; player.pitch = pitch; player.fly = false; toast(name); f.style.opacity = 0; }, 480);
 }
 export function buildInteractions() {
-  for (const z of [12, 22, 32]) INTERACT.push({ test: p => p.x > 44.3 && Math.abs(p.z - z) < 2.2 && p.y < 3, label: 'Fahrstuhl zur Ballsaal-Terrasse · 250 m', act: () => travel([0, BEL.s2, 22], Math.PI, -0.05, 'Ballsaal-Terrasse') });
-  INTERACT.push({ test: p => Math.abs(p.x) < 3 && p.z > 19.6 && p.z < 23.6 && Math.abs(p.y - BEL.s2) < 2, label: 'Fahrstuhl hinunter in die Lobby', act: () => travel([44.4, BI.P, 22], Math.PI / 2, 0, 'The Belmont · Lobby') });
+  // V33: die Fahrstühle fahren in Alexanders Penthouse-Suite (Foyer vor dem privaten Fahrstuhl); von dort zurück in die Lobby
+  for (const z of [12, 22, 32]) INTERACT.push({ test: p => p.x > 44.3 && Math.abs(p.z - z) < 2.2 && p.y < 3, label: 'Privater Fahrstuhl in die Penthouse-Suite · 250 m', act: () => travel([0, PH.F1, -14.4], Math.PI, -0.05, 'Penthouse-Suite · Willkommen zu Hause, Alexander') });
+  INTERACT.push({ test: p => Math.abs(p.x) < 2.2 && p.z > -16.6 && p.z < -13.4 && Math.abs(p.y - PH.F1) < 2, label: 'Fahrstuhl hinunter in die Lobby', act: () => travel([44.4, BI.P, 22], Math.PI / 2, 0, 'The Belmont · Lobby') });
 }
 export function updateInteract() {
   let u = null;
