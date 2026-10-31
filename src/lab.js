@@ -52,6 +52,11 @@ export function startLab(params) {
     seite: [[-7.5, 1.1, 0.0], [0, 0.85, 0.0]],
     charl: [[4.5, 1.2, -6.2], [0, 0.9, -6.2]],
     spielerkopf: [[0, 1.68, 2.95], [0, 1.67, 2.2]],
+    // V32: Fliege und Hemdbrust, Hände des Spielers, Hände der vorderen Reihe
+    brust: [[0.05, 1.42, 3.0], [0, 1.36, 2.2]],
+    haende: [[-0.45, 1.0, 2.95], [-0.2, 0.85, 2.2]],
+    haende2: [[-1.05, 1.05, 0.8], [-0.75, 0.85, 0.0]],
+    laeufer: [[-3.0, 1.0, 3.1], [-3.0, 0.95, 1.5]],
   };
   LAB.t = params.get('t') != null ? +params.get('t') : null;
   window.labView = name => { const v = LAB.views[name] || LAB.views.alle; camera.position.set(...v[0]); camera.lookAt(...v[1]); C.flag(); };

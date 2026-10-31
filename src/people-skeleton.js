@@ -37,6 +37,16 @@ function faceGLSL() {
   const v = k => `mix(${f(P[k])}, mix(${f(m[k])}, ${f(w[k])}, fem), mh)`;
   return ['eyeX', 'eyeY', 'browY', 'noseY', 'mouthY', 'mouthW', 'chinY', 'eyeZ', 'mouthZ'].map(k => `f${k[0].toUpperCase() + k.slice(1)} = ${v(k)};`).join(' ');
 }
+// V32: Fingergelenke der MakeHuman-Hände (rechte Hand; die linke wird gespiegelt): je Finger Grund-, Mittel- und Endgelenk mit
+// Lage und Beugeachse in der Ruhehaltung (people.json rig.hand). Die Ruhehaltung ist schon entspannt gebeugt; fgC beugt weiter
+// zur Faust oder streckt die Finger
+function handGLSL() {
+  const f = x => (+x).toFixed(4), m = HRIG.m && HRIG.m.hand, w = HRIG.f && HRIG.f.hand;
+  if (!m || !w) return 'void handJ(float f, float fem, out vec3 J1, out vec3 J2, out vec3 J3, out vec3 A1, out vec3 A2, out vec3 A3) { J1 = J2 = J3 = A1 = A2 = A3 = vec3(0.0, 1.0, 0.0); }';
+  const v3 = (a, b, o) => `mix(vec3(${f(a[o])}, ${f(a[o + 1])}, ${f(a[o + 2])}), vec3(${f(b[o])}, ${f(b[o + 1])}, ${f(b[o + 2])}), fem)`;
+  const body = [0, 1, 2, 3, 4].map(k => `${k ? 'else ' : ''}${k < 4 ? `if (f < ${k + 1.5}) ` : ''}{ ${[0, 1, 2].map(j => `J${j + 1} = ${v3(m[k][j], w[k][j], 0)}; A${j + 1} = ${v3(m[k][j], w[k][j], 3)};`).join(' ')} }`).join('\n  ');
+  return `void handJ(float f, float fem, out vec3 J1, out vec3 J2, out vec3 J3, out vec3 A1, out vec3 A2, out vec3 A3) {\n  ${body}\n}`;
+}
 export const HUM_VS_HEAD = () => `
 attribute vec2 aLimb; attribute vec4 aGait; attribute float aOpt; attribute vec3 aSoft;
 attribute vec4 aMH;   // V22: Atlas-UV, Stoffart, Mischgewicht + 2 (fehlt bei gebauten Figuren = 0)
@@ -46,15 +56,17 @@ varying vec2 vFaceUV; varying float vFaceId; varying vec3 vClP; varying float vP
 varying vec2 vTexUV; varying float vTexK; varying float vFold;
 float fEyeX, fEyeY, fBrowY, fNoseY, fMouthY, fMouthW, fChinY, fEyeZ, fMouthZ, gPh, gPlayer, gSmile, gTurn;
 float rTop, rShX, rShZ, rElX, rElY, rElZ, rWrX, rWrY, rWrZ, rKnee, rAnk, rHeadC, rHeadZ, rNeck, rNeckZ, rWaist, rKn1, rKn2, hMH;
-vec2 thP, thA, thY, knF, anF, uaP, uaA, uaT, elF, wrF, fgC;
+vec2 thP, thA, thY, knF, anF, uaP, uaA, uaT, elF, wrF, fgC, fgP;   // V32: fgP = Zeigefinger ausgestreckt (je Hand)
 float spP, spR, spY, nkP, nkY, nkR, pvP, pvR, pvY, sitK, chew, jawO, danceK, flareK, bounceV, walkC, walkA, hAct, runK, carryK, toolOn, legIKon;
 vec3 pvO, toolO, toolX, toolY, toolZ, camB;
 float lookK, lookY, lookP, hHip, hHx, hFem;
 ${rigGLSL()}
+${handGLSL()}
 float hh(float n) { return fract(sin(n * 12.9898 + 4.1) * 43758.5453); }
 float cb(float c, float m, float w) { float d = c - m; d -= floor(d + 0.5); d /= w; return exp(-d * d); }
 float s01(float x) { return clamp(x, 0.0, 1.0); }
 float sst(float x) { x = s01(x); return x * x * x * (x * (6.0 * x - 15.0) + 10.0); }
+vec3 rotA(vec3 v, vec3 a, float t) { float c = cos(t), s = sin(t); return v * c + cross(a, v) * s + a * dot(a, v) * (1.0 - c); }
 vec3 rX(vec3 p, float a) { float c = cos(a), s = sin(a); return vec3(p.x, p.y * c - p.z * s, p.y * s + p.z * c); }
 vec3 rY(vec3 p, float a) { float c = cos(a), s = sin(a); return vec3(p.x * c + p.z * s, p.y, -p.x * s + p.z * c); }
 vec3 rZ(vec3 p, float a) { float c = cos(a), s = sin(a); return vec3(p.x * c - p.y * s, p.x * s + p.y * c, p.z); }
@@ -221,7 +233,7 @@ void poseIdle(float wgt, float fem) {
   else if (g < 3.5) { P = vec2(0.62); Aa = vec2(0.14); Tw = vec2(1.45); E = vec2(1.95, 1.85); sp = -0.04; np = -0.04; F = vec2(0.8); }  // Arme verschränkt
   else if (g < 4.5) { P.x = 1.65; Aa.x = 0.55; E.x = 2.5 + 0.08 * osc; Tw.x = 0.6; np = 0.18; nr = 0.14; F.x = 0.7; }       // am Hinterkopf kratzen
   else if (g < 5.5) { P = vec2(-0.3); Aa = vec2(0.1); Tw = vec2(1.5); E = vec2(1.45); sp = -0.05; }                // Hände auf dem Rücken
-  else if (g < 6.5) { np = -0.55; sp = -0.07; ny = 0.35 * sin(uTime * 0.3 + aGait.x); P.x = 1.25; E.x = 2.25; Tw.x = 0.95; }   // hinaufschauen zu den Türmen
+  else if (g < 6.5) { np = -0.55; sp = -0.07; ny = 0.35 * sin(uTime * 0.3 + aGait.x); P.x = 1.25; E.x = 2.25; Tw.x = 0.95; fgP.x = env; F.x = 1.1; }   // hinaufschauen zu den Türmen (V32: und hinzeigen)
   else if (g < 7.5) { nr = 0.32 * sin(uTime * 1.3); np = 0.12 + 0.1 * cos(uTime * 1.3); }                         // Nacken dehnen
   else if (g < 8.5) { P = vec2(0.55); E = vec2(1.6); Tw = vec2(0.82 + 0.08 * osc); Aa = vec2(0.05); np = 0.12; F = vec2(0.6); }    // Hände reiben
   else if (g < 9.5) { P.x = 2.25; Aa.x = 0.3; E.x = 2.0; Tw.x = 0.4; np = 0.1; }                                    // Hut oder Haar richten
@@ -241,7 +253,7 @@ void poseTalk(float talk) {
   vec2 P = uaP, E = elF, Aa = uaA, Tw = uaT, F = fgC; float nr = nkR, np = nkP;
   if (g < 0.5) { P.y = 0.5 + 0.12 * b; E.y = 1.25; Tw.y = -0.2; F.y = 0.1; }
   else if (g < 1.5) { P = vec2(0.42 + 0.1 * b); E = vec2(1.3); Aa = vec2(0.22); Tw = vec2(-0.35); F = vec2(0.15); }
-  else if (g < 2.5) { P.x = 0.62 + 0.1 * b; E.x = 1.55 - 0.15 * b; Tw.x = 0.3; np += 0.05 * b; F.x = 1.0; }
+  else if (g < 2.5) { P.x = 0.62 + 0.1 * b; E.x = 1.55 - 0.15 * b; Tw.x = 0.3; np += 0.05 * b; F.x = 1.0; fgP.x = env; }   // V32: mit dem Zeigefinger unterstreichen
   else if (g < 3.5) { P.x = 0.55; E.x = 2.15; Tw.x = 1.0; P.y = 0.3 * b; E.y = 0.9; }
   else { Aa = vec2(0.28 + 0.08 * b); E = vec2(1.45); Tw = vec2(-0.7); P = vec2(0.2); nr = 0.14; F = vec2(0.1); }
   uaP = mix(uaP, P, env); elF = mix(elF, E, env); uaA = mix(uaA, Aa, env); uaT = mix(uaT, Tw, env); nkR = mix(nkR, nr, env); nkP = mix(nkP, np, env); fgC = mix(fgC, F, env);
@@ -337,7 +349,7 @@ void poseWheel(vec4 W, float tilt, float ang, float tt, float seated, float tool
   spR = -ang * 0.04; spP = seated > 0.5 ? -0.08 : 0.02;
 }
 void humanPose(float fem, float gs, float elder) {
-  thP = thA = thY = knF = anF = uaP = uaA = uaT = elF = wrF = fgC = vec2(0.0);
+  thP = thA = thY = knF = anF = uaP = uaA = uaT = elF = wrF = fgC = fgP = vec2(0.0);
   spP = spR = spY = nkP = nkY = nkR = pvP = pvR = pvY = sitK = chew = jawO = danceK = flareK = bounceV = walkC = walkA = runK = carryK = toolOn = legIKon = 0.0;
   pvO = vec3(0.0); toolO = toolX = toolY = toolZ = vec3(0.0);
   float walking = step(0.01, aGait.z), amp = aGait.z;
@@ -551,8 +563,31 @@ void humanRig(inout vec3 p, inout vec3 n, float L, float piv, float fem, float s
     float shX = sd * rShX, top = piv, elY = top - (rTop - rElY), wrY = top - (rTop - rWrY);
     vec3 wj = vec3(sd * rWrX, wrY, rWrZ);
     float isHand = (!rigid && p.y < wrY + 0.004 && aSoft.x < 6.5 && (aSoft.x < 1.5 || aSoft.x > 5.5)) ? 1.0 : 0.0;
-    // Finger krümmen sich zur Handfläche (Daumen bleibt), Handgelenk beugt
-    if (isHand > 0.5 && p.y < wrY - rKn1 + 0.014 && p.z < wj.z + 0.036) {
+    // V32: MakeHuman-Hände: jeder Finger beugt sich in seinen drei Gelenken (Vorwärtskinematik, vom Endglied zum Grundgelenk).
+    // fgC 0,35 = entspannt (so ist die Hand gebaut), größer = Greifen bis zur Faust, kleiner = gestreckte Finger
+    float hc = -op;
+    if (hMH > 0.5 && hc > 32767.5) {
+      float c = rgt > 0.5 ? fgC.x : fgC.y, fi = floor(hc / 32768.0 + 1e-4), r = hc - fi * 32768.0;
+      float q1 = floor(r / 1024.0 + 1e-4); r -= q1 * 1024.0; float q2 = floor(r / 32.0 + 1e-4), q3 = r - q2 * 32.0;
+      vec3 w = vec3(q1, q2, q3) / 31.0;
+      // kleiner Finger und Ringfinger etwas mehr, je Figur und Hand ein wenig anders, leichtes Spiel der Finger beim Gehen
+      float k = clamp((c - 0.35) / 0.9, -0.42, 1.15);
+      float life = 0.05 * sin(uTime * 0.9 + aGait.x * 5.0 + fi * 1.3 + sd) + 0.04 * (hh(aGait.x * 3.3 + fi + sd) - 0.5);
+      k += life * (1.0 - clamp(k, 0.0, 1.0));
+      // Zeigen: Zeigefinger gestreckt, Daumen halb, die übrigen zur Faust
+      float pt = rgt > 0.5 ? fgP.x : fgP.y;
+      if (pt > 0.001) k = mix(k, fi > 1.5 && fi < 2.5 ? -0.3 : fi < 1.5 ? 0.6 : 1.05, clamp(pt, 0.0, 1.0));
+      vec3 C = fi < 1.5 ? vec3(0.35, 0.8, 0.8) : vec3(1.05, 1.45, 0.9) * (1.0 + 0.07 * (fi - 3.0));
+      vec3 th = C * k * w;
+      vec3 J1, J2, J3, A1, A2, A3; handJ(fi, hFem, J1, J2, J3, A1, A2, A3);
+      vec3 dy = vec3(0.0, top - rTop, 0.0), q = vec3(-sd * p.x, p.y, p.z) - dy, qn = vec3(-sd * n.x, n.y, n.z);
+      q = J3 + rotA(q - J3, A3, th.z); qn = rotA(qn, A3, th.z);
+      q = J2 + rotA(q - J2, A2, th.y); qn = rotA(qn, A2, th.y);
+      q = J1 + rotA(q - J1, A1, th.x); qn = rotA(qn, A1, th.x);
+      q += dy; p = vec3(-sd * q.x, q.y, q.z); n = vec3(-sd * qn.x, qn.y, qn.z);
+    }
+    // gebaute Figuren: Finger krümmen sich zur Handfläche (Daumen bleibt), Handgelenk beugt
+    else if (hMH < 0.5 && isHand > 0.5 && p.y < wrY - rKn1 + 0.014 && p.z < wj.z + 0.036) {
       float c = rgt > 0.5 ? fgC.x : fgC.y, xk = sd * (rWrX - 0.001);
       // Mittelglieder, dann Grundgelenke
       vec2 k2 = vec2(xk - sd * 0.006, wrY - rKn2);
@@ -711,9 +746,10 @@ export const HUM_VS_RIG = `
       float dy = hP.y - rHeadC - fEyeY;
       if (dy > -0.002 && dy < 0.012 && hP.z > fEyeZ && abs(abs(hP.x) - fEyeX) < 0.02) hP.y -= clamp(vBlink, 0.0, 1.0) * (0.004 + 0.6 * dy);
     } else if (tkv > 2.5 && tkv < 3.5 && gPlayer > 0.5) {
-      // V26: Spieler: volles, nach hinten gekämmtes Haar mit Tolle über der Stirn (wie im Foto)
-      vec3 d = hP - vec3(0.0, rHeadC, rHeadZ); float up = smoothstep(0.0, 0.07, d.y), fr = smoothstep(-0.01, 0.07, d.z);
-      hP = vec3(0.0, rHeadC, rHeadZ) + d * (1.0 + 0.07 * up); hP.y += 0.018 * up * fr; hP.z -= 0.006 * up * fr;
+      // V32: Spieler: ordentlich zurückgekämmt, mit Pomade; über der Stirn eine kleine, glatte Welle, Scheitel links
+      vec3 d = hP - vec3(0.0, rHeadC, rHeadZ); float up = smoothstep(0.02, 0.08, d.y), fr = smoothstep(0.0, 0.08, d.z);
+      float side = smoothstep(0.035, -0.01, d.x);   // rechts vom Scheitel liegt das Haar etwas voller
+      hP = vec3(0.0, rHeadC, rHeadZ) + d * (1.0 + 0.015 * up); hP.y += 0.003 * up * fr * side; hP.z += 0.0015 * up * fr * side;
     } else if (abs(aSoft.x - 1.0) < 0.1 && aOpt < 0.5 && gSmile > 0.01) {
       vec3 q = hP - vec3(0.0, rHeadC + fMouthY, 0.0); float ax = abs(q.x);
       float wc = exp(-pow((ax - fMouthW) / 0.011, 2.0) - pow(q.y / 0.011, 2.0)) * step(fMouthZ - 0.045, hP.z);
@@ -858,7 +894,7 @@ export const HUM_FS_COLOR = () => `
             if (tK < 1.5) { float pk = 1.0 - smoothstep(0.55, 0.8, tx.a); diffuseColor.rgb = mix(tx.rgb, diffuseColor.rgb * tx.r * 2.2, pk); }
             else if (tK < 2.5) { vec3 ref = tone < 2.5 ? vec3(0.97, 0.9, 0.84) : vec3(0.62, 0.48, 0.38); diffuseColor.rgb = tx.rgb * clamp(T5 / ref, 0.55, 1.35); }
             else if (tK > 5.5) diffuseColor.rgb = tx.rgb;                                   // V24: Spieler, feste Haut
-            else if (tK < 3.5 || tK > 4.5) { if (tx.a < (tK > 4.5 ? 0.35 : 0.5)) discard; diffuseColor.rgb = HC * tx.r * (tK > 4.5 ? 1.2 : 1.9); if (plF > 0.5 && tK < 3.5) diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.82, 0.62, 0.34) * tx.r * 1.5, smoothstep(0.45, 0.8, tx.r) * 0.6); }
+            else if (tK < 3.5 || tK > 4.5) { if (tx.a < (tK > 4.5 ? 0.35 : 0.5)) discard; diffuseColor.rgb = HC * tx.r * (tK > 4.5 ? 1.2 : 1.9); if (plF > 0.5 && tK < 3.5) diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.82, 0.62, 0.34) * tx.r * 1.5, smoothstep(0.45, 0.8, tx.r) * 0.4); }
             else {
               // V24: Auge: Iris je Figur gefärbt (braun, dunkel, blau, grün, grau, haselnuss), beim Lidschlag deckt das Lid
               float mx = max(tx.r, max(tx.g, tx.b)), sat = mx > 0.0 ? (mx - min(tx.r, min(tx.g, tx.b))) / mx : 0.0, ir = smoothstep(0.18, 0.4, sat) * step(mx, 0.85);
@@ -903,7 +939,7 @@ export const HUM_FS_COLOR = () => `
             }
           } else if (fab < 2.5) {
             // Haar: Farbe der Figur, Strähnen quer zur Wuchsrichtung, dunkler am Ansatz, Glanzband
-            if (tK > 0.5) { vec3 c = diffuseColor.rgb; c += HC * 0.5 * pow(1.0 - nv, 3.0); diffuseColor.rgb = c; hRough = 0.45; hB = (tx.r - 0.5) * 0.8; } else {
+            if (tK > 0.5) { vec3 c = diffuseColor.rgb; c += HC * 0.5 * pow(1.0 - nv, 3.0); diffuseColor.rgb = c; hRough = plF > 0.5 ? 0.3 : 0.45; hB = (tx.r - 0.5) * (plF > 0.5 ? 0.45 : 0.8); } else {
             float across = -vFaceUV.x, along = vFaceUV.y;
             float ac = across * 7.0, fa = clamp(1.0 - fwidth(ac) * 1.5, 0.0, 1.0);
             float st = vN3(vec3(ac, along * 2.0, vClP.y * 6.0)), clump = vN3(vClP * 60.0);

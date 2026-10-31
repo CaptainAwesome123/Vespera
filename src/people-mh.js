@@ -55,11 +55,11 @@ export async function loadPeople() {
 const DARK_TROUSERS = [0.07, 0.07, 0.08], GLOVE_SATIN = [0.92, 0.9, 0.86];
 export const MH_KIND = {
   suit:      { g: 'm', parts: ['suit-m', 'shoes-m'], tile: 'suit', keep: ['hat', 'carry', 'props'] },
-  tux:       { g: 'm', parts: ['suit-m', 'shoes-m'], tile: 'tux', color: [0.025, 0.025, 0.03], keep: ['bow', 'props'] },
+  tux:       { g: 'm', parts: ['suit-m', 'shoes-m'], tile: 'tux', color: [0.025, 0.025, 0.03], keep: ['props'], shirt: true, bow: true },
   livery:    { g: 'm', parts: ['suit-m', 'shoes-m'], tile: 'uniform', keep: ['hat', 'props'] },
   police:    { g: 'm', parts: ['suit-m', 'boots-m'], tile: 'uniform', keep: ['hat', 'props'] },
   chauffeur: { g: 'm', parts: ['suit-m', 'shoes-m'], tile: 'uniform', keep: ['hat', 'props'] },
-  waiter:    { g: 'm', parts: ['suit-m', 'shoes-m'], tile: 'waiter', keep: ['bow', 'carry', 'props'] },
+  waiter:    { g: 'm', parts: ['suit-m', 'shoes-m'], tile: 'waiter', keep: ['carry', 'props'], shirt: true, bow: true },
   coat:      { g: 'm', parts: ['suit-m', 'shoes-m'], tile: 'suit', keep: ['body', 'hat', 'carry', 'props'], coat: true, cover: { from: 0.48, to: 1.45, mg: 0.022 } },
   worker:    { g: 'm', parts: ['work-m', 'boots-m'], tile: 'work', keep: ['hat', 'props'] },
   sailor:    { g: 'm', parts: ['work-m', 'boots-m'], tile: 'work', keep: ['hat', 'props'] },
@@ -67,8 +67,9 @@ export const MH_KIND = {
   lady:      { g: 'f', parts: ['lady-f', 'heels-f'], tile: 'lady', keep: ['hat', 'carry', 'props'] },
   gown:      { g: 'f', parts: ['heels-f'], keep: ['body', 'hat', 'props'], cover: { from: 0.02, to: 1.366, mg: 0.012 }, gloves: GLOVE_SATIN, longGloves: true },
   dress:     { g: 'f', parts: ['heels-f'], keep: ['body', 'hat', 'props'], cover: { from: 0.42, to: 1.366, mg: 0.01 } },
-  // V24: der Spieler (nach den Referenzbildern): Frack, Fliege, weiße Rose am Revers, Einstecktuch; eigenes Gesicht, blondes Haar mit Seitenscheitel
-  player:    { g: 'm', body: 'p', parts: ['suit-m', 'shoes-m'], tile: 'tux', color: [0.025, 0.025, 0.03], keep: ['bow', 'props'], player: true },
+  // V24: der Spieler (nach den Referenzbildern): eigenes Gesicht, blondes Haar, weiße Rose am Revers, Einstecktuch
+  // V32: im Smoking (Hemdbrust mit Biesen und Onyxknöpfen) mit schwarzer Fliege; Haar glatt zurückgekämmt
+  player:    { g: 'm', body: 'p', parts: ['suit-m', 'shoes-m'], tile: 'tux', color: [0.025, 0.025, 0.03], keep: ['props'], player: true, shirt: true, bow: true },
 };
 // V24: Brillen (3D, rund, Goldrand) für diese Arten; welche Figur eine trägt, entscheidet das Gesicht (FACE_SPECS, auch im Shader)
 const SPECS_KINDS = { suit: 1, coat: 1, worker: 1, chauffeur: 1, waiter: 1 };
@@ -144,6 +145,41 @@ function suitFront(x, y) {
   if (s) for (let i = 0; i < s.count; i++) { const dx = s.position[i * 3] - x, dy = s.position[i * 3 + 1] - y; if (dx * dx + dy * dy < 0.012 * 0.012 && (z === null || s.position[i * 3 + 2] > z)) z = s.position[i * 3 + 2]; }
   return z ?? 0.12;
 }
+// V32: Hemdbrust vorn (für die Fliege): vorderster Punkt der glatten Hemdbrust nahe (x, y)
+function shirtFront(x, y) {
+  const s = MHP.src['shirt-m'] || MHP.src['suit-m']; let z = null;
+  if (s) for (let i = 0; i < s.count; i++) { const dx = s.position[i * 3] - x, dy = s.position[i * 3 + 1] - y; if (dx * dx + dy * dy < 0.015 * 0.015 && (z === null || s.position[i * 3 + 2] > z)) z = s.position[i * 3 + 2]; }
+  return z ?? 0.1;
+}
+// Ein Flügel der Fliege (sd = Seite): Schlauch entlang x, Querschnitt flache Ellipse, Höhe wächst nach außen und rundet sich ab
+function bowWing(sd) {
+  const NU = 12, NV = 12, pos = [], idx = [];
+  for (let i = 0; i <= NU; i++) {
+    const u = i / NU, x = 0.005 + u * 0.045;
+    const end = Math.sqrt(Math.max(0, 1 - Math.pow(Math.max(0, (u - 0.72) / 0.28), 2)));
+    const hy = (0.005 + 0.012 * Math.pow(Math.sin(Math.min(1, u / 0.72) * Math.PI / 2), 0.8)) * end + 0.0004;
+    const hz = (0.0032 + 0.0018 * u) * (0.4 + 0.6 * end) + 0.0003;
+    const dent = 1 - 0.18 * Math.exp(-Math.pow((u - 0.86) / 0.08, 2));   // Kerbe außen: Schmetterlingsform
+    for (let j = 0; j < NV; j++) {
+      const a = j / NV * Math.PI * 2, cy = Math.cos(a), cz = Math.sin(a);
+      pos.push(sd * x, cy * hy * (Math.abs(cy) > 0.6 ? dent : 1) + 0.0012 * Math.sin(u * 5.0) * sd, cz * hz - 0.003 * u * u + 0.0025 * Math.sin(u * Math.PI));
+    }
+  }
+  for (let i = 0; i < NU; i++) for (let j = 0; j < NV; j++) { const a = i * NV + j, b = i * NV + (j + 1) % NV, c = a + NV, d = b + NV; idx.push(a, b, c, b, d, c); }
+  // äußeres Ende schließen
+  const tip = pos.length / 3; pos.push(sd * 0.0505, 0, 0); for (let j = 0; j < NV; j++) idx.push(NU * NV + j, NU * NV + (j + 1) % NV, tip);
+  // jedes Dreieck nach außen drehen (vom Kern des Flügels weg, am Ende nach außen)
+  const V = k => [pos[k * 3], pos[k * 3 + 1], pos[k * 3 + 2]];
+  for (let t = 0; t < idx.length; t += 3) {
+    const A = V(idx[t]), B = V(idx[t + 1]), C = V(idx[t + 2]), u = [B[0] - A[0], B[1] - A[1], B[2] - A[2]], w = [C[0] - A[0], C[1] - A[1], C[2] - A[2]];
+    const nx = u[1] * w[2] - u[2] * w[1], ny = u[2] * w[0] - u[0] * w[2], nz = u[0] * w[1] - u[1] * w[0];
+    const cx = (A[0] + B[0] + C[0]) / 3, cy = (A[1] + B[1] + C[1]) / 3, cz = (A[2] + B[2] + C[2]) / 3;
+    const out = t >= NU * NV * 6 ? [sd, 0, 0] : [0, cy, cz];
+    if (nx * out[0] + ny * out[1] + nz * out[2] < 0) { const k = idx[t + 1]; idx[t + 1] = idx[t + 2]; idx[t + 2] = k; }
+  }
+  const g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals();
+  return g;
+}
 // Kragen vorn (für Fliegen): höchster Punkt des Hemdkragens in der Mitte
 const collarCache = {};
 function collarFront(gk) {
@@ -173,6 +209,12 @@ function extraParts(K, kind, rig, keep) {
     const x = 0.105, y = rig.top - 0.17, z = suitFront(x, y);
     const g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute([-0.024, 0, 0, 0.024, 0, 0, -0.012, 0.03, 0, 0.0, 0.022, 0, 0.014, 0.032, 0], 3)); g.setIndex([0, 1, 3, 0, 3, 2, 1, 4, 3]);
     g.translate(x, y, z + 0.004); g.computeVertexNormals(); P(g, [0.97, 0.97, 0.95], 0, FAB.silk);
+  }
+  if (K.bow) {
+    // V32: Fliege aus schwarzem Satin: zwei Flügel, in der Mitte gerafft, außen gerundet und leicht gewellt, dazu der Knoten
+    const cf = collarFront(K.g), y = cf[1] - 0.03, z = shirtFront(0, y) + 0.004, black = [0.018, 0.018, 0.022];
+    P(bowWing(1).translate(0, y, z), black, 0, FAB.satin); P(bowWing(-1).translate(0, y, z), black, 0, FAB.satin);
+    P(new T.SphereGeometry(0.0085, 10, 8).scale(0.85, 1.05, 0.7).translate(0, y, z + 0.0035), black, 0, FAB.satin);
   }
   if (K.player) {
     // weiße Rose am linken Revers: Blütenblätter in Lagen, Kelch und Stiel, ein Blatt
@@ -243,7 +285,7 @@ export function mhPersonGeo(kind, q) {
   const face = fm ? i => { const g = bodySrc._reg[i], y = bodySrc.position[i * 3 + 1]; return (g === 1 || g === 2) && y > chin ? fm(bodySrc.position[i * 3], y, bodySrc.position[i * 3 + 2]) : null; } : null;
   add(bodySrc, { isBody: true, face, drop: i => (bodySrc._hide[i] & mask) !== 0 || (inCover(bodySrc, i) && bodySrc._reg[i] !== 4 && bodySrc._reg[i] !== 5 && bodySrc._reg[i] !== 6 && bodySrc._reg[i] !== 1) });
   add(S('eyes-' + gk));
-  if (K.player) add(S(`hairA-${gk}`), { opt0: true });       // Seitenscheitel mit Schwung (MakeHuman short02), immer
+  if (K.player) add(S(`hairB-${gk}`), { opt0: true });       // V32: glatt zurückgekämmt mit Seitenscheitel (MakeHuman short04), immer
   else for (const h of ['A', 'B', 'C']) add(S(`hair${h}-${gk}`));
   add(S('brows-' + gk)); if (fine) add(S('lashes-' + gk));
   for (const pn of K.parts) {
@@ -253,6 +295,8 @@ export function mhPersonGeo(kind, q) {
     else if (pn === 'shoes-m' || pn === 'boots-m') o.color = NOPAINT;
     else {
       const baseTile = pn === 'suit-m' ? 'suit' : pn === 'work-m' ? 'work' : 'lady', t = K.tile || baseTile;
+      // V32: Smoking und Kellner: Hemdbrust ohne Krawatte statt der mit
+      if (K.shirt && pn === 'suit-m' && src._hide && MHP.src['shirt-m']) { o.drop = i => (src._hide[i] & 64) !== 0; o.shirt = true; }
       if (t !== baseTile) { o.du = (RECT[t][0] - RECT[baseTile][0]) * TILE / AW; o.dv = -(RECT[t][1] - RECT[baseTile][1]) * TILE / AH; }
       o.color = K.color || [1, 1, 1];
       if (K.coat && pn === 'suit-m') {
@@ -262,6 +306,7 @@ export function mhPersonGeo(kind, q) {
       }
     }
     add(src, o);
+    if (o.shirt) add(S('shirt-m'), { du: o.du, dv: o.dv, color: o.color });
   }
   // Zubehör anhängen (gleiche Felder wie personMerge)
   if (keep.length) {
