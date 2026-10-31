@@ -51,7 +51,7 @@ export function makePose(v, skel, o = {}) {
   const S = 0.1;
   const J = n => mul(jointPos(skel, v, n), S);
   const head = b => J(skel.bones[b].head), tail = b => J(skel.bones[b].tail);
-  const pose = {};   // Knochen -> { R, P (Drehpunkt MH), T (Ziel) }
+  const pose = {}, fingers = {};   // Knochen -> { R, P (Drehpunkt MH), T (Ziel) }
   const set = (bones, R, P, Tp) => { for (const b of bones) pose[b] = { R, P, T: Tp }; };
   const side = (s) => {
     const X = s === 'R' ? -1 : 1, sx = b => b + '.' + s;
@@ -74,6 +74,9 @@ export function makePose(v, skel, o = {}) {
     const hand = Object.keys(skel.bones).filter(b => b.endsWith('.' + s) && /^(wrist|metacarpal|finger)/.test(b));
     // Hand dreht um das Handgelenk; das Handgelenk liegt am Ende des Unterarms
     set(hand, Rh, Wr, Wt);
+    // V32: Finger in entspannter Haltung (leicht gebeugt, aneinander, Daumen locker zur Handfläche) statt flach gespreizt;
+    // dazu je Fingergelenk Lage und Beugeachse in der Ruhehaltung des Spiels (für das Greifen im Shader)
+    fingers[s] = fingerPose(skel, head, tail, pose, sx, Rh, Wr, Wt, o.curl ?? 1);
     /* Bein: Hüfte bleibt, Knie und Knöchel senkrecht darunter (Füße etwa hüftbreit) */
     const H = head(sx('upperleg01')), K = head(sx('lowerleg01')), A = head(sx('foot'));
     const Lt = len(sub(K, H)), Ls = len(sub(A, K));
@@ -91,7 +94,63 @@ export function makePose(v, skel, o = {}) {
     return { Sh, Et, Wt, Lu, Lf, H, Kt, At };
   };
   const r = side('R'), l = side('L');
-  return { pose, R: r, L: l };
+  return { pose, R: r, L: l, fingers };
+}
+
+// Drehmatrix um eine Achse (Rodrigues)
+export function rotAxis(a, t) {
+  const [x, y, z] = nrm(a), c = Math.cos(t), s = Math.sin(t), C = 1 - c;
+  return [c + x * x * C, x * y * C - z * s, x * z * C + y * s, y * x * C + z * s, c + y * y * C, y * z * C - x * s, z * x * C - y * s, z * y * C + x * s, c + z * z * C];
+}
+// Entspannte Hand: Grund-, Mittel- und Endgelenke je Finger leicht gebeugt (kleiner Finger mehr), Finger zum Mittelfinger hin
+// geschlossen, Daumen zur Handfläche. Vorwärtskinematik über die Fingerknochen; je Gelenk: Lage und Beugeachse nach dem Stellen
+export const RELAX = {
+  bend: [[0.55, 0.22, 0.25], [0.26, 0.36, 0.2], [0.32, 0.44, 0.24], [0.4, 0.5, 0.28], [0.48, 0.56, 0.32]],   // Daumen, Zeige-, Mittel-, Ring-, kleiner Finger
+  close: [0, 0.7, 0, 0.6, 0.55],                                                                    // Anteil des Spreizwinkels, der geschlossen wird
+};
+function fingerPose(skel, head, tail, pose, sx, Rh, Wr, Wt, k) {
+  const K2 = head(sx('finger2-1')), K3 = head(sx('finger3-1')), K5 = head(sx('finger5-1'));
+  // Handflächennormale: senkrecht zu Knöchelreihe und Handachse, zur Seite des Daumens (Handfläche)
+  let n = nrm(cross(sub(K2, K5), sub(K3, Wr)));
+  const tTip = tail(sx('finger1-3'));
+  if (dot(sub(tTip, K3), n) < 0) n = mul(n, -1);
+  const Xp = p => add(Wt, mv(Rh, sub(p, Wr)));
+  const dir3 = nrm(sub(tail(sx('finger3-1')), K3));
+  const palmC = add(mul(add(Wr, K3), 0.5), mul(n, 0.02));   // Mitte der Handfläche, etwas davor: dorthin greift der Daumen
+  const out = [];
+  for (let f = 1; f <= 5; f++) {
+    let Rp = Rh, Tp = p => Xp(p);
+    const joints = [];
+    for (let j = 1; j <= 3; j++) {
+      const b = sx(`finger${f}-${j}`), h = head(b), d = nrm(sub(tail(b), h));
+      let Q = [1, 0, 0, 0, 1, 0, 0, 0, 1], ax;
+      if (f === 1 && j === 1) {
+        // Daumen: liegt locker neben dem Zeigefinger, etwas vor der Handfläche (statt weit abgespreizt)
+        const to = nrm(add(nrm(sub(tail(sx('metacarpal1')), head(sx('metacarpal1')))), mul(n, 0.7)));
+        ax = nrm(cross(d, to));
+      } else if (f === 1) ax = nrm(cross(d, nrm(sub(palmC, h))));
+      else {
+        let dd = d;
+        if (j === 1 && RELAX.close[f - 1]) {
+          // Finger zum Mittelfinger hin schließen (in der Ebene der Handfläche)
+          const pr = v => nrm(sub(v, mul(n, dot(v, n))));
+          const a = pr(d), b3 = pr(dir3), ang = Math.acos(Math.max(-1, Math.min(1, dot(a, b3)))) * RELAX.close[f - 1];
+          if (ang > 1e-4) { Q = rotAxis(cross(a, b3), ang); dd = mv(Q, d); }
+        }
+        ax = nrm(cross(dd, n));
+      }
+      const th = RELAX.bend[f - 1][j - 1] * k;
+      Q = mm(rotAxis(ax, th), Q);
+      const T = Tp(h), R = mm(Rp, Q);
+      pose[b] = { R, P: h, T };
+      // Greifachse: für den Daumen zur Mitte der Handfläche (nach dem Stellen des Grundgelenks)
+      const gax = f === 1 && j === 1 ? nrm(cross(mv(Q, d), nrm(sub(palmC, h)))) : ax;
+      joints.push({ J: T, A: nrm(mv(Rp, gax)) });
+      Rp = R; Tp = p => add(T, mv(R, sub(p, h)));
+    }
+    out.push(joints);
+  }
+  return out;
 }
 
 // Punkte verformen: w = Liste [knochen, gewicht]

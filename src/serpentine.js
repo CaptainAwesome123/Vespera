@@ -943,7 +943,7 @@ export function buildVilla() {
   const statueGeo = kind => {
     // Figur ohne die Varianten (Hüte, andere Frisuren), als ein Stück Marmor
     const src = personGeoHi(kind, 1).toNonIndexed(), op = src.attributes.aOpt.array, pos = src.attributes.position.array, nor = src.attributes.normal.array, P = [], Nn = [];
-    for (let i = 0; i < op.length; i += 3) { if (!(op[i] === 0 || op[i] === 11)) continue; for (let k = 0; k < 3; k++) { P.push(pos[(i + k) * 3], pos[(i + k) * 3 + 1], pos[(i + k) * 3 + 2]); Nn.push(nor[(i + k) * 3], nor[(i + k) * 3 + 1], nor[(i + k) * 3 + 2]); } }
+    for (let i = 0; i < op.length; i += 3) { if (!(op[i] <= 0 || op[i] === 11)) continue; /* V32: Hände haben negative Werte (Fingergelenke) */ for (let k = 0; k < 3; k++) { P.push(pos[(i + k) * 3], pos[(i + k) * 3 + 1], pos[(i + k) * 3 + 2]); Nn.push(nor[(i + k) * 3], nor[(i + k) * 3 + 1], nor[(i + k) * 3 + 2]); } }
     const g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute(P, 3)); g.setAttribute('normal', new T.Float32BufferAttribute(Nn, 3)); g.setAttribute('uv', new T.Float32BufferAttribute(new Float32Array(P.length / 3 * 2), 2));
     return g;
   };

@@ -133,6 +133,15 @@ des Spiels und schreibt `assets/people/`. Aufruf: `node tools/make-people.mjs <m
 Atlasbild, Farbe, welche gebauten Teile wie Hüte, Mäntel, Kleider und Werkzeuge bleiben); ferne Figuren
 bleiben die gebauten. Lädt `assets/people` nicht, läuft alles wie in V21.
 
+**Hände und Smoking (V32):** Die Finger der MakeHuman-Körper haben je drei Gelenke. `fingerPose` in
+`tools/people/fit.mjs` legt die Hände entspannt an (leicht gebeugt, Finger beisammen, Daumen neben dem
+Zeigefinger) und schreibt je Finger und Gelenk Lage und Beugeachse nach `people.json` (`rig.m.hand`, `rig.f.hand`).
+Welche Ecke zu welchem Finger gehört, steht negativ in `aOpt` (Finger·32768 + Anteile hinter Grund-, Mittel- und
+Endgelenk, je 0…31), weil der Figuren-Shader schon 15 der 16 Attributplätze belegt. Im Shader beugt `fgC` die
+Finger weiter bis zur Faust oder streckt sie, `fgP` streckt den Zeigefinger (Zeigen). Smoking, Kellner und Spieler
+tragen statt der Krawatte die glatte Hemdbrust `shirt-m` (Biesen, Onyxknöpfe) und eine Satinfliege (`bowWing`
+in `src/people-mh.js`). Mit Vorschau-Ordner schreibt `make-people.mjs` auch Bilder der Hände (entspannt, Faust, offen).
+
 **V23: Gebäude, Waren, Böden.**
 - *Flackern:* Bauteile eines Hauses überlappen nicht mehr mit gleichen Flächen (Ecken als Mittelstück plus
   Endkappen, Gesimse mit `bandC()` leicht vor der Wand, doppelte Teile entfernt `dedupeSegs()`); innen liegende

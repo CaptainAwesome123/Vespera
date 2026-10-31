@@ -173,6 +173,29 @@ lift.p = lift.m;
 for (const gk in bodies) shiftY(bodies[gk].pos, lift[gk]);
 for (const k in parts) shiftY(parts[k].pos, lift[parts[k].def.body]);
 
+/* ---------------- V32: Hemdbrust ohne Krawatte (Smoking, Frack, Kellner) ---------------- */
+// Im Herrenanzug ist die Krawatte ein Wulst auf der Hemdbrust (eine UV-Insel mit Kragen und Hemd). Für Smoking und Kellner
+// gibt es diese Insel als eigenes Netz 'shirt-m' mit flacher Hemdbrust; im Anzug wird sie dann ausgeblendet (Bit 64)
+const TIE = {};
+{
+  const P = parts['suit-m'], n = P.U.vid.length, pos = P.pos;
+  const isl = (() => { const idx = P.U.idx, par = Int32Array.from({ length: n }, (_, i) => i), f = i => { while (par[i] !== i) { par[i] = par[par[i]]; i = par[i]; } return i; };
+    for (let t = 0; t < idx.length; t += 3) { const a = f(idx[t]), b = f(idx[t + 1]), c = f(idx[t + 2]); par[b] = a; par[f(c)] = a; } return Int32Array.from({ length: n }, (_, i) => f(i)); })();
+  // Insel mit den meisten Ecken vorn in der Mitte über dem obersten Knopf
+  let ys = []; for (let i = 0; i < n; i++) ys.push(pos[i * 3 + 1]); const yMax = Math.max(...ys);
+  const cnt = new Map(); for (let i = 0; i < n; i++) if (Math.abs(pos[i * 3]) < 0.012 && pos[i * 3 + 2] > 0.06 && pos[i * 3 + 1] > yMax - 0.45) cnt.set(isl[i], (cnt.get(isl[i]) || 0) + 1);
+  let best = -1, bc = 0; for (const [k, c] of cnt) if (c > bc) { bc = c; best = k; }
+  const inT = new Uint8Array(n); for (let i = 0; i < n; i++) inT[i] = isl[i] === best ? 1 : 0;
+  // Hemd glätten: im Band je Zentimeter die Höhe neben der Krawatte (|x| 2,8 bis 4,5 cm) als Fläche nehmen, leicht gewölbt
+  const flat = Float32Array.from(pos), BW = 0.01, ref = new Map();
+  for (let i = 0; i < n; i++) if (inT[i]) { const ax = Math.abs(pos[i * 3]); if (ax > 0.028 && ax < 0.045) { const b = Math.round(pos[i * 3 + 1] / BW); ref.set(b, Math.max(ref.get(b) ?? -1, pos[i * 3 + 2])); } }
+  const refAt = y => { const b = Math.round(y / BW); for (let d = 0; d < 6; d++) { if (ref.has(b - d)) return ref.get(b - d); if (ref.has(b + d)) return ref.get(b + d); } return null; };
+  for (let i = 0; i < n; i++) if (inT[i]) { const x = pos[i * 3], ax = Math.abs(x); if (ax > 0.03) continue; const zr = refAt(pos[i * 3 + 1]); if (zr === null) continue;
+    const want = zr + 0.0045 * (1 - (x / 0.03) ** 2); if (flat[i * 3 + 2] > want) flat[i * 3 + 2] = want; }
+  TIE.inT = inT; TIE.flat = flat;
+  console.log('Hemdbrust: Insel', best, 'Ecken', inT.reduce((a, b) => a + b, 0));
+}
+
 /* ---------------- Gelenkpunkte fürs Spiel ---------------- */
 const RIG = {};
 for (const [gk, B] of Object.entries(bodies)) {
@@ -192,7 +215,9 @@ for (const [gk, B] of Object.entries(bodies)) {
     eye: [+(-eyeR[0]).toFixed(4), +eyeR[1].toFixed(4), +eyeR[2].toFixed(4)],
     // Fingergelenke: Abstand unter dem Handgelenk (Grundgelenke, Mittelgelenke des Mittelfingers)
     kn: ['finger3-1.R', 'finger3-2.R'].map(b => { const pp = B.P.pose[b], j = M.jointPos(skel, v, skel.bones[b].head).map(x => x * 0.1); const q = F.add(pp.T, F.mv(pp.R, F.sub(j, pp.P))); return +(wr[1] - (q[1] + L)).toFixed(4); }),
-    face: faceMarks(B, gk, eyeR) };
+    face: faceMarks(B, gk, eyeR),
+    // V32: Fingergelenke der rechten Hand (Lage, Beugeachse) je Finger (Daumen bis kleiner Finger) und Gelenk (Grund-, Mittel-, Endgelenk)
+    hand: B.P.fingers.R.map(f => f.map(j => [...up(j.J).map(x => +x.toFixed(4)), ...j.A.map(x => +x.toFixed(4))])) };
 }
 // V24: Gesichtsmerkmale (Meter, Ruhehaltung): Brauenbogen, Nasenspitze, Mundspalte, Mundwinkel, Kinn. Aus den Mundknochen
 // (oris) und dem Profil der Mittellinie; damit legen die gemalten Gesichter (FACE_ATLAS) Lippen, Bart und Schminke genau auf
@@ -223,16 +248,26 @@ function regionOf(w, p, rig) {
   if (p[1] > rig.top + 0.02 && Math.abs(p[0]) < 0.075) return 2;
   return 3;
 }
+// V32: je Ecke der Hand: Finger (1 Daumen … 5 kleiner Finger) und Anteil hinter Grund-, Mittel- und Endgelenk
+function handAttr(w) {
+  const by = [0, 0, 0, 0, 0, 0].map(() => [0, 0, 0]); let tw = 0;
+  for (const [b, g] of w) { tw += g; const m = /^finger(\d)-(\d)\./.exec(b); if (m) by[+m[1]][+m[2] - 1] += g; }
+  let f = 0, fw = 0; for (let k = 1; k <= 5; k++) { const s = by[k][0] + by[k][1] + by[k][2]; if (s > fw) { fw = s; f = k; } }
+  if (!f || fw / tw < 0.02) return [0, 0, 0, 0];
+  const q = by[f].map(x => x / tw);
+  return [f, Math.min(1, q[0] + q[1] + q[2]), Math.min(1, q[1] + q[2]), Math.min(1, q[2])];
+}
 function limbAttrs(ws, pos, gk) {
-  const rig = RIG[gk], n = ws.length, limb = new Float32Array(n * 2), blend = new Float32Array(n), reg = new Uint8Array(n);
+  const rig = RIG[gk], n = ws.length, limb = new Float32Array(n * 2), blend = new Float32Array(n), reg = new Uint8Array(n), hand = new Float32Array(n * 4);
   for (let i = 0; i < n; i++) {
+    hand.set(handAttr(ws[i]), i * 4);
     const lb = F.limbBlend(ws[i]), p = [pos[i * 3], pos[i * 3 + 1], pos[i * 3 + 2]];
     limb[i * 2] = lb.limb;
     limb[i * 2 + 1] = lb.limb === 0 ? 0 : (lb.limb === 1 || lb.limb === 2 || lb.limb === 5 || lb.limb === 6) ? rig.hip : rig.top;
     blend[i] = lb.limb ? lb.w : 0;
     reg[i] = regionOf(ws[i], p, rig);
   }
-  return { limb, blend, reg };
+  return { limb, blend, reg, hand };
 }
 
 /* ---------------- Atlas ---------------- */
@@ -250,11 +285,12 @@ function toAtlasUV(uv, r) {
   return out;
 }
 // Rasterung eines Teils in seinem Texturraum: je Texel die Lage am Körper (Ruhehaltung), für gemalte Varianten
-function uvRaster(P, size) {
+function uvRaster(P, size, triOk) {
   const R = new Float32Array(size * size * 4).fill(NaN);
   const { pos, U } = P, uv = U.uv, I = U.idx;
   for (let t = 0; t < I.length; t += 3) {
     const a = I[t], b = I[t + 1], c = I[t + 2];
+    if (triOk && !triOk(a, b, c)) continue;
     const X = [uv[a * 2] * size, uv[b * 2] * size, uv[c * 2] * size], Y = [(1 - uv[a * 2 + 1]) * size, (1 - uv[b * 2 + 1]) * size, (1 - uv[c * 2 + 1]) * size];
     const den = (Y[1] - Y[2]) * (X[0] - X[2]) + (X[2] - X[1]) * (Y[0] - Y[2]); if (Math.abs(den) < 1e-9) continue;
     for (let py = Math.max(0, Math.floor(Math.min(...Y))); py <= Math.min(size - 1, Math.ceil(Math.max(...Y))); py++)
@@ -369,7 +405,27 @@ async function buildAtlas() {
   // Frack: Krawatte weg (weißes Hemd, die Fliege kommt als Teil dazu), Revers in Satin dunkler
   // V24: der ganze Krawattenstreifen wird Hemd (vorher blieben die dunklen Streifen der Krawatte stehen)
   const isTieBand = (b, i, p) => isTie(p) && (!isCloth(b, i) || Math.abs(p[0]) < 0.022);
-  blit(paintMask(mk(b => { for (let i = 0; i < b.length; i += 4) { const p = at(i); if (isTieBand(b, i, p)) { b[i] = shirtCol[0]; b[i + 1] = shirtCol[1]; b[i + 2] = shirtCol[2]; } } }), isCloth), RECT.tux);
+  // V32: Smoking: Hemdbrust (eigene Insel, ohne Krawatte) weiß mit feinen Biesen und drei Onyxknöpfen
+  const shirtR = uvRaster(suit, TILE, (a, b, c) => TIE.inT[a] && TIE.inT[b] && TIE.inT[c]);
+  const sm = meshes['suit-m'], sp = sm.pos, nS = sp.length / 3, BW = 0.01, band = y => Math.round(y / BW);
+  const edge = new Map();
+  for (let i = 0; i < nS; i++) {
+    const x = Math.abs(sp[i * 3]), y = sp[i * 3 + 1], z = sp[i * 3 + 2];
+    if (!TIE.inT[i] && sm.limb[i * 2] === 0 && z > 0.05 && y > rigM.hip) edge.set(band(y), Math.min(edge.get(band(y)) ?? 1, x));
+  }
+  let yBtn = rigM.hip; for (let y = rigM.hip; y < rigM.top; y += BW) { const e = edge.get(band(y)); if (e !== undefined && e < 0.012) yBtn = y; }
+  let yColl = 0; for (let i = 0; i < nS; i++) if (TIE.inT[i] && Math.abs(sp[i * 3]) < 0.01) yColl = Math.max(yColl, sp[i * 3 + 1]);
+  const stud = (x, y) => [0.075, 0.13, 0.185].some(o => yColl - o > yBtn + 0.01 && Math.hypot(x, y - (yColl - o)) < 0.0042);
+  console.log('Smoking: oberster Knopf', yBtn.toFixed(3), 'Kragen', yColl.toFixed(3));
+  blit(paintMask(mk(b => { for (let i = 0; i < b.length; i += 4) {
+    const k = i, sh = [shirtR[k], shirtR[k + 1], shirtR[k + 2], shirtR[k + 3]], p = at(i);
+    if (sh[3] === 1) {
+      const ax = Math.abs(sh[0]), bib = ax < 0.05 && sh[1] < yColl - 0.035 ? 1 : 0;
+      const pl = bib ? 0.95 + 0.05 * Math.cos(ax / 0.0065 * Math.PI * 2) : 1;
+      if (stud(sh[0], sh[1])) { b[i] = 22; b[i + 1] = 22; b[i + 2] = 26; }
+      else { b[i] = shirtCol[0] * pl; b[i + 1] = shirtCol[1] * pl; b[i + 2] = shirtCol[2] * pl; }
+    }
+  } }), isCloth), RECT.tux);
   // Uniform: Messingknöpfe zweireihig, dunkle Krawatte
   const btn = (p) => { if (p[3] !== 1 || p[2] < 0.06) return 0; for (const y of [0.0, 0.1, 0.2, 0.3]) for (const sx of [-0.055, 0.055]) { const d = Math.hypot(p[0] - sx, p[1] - (rigM.waist - 0.08 + y)); if (d < 0.011) return 1; } return 0; };
   blit(paintMask(mk(b => { for (let i = 0; i < b.length; i += 4) { const p = at(i); if (isTie(p) && !isCloth(b, i)) { b[i] = 30; b[i + 1] = 28; b[i + 2] = 32; } if (btn(p)) { b[i] = 200; b[i + 1] = 160; b[i + 2] = 80; } } }),
@@ -450,7 +506,10 @@ for (const [gk, B] of Object.entries(bodies)) {
     Object.assign(HEADP, { pos, nrm, uv: local, inHead, idx: U.idx });
   } else { uv = toAtlasUV(U.uv, RECT['skin_' + gk]); tex = new Float32Array(n).fill(2); }   // Haut: erste Kachel; Shader verschiebt je Figur
   const soft = new Float32Array(n * 3); for (let i = 0; i < n; i++) soft[i * 3] = FAB.skin;
-  addMesh('body-' + gk, { pos, nrm, uv, tex, idx: U.idx, limb: la.limb, blend: la.blend, reg: la.reg, soft, opt: new Float32Array(n), hide });
+  // V32: Finger und Gelenkanteile stecken (negativ) in der Variante: -(Finger·32768 + Grund·1024 + Mittel·32 + End), Anteile 0…31
+  const opt = new Float32Array(n);
+  for (let i = 0; i < n; i++) { const h = la.hand.subarray(i * 4, i * 4 + 4); if (h[0]) opt[i] = -(h[0] * 32768 + Math.round(h[1] * 31) * 1024 + Math.round(h[2] * 31) * 32 + Math.round(h[3] * 31)); }
+  addMesh('body-' + gk, { pos, nrm, uv, tex, idx: U.idx, limb: la.limb, blend: la.blend, reg: la.reg, soft, opt, hide, hand: la.hand });
   // Augen (der Spieler nimmt die des Herrenkörpers: der Schädel ist derselbe)
   if (gk !== 'p') { const eyes = eyeMesh(B, gk); addMesh('eyes-' + gk, eyes); }
 }
@@ -496,7 +555,14 @@ for (const [name, P] of Object.entries(parts)) {
   }
   // Haare und Brauen beidseitig: Karten von hinten sind sonst unsichtbar
   let idx = P.U.idx; if (def.hair || def.brow) { const d = new Uint32Array(idx.length * 2); d.set(idx); for (let t = 0; t < idx.length; t += 3) { d[idx.length + t] = idx[t]; d[idx.length + t + 1] = idx[t + 2]; d[idx.length + t + 2] = idx[t + 1]; } idx = d; }
-  addMesh(name, { pos: P.pos, nrm: normals(P.pos, P.U.idx, P.U.vid), uv, tex: new Float32Array(n).fill(kindTex), idx, limb: la.limb, blend: la.blend, reg: la.reg, soft, opt });
+  const m = { pos: P.pos, nrm: normals(P.pos, P.U.idx, P.U.vid), uv, tex: new Float32Array(n).fill(kindTex), idx, limb: la.limb, blend: la.blend, reg: la.reg, soft, opt };
+  if (name === 'suit-m') {
+    // V32: Hemdbrust mit Krawatte (Bit 64) und ihr Ersatz ohne Krawatte, nur aus den Dreiecken dieser Insel
+    m.hide = Uint16Array.from(TIE.inT, v => v ? 64 : 0);
+    const keep = []; for (let t = 0; t < idx.length; t += 3) if (TIE.inT[idx[t]] && TIE.inT[idx[t + 1]] && TIE.inT[idx[t + 2]]) keep.push(idx[t], idx[t + 1], idx[t + 2]);
+    addMesh('shirt-m', { ...m, pos: TIE.flat, nrm: normals(TIE.flat, P.U.idx, P.U.vid), idx: Uint32Array.from(keep), hide: null });
+  }
+  addMesh(name, m);
 }
 // Absatzschuhe der Damen: Hülle um den Fuß (4 mm), Sohle, Absatz
 {
@@ -539,7 +605,7 @@ function simplify(m, ratio, err = 0.02) {
 }
 // Ziel: höchstens etwa 6000 Dreiecke je Figur in der mittleren Stufe (bis 45 m stehen oft hunderte Figuren);
 // Haare dürfen gröber werden (Fehler 0.05), in dem Abstand sieht man nur noch die Form
-const LOD1 = { 'body-m': 0.15, 'body-f': 0.15, 'body-p': 0.3, 'suit-m': 0.18, 'work-m': 0.25, 'lady-f': 0.3, 'shoes-m': 0.15, 'boots-m': 0.2, 'heels-f': 0.25, 'eyes-m': 1, 'eyes-f': 1,
+const LOD1 = { 'shirt-m': 0.5, 'body-m': 0.15, 'body-f': 0.15, 'body-p': 0.3, 'suit-m': 0.18, 'work-m': 0.25, 'lady-f': 0.3, 'shoes-m': 0.15, 'boots-m': 0.2, 'heels-f': 0.25, 'eyes-m': 1, 'eyes-f': 1,
   'hairA-m': 0.3, 'hairB-m': 0.4, 'hairC-m': 0.25, 'hairA-f': 0.3, 'hairB-f': 0.15, 'hairC-f': 0.2 };
 for (const [k, r] of Object.entries(LOD1)) if (meshes[k]) meshes[k + '@1'] = r < 1 ? simplify(meshes[k], r, /^hair/.test(k) ? 0.05 : 0.02) : meshes[k];
 
@@ -555,6 +621,22 @@ if (PREV) {
         return { pos: m.pos, idx, col, double: true }; });
       await preview(path.join(PREV, `fig-${gk}${lod ? '-lod1' : ''}.png`), ms, { lines: [RIG[gk].hip, RIG[gk].knee, RIG[gk].top, RIG[gk].headC] });
       await preview(path.join(PREV, `head-${gk}${lod ? '-lod1' : ''}.png`), ms, { y0: RIG[gk].headC - 0.2, y1: RIG[gk].headC + 0.16, w: 300, h: 300, views: [[0, 0], [0.7, 0], [Math.PI, 0]] });
+    }
+    // V32: Hände: entspannt und (wie im Shader gerechnet) zur Faust geschlossen
+    { const m = meshes['body-' + gk], R = RIG[gk], wr = R.wr;
+      const rot = (v, a, t) => { const c = Math.cos(t), s = Math.sin(t), d = F.dot(a, v), cr = F.cross(a, v); return [v[0] * c + cr[0] * s + a[0] * d * (1 - c), v[1] * c + cr[1] * s + a[1] * d * (1 - c), v[2] * c + cr[2] * s + a[2] * d * (1 - c)]; };
+      for (const [nm, k] of [['entspannt', 0], ['faust', 1], ['offen', -0.35]]) {
+        const pos = Float32Array.from(m.pos);
+        for (let i = 0; i < pos.length / 3; i++) { const f = m.hand[i * 4]; if (!f || pos[i * 3] > 0) continue;
+          const H = R.hand[f - 1], CURL = f === 1 ? [0.35, 0.8, 0.8] : [1.05, 1.45, 0.9];   // wie FIST im Shader (people-skeleton.js)
+          let p = [pos[i * 3], pos[i * 3 + 1], pos[i * 3 + 2]];
+          for (let j = 2; j >= 0; j--) { const J = H[j].slice(0, 3), A = H[j].slice(3), w = m.hand[i * 4 + 1 + j]; p = F.add(J, rot(F.sub(p, J), A, k * CURL[j] * w)); }
+          pos.set(p, i * 3); }
+        // nur die rechte Hand, ums Handgelenk zentriert
+        const keep = []; for (let t = 0; t < m.idx.length; t += 3) { const a = m.idx[t]; if (pos[a * 3] < 0 && (m.reg[a] === 6 || m.reg[a] === 5) && pos[a * 3 + 1] < wr[1] + 0.06) keep.push(m.idx[t], m.idx[t + 1], m.idx[t + 2]); }
+        for (let i = 0; i < pos.length / 3; i++) { pos[i * 3] += wr[0]; pos[i * 3 + 2] -= wr[2]; }
+        await preview(path.join(PREV, `hand-${gk}-${nm}.png`), [{ pos, idx: Uint32Array.from(keep), col: [0.86, 0.66, 0.55], double: true }], { y0: wr[1] - 0.22, y1: wr[1] + 0.04, w: 260, h: 260, views: [[0, 0], [Math.PI / 2, 0], [-Math.PI / 2, 0], [Math.PI, 0]] });
+      }
     }
     for (const h of ['B', 'C']) {
       const ms = ['body-' + gk, 'eyes-' + gk, `hair${h}-${gk}`].map(k => ({ pos: meshes[k].pos, idx: meshes[k].idx, col: k.startsWith('hair') ? [0.35, 0.22, 0.12] : [0.86, 0.66, 0.55], double: true }));
