@@ -10,7 +10,7 @@ import { buildTerraces, buildSigns } from './entrances.js';
 import { buildBelmont, buildBelmontInterior, buildBelmontDoor, BEL } from './belmont.js';
 import { buildHarbor, setupReflection } from './water.js';
 import { planAccess, buildPort, portInteractions, VILLA } from './harbour.js';
-import { buildGround, buildVilla, planSerpentine, buildFireworks, buildAccessRoad, buildSerpentine, flushInstances, buildMountains } from './serpentine.js';
+import { buildGround, buildVilla, planSerpentine, buildAccessRoad, buildSerpentine, flushInstances, buildMountains } from './serpentine.js';
 import { buildSky } from './sky.js';
 import { buildShafts, buildGroundFog, buildSearchlights, buildAirship } from './airships.js';
 import { TRAM_LINES, buildCars, buildTrucks, buildTrams, buildParticles } from './traffic.js';
@@ -53,7 +53,7 @@ export function build() {
   buildElevated();
   buildVilla();
   planSerpentine();
-  buildFireworks();
+  // V33: kein Feuerwerk mehr über der Villa (dort wird nicht mehr gefeiert)
   buildAccessRoad();
   buildSerpentine();
   buildCars();

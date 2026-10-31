@@ -64,6 +64,7 @@ export const U = {
   uCam: { value: new T.Vector3() },
   uTeal: { value: TEAL },
   uVilla: { value: new T.Vector3(0, -1000, 0) },
+  uVillaRot: { value: new T.Vector3(1, 0, 0) },   // V33: cos/sin der Villendrehung, z = 1 wenn gebaut (Gelände im Haus wird verworfen)
   uInside: { value: 0 },
   uWind: { value: new T.Vector4(0.8, 0.6, 4, 0) },   // Windrichtung (x, z), Stärke in m/s, Böe
   uBrick: { value: new T.DataTexture(new Uint8Array([120, 70, 55, 255]), 1, 1) }, // V21: Foto-Backstein für die Fassaden (assets/textures), kommt per applyTextures
