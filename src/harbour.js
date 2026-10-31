@@ -13,6 +13,7 @@ import { player } from './player.js';
 import { toast } from './boat.js';
 import { INTERACT, travel } from './music.js';
 import { liftProfile } from './main.js';
+import { updateImperial } from './imperial.js';
 
 /* =====================================================================
    HAFEN: Kaipromenade, Jachthafen mit begehbaren Booten, Fähre und Luftschiffhafen
@@ -868,6 +869,7 @@ export function updatePort(dt, t) {
     W[i + 1].set(x, z, Math.atan2(dz, dx), sp);
   });
   updateZeppelin(dt, t);
+  updateImperial(dt, t);   // V33
   for (const pf of PLATFORMS) pfRead(pf);
 }
 export function updateZeppelin(dt, t) {

@@ -24,6 +24,7 @@ import './villa.js';
 import './ragdoll.js';
 import './sky.js';
 import './airships.js';
+import './imperial.js';
 import './cars.js';
 import './traffic.js';
 import './player.js';
