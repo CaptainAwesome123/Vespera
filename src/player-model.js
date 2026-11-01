@@ -33,7 +33,7 @@ export function buildPlayerModel() {
   const li = PM.live = new T.InstancedBufferAttribute(new Float32Array([0, 0, 1, 1.15]), 4);
   ga.setUsage(T.DynamicDrawUsage); li.setUsage(T.DynamicDrawUsage);
   geo.setAttribute('aGait', ga); geo.setAttribute('aLive', li);
-  const im = PM.mesh = new T.InstancedMesh(geo, MAT.cloth, 1);
+  const im = PM.mesh = new T.InstancedMesh(geo, MAT.clothPlayer, 1);
   im.setColorAt(0, new T.Color(0.025, 0.025, 0.03)); im.instanceMatrix.setUsage(T.DynamicDrawUsage);
   im.frustumCulled = false; im.visible = false; scene.add(im);
   PM.yawB = player.yaw + Math.PI;
