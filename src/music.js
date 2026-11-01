@@ -1,6 +1,7 @@
 import { rand, R, $ } from './core.js';
 import { inBelmont, BEL, BI } from './belmont.js';
 import { VILLA } from './harbour.js';
+import { inVillaHouse } from './villa.js';
 import { citizenNear, citizenSay } from './ragdoll.js';
 import { player } from './player.js';
 import { driveExit } from './driving.js';
@@ -99,14 +100,14 @@ export function toggleMusic() {
   if (!audio) { audio = initAudio(); if (!audio) return; audio.master.gain.setTargetAtTime(1, audio.ctx.currentTime, 0.6); toast('Musik an'); return; }
   audio.on = !audio.on; audio.master.gain.setTargetAtTime(audio.on ? 1 : 0, audio.ctx.currentTime, 0.5); toast(audio.on ? 'Musik an' : 'Musik aus');
 }
-// Lautstärken je nach Ort: Ballsaal laut, Lobby gedämpft, Villa im Freien, sonst der Klangteppich
+// Lautstärken je nach Ort: Ballsaal laut, Lobby gedämpft, Villa leise (Grammophon), sonst der Klangteppich
 export let bandHint = false;
 export function updateAudio(dt) {
   const p = player.p;
   const inBall = inBelmont(p.x, p.z, p.y) && p.z < -5, inLobby = inBelmont(p.x, p.z, p.y) && !inBall;
   const dv = Math.hypot(p.x - VILLA.x, p.z - VILLA.z);
   let jz = 0, cut = 8000;
-  if (inBall) jz = 0.9; else if (inLobby) { jz = 0.45; cut = 900; } else if (dv < 200 && Math.abs(p.y - VILLA.y) < 60) { jz = 0.8 * Math.min(1, (200 - dv) / 120); cut = 3500; }
+  if (inBall) jz = 0.9; else if (inLobby) { jz = 0.45; cut = 900; } else if (dv < 120 && inVillaHouse(p)) { jz = 0.2; cut = 1300; }   // V33: in der Villa nur leise das Grammophon im Salon
   else if (Math.hypot(p.x, p.z) < 70 && p.y < 40) { jz = 0.15; cut = 500; }
   if (jz > 0.4 && !audio && !bandHint && playing) { bandHint = true; toast('Die Band spielt · M für Musik'); }
   if (!audio) return;

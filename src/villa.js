@@ -1,10 +1,10 @@
-import { T, MOBILE, R, pick, rand, scene, mergeGeos, geoView, canvasTex } from './core.js';
+import { T, MOBILE, R, pick, rand, scene, mergeGeos, geoView, canvasTex, mulberry32 } from './core.js';
+import { wantTexture } from './assets.js';
 import { stdMat, MAT } from './people-skeleton.js';
 import { NEON } from './facade-shader.js';
 import { VILLA } from './harbour.js';
 import { FURN, placeFurn, lathe, FAN_TEX } from './entrances.js';
-import { worldUV, wallpaperTex, GOWNS } from './serpentine.js';
-import { setDance, placeCouple } from './dance.js';
+import { worldUV, wallpaperTex, texSet } from './serpentine.js';
 import { addLight } from './performance.js';
 import { INTERACT } from './music.js';
 import { toast } from './boat.js';
@@ -24,7 +24,7 @@ import { dishModel } from './venues.js';
    ===================================================================== */
 export const VR = { by: 0, cs: 1, sn: 0, groups: {}, doors: [], rooms: [], room: null, dancers: [], randolf: null, said: 0, mats: null, far: false };
 export const H1 = 9, Y1 = 10.2, H2 = 5.2, YK = -4.2, HK = 3.5, HB = 9.6;   // Geschosshöhen: EG, OG-Boden, OG, Kellerboden, Keller, Ballsaal
-export const RANDOLF_SAYS = ['Guten Abend, Sir. Willkommen zu Hause.', 'Die Gäste sind im Ballsaal, Sir. Der Champagner steht kalt.', 'Ihr Bad ist eingelassen, Sir. Der Smoking liegt in der Ankleide bereit.', 'Die Küche hat Hummer und Austern vorbereitet, Sir.', 'Soll ich den Wagen vorfahren lassen, Sir?', 'Im Weinkeller lagert der 1911er Champagner, Sir. Ein Jahrgang wie dieser Abend.', 'Die Dienstboten haben die Schwimmhalle geheizt, Sir.'];
+export const RANDOLF_SAYS = ['Guten Abend, Sir. Willkommen zu Hause.', 'Das Haus ist ruhig heute Abend, Sir. Nur das Personal und ich sind hier.', 'Ihr Bad ist eingelassen, Sir. Der Smoking liegt in der Ankleide bereit.', 'Die Küche hat Hummer und Austern vorbereitet, Sir.', 'Soll ich den Wagen vorfahren lassen, Sir?', 'Im Weinkeller lagert der 1911er Champagner, Sir. Ein Jahrgang wie dieser Abend.', 'Die Dienstboten haben die Schwimmhalle geheizt, Sir.', 'Ganz Vespera schaut heute Nacht zu Ihrem Haus herauf, Sir.', 'Der Kamin im Salon brennt, Sir. Das Grammophon spielt, wenn Sie es wünschen.'];
 const _l = { x: 0, y: 0, z: 0 };
 export function villaLocal(p, o = _l) { const dx = p.x - VILLA.x, dz = p.z - VILLA.z; o.x = dx * VR.cs - dz * VR.sn; o.z = dx * VR.sn + dz * VR.cs; o.y = p.y - VR.by; return o; }
 // Innerhalb des Hauses (Mittelbau oder Flügel), über alle Geschosse
@@ -34,8 +34,187 @@ export function inVillaHouse(p) {
   if (l.y < YK - 1 || l.y > 16) return false;
   return Math.abs(l.x) < 55 && l.z > -23 && (l.z < -1 || (Math.abs(l.x) > 29 && l.z < 7));
 }
-// Im Keller oder auf dem Weg hinunter: dort gilt nicht der Hang als Boden, sondern die Kellerquader
-export function inVillaCellar(p) { return inVillaHouse(p) && _l.y < 0.6; }
+// Im ganzen Haus (V33: nicht nur im Keller) gilt nicht der Hang als Boden, sondern die Böden und Treppen des Hauses
+export function inVillaCellar(p) { return inVillaHouse(p); }
+
+/* ---------- V33: neue Oberflächen der Villa (gezeichnet, nahtlos, mit Relief und Glanz) ---------- */
+// Eine Ader im Marmor: weicher Schleier, Hauptlinie, feine Goldspur; nahtlos (wird um ±W versetzt wiederholt)
+function villaVein(g, rr, W, x, y, len, light) {
+  const pts = [[x, y]]; let a = rr() * Math.PI * 2;
+  for (let k = 0; k < 14; k++) { a += (rr() - 0.5) * 0.9; const [px, py] = pts[pts.length - 1]; pts.push([px + Math.cos(a) * len / 14, py + Math.sin(a) * len / 14]); }
+  for (const [lw, c] of [[7, light ? 'rgba(120,108,96,0.05)' : 'rgba(200,190,170,0.04)'], [1.6, light ? 'rgba(96,86,78,0.28)' : 'rgba(210,200,185,0.22)'], [0.6, 'rgba(184,146,78,0.5)']]) {
+    g.strokeStyle = c; g.lineWidth = lw * (0.7 + rr() * 0.6);
+    for (const ox of [-W, 0, W]) for (const oy of [-W, 0, W]) { g.beginPath(); g.moveTo(pts[0][0] + ox, pts[0][1] + oy); for (let k = 1; k < pts.length; k++) g.lineTo(pts[k][0] + ox, pts[k][1] + oy); g.stroke(); }
+  }
+}
+// Marmorboden: große Calacatta-Platten (je 1,05 m) mit Goldadern, an den Ecken kleine Nero-Rauten mit Messingrand
+export function villaFloorMarble() {
+  const rr = mulberry32(3301);
+  return texSet(512, (g, gr, gh, W) => {
+    const n = 4, s = W / n;
+    gh.fillStyle = 'rgb(200,0,0)'; gh.fillRect(0, 0, W, W); gr.fillStyle = 'rgb(34,34,34)'; gr.fillRect(0, 0, W, W);
+    for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
+      const x = i * s, y = j * s, v = 0.96 + rr() * 0.05, gg = g.createLinearGradient(x, y, x + s, y + s);
+      gg.addColorStop(0, `rgb(${242 * v | 0},${236 * v | 0},${226 * v | 0})`); gg.addColorStop(1, `rgb(${230 * v | 0},${222 * v | 0},${208 * v | 0})`);
+      g.fillStyle = gg; g.fillRect(x, y, s, s);
+      g.save(); g.beginPath(); g.rect(x, y, s, s); g.clip();
+      for (let k = 0; k < 4; k++) villaVein(g, rr, W, x + rr() * s, y + rr() * s, s * (0.8 + rr()), true);
+      for (let k = 0; k < 500; k++) { g.fillStyle = `rgba(150,140,125,${rr() * 0.12})`; g.fillRect(x + rr() * s, y + rr() * s, 1, 1); }
+      g.restore();
+    }
+    // Fugen und Eckrauten
+    for (const c of [g, gr, gh]) { c.strokeStyle = c === g ? '#b9ad98' : c === gr ? '#888' : '#3c0000'; c.lineWidth = 1.2; for (let i = 0; i <= n; i++) { c.beginPath(); c.moveTo(i * s, 0); c.lineTo(i * s, W); c.moveTo(0, i * s); c.lineTo(W, i * s); c.stroke(); } }
+    for (let j = 0; j <= n; j++) for (let i = 0; i <= n; i++) {
+      const cx = i * s, cy = j * s, d = 15;
+      const dia = (c, r) => { c.beginPath(); c.moveTo(cx, cy - r); c.lineTo(cx + r, cy); c.lineTo(cx, cy + r); c.lineTo(cx - r, cy); c.closePath(); };
+      dia(g, d + 2.5); g.fillStyle = '#c49a52'; g.fill(); dia(g, d); g.fillStyle = '#141212'; g.fill();
+      dia(gr, d + 2.5); gr.fillStyle = '#3a3a3a'; gr.fill(); dia(gh, d + 2.5); gh.fillStyle = 'rgb(215,0,0)'; gh.fill();
+    }
+  }, 1.0, 2);
+}
+// Weißer Marmor ohne Fugen für Säulen, Treppen, Balustraden und Kamine
+export function villaWhiteMarble() {
+  const rr = mulberry32(3307);
+  return texSet(256, (g, gr, gh, W) => {
+    g.fillStyle = '#ece6da'; g.fillRect(0, 0, W, W); gr.fillStyle = 'rgb(40,40,40)'; gr.fillRect(0, 0, W, W); gh.fillStyle = 'rgb(128,0,0)'; gh.fillRect(0, 0, W, W);
+    for (let k = 0; k < 7; k++) villaVein(g, rr, W, rr() * W, rr() * W, W * (0.5 + rr() * 0.8), true);
+    for (let k = 0; k < 900; k++) { g.fillStyle = `rgba(140,130,115,${rr() * 0.1})`; g.fillRect(rr() * W, rr() * W, 1, 1); }
+  }, 0.6, 2);
+}
+// Parkett im Versailler Muster: Felder von 80 cm mit Nussbaumrahmen, darin vier Quadrate mit wechselnder Faserrichtung
+export function villaParquet() {
+  const rr = mulberry32(3311);
+  return texSet(512, (g, gr, gh, W) => {
+    const n = 5, s = W / n, fr = 7;
+    g.fillStyle = '#2a170b'; g.fillRect(0, 0, W, W); gr.fillStyle = 'rgb(150,150,150)'; gr.fillRect(0, 0, W, W); gh.fillStyle = 'rgb(40,0,0)'; gh.fillRect(0, 0, W, W);
+    const strip = (x, y, w, h, along, tone) => {
+      const c = [150 * tone, 96 * tone, 52 * tone].map(Math.round);
+      g.fillStyle = `rgb(${c})`; g.fillRect(x + 0.5, y + 0.5, w - 1, h - 1);
+      const r2 = mulberry32((x * 7919 + y * 104729) | 0);
+      for (let k = 0; k < 9; k++) {
+        g.strokeStyle = `rgba(${r2() < 0.5 ? '60,32,12' : '200,140,80'},${0.1 + r2() * 0.2})`; g.lineWidth = 0.4 + r2() * 0.7; g.beginPath();
+        if (along) { const yy = y + 1 + r2() * (h - 2); g.moveTo(x + 1, yy); g.bezierCurveTo(x + w * 0.3, yy + (r2() - 0.5) * 2, x + w * 0.7, yy + (r2() - 0.5) * 2, x + w - 1, yy + (r2() - 0.5)); }
+        else { const xx = x + 1 + r2() * (w - 2); g.moveTo(xx, y + 1); g.bezierCurveTo(xx + (r2() - 0.5) * 2, y + h * 0.3, xx + (r2() - 0.5) * 2, y + h * 0.7, xx + (r2() - 0.5), y + h - 1); }
+        g.stroke();
+      }
+      const hv = 170 + r2() * 50 | 0; gh.fillStyle = `rgb(${hv},0,0)`; gh.fillRect(x + 0.5, y + 0.5, w - 1, h - 1);
+      const rv = 90 + r2() * 40 | 0; gr.fillStyle = `rgb(${rv},${rv},${rv})`; gr.fillRect(x + 0.5, y + 0.5, w - 1, h - 1);
+    };
+    for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
+      const x = i * s, y = j * s;
+      // Rahmen aus Nussbaum
+      for (const [rx, ry, rw, rh, al] of [[x, y, s, fr, true], [x, y + s - fr, s, fr, true], [x, y + fr, fr, s - 2 * fr, false], [x + s - fr, y + fr, fr, s - 2 * fr, false]]) strip(rx, ry, rw, rh, al, 0.5 + rr() * 0.08);
+      const q = (s - 2 * fr) / 2;
+      for (let b = 0; b < 2; b++) for (let a = 0; a < 2; a++) {
+        const qx = x + fr + a * q, qy = y + fr + b * q, al = (a + b) % 2 === 0, k = 4, t = 0.95 + rr() * 0.25;
+        for (let m = 0; m < k; m++) al ? strip(qx, qy + m * q / k, q, q / k, true, t * (0.94 + rr() * 0.12)) : strip(qx + m * q / k, qy, q / k, q, false, t * (0.94 + rr() * 0.12));
+      }
+    }
+  }, 1.2, 2);
+}
+// Kassettendecke: cremefarbener Stuck, vertiefte Felder mit Goldleiste und Sonnenrosette
+export function villaCeiling() {
+  return texSet(256, (g, gr, gh, W) => {
+    const s = W / 2;
+    g.fillStyle = '#efe6d2'; g.fillRect(0, 0, W, W); gr.fillStyle = 'rgb(200,200,200)'; gr.fillRect(0, 0, W, W); gh.fillStyle = 'rgb(230,0,0)'; gh.fillRect(0, 0, W, W);
+    for (let j = 0; j < 2; j++) for (let i = 0; i < 2; i++) {
+      const x = i * s, y = j * s, b = 16;
+      g.fillStyle = '#e1d4b8'; g.fillRect(x + b, y + b, s - 2 * b, s - 2 * b);
+      gh.fillStyle = 'rgb(150,0,0)'; gh.fillRect(x + b, y + b, s - 2 * b, s - 2 * b); gh.fillStyle = 'rgb(110,0,0)'; gh.fillRect(x + b + 6, y + b + 6, s - 2 * b - 12, s - 2 * b - 12);
+      g.strokeStyle = '#c49a52'; g.lineWidth = 2.2; g.strokeRect(x + b + 3, y + b + 3, s - 2 * b - 6, s - 2 * b - 6); g.lineWidth = 1; g.strokeRect(x + b + 9, y + b + 9, s - 2 * b - 18, s - 2 * b - 18);
+      gr.strokeStyle = 'rgb(70,70,70)'; gr.lineWidth = 2.2; gr.strokeRect(x + b + 3, y + b + 3, s - 2 * b - 6, s - 2 * b - 6);
+      const cx = x + s / 2, cy = y + s / 2;
+      g.strokeStyle = 'rgba(196,154,82,0.85)'; g.lineWidth = 1.2;
+      for (let k = 0; k < 24; k++) { const a = k / 24 * Math.PI * 2, r0 = 8, r1 = k % 2 ? 26 : 34; g.beginPath(); g.moveTo(cx + Math.cos(a) * r0, cy + Math.sin(a) * r0); g.lineTo(cx + Math.cos(a) * r1, cy + Math.sin(a) * r1); g.stroke(); }
+      g.fillStyle = '#c49a52'; g.beginPath(); g.arc(cx, cy, 7, 0, Math.PI * 2); g.fill();
+      gh.fillStyle = 'rgb(200,0,0)'; gh.beginPath(); gh.arc(cx, cy, 9, 0, Math.PI * 2); gh.fill();
+      gr.fillStyle = 'rgb(60,60,60)'; gr.beginPath(); gr.arc(cx, cy, 34, 0, Math.PI * 2); gr.fill();
+    }
+  }, 1.4, 2);
+}
+// Seidentapete mit Art-Déco-Fächern und Nadelstreifen (Petrol oder Champagner), Gold glänzt, Seide matt
+export function villaSilk(base, ink, line) {
+  return texSet(256, (g, gr, gh, W) => {
+    g.fillStyle = base; g.fillRect(0, 0, W, W); gr.fillStyle = 'rgb(180,180,180)'; gr.fillRect(0, 0, W, W); gh.fillStyle = 'rgb(120,0,0)'; gh.fillRect(0, 0, W, W);
+    for (let x = 0; x < W; x += 4) { g.fillStyle = x % 8 ? 'rgba(255,255,255,0.025)' : 'rgba(0,0,0,0.03)'; g.fillRect(x, 0, 2, W); }
+    for (const c of [g, gr, gh]) {
+      c.strokeStyle = c === g ? ink : c === gr ? 'rgb(70,70,70)' : 'rgb(170,0,0)'; c.lineWidth = 1.6;
+      for (let j = 0; j < 4; j++) for (let i = -1; i < 5; i++) {
+        const cx = i * 64 + (j % 2) * 32, cy = j * 64 + 50;
+        for (let r = 12; r <= 36; r += 8) { c.beginPath(); c.arc(cx, cy, r, Math.PI * 1.08, Math.PI * 1.92); c.stroke(); }
+        for (let k = 1; k < 8; k++) { const a = Math.PI + k * Math.PI / 8; c.beginPath(); c.moveTo(cx + Math.cos(a) * 12, cy + Math.sin(a) * 12); c.lineTo(cx + Math.cos(a) * 36, cy + Math.sin(a) * 36); c.stroke(); }
+      }
+      c.strokeStyle = c === g ? line : c === gr ? 'rgb(90,90,90)' : 'rgb(150,0,0)'; c.lineWidth = 0.8;
+      for (let x = 16; x < W; x += 32) { c.beginPath(); c.moveTo(x, 0); c.lineTo(x, W); c.stroke(); }
+    }
+  }, 0.8, 2);
+}
+// Gemälde-Atlas (4 x 2): Skyline, Krater mit Polarlicht, Luftschiff, Sonnenfächer, Blumen, der Kristall, Hafen, die Bergvilla
+export function villaArtTex() {
+  return canvasTex(1024, 512, (g) => {
+    const rr = mulberry32(3313), S = 256;
+    const cell = (i, f) => { const x = (i % 4) * S, y = Math.floor(i / 4) * S; g.save(); g.beginPath(); g.rect(x, y, S, S); g.clip(); g.translate(x, y); f(); g.restore(); };
+    const sky = (c0, c1) => { const gg = g.createLinearGradient(0, 0, 0, S); gg.addColorStop(0, c0); gg.addColorStop(1, c1); g.fillStyle = gg; g.fillRect(0, 0, S, S); };
+    const stars = n => { for (let k = 0; k < n; k++) { g.fillStyle = `rgba(255,250,235,${0.3 + rr() * 0.6})`; g.fillRect(rr() * S, rr() * S * 0.6, 1.2, 1.2); } };
+    const aurora = (y0, a) => { for (let k = 0; k < 40; k++) { const x = k / 40 * S, h = 40 + Math.sin(k * 0.4) * 20 + rr() * 20; const gg = g.createLinearGradient(0, y0 - h, 0, y0 + 10); gg.addColorStop(0, 'rgba(60,230,180,0)'); gg.addColorStop(0.6, `rgba(70,240,190,${a})`); gg.addColorStop(1, 'rgba(70,240,190,0)'); g.fillStyle = gg; g.fillRect(x, y0 - h + Math.sin(k * 0.3) * 12, S / 40 + 1, h + 10); } };
+    const brush = () => { for (let k = 0; k < 1600; k++) { g.fillStyle = `rgba(${rr() < 0.5 ? '0,0,0' : '255,240,210'},${rr() * 0.05})`; g.fillRect(rr() * S, rr() * S, 2 + rr() * 4, 1); } };
+    cell(0, () => {   // Vespera bei Nacht
+      sky('#071420', '#163b40'); stars(60); aurora(70, 0.25);
+      for (let k = 0; k < 18; k++) { const w = 10 + rr() * 16, h = 50 + rr() * 110, x = rr() * S; g.fillStyle = '#0b1416'; g.fillRect(x, S - h, w, h); for (let q = 0; q < 14; q++) { g.fillStyle = `rgba(255,200,110,${0.4 + rr() * 0.5})`; g.fillRect(x + 2 + rr() * (w - 4), S - h + 4 + rr() * (h - 8), 1.6, 1.6); } }
+      g.fillStyle = 'rgba(80,230,220,0.18)'; for (const x of [40, 120, 200]) { g.beginPath(); g.moveTo(x - 3, S); g.lineTo(x + 26, 0); g.lineTo(x + 34, 0); g.lineTo(x + 3, S); g.fill(); }
+      g.fillStyle = '#100d0c'; g.fillRect(118, 40, 22, 216); g.fillRect(112, 90, 34, 166); g.fillStyle = '#d8a956'; for (let y = 50; y < S; y += 9) g.fillRect(128, y, 2, 5);
+      g.beginPath(); g.moveTo(118, 40); g.lineTo(129, 14); g.lineTo(140, 40); g.fill(); brush();
+    });
+    cell(1, () => {   // der Krater mit Polarlicht
+      sky('#050b16', '#12303a'); stars(90); aurora(90, 0.45);
+      g.fillStyle = '#0d1a1f'; g.beginPath(); g.moveTo(0, 170); for (let x = 0; x <= S; x += 16) g.lineTo(x, 150 + Math.sin(x * 0.07) * 14 + rr() * 16); g.lineTo(S, S); g.lineTo(0, S); g.fill();
+      g.fillStyle = '#e8eef0'; for (let x = 0; x < S; x += 16) { g.beginPath(); g.moveTo(x, 152 + rr() * 10); g.lineTo(x + 8, 145 + rr() * 6); g.lineTo(x + 16, 154); g.fill(); }
+      const gg = g.createRadialGradient(128, 200, 4, 128, 200, 70); gg.addColorStop(0, 'rgba(255,210,120,0.9)'); gg.addColorStop(0.3, 'rgba(90,230,210,0.35)'); gg.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gg; g.fillRect(0, 120, S, 136); brush();
+    });
+    cell(2, () => {   // Luftschiff über der Stadt
+      sky('#0b1822', '#2c4a4c'); stars(40);
+      g.fillStyle = '#c9cfd2'; g.beginPath(); g.ellipse(128, 100, 96, 26, -0.05, 0, Math.PI * 2); g.fill();
+      g.fillStyle = 'rgba(0,0,0,0.25)'; g.beginPath(); g.ellipse(128, 110, 92, 14, -0.05, 0, Math.PI); g.fill();
+      g.strokeStyle = '#c49a52'; g.lineWidth = 2; for (const x of [70, 110, 150, 190]) { g.beginPath(); g.moveTo(x, 76); g.lineTo(x, 124); g.stroke(); }
+      g.fillStyle = '#1a1612'; g.fillRect(100, 126, 56, 10); g.fillStyle = '#ffc870'; for (let x = 104; x < 154; x += 7) g.fillRect(x, 129, 3, 3);
+      g.fillStyle = '#081012'; for (let k = 0; k < 22; k++) { const h = 20 + rr() * 60; g.fillRect(rr() * S, S - h, 6 + rr() * 12, h); } brush();
+    });
+    cell(3, () => {   // Sonnenfächer in Gold und Schwarz
+      g.fillStyle = '#0c0b0b'; g.fillRect(0, 0, S, S);
+      for (let k = 0; k < 19; k++) { const a = Math.PI + k / 18 * Math.PI; g.strokeStyle = k % 2 ? '#c49a52' : '#2f6a68'; g.lineWidth = k % 2 ? 3 : 1.5; g.beginPath(); g.moveTo(128, 230); g.lineTo(128 + Math.cos(a) * 230, 230 + Math.sin(a) * 230); g.stroke(); }
+      for (let r = 30; r < 200; r += 26) { g.strokeStyle = r % 52 === 30 ? '#c49a52' : '#3c8a86'; g.lineWidth = 2; g.beginPath(); g.arc(128, 230, r, Math.PI, 0); g.stroke(); }
+      g.fillStyle = '#c49a52'; g.fillRect(0, 230, S, 4); g.fillRect(0, 240, S, 1.5);
+    });
+    cell(4, () => {   // Stillleben mit Rosen
+      sky('#1a1210', '#2a1c16');
+      g.fillStyle = '#d8d2c4'; g.beginPath(); g.moveTo(104, 230); g.quadraticCurveTo(90, 180, 112, 150); g.lineTo(144, 150); g.quadraticCurveTo(166, 180, 152, 230); g.fill();
+      for (let k = 0; k < 16; k++) { const x = 128 + (rr() - 0.5) * 120, y = 100 + (rr() - 0.5) * 80, r = 10 + rr() * 10; g.fillStyle = rr() < 0.6 ? '#8a1420' : '#efe8dc'; g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill(); g.strokeStyle = 'rgba(0,0,0,0.25)'; g.lineWidth = 1; g.beginPath(); g.arc(x, y, r * 0.5, 0, Math.PI * 1.4); g.stroke(); }
+      g.fillStyle = '#2e4a2a'; for (let k = 0; k < 10; k++) { g.beginPath(); g.ellipse(128 + (rr() - 0.5) * 140, 130 + (rr() - 0.5) * 60, 14, 5, rr() * 3, 0, Math.PI * 2); g.fill(); }
+      g.fillStyle = '#3a2a1e'; g.fillRect(0, 230, S, 26); brush();
+    });
+    cell(5, () => {   // der Kristall aus dem Meteoriten
+      g.fillStyle = '#05080c'; g.fillRect(0, 0, S, S);
+      const gg = g.createRadialGradient(128, 140, 6, 128, 140, 120); gg.addColorStop(0, 'rgba(140,255,240,0.8)'); gg.addColorStop(0.4, 'rgba(40,160,170,0.35)'); gg.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gg; g.fillRect(0, 0, S, S);
+      for (let k = 0; k < 9; k++) { const a = -Math.PI / 2 + (k - 4) * 0.22, L = 60 + rr() * 60, w = 10 + rr() * 8; g.save(); g.translate(128, 200); g.rotate(a + Math.PI / 2); const lg = g.createLinearGradient(-w, 0, w, 0); lg.addColorStop(0, '#1c6e74'); lg.addColorStop(0.5, '#bff8f0'); lg.addColorStop(1, '#2a8a8c'); g.fillStyle = lg; g.beginPath(); g.moveTo(-w, 0); g.lineTo(-w * 0.7, -L); g.lineTo(0, -L - w * 1.4); g.lineTo(w * 0.7, -L); g.lineTo(w, 0); g.fill(); g.restore(); }
+      g.fillStyle = '#14100c'; g.beginPath(); g.ellipse(128, 214, 90, 22, 0, 0, Math.PI * 2); g.fill(); brush();
+    });
+    cell(6, () => {   // Hafen im Mondlicht
+      sky('#0a1620', '#1a3036'); stars(50);
+      g.fillStyle = '#f2ecd8'; g.beginPath(); g.arc(196, 54, 16, 0, Math.PI * 2); g.fill();
+      g.fillStyle = '#0d2228'; g.fillRect(0, 160, S, 96);
+      for (let k = 0; k < 30; k++) { g.fillStyle = `rgba(242,236,216,${0.1 + rr() * 0.25})`; g.fillRect(170 + (rr() - 0.5) * 50, 165 + rr() * 80, 10 + rr() * 20, 1.5); }
+      g.fillStyle = '#081014'; for (const [x, w] of [[30, 70], [120, 50]]) { g.fillRect(x, 140, w, 22); g.fillRect(x + w * 0.3, 112, 6, 30); g.fillRect(x + w * 0.65, 120, 5, 22); }
+      g.fillStyle = '#ffc870'; for (let k = 0; k < 12; k++) g.fillRect(34 + rr() * 130, 146 + rr() * 10, 2, 2); brush();
+    });
+    cell(7, () => {   // die Bergvilla mit ihrer Lichtsäule
+      sky('#060d16', '#18303a'); stars(70); aurora(60, 0.2);
+      g.fillStyle = '#0e1a1e'; g.beginPath(); g.moveTo(0, 200); g.lineTo(70, 120); g.lineTo(128, 150); g.lineTo(200, 90); g.lineTo(S, 160); g.lineTo(S, S); g.lineTo(0, S); g.fill();
+      g.fillStyle = 'rgba(255,214,140,0.25)'; g.fillRect(124, 0, 8, 150);
+      g.fillStyle = '#d8cdb4'; g.fillRect(96, 150, 64, 24); g.fillRect(120, 132, 16, 20); g.fillStyle = '#ffcf7a'; for (let x = 100; x < 158; x += 7) g.fillRect(x, 156, 3, 5);
+      g.fillStyle = '#c49a52'; g.fillRect(96, 148, 64, 3); brush();
+    });
+  });
+}
 
 export function villaMats(M) {
   const tile = canvasTex(256, 256, (g, W, H) => {
@@ -47,10 +226,20 @@ export function villaMats(M) {
   tile.wrapS = tile.wrapT = T.RepeatWrapping;
   const blue = wallpaperTex('#24343c', 'rgba(222,178,96,0.26)'); blue.wrapS = blue.wrapT = T.RepeatWrapping;
   const green = wallpaperTex('#28362a', 'rgba(222,178,96,0.22)'); green.wrapS = green.wrapT = T.RepeatWrapping;
+  // V33: neue Oberflächen (Marmorplatten, Versailler Parkett, Kassettendecke, Seidentapeten, weißer Marmor, Gemälde, Fotogold, Nero-Marmor)
+  const FM_ = villaFloorMarble(), WM = villaWhiteMarble(), PQ = villaParquet(), CE = villaCeiling(), SP = villaSilk('#173235', 'rgba(205,165,92,0.55)', 'rgba(205,165,92,0.18)'), SC = villaSilk('#d6c7a4', 'rgba(170,128,60,0.6)', 'rgba(255,250,235,0.35)');
+  const gold = wantTexture(M.gold.clone(), { map: 'gold-color', normalMap: 'gold-normal', roughnessMap: 'gold-rough', repeat: [2, 2], normalScale: 0.35, roughness: 0.85, color: 0xf2d79a });
   return {
     ...M,
-    white: stdMat({ color: 0xf0e9dc, roughness: 0.32, envI: 0.7, emissive: 0x1a1612 }),
-    black: stdMat({ color: 0x101014, roughness: 0.18, envI: 1.3, emissive: 0x050506 }),
+    gold,
+    marble: stdMat({ map: FM_.map, roughnessMap: FM_.rough, normalMap: FM_.normal, normalScale: new T.Vector2(0.5, 0.5), roughness: 1, envI: 1.0, emissive: 0x3a362e, emissiveMap: FM_.map }),
+    parq: stdMat({ map: PQ.map, roughnessMap: PQ.rough, normalMap: PQ.normal, normalScale: new T.Vector2(0.7, 0.7), roughness: 1, envI: 0.55, emissive: 0x3a2a1c, emissiveMap: PQ.map }),
+    ceil: stdMat({ map: CE.map, roughnessMap: CE.rough, normalMap: CE.normal, roughness: 1, envI: 0.25, emissive: 0x4a4234, emissiveMap: CE.map }),
+    plaster: stdMat({ map: SP.map, roughnessMap: SP.rough, normalMap: SP.normal, normalScale: new T.Vector2(0.6, 0.6), roughness: 1, envI: 0.35, emissive: 0x8a8070, emissiveMap: SP.map }),
+    silk: stdMat({ map: SC.map, roughnessMap: SC.rough, normalMap: SC.normal, normalScale: new T.Vector2(0.6, 0.6), roughness: 1, envI: 0.35, emissive: 0x5a5244, emissiveMap: SC.map }),
+    art: (() => { const t = villaArtTex(); return stdMat({ map: t, roughness: 0.55, envI: 0.2, emissive: 0x6a645c, emissiveMap: t }); })(),
+    white: stdMat({ map: WM.map, roughnessMap: WM.rough, normalMap: WM.normal, normalScale: new T.Vector2(0.3, 0.3), roughness: 1, envI: 0.75, emissive: 0x2a2620, emissiveMap: WM.map }),
+    black: wantTexture(stdMat({ color: 0x101014, roughness: 0.18, envI: 1.3, emissive: 0x050506 }), { map: 'marble-color', normalMap: 'marble-normal', roughnessMap: 'marble-rough', repeat: [1, 1], normalScale: 0.4, roughness: 0.5, color: 0xffffff }),
     linen: stdMat({ color: 0xf2ecdf, roughness: 0.92, env: false, emissive: 0x2a2620 }),
     tile: stdMat({ map: tile, roughness: 0.35, envI: 0.6, emissive: 0x332e28, emissiveMap: tile }),
     copper: stdMat({ color: 0xb87333, metalness: 0.85, roughness: 0.35, envI: 1.2 }),
@@ -104,6 +293,12 @@ export function buildVillaRooms(ctx) {
       for (const sd of (o.side ? [o.side] : [-1, 1])) {
         if (ax === 'x') { box(zone, 'wood', L, 0.3, 0.12, m, y0, c + sd * t2); box(zone, 'gold', L, 0.08, 0.1, m, y0 + h - 0.9, c + sd * t2); }
         else { box(zone, 'wood', 0.12, 0.3, L, c + sd * t2, y0, m); box(zone, 'gold', 0.1, 0.08, L, c + sd * t2, y0 + h - 0.9, m); }
+        // V33: Stuckgesims oben, Lambris aus Holz bis zur Goldleiste in Brüstungshöhe
+        const fancy = mat === 'plaster' || mat === 'silk' || mat === 'bluewall' || mat === 'greenwall' || mat === 'panel';
+        if (!fancy || h < 3.5) continue;
+        const bar = (k, hh, dd, y, off) => ax === 'x' ? box(zone, k, L, hh, dd, m, y, c + sd * off) : box(zone, k, dd, hh, L, c + sd * off, y, m);
+        bar('white', 0.22, 0.16, y0 + h - 0.22, thk / 2 + 0.08); bar('white', 0.1, 0.26, y0 + h - 0.3, thk / 2 + 0.13); bar('gold', 0.04, 0.27, y0 + h - 0.34, thk / 2 + 0.135);
+        if (mat !== 'panel') { bar('panel', 0.55, 0.05, y0 + 0.3, thk / 2 + 0.025); bar('gold', 0.05, 0.08, y0 + 0.85, thk / 2 + 0.04); }
       }
     }
   };
@@ -134,15 +329,19 @@ export function buildVillaRooms(ctx) {
     if (o.posts) for (const u of [a0, a1]) { const g = new T.BoxGeometry(0.3, hh + 0.3, 0.3); if (ax === 'x') A(zone, 'white', g, u, y + hh / 2 + 0.15, c); else A(zone, 'white', g, c, y + hh / 2 + 0.15, u); }
   };
   // Treppenlauf entlang lz: von zA (Höhe yA) nach zB (Höhe yB), Breite x0..x1
-  const flight = (zone, mat, x0, x1, zA, zB, yA, yB, base) => {
+  const flight = (zone, mat, x0, x1, zA, zB, yA, yB, base, o = {}) => {
     const n = Math.max(2, Math.round(Math.abs(yB - yA) / 0.28)), rise = (yB - yA) / n, run = (zB - zA) / n, w = Math.abs(x1 - x0), xm = (x0 + x1) / 2;
     base = base ?? Math.min(yA, yB) - 0.3;
     for (let k = 0; k < n; k++) {
       const top = yA + (k + 1) * rise, z0 = zA + k * run, z1 = zA + (k + 1) * run, hgt = Math.max(0.1, top - base);
       box(zone, mat, w, hgt, Math.abs(run) + 0.01, xm, base, (z0 + z1) / 2);
-      col(x0, base, Math.min(z0, z1), x1, top, Math.max(z0, z1));
       if (k < n - 1) box(zone, 'gold', w, 0.03, 0.06, xm, top, z1 - run * 0.02);   // Messingkante an jeder Stufe
+      if (o.runner) box(zone, 'carpet', o.runner, 0.025, Math.abs(run) + 0.012, xm, top, (z0 + z1) / 2);   // V33: Läufer auf den Stufen
     }
+    // V33: Kollision als feine Rampe aus flachen Stufen (je höchstens 15 cm). Mit den sichtbaren 28-cm-Stufen und
+    // nur 44 cm Auftritt reichte der Spieler (Radius 45 cm) schon an die übernächste Stufe und blieb am Fuß der Treppe hängen.
+    const m = Math.max(n, Math.ceil(Math.abs(yB - yA) / 0.15)), cr = (yB - yA) / m, cz = (zB - zA) / m;
+    for (let k = 0; k < m; k++) { const z0 = zA + k * cz, z1 = z0 + cz, top = yA + (k + 1) * cr; col(x0, base, Math.min(z0, z1), x1, Math.max(top, base + 0.05), Math.max(z0, z1)); }
     return { n, rise, run, ang: Math.atan2(yB - yA, zB - zA), L: Math.hypot(zB - zA, yB - yA) };
   };
   // Wangen/Brüstung schräg am Lauf entlang
@@ -267,6 +466,45 @@ export function buildVillaRooms(ctx) {
   const person = (kind, color, lx, lz, y, yaw) => pl(kind, color, lx, by + y, lz, yaw);
   const WHITE = [0.9, 0.88, 0.82], BLACK = [0.05, 0.05, 0.06], MAID = [0.08, 0.08, 0.1];
 
+  /* ---------- V33: Ausstattung: Gemälde, Wandleuchter, Blumen, Flügel ---------- */
+  // Gemälde aus dem Atlas (idx 0..7) an einer Wand: ax/c wie bei wall, u = Lage entlang der Wand, side = Richtung in den Raum
+  const art = (zone, ax, c, u, yc, w, h, idx, side, d = 0.07) => {
+    const g = new T.PlaneGeometry(w, h), uv = g.attributes.uv, col_ = idx % 4, row = Math.floor(idx / 4);
+    for (let i = 0; i < uv.count; i++) uv.setXY(i, (col_ + uv.getX(i)) / 4, (1 - row - 1 + uv.getY(i)) / 2);
+    const a = ax === 'x' ? (side > 0 ? 0 : Math.PI) : (side > 0 ? Math.PI / 2 : -Math.PI / 2), off = (d + 0.07) * side;
+    const px = ax === 'x' ? u : c + off, pz = ax === 'x' ? c + off : u;
+    A(zone, 'art', g, px, yc, pz, a);
+    const fr = 0.14, parts = [new T.BoxGeometry(w + 2 * fr, fr, 0.08).translate(0, h / 2 + fr / 2, -0.02), new T.BoxGeometry(w + 2 * fr, fr, 0.08).translate(0, -h / 2 - fr / 2, -0.02), new T.BoxGeometry(fr, h, 0.08).translate(w / 2 + fr / 2, 0, -0.02), new T.BoxGeometry(fr, h, 0.08).translate(-w / 2 - fr / 2, 0, -0.02), new T.BoxGeometry(0.5, 0.05, 0.16).translate(0, h / 2 + fr + 0.12, 0.06)];
+    for (const q of parts) A(zone, 'gold', q, px, yc, pz, a);
+    const [gx, gz] = ax === 'x' ? [u, c + side * 0.45] : [c + side * 0.45, u]; glow(gx, yc + h / 2 + 0.1, gz, [1.3, 0.95, 0.6], 0.9);
+  };
+  // Wandleuchter: Messingplatte, Arm, Glasschirm mit Licht
+  const sconce = (zone, ax, c, u, y, side) => {
+    const a = ax === 'x' ? (side > 0 ? 0 : Math.PI) : (side > 0 ? Math.PI / 2 : -Math.PI / 2), off = 0.1 * side;
+    const px = ax === 'x' ? u : c + off, pz = ax === 'x' ? c + off : u;
+    A(zone, 'gold', new T.BoxGeometry(0.16, 0.42, 0.04), px, y, pz, a);
+    A(zone, 'gold', new T.BoxGeometry(0.04, 0.04, 0.24).translate(0, 0, 0.12), px, y - 0.05, pz, a);
+    A(zone, 'lamp', new T.CylinderGeometry(0.07, 0.11, 0.24, 10).translate(0, 0.08, 0.26), px, y - 0.05, pz, a);
+    const [gx, gz] = ax === 'x' ? [u, c + side * 0.4] : [c + side * 0.4, u]; glow(gx, y + 0.05, gz, [1.35, 0.95, 0.55], 1.0);
+  };
+  // Blumen in einer Vase: rote und weiße Rosen, Blätter
+  const flowers = (zone, lx, lz, y, s = 1, vase = 'white') => {
+    A(zone, vase, lathe([[0.08 * s, 0], [0.13 * s, 0.08 * s], [0.1 * s, 0.26 * s], [0.06 * s, 0.34 * s], [0.09 * s, 0.38 * s]], 12), lx, y, lz);
+    for (let k = 0; k < 9; k++) { const a = k / 9 * Math.PI * 2 + R(), r = (0.06 + R() * 0.1) * s; A(zone, k % 3 ? 'roseR' : 'roseW', new T.SphereGeometry(0.06 * s, 7, 5), lx + Math.cos(a) * r, y + (0.42 + R() * 0.12) * s, lz + Math.sin(a) * r); }
+    for (let k = 0; k < 5; k++) { const a = k / 5 * Math.PI * 2; A(zone, 'plantD', new T.SphereGeometry(0.07 * s, 6, 4).scale(1.6, 0.5, 0.8).rotateY(a), lx + Math.cos(a) * 0.14 * s, y + 0.38 * s, lz + Math.sin(a) * 0.14 * s); }
+  };
+  // Konzertflügel mit offenem Deckel und Bank
+  const piano = (zone, lx, lz, y, a = 0) => {
+    const add = (k, g) => A(zone, k, g.rotateY(a).translate(lx, y, lz));
+    add('black', new T.BoxGeometry(1.5, 0.32, 2.4).translate(0, 0.86, 0)); add('black', new T.CylinderGeometry(0.75, 0.75, 0.32, 20, 1, false, 0, Math.PI).translate(0, 0.86, 1.2));
+    add('black', new T.BoxGeometry(1.45, 0.04, 2.2).rotateZ(-0.55).translate(0.35, 1.45, 0.15)); add('gold', new T.CylinderGeometry(0.012, 0.012, 0.8, 5).rotateZ(0.2).translate(-0.3, 1.25, 0.2));
+    add('white', new T.BoxGeometry(1.3, 0.04, 0.18).translate(0, 0.98, -1.24)); for (let k = 0; k < 12; k++) add('black', new T.BoxGeometry(0.035, 0.02, 0.1).translate(-0.6 + k * 0.11, 1.0, -1.22));
+    for (const [sx, sz] of [[-0.6, -1.0], [0.6, -1.0], [0, 1.6]]) add('black', new T.CylinderGeometry(0.06, 0.05, 0.7, 8).translate(sx, 0.35, sz)), add('gold', new T.CylinderGeometry(0.065, 0.065, 0.06, 8).translate(sx, 0.03, sz));
+    add('black', new T.BoxGeometry(0.9, 0.08, 0.38).translate(0, 0.5, -1.75)); add('velvet', new T.BoxGeometry(0.86, 0.06, 0.34).translate(0, 0.57, -1.75)); for (const sx of [-0.4, 0.4]) add('black', new T.BoxGeometry(0.06, 0.48, 0.3).translate(sx, 0.24, -1.75));
+    const cs = Math.abs(Math.cos(a)), sn = Math.abs(Math.sin(a)), hw = (1.6 * cs + 4.0 * sn) / 2, hd = (1.6 * sn + 4.0 * cs) / 2;
+    col(lx - hw, y, lz - hd, lx + hw, y + 1.1, lz + hd);
+  };
+
   /* ================= Außenhülle: Mittelbau-Obergeschoss, Flügel, Dächer ================= */
   const EG = 'eg', OG = 'og', KE = 'kel';
   // Mittelbau: Seitenwände mit Durchgang zu Speisesaal und Ballsaal, Fassade zur Loggia mit Fenstertüren, Obergeschoss, Dachplatte
@@ -304,25 +542,25 @@ export function buildVillaRooms(ctx) {
   /* ================= Erdgeschoss ================= */
   // ---------- Eingangshalle mit Imperialtreppe ----------
   room('Eingangshalle', EG, -14.5, 14.5, -22.4, -1.6, 0, 'Randolf erwartet Sie');
-  floor(EG, 'marble', -14.5, 14.5, -22.4, -1.6, 0.03);
+  floor(EG, 'marble', -14.5, 11, -22.4, -1.6, 0.03); floor(EG, 'marble', 11, 14.5, -17.5, -1.6, 0.03);   // V33: Treppenschacht zum Keller bleibt offen
   A(EG, 'gold', new T.RingGeometry(3.6, 3.9, 48).rotateX(-Math.PI / 2), 0, 0.05, -17.5);
   A(EG, 'black', new T.CircleGeometry(3.6, 48).rotateX(-Math.PI / 2), 0, 0.045, -17.5);
   A(EG, 'gold', new T.PlaneGeometry(2.4, 2.4).rotateX(-Math.PI / 2).rotateY(Math.PI / 4), 0, 0.055, -17.5);
   rug(EG, 'carpet', 0, -20.5, 0.06, 6, 3.6);
   ceiling(EG, 'ceil', -14.3, 14.3, -22.4, -13, H1 - 0.05, 3.5);           // unter der Galerie
   ceiling(OG, 'ceil', -14.3, 14.3, -13, -1.6, Y1 + H2 - 0.05, 4);         // über der Halle: zwei Geschosse hoch
-  wall(EG, 'plaster', 'z', -14.4, -22.4, -1.6, 0, Y1, 0.14, [[-19, -15, 4.2]], { col: false, side: 1 });
-  wall(EG, 'plaster', 'z', 14.4, -22.4, -1.6, 0, Y1, 0.14, [[-13, -9, 4.2]], { col: false, side: -1 });
-  wall(EG, 'plaster', 'x', -22.3, -14.3, 14.3, 0, H1, 0.14, [[-8.9, -6.1, 5.0], [6.1, 8.9, 5.0]], { col: false, side: 1 });
-  wall(EG, 'plaster', 'x', -1.7, -14.3, 14.3, 0, Y1 + H2, 0.14, [[-1.8, 1.8, 4.2]], { col: false, side: -1 });
+  wall(EG, 'silk', 'z', -14.4, -22.4, -1.6, 0, Y1, 0.14, [[-19, -15, 4.2]], { col: false, side: 1 });
+  wall(EG, 'silk', 'z', 14.4, -22.4, -1.6, 0, Y1, 0.14, [[-13, -9, 4.2]], { col: false, side: -1 });
+  wall(EG, 'silk', 'x', -22.3, -14.3, 14.3, 0, H1, 0.14, [[-8.9, -6.1, 5.0], [6.1, 8.9, 5.0]], { col: false, side: 1 });
+  wall(EG, 'silk', 'x', -1.7, -14.3, 14.3, 0, Y1 + H2, 0.14, [[-1.8, 1.8, 4.2]], { col: false, side: -1 });
   // großes Bogenfenster über dem Treppenpodest, Sonnenfächer
   A(EG, 'lamp', new T.PlaneGeometry(7, 3.2), 0, 7.2, -1.86); A(EG, 'gold', new T.BoxGeometry(7.4, 0.2, 0.25), 0, 5.5, -1.9); A(EG, 'gold', new T.BoxGeometry(7.4, 0.2, 0.25), 0, 8.9, -1.9);
   A(OG, 'fan', new T.PlaneGeometry(9, 4.5), 0, 12.0, -1.88);
   // Trennwände Halle/Salon/Herrenzimmer (Kollision) und Treppenkammer zum Keller
   wall(EG, null, 'z', -14.5, -22.4, -1.6, 0, Y1, 0.4, [[-19, -15, 4.2]]);
   wall(EG, null, 'z', 14.5, -22.4, -1.6, 0, Y1, 0.4, [[-13, -9, 4.2]]);
-  wall(EG, 'plaster', 'z', 11, -22.4, -16, 0, H1, 0.3, [], { side: -1 });
-  wall(EG, 'plaster', 'x', -16, 11, 14.5, 0, H1, 0.3, [[12.9, 14.1, 2.4]], { side: 1 });
+  wall(EG, 'silk', 'z', 11, -22.4, -16, 0, H1, 0.3, [], { side: -1 });
+  wall(EG, 'silk', 'x', -16, 11, 14.5, 0, H1, 0.3, [[12.9, 14.1, 2.4]], { side: 1 });
   door(EG, 'x', -16, 13.5, 1.2, 2.4);
   door(EG, 'z', -14.5, -17, 4, 4.2, { double: true, arch: true });
   door(EG, 'z', 14.5, -11, 4, 4.2, { double: true, arch: true });
@@ -330,12 +568,12 @@ export function buildVillaRooms(ctx) {
   // Säulenreihen, Imperialtreppe: Mittellauf zum Podest, zwei Seitenläufe zur Galerie
   for (const sd of [-1, 1]) for (const lz of [-20.5, -16.5]) column(EG, sd * 9.8, lz, 0, H1 - 0.05, 0.5);
   for (const sd of [-1, 1]) for (const lz of [-11, -6]) column(EG, sd * 9.8, lz, 0, Y1 + H2 - 0.05, 0.55);
-  flight(EG, 'white', -3, 3, -13, -5, 0, 5.1);
+  flight(EG, 'white', -3, 3, -13, -5, 0, 5.1, undefined, { runner: 2.4 });
   box(EG, 'white', 13, 0.35, 3.4, 0, 4.75, -3.3); col(-6.5, 4.75, -5, 6.5, 5.1, -1.6);
   A(EG, 'carpet', new T.BoxGeometry(2.4, 0.02, 3.4), 0, 5.11, -3.3);
-  for (const sd of [-1, 1]) { flight(EG, 'white', sd * 3.5, sd * 6.5, -5, -13, 5.1, Y1, 4.75); column(EG, sd * 6.2, -3.6, 0, 4.75, 0.42); }
+  for (const sd of [-1, 1]) { flight(EG, 'white', sd * 3.5, sd * 6.5, -5, -13, 5.1, Y1, 4.75, { runner: 2.0 }); column(EG, sd * 6.2, -3.6, 0, 4.75, 0.42); }
   for (const sd of [-1, 1]) { parapet(EG, sd * 3.15, -13.2, -5, 0, 5.1); parapet(EG, sd * 6.65, -5, -13.2, 5.1, Y1); parapet(EG, sd * 3.35, -5, -13.2, 5.1, Y1, 0.9); balu(EG, 'z', sd * 6.5, -5, -1.6, 5.1); }
-  for (const sd of [-1, 1]) { A(EG, 'gold', new T.SphereGeometry(0.22, 12, 8), sd * 3.15, 1.25, -13.3); glow(sd * 3.15, 1.4, -13.3, [1.3, 0.95, 0.55], 1.4); statue(EG, sd * 12.5, -21, 0, 1.4); }
+  for (const sd of [-1, 1]) { A(EG, 'gold', new T.SphereGeometry(0.22, 12, 8), sd * 3.15, 1.25, -13.3); glow(sd * 3.15, 1.4, -13.3, [1.3, 0.95, 0.55], 1.4); statue(EG, sd * 4.4, -21.3, 0, 1.4); }   // V33: Statuen neben das Gemälde (rechts stand eine über dem Kellerschacht)
   for (const sd of [-1, 1]) palm(EG, sd * 12.4, -5, 0, 3.6);
   chand(EG, 0, -7.3, Y1 + H2 - 2.2, 2.6, 1.6); chand(EG, 0, -17.5, H1 - 1.6, 1.3);
   light(0, 6, -10, 0xffd9a6, 1.1, 32); light(0, 5, -18, 0xffd9a6, 0.8, 22);
@@ -365,7 +603,7 @@ export function buildVillaRooms(ctx) {
   furn(EG, FURN.roundTable(0.5), FM, -17, 0, -5); lampT(EG, -17, -5, 0.74); for (let k = 0; k < 3; k++) { const a = k / 3 * Math.PI * 2 + 0.5; furn(EG, FURN.bistroChair(), FM, -17 + Math.sin(a) * 0.85, 0, -5 + Math.cos(a) * 0.85, a + Math.PI); } col(-17.6, 0, -5.6, -16.4, 0.8, -4.4);
   chand(EG, -22, -12, H1 - 1.6, 1.6);
   light(-22, 5.5, -12, 0xffd9a6, 0.9, 26);
-  for (let k = 0; k < 5; k++) person(R() < 0.5 ? 'tux' : 'gown', pick(GOWNS), rand(-27, -17), rand(-20, -6), 0, R() * 6.28);
+  person('dress', MAID, -24.5, -6.6, 0, Math.PI * 0.75);   // Zimmermädchen staubt den Flügel ab
 
   // ---------- Herrenzimmer mit Bar und Billard (rechts) ----------
   room('Herrenzimmer', EG, 14.7, 29.4, -22.4, -1.6, 0, 'Bar und Billard');
@@ -392,8 +630,6 @@ export function buildVillaRooms(ctx) {
   for (const [lx, lz, a] of [[17.5, -4.5, 0.5], [26.5, -4.5, -0.5], [17.5, -12.5, 0.4], [26.5, -12.5, -0.4]]) { furn(EG, FURN.clubChair(), FL, lx, 0, lz, a); col(lx - 0.55, 0, lz - 0.55, lx + 0.55, 1.0, lz + 0.55); }
   furn(EG, FURN.roundTable(0.5, 0.6), FM, 17.5, 0, -8.5); lampT(EG, 17.5, -8.5, 0.6); box(EG, 'wood', 1.2, 1.1, 0.5, 27.5, 0, -14); box(EG, 'gold', 1.0, 0.03, 0.4, 27.5, 1.11, -14); col(26.9, 0, -14.3, 28.1, 1.2, -13.7);
   chand(EG, 22, -12, H1 - 1.6, 1.2); light(22, 5.5, -12, 0xffd0a0, 0.9, 26);
-  for (let k = 0; k < 6; k++) person('tux', [1, 1, 1], 17 + k * 1.8, -15.6, 0, Math.PI);
-  person('tux', [1, 1, 1], 24, -5.5, 0, 1.2);
 
   // ---------- Speisesaal mit langer Tafel (linker Flügel vorn) ----------
   room('Speisesaal', EG, -54.4, -30, -10.8, 6.4, 0, 'Die lange Tafel ist gedeckt');
@@ -422,7 +658,7 @@ export function buildVillaRooms(ctx) {
 
   // ---------- Küche (linker Flügel hinten) ----------
   room('Küche', EG, -51.5, -30, -22.4, -11.2, 0);
-  floor(EG, 'tile', -54.4, -30, -22.4, -11.2, 0.03); ceiling(EG, 'cream', -54.4, -30, -22.4, -11.2, 5.0);
+  floor(EG, 'tile', -51.5, -30, -22.4, -11.2, 0.03); floor(EG, 'tile', -54.4, -51.5, -17.5, -11.2, 0.03); ceiling(EG, 'cream', -54.4, -30, -22.4, -11.2, 5.0);
   wall(EG, 'tile', 'x', -22.3, -54.4, -30, 0, 5.0, 0.14, [], { col: false, side: 1, trim: false });
   wall(EG, 'tile', 'z', -30.1, -22.4, -11.2, 0, 5.0, 0.14, [], { col: false, side: -1, trim: false });
   wall(EG, 'tile', 'x', -11.27, -51.5, -30, 0, 5.0, 0.14, [[-33.8, -32.2, 2.6]], { col: false, side: 1, trim: false });
@@ -443,34 +679,31 @@ export function buildVillaRooms(ctx) {
   person('livery', WHITE, -41, -15.6, 0, Math.PI); person('dress', MAID, -46, -20.9, 0, 0); person('dress', MAID, -35, -13.1, 0, Math.PI);
 
   // ---------- Ballsaal (rechter Flügel) ----------
-  room('Ballsaal', EG, 30, 54.4, -22.4, 6.4, 0, 'Die Band spielt');
+  room('Ballsaal', EG, 30, 54.4, -22.4, 6.4, 0, 'Still und spiegelblank');
   floor(EG, 'marble', 30, 54.4, -22.4, 6.4, 0.03); floor(EG, 'parq', 33, 52, -17, 2, 0.045);
   box(EG, 'gold', 19.2, 0.02, 0.12, 42.5, 0.045, -17); box(EG, 'gold', 19.2, 0.02, 0.12, 42.5, 0.045, 2); box(EG, 'gold', 0.12, 0.02, 19.2, 33, 0.045, -7.5); box(EG, 'gold', 0.12, 0.02, 19.2, 52, 0.045, -7.5);
   ceiling(EG, 'ceil', 30, 54.4, -22.4, 6.4, HB - 0.05, 4);
-  wall(EG, 'plaster', 'z', 30.1, -22.4, 6.4, 0, HB, 0.14, [[-8, -3, 5.0]], { col: false, side: 1 });
-  wall(EG, 'plaster', 'z', 54.3, -22.4, 6.4, 0, HB, 0.14, [], { col: false, side: -1 });
-  wall(EG, 'plaster', 'x', -22.3, 30, 54.4, 0, HB, 0.14, [], { col: false, side: 1 });
-  wall(EG, 'plaster', 'x', 6.3, 30, 54.4, 0, HB, 0.14, [[40, 45, 5.0]], { col: false, side: -1 });
+  wall(EG, 'silk', 'z', 30.1, -22.4, 6.4, 0, HB, 0.14, [[-8, -3, 5.0]], { col: false, side: 1 });
+  wall(EG, 'silk', 'z', 54.3, -22.4, 6.4, 0, HB, 0.14, [], { col: false, side: -1 });
+  wall(EG, 'silk', 'x', -22.3, 30, 54.4, 0, HB, 0.14, [], { col: false, side: 1 });
+  wall(EG, 'silk', 'x', 6.3, 30, 54.4, 0, HB, 0.14, [[40, 45, 5.0]], { col: false, side: -1 });
   windows(EG, 'z', 54.2, -21, 5, 1.4, 6.4, 5); windows(EG, 'x', 6.2, 30.5, 39, 1.4, 6.4, 2); windows(EG, 'x', 6.2, 46, 54, 1.4, 6.4, 2);
   door(EG, 'x', 6.7, 42.5, 5, 5.0, { double: true, glass: true });
   // Spiegel zwischen Pilastern an der Rückwand, Säulenreihen, Bühne für die Band
   for (let k = 0; k < 5; k++) { const lx = 32.5 + k * 5; box(EG, 'mirror', 3.0, 5.5, 0.08, lx, 1.4, -22.2); box(EG, 'gold', 3.3, 0.18, 0.2, lx, 6.9, -22.2); box(EG, 'gold', 3.3, 0.18, 0.2, lx, 1.25, -22.2); }
   for (const lx of [32.3, 52.1]) for (let k = 0; k < 6; k++) column(EG, lx, -20 + k * 5.2, 0, HB - 0.05, 0.45);
   box(EG, 'dark', 12, 0.7, 4.5, 42.5, 0, -20); col(36.5, 0, -22.4, 48.5, 0.7, -17.75);
-  { const [x, z] = W(42.5, -17.7); const fm = new T.Mesh(new T.PlaneGeometry(10, 5), new T.MeshBasicMaterial({ map: FAN_TEX, transparent: true, color: new T.Color(1.2, 1.0, 0.7), depthWrite: false, side: T.DoubleSide })); fm.position.set(x, by + 3.6, z); fm.rotation.y = ry; fm.userData.zone = EG; scene.add(fm); (VR.extra ||= []).push(fm); }
+  { const [x, z] = W(42.5, -22.05); const fm = new T.Mesh(new T.PlaneGeometry(10, 5), new T.MeshBasicMaterial({ map: FAN_TEX, transparent: true, color: new T.Color(1.2, 1.0, 0.7), depthWrite: false, side: T.DoubleSide })); fm.position.set(x, by + 4.2, z); fm.rotation.y = ry; fm.userData.zone = EG; scene.add(fm); (VR.extra ||= []).push(fm); }
   glow(42.5, 4, -20, [1.3, 0.9, 0.5], 6);
   for (const lx of [36, 42.5, 49]) chand(EG, lx, -7.5, HB - 2.0, lx === 42.5 ? 2.2 : 1.4, 1.3);
   light(42.5, 6, -8, 0xffd9a6, 1.2, 36); light(42.5, 4, -19, 0xffc080, 0.8, 18);
   // Buffet mit Champagnerkühlern, Sitzgruppen am Rand, Palmen in den Ecken
-  box(EG, 'velvet', 8, 0.8, 1.2, 52.8, 0, -7.5); box(EG, 'gold', 8.1, 0.05, 1.25, 52.8, 0.8, -7.5); col(48.8, 0, -8.1, 54.4, 0.85, -6.9);
-  for (let k = 0; k < 4; k++) { A(EG, 'steel', lathe([[0.16, 0], [0.2, 0.3], [0.22, 0.35]], 12), 52.8, 0.85, -10 + k * 1.7); A(EG, 'bottle', new T.CylinderGeometry(0.04, 0.05, 0.3, 8), 52.8, 1.1, -10 + k * 1.7); }
+  box(EG, 'velvet', 1.2, 0.8, 8, 53.5, 0, -7.5); box(EG, 'gold', 1.25, 0.05, 8.1, 53.5, 0.8, -7.5); col(52.9, 0, -11.5, 54.4, 0.85, -3.5);   // V33: Buffet längs der Wand (stak vorher halb in ihr)
+  for (let k = 0; k < 4; k++) { A(EG, 'steel', lathe([[0.16, 0], [0.2, 0.3], [0.22, 0.35]], 12), 53.5, 0.85, -10 + k * 1.7); A(EG, 'bottle', new T.CylinderGeometry(0.04, 0.05, 0.3, 8), 53.5, 1.1, -10 + k * 1.7); }
   for (const lz of [-19, 4]) for (const lx of [34, 51]) { furn(EG, FURN.roundTable(0.5), FM, lx, 0, lz); lampT(EG, lx, lz, 0.74); for (let j = 0; j < 2; j++) furn(EG, FURN.bistroChair(), FM, lx + (j ? 0.9 : -0.9), 0, lz, j ? -Math.PI / 2 : Math.PI / 2); col(lx - 0.6, 0, lz - 0.6, lx + 0.6, 0.8, lz + 0.6); }
   for (const [lx, lz] of [[31.4, 5.2], [53, 5.2], [31.4, -21.2], [53, -21.2]]) palm(EG, lx, lz, 0, 3.4);
-  VR.ballF = { cx: 42.5, cz: -7.5, rx: 8.2, rz: 7.2 };
-  for (let k = 0; k < (MOBILE ? 6 : 8); k++) { const ch = k >= 6, c = { ang: k / 6 * Math.PI * 2, rho0: 0.5 + (k % 2) * 0.4, cx: 42.5 + (k % 2 - 0.5) * 2.6, cz: -1, h0: R() * 6.28 }; c.m = ctx.crowd.add('tux', [1, 1, 1]); c.w = ctx.crowd.add(ch ? 'dress' : 'gown', pick(GOWNS)); setDance(c, ch ? 'charl' : 'fox'); VR.dancers.push(c); }
-  for (const [lx, kind] of [[38.5, 'tux'], [40.5, 'tux'], [42.5, 'gown'], [44.5, 'tux'], [46.5, 'tux']]) VILLA.sway.push(person(kind, [0.95, 0.75, 0.38], lx, -20, 0.7, 0));
-  for (let k = 0; k < (MOBILE ? 8 : 14); k++) person(R() < 0.5 ? 'tux' : 'gown', pick(GOWNS), rand(31.5, 53), R() < 0.5 ? rand(-21, -17.5) : rand(2.5, 5.5), 0, R() * 6.28);
-  person('livery', WHITE, 50.5, -7.5, 0, -Math.PI / 2); person('livery', WHITE, 33, -2, 0, Math.PI / 2);
+  // V33: kein Fest mehr; ein Diener poliert das Silber am Buffet, ein Zimmermädchen richtet die Tische
+  person('livery', WHITE, 50.5, -7.5, 0, -Math.PI / 2); person('dress', MAID, 34.8, 4, 0, Math.PI * 0.3);
 
   /* ================= Obergeschoss ================= */
   // ---------- Galerie um die Halle, Seitengalerien, Flur nach hinten ----------
@@ -557,7 +790,7 @@ export function buildVillaRooms(ctx) {
   A(OG, 'stone', lathe([[1.2, 0], [1.3, 0.15], [1.1, 0.5], [1.3, 0.6]], 24), 23.6, Y1, -14); A(OG, 'water', new T.CylinderGeometry(1.1, 1.1, 0.05, 24), 23.6, Y1 + 0.55, -14); col(22.3, Y1, -15.3, 24.9, Y1 + 0.6, -12.7);
   for (let k = 0; k < 6; k++) glow(23.6 + Math.cos(k) * 0.9, Y1 + 0.62, -14 + Math.sin(k) * 0.9, NEON.teal, 0.5);
   light(23.6, Y1 + 3.5, -10, 0xcfe8ff, 0.7, 20);
-  person('gown', pick(GOWNS), 21, -6, Y1, 0.6); person('tux', [1, 1, 1], 26, -6, Y1, -0.6);
+  person('livery', [0.3, 0.32, 0.22], 21, -6, Y1, 0.6);   // der Gärtner gießt die Farne
 
   // ---------- Schlafzimmer, Bad, Ankleide (linker Flügel) ----------
   room('Schlafzimmer', OG, -54.4, -30, -8.8, 6.4, Y1);
@@ -782,16 +1015,58 @@ export function buildVillaRooms(ctx) {
   A(KE, 'tile', new T.PlaneGeometry(2.4, 2.4).rotateX(-Math.PI / 2).rotateY(Math.PI / 4), 42.5, KY + 0.035, -14.5); box(KE, 'gold', 0.12, 0.02, 6, 42.5, KY + 0.035, -17.5);
   for (const lx of [36, 42.5, 49]) { A(KE, 'gold', new T.TorusGeometry(0.9, 0.05, 6, 24).rotateX(Math.PI / 2), lx, KY + KH - 0.7, -5); for (let k = 0; k < 8; k++) A(KE, 'lamp', new T.OctahedronGeometry(0.07), lx + Math.cos(k * 0.785) * 0.9, KY + KH - 0.85, -5 + Math.sin(k * 0.785) * 0.9); glow(lx, KY + KH - 0.9, -5, [0.6, 1.2, 1.2], 2.2); }
   light(42.5, KY + 2.4, -5, 0x60e0d8, 1.0, 26); light(42.5, KY + 2.0, -17, 0xffd0a0, 0.5, 14);
-  person('gown', pick(GOWNS), 44, 2, KY, Math.PI); person('tux', [1, 1, 1], 46.5, 2, KY, Math.PI * 0.9); person('livery', WHITE, 33, -10, KY, Math.PI / 2);
+  person('livery', WHITE, 33, -10, KY, Math.PI / 2); person('dress', MAID, 45, 2.4, KY, Math.PI);
+
+
+  /* ================= V33: Ausstattung der Räume: Gemälde, Leuchter, Blumen, Flügel auf der Bühne ================= */
+  // Halle: großes Stadtbild über Randolf, Kristall und Bergvilla an den Seitenwänden, Leuchter
+  art(EG, 'x', -22.3, 0, 5.4, 3.8, 2.6, 0, 1); for (const sd of [-1, 1]) sconce(EG, 'x', -22.3, sd * 10.2, 3.4, 1);
+  art(EG, 'z', -14.4, -7.5, 5.6, 2.4, 1.8, 5, 1); art(EG, 'z', 14.4, -5.6, 5.8, 2.4, 1.8, 7, -1);
+  for (const lz of [-11, -3.6]) sconce(EG, 'z', -14.4, lz, 3.4, 1); sconce(EG, 'z', 14.4, -3.2, 3.4, -1); sconce(EG, 'z', 14.4, -14.6, 3.4, -1);
+  // Salon
+  art(EG, 'x', -22.3, -26.7, 4.4, 2.2, 1.6, 1, 1); art(EG, 'x', -22.3, -17.3, 4.4, 2.2, 1.6, 4, 1); art(EG, 'z', -29.3, -13.5, 4.1, 3.2, 2.2, 6, 1);
+  for (const lz of [-18.3, -9]) sconce(EG, 'z', -29.3, lz, 3.3, 1); flowers(EG, -17, -5, 0.74, 0.8);
+  // Herrenzimmer
+  art(EG, 'z', 29.3, -12.8, 4.2, 2.6, 1.8, 2, -1); art(EG, 'z', 29.3, -19.6, 4.4, 1.8, 1.4, 3, -1); sconce(EG, 'z', 29.3, -16.2, 3.3, -1); sconce(EG, 'z', 29.3, -9.4, 3.3, -1);
+  // Speisesaal
+  art(EG, 'x', -11, -50.6, 4.6, 2.4, 1.7, 2, 1, 0.2); art(EG, 'x', -11, -42.2, 4.9, 3.6, 2.4, 7, 1, 0.2); art(EG, 'x', -11, -36.6, 4.6, 2.4, 1.7, 1, 1, 0.2);
+  for (const lx of [-46.4, -38.4]) sconce(EG, 'x', -10.85, lx, 3.4, 1); flowers(EG, -42.2, -8.3, 0.78, 0.8); flowers(EG, -42.2, 4.1, 0.78, 0.8); flowers(EG, -51.6, -2, 1.13, 0.7);
+  // Ballsaal: Bühnenvorhang, Konzertflügel und Notenpulte statt der Band, Deckenrosetten, Leuchter, Blumen, Bilder
+  for (const sd of [-1, 1]) { box(EG, 'carpet', 1.4, 7.2, 0.35, 42.5 + sd * 5.6, 0.7, -21.9); box(EG, 'gold', 1.5, 0.12, 0.4, 42.5 + sd * 5.6, 7.9, -21.9); A(EG, 'gold', new T.TorusGeometry(0.2, 0.03, 6, 12), 42.5 + sd * 4.95, 3.2, -21.6); }
+  box(EG, 'carpet', 12.6, 1.0, 0.4, 42.5, 7.6, -21.85); box(EG, 'gold', 12.8, 0.1, 0.45, 42.5, 7.55, -21.85);
+  piano(EG, 39.8, -19.6, 0.7, 2.4);
+  for (const lx of [43.6, 45.2, 46.8]) { A(EG, 'gold', new T.CylinderGeometry(0.015, 0.03, 1.15, 6), lx, 1.27, -19.6); A(EG, 'gold', new T.BoxGeometry(0.5, 0.36, 0.02).rotateX(-0.35), lx, 1.95, -19.5); A(EG, 'wood', new T.CylinderGeometry(0.2, 0.2, 0.04, 12), lx + 0.1, 1.15, -18.9); }
+  for (const lx of [36, 42.5, 49]) { A(EG, 'gold', new T.TorusGeometry(lx === 42.5 ? 2.4 : 1.6, 0.08, 6, 40).rotateX(Math.PI / 2), lx, HB - 0.12, -7.5); A(EG, 'gold', new T.CircleGeometry(0.6, 24).rotateX(Math.PI / 2), lx, HB - 0.08, -7.5); }
+  art(EG, 'z', 30.1, -15.6, 4.6, 3.0, 2.2, 3, 1); art(EG, 'z', 30.1, 1.4, 4.6, 3.0, 2.2, 0, 1);
+  for (const lz of [-15.8, -10.6, -5.4, -0.2]) sconce(EG, 'z', 54.3, lz, 5.0, -1); for (const lz of [-19.4, -11.4, 4.4]) sconce(EG, 'z', 30.1, lz, 4.2, 1);
+  for (const lz of [-11, -4]) flowers(EG, 53.5, lz, 0.85, 0.9); for (const lz of [-19, 4]) for (const lx of [34, 51]) flowers(EG, lx + 0.25, lz + 0.2, 0.74, 0.5);
+  // Obergeschoss: Galerie, Flure, Schlafzimmer, Arbeitszimmer
+  for (const lx of [-9.6, -3.2, 3.2, 9.6]) sconce(OG, 'x', -22.3, lx, Y1 + 2.6, 1);
+  [[-30.5, 0], [-43, 2], [-52.4, 4], [30.5, 6], [36.5, 1], [49, 7]].forEach(([lx, k]) => { art(OG, 'x', -19.7, lx, Y1 + 2.5, 1.8, 1.3, k, -1); sconce(OG, 'x', -19.7, lx + Math.sign(lx) * 1.7, Y1 + 2.4, -1); });
+  art(OG, 'x', -8.9, -42.2, Y1 + 3.75, 2.6, 1.6, 1, 1); for (const lx of [-45.2, -39.2]) sconce(OG, 'x', -8.9, lx, Y1 + 2.2, 1); flowers(OG, -52.5, 4.5, Y1 + 1.0, 0.8);
+  art(OG, 'x', -9.1, -27.6, Y1 + 2.7, 2.0, 1.5, 5, -1); flowers(OG, -24.6, -15.2, Y1 + 0.82, 0.55);
+
+  /* ================= V33: durchgehende Deckenplatten, damit nirgends ein Spalt in die Tiefe zeigt ================= */
+  // Bisher lagen nur einzelne Bodenflächen je Raum nebeneinander; zwischen ihnen und unter den dünnen Sichtwänden sah man ins Leere.
+  const slab = (zone, mat, x0, x1, z0, z1, y0, y1) => box(zone, mat, x1 - x0, y1 - y0, z1 - z0, (x0 + x1) / 2, y0, (z0 + z1) / 2);
+  // Erdgeschoss über dem Keller, ausgespart: die beiden Treppenschächte
+  for (const [x0, x1, z0, z1] of [[-51.5, 11.15, -23, -1.3], [-55, -51.5, -17.5, -1.3], [11.15, 14.3, -17.5, -1.3], [14.3, 55, -23, -1.3], [-55, -29.4, -1.3, 7], [29.4, 55, -1.3, 7]]) slab(EG, 'dark', x0, x1, z0, z1, -0.7, -0.01);
+  // Obergeschoss: über dem Ballsaal erst ab dessen höherer Decke, über der Halle offen
+  for (const [x0, x1, z0, z1, y0] of [[-55, 29.4, -23, -13, H1], [-55, -14.5, -13, -1.3, H1], [14.5, 29.4, -13, -1.3, H1], [-55, -29.4, -1.3, 7, H1], [29.4, 55, -23, 7, HB]]) slab(OG, 'dark', x0, x1, z0, z1, y0 + 0.02, Y1 - 0.005);
+  // Kellerboden, ausgespart: das Schwimmbecken
+  for (const [x0, x1, z0, z1] of [[-55, 34.7, -23, 7], [50.3, 55, -23, 7], [34.7, 50.3, -23, -9.3], [34.7, 50.3, -0.7, 7]]) slab(KE, 'dark', x0, x1, z0, z1, KY - 0.4, KY - 0.01);
+  // Geländer um die offenen Treppenschächte (dort fiel man bisher durch einen Boden, der nur gemalt war)
+  for (const [px0, px1, sx] of [[11.15, 12.65, 12.65], [-52.9, -51.5, -52.9]]) { balu(EG, 'x', -17.55, px0, px1, 0, { posts: true }); balu(EG, 'z', sx, -22.3, -17.55, 0); }
 
   /* ================= Zusammenbau: je Zone und Material ein Netz ================= */
-  const WUV = { marble: 4.2, parq: 4.0, plaster: 4.2, panel: 2.0, tile: 2.2, bluewall: 4.2, greenwall: 4.2, hedge: 1.6, brick: 2.0 };
+  const WUV = { marble: 4.2, parq: 4.0, plaster: 2.4, silk: 2.4, panel: 2.0, tile: 2.2, bluewall: 4.2, greenwall: 4.2, hedge: 1.6, brick: 2.0, ceil: 3.6, white: 2.2, black: 2.0 };
   const cs = VR.cs, sn = VR.sn;
   for (const key in B) {
     const [zone, mk] = key.split('|');
     const list = B[key].map(g => { g = !g.attributes.normal && g.index ? g.toNonIndexed() : geoView(g); if (!g.attributes.uv) g.setAttribute('uv', new T.BufferAttribute(new Float32Array(g.attributes.position.count * 2), 2)); if (!g.attributes.normal) g.computeVertexNormals(); return g; });
-    const g = mergeGeos(list); g.rotateY(ry); g.translate(VILLA.x, by, VILLA.z);
-    if (WUV[mk]) worldUV(g, WUV[mk]);
+    const g = mergeGeos(list);
+    if (WUV[mk]) worldUV(g, WUV[mk]);   // V33: Muster im Hausraster (vorher im Weltraster: Fliesen und Parkett lagen schräg zu den Wänden)
+    g.rotateY(ry); g.translate(VILLA.x, by, VILLA.z);
     const mat = mats[mk]; if (!mat) { console.warn('Villa: Material fehlt', mk); continue; }
     const m = new T.Mesh(g, mat); m.frustumCulled = false; m.renderOrder = mk === 'glassW' || mk === 'tealG' ? 3 : 0;
     (VR.groups[zone] ||= new T.Group()).add(m);
@@ -830,8 +1105,6 @@ export function updateVillaRooms(t, C, rot) {
     d.open += (want - d.open) * Math.min(1, dt * 3.2);
     for (const L of d.leaves) L.m.rotation.y = L.s * d.open * 1.5 * d.dir;
   }
-  // Tänzer und Band im Ballsaal
-  if (vis.eg) for (const c of VR.dancers) placeCouple(C, c, t, VR.ballF, 0, 0, VR.by, rot);
   // Raumnamen beim Betreten, Randolfs Gruß in der Halle
   let r = null;
   for (const q of VR.rooms) if (l.x > q.x0 && l.x < q.x1 && l.z > q.z0 && l.z < q.z1 && l.y > q.y - 0.4 && l.y < q.y + 4.5) { r = q; break; }
