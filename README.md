@@ -58,7 +58,8 @@ src/                der Spielcode als ES-Module, ein Abschnitt pro Datei
   driving.js          Fahrphysik
   wind.js             Wind und Böen
   boat.js             Boot fahren
-  music.js            Musik über Web Audio
+  music.js            Jazzband im Ballsaal über Web Audio, Fahrstühle und Benutzen (E)
+  audio.js            Klang (V38): gemeinsames Mischpult, Stadt, Straßenbahn, Stimmen, Wetter, Schritte je Boden, Salonmusik in Villa und Penthouse, Luftschiff, Flug, Landung, Telekinese; Taste M
   bloom.js            Nachleuchten (EffectComposer aus three/addons)
   input.js            Tastatur, Maus, Touch
   main.js             Aufbau der Welt und Spielschleife
@@ -70,6 +71,7 @@ single/
 tools/
   build-single.py     bündelt index.html + src/ + assets/ zu einer Einzeldatei (nur Python, kein npm nötig)
   check-modules.js    prüft die Modulreihenfolge auf "Cannot access ... before initialization" (braucht acorn)
+  sound-test.js       Klangprobe (V38): Orte durchgehen, Pegel des Mischpults auslesen
   test.js             Headless-Test mit Messwerten (Playwright): Fehler, Draw Calls, Speicher, Bildzeit
   make-example-asset.py  erzeugt das Beispielmodell deco-bollard.glb
 ```

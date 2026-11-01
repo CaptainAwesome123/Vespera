@@ -15,6 +15,7 @@ import { fxEmit, skidMark, updateFX } from './particles.js';
 import { windAt, updateLeaves, updateWindAudio } from './wind.js';
 import { toast, BOAT } from './boat.js';
 import { isTouch, paused } from './input.js';
+import { audioCtx, audioBus } from './audio.js';
 
 /* =====================================================================
    V16 · FAHRPHYSIK: Einspurmodell mit Reifenkräften (Schräglauf, Kammscher Kreis),
@@ -564,10 +565,10 @@ export function driveCamera() {
 
 /* ---------- Klang: Reihensechszylinder, Reifenquietschen, Blech ---------- */
 export function initCarAudio() {
-  if (DRIVE.au) { if (DRIVE.au.ctx.state === 'suspended') DRIVE.au.ctx.resume(); return; }
-  const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
+  if (DRIVE.au) { audioCtx(); return; }
   try {
-    const ctx = new AC(), out = ctx.createGain(); out.gain.value = 0.55; out.connect(ctx.destination);
+    const ctx = audioCtx(); if (!ctx) return;   // V38: gemeinsamer Context (src/audio.js)
+    const out = ctx.createGain(); out.gain.value = 0.55; out.connect(audioBus('sfx'));
     const eg = ctx.createGain(); eg.gain.value = 0; const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 600; lp.Q.value = 2.5;
     const o1 = ctx.createOscillator(), o2 = ctx.createOscillator(), o3 = ctx.createOscillator(); o1.type = 'sawtooth'; o2.type = 'square'; o3.type = 'triangle';
     const g2 = ctx.createGain(); g2.gain.value = 0.35; const g3 = ctx.createGain(); g3.gain.value = 0.5;
