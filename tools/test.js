@@ -18,6 +18,7 @@ const SPOTS = [
   { name: 'flug', p: [-400, 220, 600], yaw: 0.6, pitch: -0.35, fly: true },
   { name: 'kraefte', p: [-5, 0.26, 121], yaw: 0, pitch: -0.34, powers: true },   // V33: Telekinese (Koffer heben, schleudern), Flug von hinten, Superlandung
   { name: 'ballsaal', p: [30, 0.26, -12], yaw: 0.6, pitch: 0.05 },                     // V33: Ballsaal mit neuer Ausstattung
+  { name: 'auto', p: [0, 0.26, 120], yaw: 0, pitch: 0, car: true },                   // V38: Pierce Arrow nehmen und ein Stück fahren
   { name: 'penthouse', p: [0, 250, 17], yaw: 0, pitch: 0.05 },                       // V33: Alexanders Penthouse-Suite
 ];
 (async () => {
@@ -77,6 +78,20 @@ const SPOTS = [
       const B = L.bodies.find(b => b.name === 'Hutschachtel') || L.bodies[0];
       if (B) { L.pickUp(B); await wait(1500); held = B.x.toArray().map(v => v.toFixed(2)).join('/'); L.drop(true); await wait(2500); after = info(); }
       return JSON.stringify({ bodies: n, before, held, after, stats: L.stats, mocap: vespera.mocap && vespera.mocap.ready });
+    }));
+    if (s.car) console.log(s.name, await p.evaluate(async () => {
+      const C = vespera.cars, wait = ms => new Promise(r => setTimeout(r, ms)), pp = vespera.player.p;
+      const out = { modelReady: C.model.ready, parkedModels: C.parked.filter(c => c.model).length, parkedAll: C.parked.length,
+        trafficModels: C.traffic.cars.filter(c => c.model).length, trafficAll: C.traffic.cars.length };
+      const c = C.parked.filter(c => c.model && !c.hidden).sort((a, b) => ((a.x - pp.x) ** 2 + (a.z - pp.z) ** 2) - ((b.x - pp.x) ** 2 + (b.z - pp.z) ** 2))[0];
+      if (!c) return JSON.stringify(out);
+      C.enter(c); await wait(500);
+      const D = C.drive, x0 = D.body.x, z0 = D.body.z;
+      out.kind = D.model ? 'pierce' : 'eigene'; out.bodyCount = D.mMesh ? D.mMesh.count : null; out.wheelCount = D.mWheels ? D.mWheels.count : null; out.procCount = D.mesh.count;
+      window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyW' })); await wait(3000); window.dispatchEvent(new KeyboardEvent('keyup', { code: 'KeyW' }));
+      out.moved = +Math.hypot(D.body.x - x0, D.body.z - z0).toFixed(2); out.wheelA = +(D.wheelA || 0).toFixed(2);
+      await wait(800);
+      return JSON.stringify(out);
     }));
     if (s.powers) console.log(s.name, await p.evaluate(async () => {
       const V = vespera, P = V.powers, L = V.loose, wait = ms => new Promise(r => setTimeout(r, ms)), r2 = v => +v.toFixed(2);

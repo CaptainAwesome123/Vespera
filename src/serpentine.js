@@ -13,6 +13,7 @@ import { VILLA, deckY, TER, terrainHeight, ROAD_Z0, VIA, ROAD_W, terrainHeightRa
 import { makeGlowPoints, buildCitizens } from './ragdoll.js';
 import { cars } from './airships.js';
 import { carDamageAttr, carCabin, carLoft, carSweep, fenderPath, carWheel } from './cars.js';
+import { CARM, CARM_PAINT, isModelCar, modelCarMeshes } from './carmodel.js';
 import { OBSTACLES, _m, _p, _q, _up, _s, TRUCK_N, deliveryMen, buildDrivers } from './traffic.js';
 import { dishModel, VENUE_PEDS } from './venues.js';
 import { carScenePeds } from './eating.js';
@@ -2183,19 +2184,23 @@ export function buildParkedCars() {
   const im = new T.InstancedMesh(shared.carBodyGeo, MAT.carPaint, list.length), imHi = new T.InstancedMesh(carGeoHi(), MAT.carPaint, list.length);
   const paint = [[0.05, 0.05, 0.06], [0.22, 0.04, 0.06], [0.05, 0.14, 0.1], [0.08, 0.1, 0.22], [0.45, 0.33, 0.15], [0.12, 0.12, 0.13]];
   const col = new T.Color();
-  list.forEach((mm, i) => { im.setMatrixAt(i, mm); const p = pick(paint).map(v => v + (Math.random() - 0.5) * 0.012); im.setColorAt(i, col.setRGB(p[0], p[1], p[2])); parked.push({ m: mm, c: p, x: mm.elements[12], z: mm.elements[14], ox: mm.ox, oz: mm.oz }); });
+  // V38: ein Teil der Parker sind Pierce Arrows (echtes Modell); die eigenen Limousinen bleiben
+  const model = CARM.ready ? list.map((_, i) => isModelCar(i + 7)) : list.map(() => false);
+  list.forEach((mm, i) => { im.setMatrixAt(i, mm); const p = pick(model[i] ? CARM_PAINT : paint).map(v => v + (Math.random() - 0.5) * 0.012); im.setColorAt(i, col.setRGB(p[0], p[1], p[2])); parked.push({ m: mm, c: p, x: mm.elements[12], z: mm.elements[14], ox: mm.ox, oz: mm.oz, model: model[i] || undefined }); });
   im.frustumCulled = imHi.frustumCulled = false; im.count = imHi.count = 0; scene.add(im, imHi);
   carDamageAttr(imHi); carDamageAttr(im);
   parkedCmp = lodCompactor(imHi, im, LOD_CAR2);
+  if (CARM.ready && model.some(Boolean)) { const M = modelCarMeshes(list.length); parkedModelCmp = lodCompactor(M.hi, M.lo, LOD_CAR2); }
 }
-export const parked = []; export let parkedCmp = null; shared.parkedTimer = 0;
+export const parked = []; export let parkedCmp = null, parkedModelCmp = null; shared.parkedTimer = 0;
 export function updateParked(dt) {
   if (!parkedCmp || (shared.parkedTimer -= dt) > 0) return;
   shared.parkedTimer = 0.15;
   const cp = camera.position, D2 = Math.min(420 + Math.max(0, cp.y), FOGVIS.ped, FOGVIS.cap) ** 2;   // V27: im Nebel nur so weit, wie man sieht (V34: und aus dem Belmont nur durchs Portal)
-  parkedCmp.begin();
-  for (const c of parked) { if (c.hidden) continue; const d2 = (c.x - cp.x) ** 2 + (c.z - cp.z) ** 2 + cp.y * cp.y; if (d2 < D2) parkedCmp.put(c.m, c, c.c, d2); }
-  parkedCmp.end();
+  const MC = parkedModelCmp;
+  parkedCmp.begin(); if (MC) MC.begin();
+  for (const c of parked) { if (c.hidden) continue; const d2 = (c.x - cp.x) ** 2 + (c.z - cp.z) ** 2 + cp.y * cp.y; if (d2 < D2) (c.model && MC ? MC : parkedCmp).put(c.m, c, c.c, d2); }
+  parkedCmp.end(); if (MC) MC.end();
 }
 
 

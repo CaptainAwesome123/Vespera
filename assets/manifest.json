@@ -5,6 +5,7 @@
     "kenney-bench": { "url": "models/kenney-bench.glb", "scale": 1, "source": "Kenney Graveyard Kit, CC0" },
     "kenney-trashcan": { "url": "models/kenney-trashcan.glb", "scale": 1, "source": "Kenney Furniture Kit, CC0" },
     "kenney-goods": { "url": "models/kenney-goods.glb", "scale": 1, "source": "Kenney Food Kit (über pmndrs/market-assets), CC0; 21 Stücke in einer Datei, Knoten je Ware" },
+    "pierce-arrow": { "url": "models/pierce-arrow.glb", "scale": 1, "source": "V38: '1920'S Pierce Arrow' von Dkerr (Sketchfab), CC BY 4.0, aufbereitet mit tools/make-car.mjs; geladen von src/carmodel.js" },
     "deco-bollard": { "url": "models/deco-bollard.glb", "scale": 1, "source": "eigenes Beispiel, tools/make-example-asset.py" }
   },
   "textures": {
