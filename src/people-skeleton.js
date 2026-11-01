@@ -882,6 +882,20 @@ export const HUM_VS_RIG = `
   // V36d: kein zweiter humanPose-Durchlauf mehr zum Überblenden. Selbst als Schleife war der Shader für den
   // Windows-Treiber (ANGLE/Direct3D, AMD) zu groß: das Übersetzen dauerte so lange, dass Chrome die Grafik
   // zurücksetzte (webglcontextlost). Alexanders eigene Bewegungen (playerPose) blenden über uPl weiterhin weich.
+  // V37: weicher Übergang Gehen/Laufen/Stehen über die Aufnahmekanäle (uPl[0] = vorige Handlung, Tempo, Gewicht, Schrittphase);
+  // die vorige Aufnahme wird hier einmal gelesen, mcApply mischt sie ein. Kein zweites humanPose.
+  pW = 0.0;
+  if (uMocapOn > 0.5 && uPl[0].z > 0.001) {
+    float pAmp = uPl[0].y, pAct = floor(uPl[0].x + 0.001);
+    if (pAmp > 0.01) {
+      float pRun = step(0.7, pAmp), pc = fract(uPl[0].w / 6.2832), pm = step(0.5, hh(aGait.x * 6.1));
+      mcPrev(pRun > 0.5 ? MC_RUN : (hFemV > 0.5 ? MC_WALKF : MC_WALKM), pm > 0.5 ? pc + 0.5 : pc, pm, pRun > 0.5 ? mix(2.3, 2.0, hFemV) : mix(1.366, 1.164, hFemV));
+      pW = uPl[0].z;
+    } else if (pAct < 1.5 || (pAct > 40.5 && pAct < 41.9)) {
+      mcPrev(MC_IDLE, uTime / MC_IDLE.z + hh(aGait.x * 5.9), pAct < 1.5 ? step(0.5, hh(aGait.x * 2.9)) : 0.0, -1.0);
+      pW = uPl[0].z;
+    }
+  }
   gG = aGait; humanPose(hFemV, hGs, hElder);
   playerPose(hFemV);
 #else

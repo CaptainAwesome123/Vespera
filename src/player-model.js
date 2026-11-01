@@ -64,20 +64,26 @@ export function toggleView() {
 export function toggleDance() { PM.dance = (PM.dance + 1) % 3; return PM.dance; }
 export function zoomView(d) { PM.distT = Math.max(1.4, Math.min(6, PM.distT * (d > 0 ? 1.12 : 1 / 1.12))); }
 
-// V35: Alexanders Bewegungen. Grundhaltung wie bisher über aGait (Stehen, Gehen, Laufen, Tragen, Tanzen, Fliegen); jeder Wechsel wird
-// im Shader weich überblendet (uPl[0]). Darüber legen sich Sprung, Sturz, Landungen und Telekinese (uPl[1..6], siehe playerPose)
+// V35: Alexanders Bewegungen. Grundhaltung wie bisher über aGait (Stehen, Gehen, Laufen, Tragen, Tanzen, Fliegen); V37: Wechsel
+// zwischen Gehen, Laufen und Stehen werden im Shader über die Aufnahmekanäle weich überblendet (uPl[0]). Darüber legen sich Sprung, Sturz, Landungen und Telekinese (uPl[1..6], siehe playerPose)
 const AN = PM.an = { key: '', y: 0, z: 0, py: 0, pz: 0, fade: 0, ph0: 0, airW: 0, fallW: 0, prepW: 0, tkW: 0, brace: 0, heavy: 0, brake: 0, boost: 0, sp0: 0, lean: 0, roll: 0, spd: 0 };
 const _d = new T.Vector3(), _qi = new T.Quaternion(), _hw = new T.Vector3();
 const ease = (cur, want, rate, dt) => cur + (want - cur) * Math.min(1, dt * rate);
 // Gangdaten setzen; bei einem Wechsel der Haltung die vorige fürs Überblenden merken
+// V37: der Shader liest die vorige Aufnahme (Gehen, Laufen, Stehen) ein zweites Mal und mischt sie ein; die vorige Schrittphase
+// läuft dabei im alten Takt weiter, damit die Beine beim Anhalten ausschwingen statt einzufrieren
+const FADE_S = 0.35;
 function baseState(y, z, key, dt) {
+  const walkNow = key === 'walk' || key === 'run';
   if (key !== AN.key) {
     // mitten in einer Überblendung nicht hart springen: die stärkere der beiden bleibt die vorige
     if (AN.key && AN.fade < 0.5) { AN.py = AN.y; AN.pz = AN.z; AN.ph0 = PM.phase; AN.fade = 1; }
     AN.key = key;
   }
   AN.y = y; AN.z = z;
-  AN.fade = Math.max(0, AN.fade - dt / 0.3);
+  if (walkNow) { AN.cad = PM.cad || 0; AN.ph0 = PM.phase; }
+  else AN.ph0 = (AN.ph0 + dt * (AN.cad || 0) * Math.PI * 2) % (Math.PI * 2 * 1000);
+  AN.fade = Math.max(0, AN.fade - dt / FADE_S);
 }
 function writeU(dt) {
   const U = PL_U.value, H = POWERS.hero, D = POWERS.dip, TO = POWERS.takeoff, TK = POWERS.tk, f = AN.fade;
@@ -148,14 +154,14 @@ export function updatePlayerModel(dt, on) {
     // V26: mit etwas Großem in den Armen wird nicht gerannt (player.js bremst), mit etwas Kleinem schon
     // V35: Übergang mit Spielraum (2,4 / 2,8 m/s), damit es an der Grenze nicht hin und her springt
     const Hd = LOOSE.held, canRun = !(Hd && !Hd.small), run = canRun && (AN.key === 'run' ? sp > 2.4 : sp > 2.8), cad = run ? Math.min(1.6, sp / 2.3) : sp / 1.366;
-    PM.phase = (PM.phase + dt * cad * Math.PI * 2) % (Math.PI * 2 * 1000);
+    PM.phase = (PM.phase + dt * cad * Math.PI * 2) % (Math.PI * 2 * 1000); PM.cad = cad;
     st.amp = run ? 0.75 : Hd ? (Hd.small ? 0.62 : 0.55) : 0.4; st.phase = PM.phase;
     baseState(1, st.amp, run ? 'run' : 'walk', dt);
   } else {
     st.act = LOOSE.held ? (LOOSE.held.small ? 41.5 : 41) : PM.dance === 1 ? 22 : PM.dance === 2 ? 23 : 0;
     baseState(st.act, 0, 'act' + st.act, dt);
   }
-  if (inAir) AN.fade = Math.max(0, AN.fade - dt / 0.3);
+  if (inAir) AN.fade = Math.max(0, AN.fade - dt / FADE_S);
   if (PM.dance) st.smile = 0.6;
   // beim Laufen in die Kurve legen, beim Antreten und Bremsen ein wenig vor und zurück
   const yr = Math.atan2(Math.sin(PM.yawB - yaw0), Math.cos(PM.yawB - yaw0)) / Math.max(dt, 1e-3), acc = (sp - AN.spd) / Math.max(dt, 1e-3);

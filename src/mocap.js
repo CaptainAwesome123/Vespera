@@ -54,9 +54,26 @@ void mcSample(vec3 clip, float t, float mir) {
     mcC0.x = -mcC0.x; mcC1 *= vec4(-1.0, -1.0, 1.0, -1.0); mcC2 *= vec4(-1.0, 1.0, -1.0, -1.0);
   }
 }
+#ifdef HUM_PLAYER
+// V37: Alexanders Übergang Gehen <-> Stehen <-> Laufen. Statt die ganze Haltung zweimal zu rechnen (zu groß für den
+// Windows-Treiber) wird nur die vorige Aufnahme ein zweites Mal gelesen (mcPrev, einmal je Bild) und hier in den
+// Kanälen überblendet, bevor Becken, Beine und Arme daraus gesetzt werden. pLz: Länge für z der vorigen (< 0 = Beinlänge)
+vec4 pC0, pC1, pC2, pC3, pC4, pC5, pC6, pC7; float pW, pLz;
+void mcPrev(vec3 clip, float t, float mir, float lz) {
+  mcSample(clip, t, mir); pC0 = mcC0; pC1 = mcC1; pC2 = mcC2; pC3 = mcC3; pC4 = mcC4; pC5 = mcC5; pC6 = mcC6; pC7 = mcC7; pLz = lz;
+}
+#endif
 // ganze Aufnahme auf die Figur: Lz = Länge für z (Schrittlänge beim Gehen, sonst Beinlänge)
 void mcApply(float Lz, float fem, float useZ) {
   float ank = mix(mix(0.09, 0.1, fem), rAnk, hMH), Lg = hHip - ank; Lz = useZ > 0.5 ? Lz : Lg;
+#ifdef HUM_PLAYER
+  if (pW > 0.001) {
+    float r = (pLz < 0.0 ? Lg : pLz) / Lz;
+    mcC0 = mix(mcC0, vec4(pC0.xy, pC0.z * r, pC0.w), pW); mcC1 = mix(mcC1, pC1, pW); mcC2 = mix(mcC2, pC2, pW);
+    mcC3 = mix(mcC3, vec4(pC3.xy, pC3.z * r, pC3.w), pW); mcC4 = mix(mcC4, vec4(pC4.xy, pC4.z * r, pC4.w), pW);
+    mcC5 = mix(mcC5, pC5, pW); mcC6 = mix(mcC6, pC6, pW); mcC7 = mix(mcC7, pC7, pW); pW = 0.0;
+  }
+#endif
   pvO = vec3(mcC0.x * Lg, mcC0.y * Lg + ank - hHip, mcC0.z * Lz); pvP = mcC0.w; pvR = mcC1.x; pvY = mcC1.y;
   spP = mcC1.z; spR = mcC1.w; spY = mcC2.x; nkP = mcC2.y; nkR = mcC2.z; nkY = mcC2.w;
   vec3 FR = vec3(mcC3.x * Lg, ank + mcC3.y * Lg, mcC3.z * Lz), FL = vec3(mcC4.x * Lg, ank + mcC4.y * Lg, mcC4.z * Lz);

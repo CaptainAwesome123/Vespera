@@ -77,15 +77,29 @@ export async function start(data) {
   requestAnimationFrame(t => { shared.last = t; frame(t); });
 }
 // V36: alle Shader der Szene (auch die verborgene Spielerfigur für die Ansicht von hinten, Innenräume usw.) schon hinter dem
-// Startbild übersetzen. Mit KHR_parallel_shader_compile übersetzt der Treiber im Hintergrund, die Seite bleibt bedienbar und
-// der erste Blick (oder der Wechsel mit V) muss nicht minutenlang warten. Danach Fehler selbst melden (checkShaderErrors ist aus).
+// Startbild übersetzen. Danach Fehler selbst melden (checkShaderErrors ist aus).
+// V37: wirklich parallel. three.js (r147) fragt in renderer.compile gleich nach jedem Programm dessen Uniforms ab
+// (getProgramParameter ACTIVE_UNIFORMS); das wartet, bis der Treiber genau dieses Programm fertig hat. So wurden alle
+// rund 115 Programme nacheinander übersetzt, die Seite stand dabei still ("Seite reagiert nicht"). Jetzt meldet die
+// Abfrage während compile für noch nicht fertige Programme 0 Uniforms; der Treiber übersetzt alle zugleich im Hintergrund
+// (KHR_parallel_shader_compile), die Anzeige zählt mit, und erst danach werden die Uniforms richtig gelesen und eingetragen.
 async function precompile() {
   const gl = renderer.getContext(), ext = gl.getExtension('KHR_parallel_shader_compile'), t0 = performance.now();
-  const rt = renderer.getRenderTarget();
+  const rt = renderer.getRenderTarget(), faked = new Set();
+  if (ext && !new URLSearchParams(location.search).has('serialcompile')) {
+    const gpp = Object.getPrototypeOf(gl).getProgramParameter.bind(gl);
+    gl.getProgramParameter = (p, n) => {
+      if (n === 35718 && !gpp(p, ext.COMPLETION_STATUS_KHR)) { faked.add(p); return 0; }
+      return gpp(p, n);
+    };
+  }
   // die Szene wird im Spiel in Zwischenbilder gezeichnet (Composer, Spiegelung): gleiche Shader-Variante wie dort übersetzen
   try { renderer.setRenderTarget(composer ? composer.renderTarget1 : null); renderer.compile(scene, camera); }
   catch (e) { console.warn('Shader vorbereiten:', e); }
-  finally { renderer.setRenderTarget(rt); }
+  finally { delete gl.getProgramParameter; renderer.setRenderTarget(rt); }
+  const tC = performance.now(), mats = [];
+  const collect = o => { if (Array.isArray(o.material)) mats.push(...o.material); else mats.push(o.material); mats.push(o.customDepthMaterial, o.customDistanceMaterial); };
+  if (faked.size) scene.traverse(collect);
   const progs = renderer.info.programs.slice();
   if (ext) {
     const label = $('loading');
@@ -93,16 +107,32 @@ async function precompile() {
       const done = progs.filter(p => gl.getProgramParameter(p.program, ext.COMPLETION_STATUS_KHR)).length;
       if (done >= progs.length || gl.isContextLost() || performance.now() - t0 > 180000) break;
       label.textContent = `Lichter und Stoffe werden vorbereitet … ${Math.round(100 * done / progs.length)} %`;
-      await new Promise(r => setTimeout(r, 120));
+      await new Promise(r => setTimeout(r, 100));
     }
   }
   if (gl.isContextLost()) return;
+  // V37: die vorhin übergangenen Uniforms jetzt lesen (die Programme sind fertig, das wartet nicht mehr) und überall eintragen
+  if (faked.size) {
+    let WU = null;
+    for (const p of progs) {
+      if (!faked.has(p.program) || !gl.getProgramParameter(p.program, gl.LINK_STATUS)) continue;
+      const u = p.getUniforms(), fresh = new u.constructor(gl, p.program);
+      u.seq = fresh.seq; u.map = fresh.map; WU = u.constructor;
+    }
+    const seen = new Set();
+    const fix = m => {
+      if (!m || seen.has(m)) return; seen.add(m);
+      const mp = renderer.properties.get(m), cp = mp.currentProgram;
+      if (cp && faked.has(cp.program) && mp.uniforms) mp.uniformsList = WU.seqWithValue(cp.getUniforms().seq, mp.uniforms);
+    };
+    if (WU) { scene.traverse(collect); mats.forEach(fix); }
+  }
   for (const p of progs) {
     if (gl.getProgramParameter(p.program, gl.LINK_STATUS)) continue;
     console.error('Shader-Fehler', p.name, p.cacheKey?.slice(0, 80), gl.getProgramInfoLog(p.program),
       p.vertexShader ? gl.getShaderInfoLog(p.vertexShader) : '', p.fragmentShader ? gl.getShaderInfoLog(p.fragmentShader) : '');
   }
-  console.info(`Shader vorbereitet: ${progs.length} in ${Math.round(performance.now() - t0)} ms` + (ext ? ' (parallel)' : ''));
+  console.info(`Shader vorbereitet: ${progs.length} in ${Math.round(performance.now() - t0)} ms (Auftrag ${Math.round(tC - t0)} ms)` + (ext ? (faked.size ? ' (parallel)' : ' (nacheinander)') : ''));
 }
 // V36: stürzt die Grafik ab (Treiber, Grafikspeicher), sagen wir es, statt still stehenzubleiben
 renderer.domElement.addEventListener('webglcontextlost', e => {
