@@ -1,5 +1,6 @@
 import { primeChunks } from './chunks.js';
 import { setupStreetLayers } from './props.js';
+import { setupDecoLayers } from './deco.js';
 import { initDriveState } from './driving.js';
 import { R } from './core.js';
 import { buildEnv, getMats } from './people-skeleton.js';
@@ -161,6 +162,8 @@ export async function build() {
   await step('resize');
   setupStreetLayers();   // V21: Laternen und Stadtmobiliar als Chunk-Schichten
   await step('setupStreetLayers');
+  setupDecoLayers();     // V38: Fassadenschmuck (Fächer, Friese, Zinnen, Vordächer, Dachreklame) als Chunk-Schichten
+  await step('setupDecoLayers');
   primeChunks();
   await step('primeChunks');
   buildPlayerModel();    // V24: der Spieler als Figur (Third-Person-Ansicht, Taste V)

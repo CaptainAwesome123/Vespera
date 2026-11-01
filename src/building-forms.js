@@ -2,6 +2,7 @@ import { T, mergeGeos, scene } from './core.js';
 import { stdMat, MAT } from './people-skeleton.js';
 import { addSeg, addGlow, lamps } from './facade-shader.js';
 import { DOORS } from './entrances.js';
+import { decoHouseDoor } from './deco.js';
 
 /* =====================================================================
    V19 · GEBÄUDEVIELFALT UND ERSCHLIESSUNG: Erker über mehrere Geschosse,
@@ -94,6 +95,7 @@ export function houseDoor(cx, cz, sw, sd, edges, tint, rr, kind = 'house') {
   HOUSE_DOORS.push({ fx, fz, o, tint });
   addGlow(fx + o[0] * 0.5, 3.1, fz + o[1] * 0.5, [1.3, 0.9, 0.5], 1.0);
   DOORS.push({ x: fx + o[0] * 0.4, z: fz + o[1] * 0.4, nx: o[0], nz: o[1], kind });
+  decoHouseDoor(fx, fz, o, tint[0] > tint[1] * 1.35, Math.hypot(cx, cz));   // V38: Wandlaternen und kleines Vordach an Elitehäusern
 }
 // Türblätter, Stufen und Laternen der Haustüren (ein Mesh je Material)
 export function buildHouseDoors() {

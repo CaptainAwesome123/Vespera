@@ -203,13 +203,17 @@ void main(){
 
   float faceId = xFace ? (ln.x > 0.0 ? 1.0 : 2.0) : (ln.z > 0.0 ? 3.0 : 4.0);
   float h = hash(cell + vec2(seed*3.17 + faceId*7.1, seed*1.31 + faceId));
-  float lit = step(1.0 - dens, h);
+  // V38: Bürohäuser (Stil 1) leuchten etagenweise, einzelne Fenster gehen alle paar Minuten an oder aus
+  float hFloor = mix(h, hash(vec2(cell.y, seed*2.1 + faceId)), 0.55 * step(0.5, style) * step(style, 1.5));
+  float tgl = step(0.93, hash(cell + vec2(seed, floor(uTime/41.0 + h*5.0))));
+  float lit = abs(step(1.0 - dens, hFloor) - tgl);
   float t2 = hash(cell.yx*1.31 + vec2(seed, faceId));
   vec3 warm = mix(vec3(1.0, 0.52, 0.2), vec3(1.0, 0.78, 0.5), t2);
   if (t2 > 0.96) warm = vec3(0.75, 0.9, 1.0);
   if (t2 < 0.05) warm = vec3(1.0, 0.95, 0.85);
   if (style > 1.5) warm = vec3(1.0, 0.8, 0.5);
-  float bright = (0.38 + 0.45*h) * (0.72 + 0.4*g.y);
+  warm *= mix(vec3(1.0), vec3(0.92, 0.74, 0.55), brick);   // V38: im Arbeiterviertel gelbrotes Glühlicht, in der Elite helles Champagner
+  float bright = (0.38 + 0.45*h) * (0.72 + 0.4*g.y) * (1.0 - 0.2*brick);
   if (style > 1.5) bright = 1.15 + 0.4*exp(-pow((g.x-0.5)*5.0,2.0)) * step(0.6, g.y);
   vec3 glass = vec3(0.012, 0.015, 0.032) + vec3(0.05, 0.04, 0.09)*moon + vec3(0.07, 0.04, 0.02)*exp(-vWorld.y/20.0);
   // Jalousien und Vorhänge: halb heruntergelassen, seitlich gerafft
