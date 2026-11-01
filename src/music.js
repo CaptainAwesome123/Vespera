@@ -1,13 +1,12 @@
 import { rand, R, $ } from './core.js';
 import { inBelmont, BEL, BI } from './belmont.js';
-import { PH, inPenthouse } from './penthouse.js';
-import { VILLA } from './harbour.js';
-import { inVillaHouse } from './villa.js';
+import { PH } from './penthouse.js';
 import { citizenNear, citizenSay } from './ragdoll.js';
 import { player } from './player.js';
 import { driveExit } from './driving.js';
 import { toast } from './boat.js';
 import { playing, paused, isTouch } from './input.js';
+import { SND, audioCtx, audioBus, toggleSound, soundMuted, updateSound } from './audio.js';
 
 /* =====================================================================
    MUSIK: sanfte Akkorde über Web Audio (nur nach Klick)
@@ -15,8 +14,8 @@ import { playing, paused, isTouch } from './input.js';
 export let audio = null;
 export const mtof = m => 440 * Math.pow(2, (m - 69) / 12);
 export function initAudio() {
-  const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return null;
-  const ctx = new AC(), master = ctx.createGain(); master.gain.value = 0; master.connect(ctx.destination);
+  const ctx = audioCtx(); if (!ctx) return null;   // V38: gemeinsamer Context (src/audio.js)
+  const master = ctx.createGain(); master.gain.value = 0; master.connect(audioBus('music'));
   const amb = ctx.createGain(); amb.gain.value = 0;
   const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 1400; lp.connect(amb); amb.connect(master);
   const dl = ctx.createDelay(); dl.delayTime.value = 0.42; const fb = ctx.createGain(); fb.gain.value = 0.35; dl.connect(fb); fb.connect(dl); dl.connect(lp);
@@ -97,26 +96,30 @@ export function jzLead(a, f, t, dur) {
   g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.09, t + 0.04); g.gain.setValueAtTime(0.08, t + dur * 0.7); g.gain.linearRampToValueAtTime(0, t + dur);
   o.connect(fl); fl.connect(g); g.connect(a.jazz); g.connect(a.room); o.start(t); lfo.start(t); o.stop(t + dur + 0.05); lfo.stop(t + dur + 0.05);
 }
-export function toggleMusic() {
-  if (!audio) { audio = initAudio(); if (!audio) return; audio.master.gain.setTargetAtTime(1, audio.ctx.currentTime, 0.6); toast('Musik an'); return; }
-  audio.on = !audio.on; audio.master.gain.setTargetAtTime(audio.on ? 1 : 0, audio.ctx.currentTime, 0.5); toast(audio.on ? 'Musik an' : 'Musik aus');
-}
+// V38: Taste M schaltet den ganzen Ton (src/audio.js); die Band spielt von selbst, sobald man eintritt
+export function toggleMusic() { toggleSound(); }
 // Lautstärken je nach Ort: Ballsaal laut, Lobby gedämpft, Villa leise (Grammophon), sonst der Klangteppich
 export let bandHint = false;
+// V38: Band im Ballsaal nach Entfernung zur Bühne (laut davor, leiser hinten im Saal); Villa und Penthouse spielen jetzt
+// die ruhige Salonmusik aus src/audio.js statt der Band
+export const BAND_AT = { x: 1.5, y: 2, z: -43.5 };
 export function updateAudio(dt) {
+  if (SND.started && !audio && SND.ctx) { audio = initAudio(); if (audio) audio.master.gain.setTargetAtTime(1, audio.ctx.currentTime, 1.2); }
+  updateSound(dt);
   const p = player.p;
   const inBall = inBelmont(p.x, p.z, p.y) && p.z < -5, inLobby = inBelmont(p.x, p.z, p.y) && !inBall;
-  const dv = Math.hypot(p.x - VILLA.x, p.z - VILLA.z);
   let jz = 0, cut = 8000;
-  if (inBall) jz = 0.9; else if (inLobby) { jz = 0.45; cut = 900; } else if (inPenthouse(p)) { jz = 0.35; cut = 1600; } else if (dv < 120 && inVillaHouse(p)) { jz = 0.2; cut = 1300; }   // V33: Grammophon im Penthouse-Salon; in der Villa nur leise das Grammophon im Salon
-  else if (Math.hypot(p.x, p.z) < 70 && p.y < 40) { jz = 0.15; cut = 500; }
-  if (jz > 0.4 && !audio && !bandHint && playing) { bandHint = true; toast('Die Band spielt · M für Musik'); }
+  if (inBall) { const d = Math.hypot(p.x - BAND_AT.x, p.y - BAND_AT.y, p.z - BAND_AT.z); jz = Math.min(1, 0.32 + 9 / (6 + d)); cut = 9000 - Math.min(5500, d * 110); }
+  else if (inLobby) { jz = 0.4; cut = 800 + Math.max(0, 12 - p.z) * 40; }
+  else if (Math.hypot(p.x, p.z) < 70 && p.y < 40 && !SND.salonOn) { jz = 0.12; cut = 450; }
+  if (jz > 0.4 && soundMuted() && !bandHint && playing) { bandHint = true; toast('Die Band spielt · M schaltet den Ton ein'); }
   if (!audio) return;
   const t = audio.ctx.currentTime;
   audio.jazzTarget = jz;
-  audio.jazz.gain.setTargetAtTime(jz, t, 0.4);
-  audio.jlp.frequency.setTargetAtTime(cut, t, 0.3);
-  audio.amb.gain.setTargetAtTime(0.07 * (1 - Math.min(1, jz * 1.5)), t, 0.6);
+  audio.jazz.gain.setTargetAtTime(jz, t, 0.6);
+  audio.jlp.frequency.setTargetAtTime(cut, t, 0.4);
+  // Klangteppich nur draußen in der Stadt; still, wenn die Band oder die Salonmusik spielt
+  audio.amb.gain.setTargetAtTime(SND.salonOn ? 0 : 0.05 * (1 - Math.min(1, jz * 1.5)), t, 1.2);
 }
 
 /* ---------- Benutzen: Fahrstühle ---------- */
