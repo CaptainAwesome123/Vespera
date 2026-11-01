@@ -9,6 +9,7 @@ import { composer } from './bloom.js';
 import { PM, toggleView, toggleDance, zoomView } from './player-model.js';
 import { cycleWeather } from './atmosphere.js';
 import { LOOSE, drop, rotateHeld } from './physics.js';
+import { POWERS, toggleFlight, startFlight, tkToggle, tkGrab, tkRelease, tkDistance } from './powers.js';
 
 /* =====================================================================
    EINGABE
@@ -24,13 +25,17 @@ document.addEventListener('mousemove', e => {
   if (locked) look(e.movementX, e.movementY);
   else if (dragging) look(e.movementX, e.movementY, 0.004);
 });
-canvas.addEventListener('mousedown', () => {
+canvas.addEventListener('mousedown', e => {
   if (!playing) return;
+  // V33: rechte Maustaste halten = Telekinese, Klick schleudert das Gehaltene
+  if (e.button === 2) { if (!paused && (locked || isTouch)) tkGrab(); return; }
+  if (locked && POWERS.tk && !paused) { tkRelease(true); return; }
   if (locked && LOOSE.held && !paused) { drop(true); return; }   // V26: Getragenes werfen
   if (!locked && !isTouch) tryLock();
   dragging = true;
 });
-window.addEventListener('mouseup', () => dragging = false);
+window.addEventListener('mouseup', e => { dragging = false; if (e.button === 2 && POWERS.tk && POWERS.tk.mouse !== false) tkRelease(false); });
+canvas.addEventListener('contextmenu', e => e.preventDefault());
 export function tryLock() { try { const r = canvas.requestPointerLock(); if (r && r.catch) r.catch(() => {}); } catch {} }
 document.addEventListener('pointerlockchange', () => {
   const was = locked; locked = document.pointerLockElement === canvas;
@@ -46,7 +51,9 @@ window.addEventListener('keydown', e => {
   }
   if (e.code === 'Escape' && !locked) { paused ? resume() : pause(); return; }
   if (paused) return;
-  if (e.code === 'KeyF') { player.fly = !player.fly; player.v.y = 0; toast(player.fly ? 'Flugmodus' : 'Zu Fuß'); }
+  if (e.code === 'KeyF') toggleFlight();   // V33: Alexander fliegt
+  if (e.code === 'Space' && !e.repeat && !player.fly && !player.onGround && !DRIVE.on) startFlight();   // im Sprung noch einmal: abheben
+  if (e.code === 'KeyT') { tkToggle(); if (POWERS.tk) POWERS.tk.mouse = false; }   // Telekinese
   if (e.code === 'KeyM') toggleMusic();
   if (e.code === 'KeyE' && activeUse) activeUse.act();
   if (e.code === 'KeyB') { shared.bloomOn = !shared.bloomOn && !!composer; toast(shared.bloomOn ? 'Leuchteffekt an' : 'Leuchteffekt aus'); }
@@ -110,12 +117,13 @@ export const endTouch = e => {
 canvas.addEventListener('touchend', endTouch); canvas.addEventListener('touchcancel', endTouch);
 $('tWx').addEventListener('click', cycleWeather);
 $('tUse').addEventListener('click', () => { if (activeUse) activeUse.act(); });
-$('tThrow').addEventListener('click', () => drop(true));
+$('tThrow').addEventListener('click', () => { if (POWERS.tk) tkRelease(true); else drop(true); });
+$('tTk').addEventListener('click', () => { tkToggle(); if (POWERS.tk) POWERS.tk.mouse = false; });
 $('tView').addEventListener('click', () => toast(toggleView() === 'third' ? 'Ansicht von hinten' : 'Ich-Ansicht'));
-window.addEventListener('wheel', e => { if (playing && PM.view === 'third') zoomView(e.deltaY); }, { passive: true });
-$('tFly').addEventListener('click', () => { player.fly = !player.fly; toast(player.fly ? 'Flugmodus' : 'Zu Fuß'); });
+window.addEventListener('wheel', e => { if (!playing) return; if (POWERS.tk) tkDistance(-e.deltaY); else if (PM.view === 'third') zoomView(e.deltaY); }, { passive: true });
+$('tFly').addEventListener('click', toggleFlight);
 for (const [id, k] of [['tUp', 'up'], ['tDown', 'down']]) {
   const b = $(id);
-  b.addEventListener('pointerdown', () => { touch[k] = 1; if (k === 'up' && !player.fly && player.onGround) player.v.y = 7.2; });
+  b.addEventListener('pointerdown', () => { touch[k] = 1; if (k === 'up' && !player.fly) { if (player.onGround) player.v.y = 7.2; else startFlight(); } });
   for (const ev of ['pointerup', 'pointerleave', 'pointercancel']) b.addEventListener(ev, () => touch[k] = 0);
 }

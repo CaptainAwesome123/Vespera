@@ -13,6 +13,7 @@ import { player } from './player.js';
 import { toast } from './boat.js';
 import { INTERACT, travel } from './music.js';
 import { liftProfile } from './main.js';
+import { updateImperial } from './imperial.js';
 
 /* =====================================================================
    HAFEN: Kaipromenade, Jachthafen mit begehbaren Booten, Fähre und Luftschiffhafen
@@ -868,6 +869,7 @@ export function updatePort(dt, t) {
     W[i + 1].set(x, z, Math.atan2(dz, dx), sp);
   });
   updateZeppelin(dt, t);
+  updateImperial(dt, t);   // V33
   for (const pf of PLATFORMS) pfRead(pf);
 }
 export function updateZeppelin(dt, t) {
@@ -951,7 +953,9 @@ export function terrainHeight(wx, wz) {
   if (u > -20 && u < 150 && v < 110) {
     const by = VILLA.y;
     const top = u < 30 ? by : u < 52 ? by - 5 : u < 72 ? by - 11 : u < 90 ? by - 17 : by - 17 - (u - 90) * 0.9;
-    const target = top - 0.7 + Math.max(0, v - 46) * 0.35;
+    // V33: neben dem Haus (Flügel bis 55 m breit) bleibt der Hang unter dem Plateau, erst weiter vorn steigt er seitlich an
+    const vm = 46 + 24 * Math.min(1, Math.max(0, (40 - u) / 20));
+    const target = top - 0.7 + Math.max(0, v - vm) * 0.35;
     const kv = Math.min(1, Math.max(0, (110 - v) / 50)), ku = u > 120 ? (150 - u) / 30 : (u < 0 ? (u + 20) / 20 : 1);
     h = h + (target - h) * kv * ku;
   }

@@ -398,8 +398,16 @@ export function updateVehicles(dt) {
     }
     // Höhe: Federung zum Boden, Fall ins Wasser
     const g = groundAt(B.x, B.z, B.y);
-    if (g) {
-      if (B.y > g.y + 0.25) { B.air = true; B.vy -= GRAV * dt; B.y += B.vy * dt; if (B.y <= g.y) { if (B.vy < -4) { B.pv -= B.vy * 0.02; if (B.player) DRIVE.shake = Math.min(1, DRIVE.shake - B.vy * 0.04); } B.y = g.y; B.vy = 0; B.air = false; } }
+    if (B.tk) {
+      // V33: von Alexanders Telekinese gehalten: schwebt ohne Schwerkraft, setzt höchstens auf dem Boden auf
+      B.y += B.vy * dt; if (g && B.y < g.y) { B.y = g.y; B.vy = Math.max(0, B.vy); }
+      if (!g && B.y < WATER_Y + 0.5) { B.y = WATER_Y + 0.5; B.vy = Math.max(0, B.vy); }
+      B.air = true;
+    } else if (g) {
+      if (B.y > g.y + 0.25) { B.air = true; B.vy -= GRAV * dt; B.y += B.vy * dt; if (B.y <= g.y) { if (B.vy < -4) { B.pv -= B.vy * 0.02; if (B.player) DRIVE.shake = Math.min(1, DRIVE.shake - B.vy * 0.04); }
+        // V33: geschleuderte Wagen schlagen hart auf und verbeulen
+        if (B.vy < -9) { crashDamage(B, B.x + Math.cos(B.h) * 1.6 * Math.sign(Math.random() - 0.5), B.z - Math.sin(B.h) * 1.6, -B.vy * B.m * 0.22, 2); fxEmit('dust', B.x, g.y + 0.3, B.z, 0, 0.8, 0, 6, 2, 1.3); }
+        B.y = g.y; B.vy = 0; B.air = false; } }
       else { B.air = false; B.vy = 0; B.y += (g.y - B.y) * Math.min(1, dt * 14); }
     } else {
       // über die Kaimauer: Flug, Aufschlag, Gischt, Versinken
@@ -427,8 +435,8 @@ export function updateVehicles(dt) {
       B.gy = (fl + fr + rl + rr) / 4;
       if (B.grass && B.player && Math.hypot(B.vx, B.vz) > 3) { B.pv += (Math.random() - 0.5) * dt * 3; B.rv += (Math.random() - 0.5) * dt * 3; }
     }
-    B.pv += ((tp + gp - B.pitch) * 90 - B.pv * 11) * dt; B.pitch += B.pv * dt;
-    B.rv += ((tr + gr - B.roll) * 80 - B.rv * 10) * dt; B.roll += B.rv * dt;
+    if (!B.tk) { B.pv += ((tp + gp - B.pitch) * 90 - B.pv * 11) * dt; B.rv += ((tr + gr - B.roll) * 80 - B.rv * 10) * dt; }
+    B.pitch += B.pv * dt; B.roll += B.rv * dt;
     // Hindernis für den Verkehr
     OBSTACLES.push({ x: B.x, z: B.z, y: B.y, r: 2.2, v: Math.hypot(B.vx, B.vz) * 0.5 });
     // Rauch aus dem Motor bei Frontschaden
@@ -440,7 +448,7 @@ export function updateVehicles(dt) {
     // ruhig liegende Unfallwagen kommen später in den Verkehr zurück
     const sp = Math.hypot(B.vx, B.vz);
     B.still = sp < 0.3 ? B.still + dt : 0;
-    if (B.traffic && B.still > 18) {
+    if (B.traffic && B.still > 18 && !B.tk) {
       const d2 = (B.x - cp.x) ** 2 + (B.z - cp.z) ** 2;
       if (d2 > 140 * 140 || B.still > 60) respawnTraffic(B);
     }

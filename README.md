@@ -1,6 +1,9 @@
 # Vespera
 
 Anno 1927, Stadt des Abendsterns: eine Art-Deco-Metropole bei Nacht, als Browserspiel mit three.js.
+Man spielt Alexander, der Vespera für die Elite im Krater eines Meteoriten am Nordpol erbaut hat. Der Kristall aus dem
+Kern des Meteoriten hat nur ihm Kräfte gegeben: er fliegt, bewegt Dinge und Wagen mit Telekinese und ist unverwundbar
+(seit V33, `src/powers.js`). Ihm gehören die Bergvilla, das Belmont und ein großes privates Luftschiff.
 Alles (Stadt, Menschen, Autos, Luftschiffe, Wasser) wird prozedural erzeugt.
 
 **Spielen:** https://captainawesome123.github.io/Vespera/
@@ -45,6 +48,7 @@ src/                der Spielcode als ES-Module, ein Abschnitt pro Datei
   cars.js             Autos mit Innenraum und Insassen
   traffic.js          Verkehr auf dem Straßennetz
   player.js           Spieler: Gehen, Schwerkraft, Fliegen
+  powers.js           Alexanders Kräfte (V33): Flug (F, Doppelsprung), Telekinese (T / rechte Maustaste), Unverwundbarkeit, Superlandung
   venues.js           Brass Lantern und Restaurant Aurora
   eating.js           Essen aus der Ich-Sicht
   particles.js        Rauch, Staub, Gischt

@@ -151,7 +151,7 @@ kbd { font: 600 12px/1 var(--body); letter-spacing: 0.08em; color: var(--gold-hi
 <div class="hud" id="npc"></div>
 <div class="hud" id="say"></div>
 <div class="hud" id="mapWrap"><canvas id="map" width="336" height="336"></canvas></div>
-<div class="hud" id="hint"><kbd>WASD</kbd> gehen · <kbd>F</kbd> fliegen · <kbd>V</kbd> Ansicht · <kbd>N</kbd> Wetter · <kbd>1</kbd>–<kbd>0</kbd> Aussichtspunkte · <kbd>E</kbd> benutzen / ansprechen / aufheben · <kbd>Esc</kbd> Pause</div>
+<div class="hud" id="hint"><kbd>WASD</kbd> gehen · <kbd>F</kbd> fliegen · <kbd>T</kbd> Telekinese · <kbd>V</kbd> Ansicht · <kbd>N</kbd> Wetter · <kbd>1</kbd>–<kbd>0</kbd> Aussichtspunkte · <kbd>E</kbd> benutzen / ansprechen / aufheben · <kbd>Esc</kbd> Pause</div>
 <div class="hud" id="cross"></div>
 <div class="hud" id="toast"></div>
 <div class="hud" id="prompt"></div>
@@ -159,6 +159,7 @@ kbd { font: 600 12px/1 var(--body); letter-spacing: 0.08em; color: var(--gold-hi
 <div id="menuCard" hidden></div>
 <div class="touch" id="touchUI" hidden>
   <button id="tFly" type="button">FLIEGEN</button>
+  <button id="tTk" type="button">KRAFT</button>
   <button id="tView" type="button">ANSICHT</button>
   <button id="tWx" type="button">WETTER</button>
   <button id="tUp" type="button">▲</button>
@@ -179,7 +180,7 @@ kbd { font: 600 12px/1 var(--body); letter-spacing: 0.08em; color: var(--gold-hi
     </svg>
     <div class="eyebrow">Anno 1927 · Stadt des Abendsterns</div>
     <h1>VESPERA</h1>
-    <p class="lede" id="lede">Betritt die Lobby des Belmont, tanz im großen Ballsaal zur Jazzband, fahr mit der Straßenbahn durch die Stadt oder fliege über den Viadukt hinauf zur Bergvilla.</p>
+    <p class="lede" id="lede">Du bist Alexander. Du hast Vespera für die Elite erbaut, im Krater eines Meteoriten am Nordpol, und der Kristall aus seinem Kern hat dir Kräfte gegeben: Du fliegst, bewegst Dinge mit dem Willen und nichts kann dich verletzen.</p>
     <button class="btn" id="enter" type="button" disabled>Stadt betreten</button>
     <div class="loading" id="loading">Die Lichter von Vespera werden entzündet …</div>
     <div class="rule"></div>
@@ -187,9 +188,10 @@ kbd { font: 600 12px/1 var(--body); letter-spacing: 0.08em; color: var(--gold-hi
       <div><kbd>W A S D</kbd><span>Bewegen</span></div>
       <div><kbd>Maus</kbd><span>Umsehen</span></div>
       <div><kbd>Shift</kbd><span>Laufen, schneller fliegen</span></div>
-      <div><kbd>Leertaste</kbd><span>Springen, im Flug steigen</span></div>
-      <div><kbd>F</kbd><span>Fliegen an und aus</span></div>
-      <div><kbd>C</kbd><span>Im Flug sinken</span></div>
+      <div><kbd>Leertaste</kbd><span>Springen, im Sprung noch einmal: abheben, im Flug steigen</span></div>
+      <div><kbd>F</kbd><span>Fliegen und landen (Alexanders Kraft)</span></div>
+      <div><kbd>C</kbd><span>Im Flug sinken, am Boden landen</span></div>
+      <div><kbd>T</kbd><span>Telekinese: Dinge und Wagen schweben lassen (oder rechte Maustaste halten), Mausrad näher/weiter, Klick schleudern</span></div>
       <div><kbd>V</kbd><span>Ich-Ansicht / von hinten, Mausrad: Abstand</span></div>
       <div><kbd>G</kbd><span>Tanzen (Charleston, langsam, aus)</span></div>
       <div><kbd>N</kbd><span>Wetter festlegen (klar, Polarlicht, Dunst, Nebel, Regen, Schnee, Eisnebel, automatisch)</span></div>

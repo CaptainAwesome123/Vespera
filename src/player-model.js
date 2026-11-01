@@ -36,11 +36,14 @@ export function buildPlayerModel() {
   im.frustumCulled = false; im.visible = false; scene.add(im);
   PM.yawB = player.yaw + Math.PI;
 }
-const _m = new T.Matrix4(), _q = new T.Quaternion(), _p = new T.Vector3(), _s = new T.Vector3(), _e = new T.Euler();
+const _m = new T.Matrix4(), _q = new T.Quaternion(), _p = new T.Vector3(), _s = new T.Vector3(), _e = new T.Euler(), _pc = new T.Vector3();
 // Figur an einen Ort setzen; st: { act, amp, phase, smile }
 PM.place = (x, y, z, yaw, st = {}) => {
   if (!PM.mesh) return;
-  _q.setFromEuler(_e.set(0, yaw, 0)); _s.setScalar(PM.sc); _p.set(x, y, z);
+  // V33: im Flug neigt sich der ganze Körper (pitch vor, roll in der Kurve) um die Körpermitte
+  const pit = st.pitch || 0, rol = st.roll || 0;
+  _q.setFromEuler(_e.set(pit, yaw, rol, 'YXZ')); _s.setScalar(PM.sc); _p.set(x, y, z);
+  if (pit || rol) { const c = 1.0 * PM.sc; _pc.set(0, c, 0).applyQuaternion(_q); _p.x -= _pc.x; _p.y += c - _pc.y; _p.z -= _pc.z; }
   PM.mesh.setMatrixAt(0, _m.compose(_p, _q, _s)); PM.mesh.instanceMatrix.needsUpdate = true;
   const walking = (st.amp || 0) > 0.01;
   PM.gait.setXYZW(0, PM.seed, walking ? 1 : (st.act || 0), walking ? st.amp : 0, PLAYER_LOOK); PM.gait.needsUpdate = true;
@@ -64,6 +67,8 @@ export function updatePlayerModel(dt, on) {
   PM.mesh.visible = PM.show;
   if (!PM.show) return;
   const vx = player.v.x, vz = player.v.z, sp = Math.hypot(vx, vz);
+  if (player.fly) { flyPose(dt); return; }
+  PM.tilt = 0; PM.roll = 0;
   // Körper dreht sich in die Laufrichtung, im Stand bleibt er, wie er stand
   if (LOOSE.held) PM.dance = 0;
   if (sp > 0.6) { PM.dance = 0; const want = Math.atan2(vx, vz); let d = want - PM.yawB; d = Math.atan2(Math.sin(d), Math.cos(d)); PM.yawB += d * Math.min(1, dt * 10); }
@@ -83,13 +88,32 @@ export function updatePlayerModel(dt, on) {
   PM.place(player.p.x, player.p.y, player.p.z, PM.yawB, st);
 }
 
+// V33: Flugpose. Schwebend aufrecht mit hängenden Beinen; je schneller, desto mehr legt er sich in die Flugrichtung
+// (waagrecht im Geradeausflug, aufrecht beim Steigen, kopfüber im Sturzflug), rechte Faust voraus
+PM.tilt = 0; PM.roll = 0;
+function flyPose(dt) {
+  PM.dance = 0;
+  const v = player.v, s3 = v.length(), hs = Math.hypot(v.x, v.z), k = Math.min(1, Math.max(0, (s3 - 3) / 25));
+  let want = hs > 1.5 ? Math.atan2(v.x, v.z) : player.yaw + Math.PI;
+  let d = want - PM.yawB; d = Math.atan2(Math.sin(d), Math.cos(d));
+  const turn = d * Math.min(1, dt * (hs > 1.5 ? 5 : 2.5));
+  PM.yawB += turn;
+  const tiltT = s3 > 0.5 ? k * Math.min(2.6, Math.acos(Math.max(-1, Math.min(1, v.y / s3)))) : 0;
+  PM.tilt += (tiltT - PM.tilt) * Math.min(1, dt * 4);
+  const rollT = Math.max(-0.7, Math.min(0.7, -turn / Math.max(dt, 1e-3) * 0.35)) * k;
+  PM.roll += (rollT - PM.roll) * Math.min(1, dt * 3);
+  PM.place(player.p.x, player.p.y, player.p.z, PM.yawB, { act: 43 + Math.min(0.99, k), smile: 0.45, pitch: PM.tilt, roll: PM.roll });
+}
+
 // Kamera hinter dem Spieler, leicht über der rechten Schulter; Wände schieben sie heran
 const _t = new T.Vector3(), _c = new T.Vector3(), _f = new T.Vector3(), _r = new T.Vector3();
 export function thirdPersonCamera(dt) {
-  PM.dist += (PM.distT - PM.dist) * Math.min(1, dt * 6);
+  // V33: im Flug etwas weiter weg, damit man die ganze Figur sieht
+  const far = player.fly ? PM.distT + 2.2 : PM.distT;
+  PM.dist += (far - PM.dist) * Math.min(1, dt * 6);
   const cp = Math.cos(player.pitch), f = _f.set(-Math.sin(player.yaw) * cp, Math.sin(player.pitch), -Math.cos(player.yaw) * cp);
   _r.set(Math.cos(player.yaw), 0, -Math.sin(player.yaw));
-  _t.set(player.p.x, player.p.y + 1.55 * PM.sc, player.p.z).addScaledVector(_r, 0.32);
+  _t.set(player.p.x, player.p.y + (player.fly ? 1.15 : 1.55) * PM.sc, player.p.z).addScaledVector(_r, 0.32);
   let d = PM.dist;
   // Strahl vom Kopf nach hinten gegen die Quader der Umgebung
   for (const b of nearBoxes(_t.x, _t.z, d + 1)) {

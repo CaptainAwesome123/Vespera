@@ -36,9 +36,16 @@ export const HULL = texSet(512, (g, gr, gh, W) => {
   for (let k = 0; k < 40; k++) { const rg = g.createRadialGradient(0, 0, 0, 0, 0, 1); rg.addColorStop(0, 'rgba(60,54,46,0.14)'); rg.addColorStop(1, 'rgba(0,0,0,0)'); g.save(); g.translate(rr() * W, rr() * W); g.scale(8 + rr() * 30, 6 + rr() * 24); g.fillStyle = rg; g.fillRect(-1, -1, 2, 2); g.restore(); }
 }, 2.4);
 HULL.map.repeat.set(1, 1);
-export const SHIP_NAMES = ['AURORA', 'CELESTE', 'MERIDIAN', 'ORPHEA', 'SOLSTICE', 'ASTRAEA', 'LUMINA', 'VESPERTINE'];
+export const SHIP_NAMES = ['BOREALIS', 'CELESTE', 'MERIDIAN', 'ORPHEA', 'SOLSTICE', 'ASTRAEA', 'LUMINA', 'VESPERTINE'];
 export let shipNo = 0;
 export const nameTex = n => canvasTex(1024, 128, (g, W, H) => { g.fillStyle = '#f0cf86'; g.shadowColor = 'rgba(0,0,0,0.5)'; g.shadowBlur = 4; g.font = '84px Limelight, Georgia, serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(`V-${12 + n * 3}  ${SHIP_NAMES[n % SHIP_NAMES.length]}`, W / 2, H / 2 + 4); });
+// V33: freier Schiffsname in goldenen Art-déco-Lettern mit Zierlinien (Alexanders Luftschiff)
+export const shipNameTex = n => canvasTex(2048, 200, (g, W, H) => {
+  g.fillStyle = '#f3d48e'; g.shadowColor = 'rgba(40,20,0,0.55)'; g.shadowBlur = 6; g.font = '128px Limelight, Georgia, serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillText(n, W / 2, H / 2 + 6);
+  const w = g.measureText(n).width / 2 + 40; g.fillRect(W / 2 - w - 260, H / 2 - 3, 240, 6); g.fillRect(W / 2 + w + 20, H / 2 - 3, 240, 6);
+  for (const s of [-1, 1]) { g.beginPath(); g.arc(W / 2 + s * (w + 290), H / 2, 16, 0, 6.3); g.fill(); }
+});
 // Gondel: Kabinenfenster mit Rahmen, beleuchtet, dazwischen genietete Bleche
 export const GOND = (() => {
   const draw = glow => (g, W, H) => {
@@ -61,7 +68,7 @@ export const adTex = [
   canvasTex(1024, 140, (g, W, H) => { g.fillStyle = '#2a1030'; g.fillRect(0, 0, W, H); g.strokeStyle = '#f2c46d'; g.lineWidth = 6; g.strokeRect(8, 8, W - 16, H - 16); g.fillStyle = '#ffe2a6'; g.shadowColor = '#f2b55a'; g.shadowBlur = 16; g.font = '58px Limelight, Georgia, serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('GRAND BALL · THE BELMONT', W / 2, H / 2 + 4); }),
 ];
 export function buildAirship(L, R0, adIndex, beam, opts = {}) {
-  const grp = new T.Group();
+  const grp = new T.Group(), es = opts.engScale || 1;
   if (!SHIP_MAT.hull) {
     SHIP_MAT.hull = stdMat({ map: HULL.map, roughnessMap: HULL.rough, normalMap: HULL.normal, normalScale: new T.Vector2(1, 1), color: 0xb8aea4, roughness: 1, metalness: 0.15, emissive: 0x1c140c, emissiveMap: HULL.map, envI: 0.5 });
     SHIP_MAT.gond = stdMat({ map: GOND.m, emissiveMap: GOND.e, emissive: new T.Color(1.2, 0.85, 0.5), roughness: 0.45, metalness: 0.5, envI: 0.6 });
@@ -72,7 +79,10 @@ export function buildAirship(L, R0, adIndex, beam, opts = {}) {
   const hr = x => R0 * fu(Math.min(1, Math.max(0, x / L + 0.5))) / FMAX;
   const prof = []; for (let k = 0; k <= 40; k++) { const u = k / 40, x = (u - 0.5) * L; prof.push(new T.Vector2(Math.max(0.05, hr(x)), x)); }
   const hullGeo = new T.LatheGeometry(prof, 48); hullGeo.rotateZ(-Math.PI / 2); grp.userData.hr = hr;
-  grp.add(new T.Mesh(hullGeo, SHIP_MAT.hull));
+  // V33: eigene Hüllenfarbe (Champagner für Alexanders Aurora Imperial), sonst das übliche Silbergrau
+  let hullM = SHIP_MAT.hull;
+  if (opts.hullColor !== undefined) { hullM = SHIP_MAT.hull.clone(); hullM.color = new T.Color(opts.hullColor); hullM.emissive = new T.Color(opts.hullEmissive ?? 0x2a1d0c); }
+  grp.add(new T.Mesh(hullGeo, hullM));
   const gold = MAT.gold, dark = new T.MeshStandardMaterial({ color: 0x3a3238, metalness: 0.6, roughness: 0.4 });
   // Gondel als abgerundete Kabine mit Fensterreihen und Goldkiel
   const gl = L * 0.16;
@@ -96,14 +106,16 @@ export function buildAirship(L, R0, adIndex, beam, opts = {}) {
   // Motorgondeln: tropfenförmig, mit Kühlerring, Abgasrohr und dreiflügeligem Propeller
   const nac = new T.LatheGeometry([[0.05, -3.6], [0.7, -3.2], [1.15, -2.2], [1.35, -0.6], [1.3, 0.8], [1.0, 2.2], [0.5, 3.0], [0.05, 3.3]].map(([r, y]) => new T.Vector2(r, y)), 18).rotateZ(-Math.PI / 2);
   const blade = new T.BoxGeometry(0.12, 2.3, 0.42).translate(0, 1.15, 0);
-  for (const s of [-1, 1]) for (const ex of [-L * 0.1, L * 0.22]) {
-    const ez = s * (hr(ex) * 0.95 + 1.2), ey = -hr(ex) * 0.55;
-    const e = new T.Mesh(nac, dark); e.position.set(ex, ey, ez); grp.add(e);
-    const ring = new T.Mesh(new T.TorusGeometry(1.36, 0.1, 6, 20).rotateY(Math.PI / 2), gold); ring.position.set(ex + 1.4, ey, ez); grp.add(ring);
-    const hub = new T.Mesh(new T.ConeGeometry(0.4, 0.9, 10).rotateZ(Math.PI / 2), gold); hub.position.set(ex - 3.9, ey, ez); grp.add(hub);
-    for (let b = 0; b < 3; b++) { const bl = new T.Mesh(blade, dark); bl.position.set(ex - 3.7, ey, ez); bl.rotation.x = b * Math.PI * 2 / 3 + s; grp.add(bl); }
-    const prop = new T.Mesh(new T.CylinderGeometry(2.4, 2.4, 0.06, 20).rotateZ(Math.PI / 2), new T.MeshBasicMaterial({ color: 0x8a8070, transparent: true, opacity: 0.18, depthWrite: false })); prop.position.set(ex - 3.75, ey, ez); grp.add(prop);
-    const strut = new T.Mesh(new T.BoxGeometry(0.5, 0.25, Math.abs(ez) - hr(ex) * 0.75).translate(0, 0, s * ((Math.abs(ez) + hr(ex) * 0.75) / 2)), gold); strut.position.set(ex, ey + 0.2, 0); grp.add(strut);
+  for (const s of [-1, 1]) for (const ex of opts.engX || [-L * 0.1, L * 0.22]) {
+    const ez = s * (hr(ex) * 0.95 + 1.2 * es), ey = -hr(ex) * 0.55;
+    // V33: Motorgondel als eigene Gruppe, damit große Schiffe größere Motoren tragen (es = Maßstab)
+    const eg = new T.Group(); eg.position.set(ex, ey, ez); eg.scale.setScalar(es); grp.add(eg);
+    eg.add(new T.Mesh(nac, dark));
+    const ring = new T.Mesh(new T.TorusGeometry(1.36, 0.1, 6, 20).rotateY(Math.PI / 2), gold); ring.position.set(1.4, 0, 0); eg.add(ring);
+    const hub = new T.Mesh(new T.ConeGeometry(0.4, 0.9, 10).rotateZ(Math.PI / 2), gold); hub.position.set(-3.9, 0, 0); eg.add(hub);
+    for (let b = 0; b < 3; b++) { const bl = new T.Mesh(blade, dark); bl.position.set(-3.7, 0, 0); bl.rotation.x = b * Math.PI * 2 / 3 + s; eg.add(bl); }
+    const prop = new T.Mesh(new T.CylinderGeometry(2.4, 2.4, 0.06, 20).rotateZ(Math.PI / 2), new T.MeshBasicMaterial({ color: 0x8a8070, transparent: true, opacity: 0.18, depthWrite: false })); prop.position.set(-3.75, 0, 0); eg.add(prop);
+    const strut = new T.Mesh(new T.BoxGeometry(0.5 * es, 0.25 * es, Math.abs(ez) - hr(ex) * 0.75).translate(0, 0, s * ((Math.abs(ez) + hr(ex) * 0.75) / 2)), gold); strut.position.set(ex, ey + 0.2 * es, 0); grp.add(strut);
   }
   // Bugkappe mit Ankerkegel, goldene Zierringe, Takelage zur Gondel
   const nose = new T.Mesh(new T.SphereGeometry(R0 * 0.16, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2).rotateZ(-Math.PI / 2), gold); nose.position.set(L / 2 - R0 * 0.06, 0, 0); grp.add(nose);
@@ -113,8 +125,8 @@ export function buildAirship(L, R0, adIndex, beam, opts = {}) {
   if (!opts.passenger) { const rig = new T.LineSegments(new T.BufferGeometry().setAttribute('position', new T.Float32BufferAttribute(rigPts, 3)), new T.LineBasicMaterial({ color: 0x9a8a6a })); grp.add(rig); }
   // Fensterreihe der Passagierdecks im Rumpf
   const winRow = [];
-  for (let k = -5; k <= 5; k++) for (const sz of [-1, 1]) { const x = k * L * 0.045 + L * 0.06, r = hr(x) + 0.05; winRow.push({ p: [x, -r * 0.73, sz * r * 0.69], c: [1.1, 0.75, 0.4], s: 0.75, ph: 0, bl: 0 }); }
-  grp.add(makeGlowPoints(winRow));
+  if (!opts.noWin) for (let k = -5; k <= 5; k++) for (const sz of [-1, 1]) { const x = k * L * 0.045 + L * 0.06, r = hr(x) + 0.05; winRow.push({ p: [x, -r * 0.73, sz * r * 0.69], c: [1.1, 0.75, 0.4], s: 0.75, ph: 0, bl: 0 }); }
+  if (winRow.length) grp.add(makeGlowPoints(winRow));
   // Werbebanner und Schiffsname folgen der Rumpfkrümmung
   const wrap = (w, h, x0, a0, map, col) => {
     for (const side of [1, -1]) {
@@ -124,8 +136,10 @@ export function buildAirship(L, R0, adIndex, beam, opts = {}) {
       grp.add(new T.Mesh(pg, new T.MeshBasicMaterial({ map, color: col, transparent: true })));
     }
   };
-  wrap(L * 0.42, R0 * 0.48, 0, 0, adTex[adIndex], new T.Color(1.25, 1.25, 1.25));
-  wrap(L * 0.2, R0 * 0.18, L * 0.3, 0.42, nameTex(shipNo++), new T.Color(1.7, 1.6, 1.4));
+  if (adIndex !== null) wrap(L * 0.42, R0 * 0.48, 0, 0, adTex[adIndex], new T.Color(1.25, 1.25, 1.25));
+  if (opts.name) wrap(L * 0.36, R0 * 0.2, -L * 0.02, 0.12, shipNameTex(opts.name), new T.Color(1.5, 1.35, 1.1));
+  else wrap(L * 0.2, R0 * 0.18, L * 0.3, 0.42, nameTex(shipNo++), new T.Color(1.7, 1.6, 1.4));
+  if (opts.emblem) wrap(R0 * 0.75, R0 * 0.375, L * 0.3, 0.1, opts.emblem, new T.Color(1.5, 1.3, 1.0));
   const lights = makeGlowPoints([
     { p: [L * 0.08, -R0 - (opts.passenger ? 5.5 : 3.2), 0], c: [1.4, 1.3, 1.1], s: 2.5, ph: R(), bl: 1 },
     { p: [-L * 0.47, 0, 0], c: [1.4, 1.35, 1.2], s: 2.6, ph: 0, bl: 0 },

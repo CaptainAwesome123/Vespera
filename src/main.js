@@ -11,7 +11,7 @@ import { buildBelmont, buildBelmontInterior, buildBelmontDoor, BEL } from './bel
 import { buildPenthouse } from './penthouse.js';
 import { buildHarbor, setupReflection } from './water.js';
 import { planAccess, buildPort, portInteractions, VILLA } from './harbour.js';
-import { buildGround, buildVilla, planSerpentine, buildFireworks, buildAccessRoad, buildSerpentine, flushInstances, buildMountains } from './serpentine.js';
+import { buildGround, buildVilla, planSerpentine, buildAccessRoad, buildSerpentine, flushInstances, buildMountains } from './serpentine.js';
 import { buildSky } from './sky.js';
 import { buildShafts, buildGroundFog, buildSearchlights, buildAirship } from './airships.js';
 import { TRAM_LINES, buildCars, buildTrucks, buildTrams, buildParticles } from './traffic.js';
@@ -24,6 +24,7 @@ import { buildLightPool, collectDetails, setPR, PR_LEVELS, prIdx } from './perfo
 import { buildPlayerModel } from './player-model.js';
 import { buildAtmosphere } from './atmosphere.js';
 import { setupLoose } from './physics.js';
+import { buildImperial, IMP } from './imperial.js';
 
 /* =====================================================================
    AUFBAU UND SPIELSCHLEIFE
@@ -47,6 +48,7 @@ export function build() {
   buildBelmontDoor();
   buildHarbor();
   buildPort();
+  buildImperial();   // V33: Alexanders Aurora Imperial (vor buildSerpentine, damit die Besatzung in die Menge kommt)
   buildShoreV16();
   buildVenues();
   buildGround();
@@ -55,7 +57,7 @@ export function build() {
   buildElevated();
   buildVilla();
   planSerpentine();
-  buildFireworks();
+  // V33: kein Feuerwerk mehr über der Villa (dort wird nicht mehr gefeiert)
   buildAccessRoad();
   buildSerpentine();
   buildCars();
@@ -74,17 +76,14 @@ export function build() {
   boatInteractions();
   venueInteractions();
   setupLoose();   // V26: zuletzt, damit 'Ablegen' vor allen anderen Handlungen geprüft wird
-  // Luftschiffe: eines am Ankermast des Belmont, die anderen auf Rundkursen
-  const docked = buildAirship(150, 17, 1, false);
-  shipDefs.push({ g: docked, docked: true, L: 150 });
+  // Luftschiffe: V33 Alexanders Aurora Imperial (eigener Flug, src/imperial.js) statt des Schiffs am Belmont-Mast,
+  // dazu der Zubringer an der Villa und nur noch drei kleinere Schiffe auf Rundkursen (vorher sechs)
+  shipDefs.push({ g: IMP.g, imperial: true, L: IMP.L });
   shipDefs.push({ g: buildAirship(64, 7.5, 0, false), villa: true, L: 64 });
   const routes = [
     { r: [520, 380], c: [0, 0], h: 230, w: 0.022, L: 130, ad: 0, beam: true },
-    { r: [760, 620], c: [-100, -150], h: 300, w: -0.016, L: 160, ad: 1, beam: false },
-    { r: [340, 300], c: [120, 60], h: 170, w: 0.03, L: 110, ad: 0, beam: false },
-    { r: [900, 700], c: [0, -200], h: 260, w: 0.012, L: 140, ad: 1, beam: true },
-    { r: [600, 420], c: [-300, 250], h: 200, w: -0.02, L: 120, ad: 0, beam: false },
-    { r: [450, 650], c: [350, -300], h: 340, w: 0.017, L: 150, ad: 1, beam: false },
+    { r: [900, 700], c: [0, -200], h: 260, w: 0.012, L: 140, ad: 1, beam: false },
+    { r: [450, 650], c: [350, -300], h: 200, w: 0.017, L: 120, ad: 1, beam: false },
   ];
   for (const rt of routes) {
     const sd = { ...rt, g: buildAirship(rt.L, rt.L * 0.115, rt.ad, rt.beam), t0: R() * 100 };
@@ -132,17 +131,11 @@ export function liftProfile(posAt, rad, clear) {
 }
 export function updateShips(t) {
   for (const s of shipDefs) {
+    if (s.imperial) continue;   // fliegt in updateImperial (zwischen den Plattform-Schritten im Hafen)
     if (s.villa) {
       const m = VILLA.mast, a = Math.sin(t * 0.02) * 0.5 + VILLA.ry + Math.PI / 2, d = s.L / 2 + 2;
       s.g.position.set(m.x + Math.cos(a) * d, m.y - 1 + Math.sin(t * 0.35) * 0.4, m.z - Math.sin(a) * d);
       s.g.rotation.set(0, a + Math.PI, Math.sin(t * 0.3) * 0.015);
-      continue;
-    }
-    if (s.docked) {
-      const a = Math.sin(t * 0.03) * 0.6 + 0.9;
-      const d = s.L / 2 + 3;
-      s.g.position.set(Math.cos(a) * d, BEL.mast - 2 + Math.sin(t * 0.4) * 0.6, Math.sin(a) * d);
-      s.g.rotation.set(0, -a + Math.PI, Math.sin(t * 0.3) * 0.015);
       continue;
     }
     const tt = s.t0 + t * s.w;

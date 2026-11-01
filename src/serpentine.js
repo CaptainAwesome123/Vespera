@@ -721,6 +721,7 @@ export function buildVilla() {
   U.uVilla.value.set(VILLA.x, VILLA.y + 8, VILLA.z);
   const cx = VILLA.x, cz = VILLA.z, by = VILLA.y;
   const ry = VILLA.ry = Math.atan2(VILLA.ux, VILLA.uz), cs = Math.cos(ry), sn = Math.sin(ry);
+  U.uVillaRot.value.set(cs, sn, 1);
   // Lokales System: +lz zeigt zur Stadt, lx quer dazu
   const W = (lx, lz) => [cx + lx * cs + lz * sn, cz - lx * sn + lz * cs];
   const boxes = VILLA.boxes = [];
@@ -738,7 +739,8 @@ export function buildVilla() {
 
   // ---------- Terrassen in den Hang gebaut, mit Freitreppe ----------
   const TER_ = [[30, 52, 92, by - 5], [52, 72, 76, by - 11], [72, 90, 58, by - 17]];
-  V(0, 0, 130, 60, by - 3, by, { col: false, flood: 0.3 });                         // Plateau des Hauses
+  // V33: Plateau des Hauses nur noch um das Haus herum; innen liegen Keller, Böden und Treppenschächte frei (sonst deckte die Platte die Kellertreppen zu)
+  for (const [x0, x1, z0, z1] of [[-65, 65, -30, -23], [-65, 65, 7, 30], [-65, -55, -23, 7], [55, 65, -23, 7], [-29.4, 29.4, -1.3, 7]]) V((x0 + x1) / 2, (z0 + z1) / 2, x1 - x0, z1 - z0, by - 3, by, { col: false, flood: 0.3 });
   // V28: Kollision des Plateaus ohne den Keller (lokal -56..56 / -24..8); dort gelten Kellerboden und -wände
   for (const [x0, x1, z0, z1] of [[-65, -56, -30, 30], [56, 65, -30, 30], [-56, 56, -30, -24], [-56, 56, 8, 30]]) colL(x0, by - 3, z0, x1, by, z1);
   for (const [z0, z1, w, top] of TER_) {
@@ -786,7 +788,8 @@ export function buildVilla() {
   { const [x, z] = W(0, -10); spires.push({ x, z, y0: by + 40, h: 12, b: 5 }); addGlow(x, by + 52.5, z, [1.4, 0.2, 0.1], 2.4, 0.3, 1); shafts.push({ x, z, y: by + 40, h: 320, w: 12, c: [1.0, 0.8, 0.45] }); addGlow(x, by + 38, z, NEON.gold, 18); }
   // Loggia: Kolonnade vor dem Mittelbau, darüber eine Terrasse
   for (let x = -28; x <= 28; x += 4) { put('stone', new T.CylinderGeometry(0.5, 0.55, 9, 14), x, by + 4.5, 1.5); put('gold', new T.CylinderGeometry(0.8, 0.55, 0.6, 14), x, by + 8.7, 1.5); colL(x - 0.5, by, 1, x + 0.5, by + 9, 2); }
-  V(0, -4.5, 60, 13, by + 9, by + 10.2, { flood: 1, rib: GR, col: false, tint: cream });
+  // V33: Platte zwischen EG und OG nicht mehr quer durch die zweigeschossige Halle (dort lief man auf der Treppe durch eine Wand)
+  for (const [x0, x1, z0, z1] of [[-30, -14.5, -11, 2], [14.5, 30, -11, 2], [-14.5, 14.5, -1.6, 2]]) V((x0 + x1) / 2, (z0 + z1) / 2, x1 - x0, z1 - z0, by + 9, by + 10.2, { flood: 1, rib: GR, col: false, tint: cream });
   N(0, by + 10.3, 2, 60.2, 0.25, 0.25, NEON.gold);
   for (let x = -26; x <= 26; x += 4) G(x, by + 7.8, -0.5, [1.35, 0.95, 0.55], 1.3);
   // Große Fenstertüren zur Loggia: warme Lichtflächen
@@ -890,7 +893,7 @@ export function buildVilla() {
   }
   V(0, -40, 110, 34, by - 3, by + 0.05, { tint: [0.3, 0.29, 0.28], flood: 0.2 });
   const parked = [];
-  for (let k = 0; k < 8; k++) { const lx = -36 + k * 10, lz = -44 + (k % 2) * 7; parked.push([lx, lz, ry + Math.PI / 2 + (k % 2 ? Math.PI : 0)]); }
+  for (let k = 0; k < 3; k++) { const lx = -10 + k * 10, lz = -44 + (k % 2) * 7; parked.push([lx, lz, ry + Math.PI / 2 + (k % 2 ? Math.PI : 0)]); }
   const cm = new T.InstancedMesh(carGeoHi(), MAT.carPaint, parked.length), pc = new T.Color();
   parked.forEach(([lx, lz, yaw], i) => { const [x, z] = W(lx, lz); cm.setMatrixAt(i, _m.compose(_p.set(x, by + 0.05, z), _q.setFromAxisAngle(_up, yaw), _s.set(1, 1, 1))); const c = pick([[0.04, 0.04, 0.05], [0.3, 0.04, 0.06], [0.8, 0.72, 0.58], [0.05, 0.16, 0.12], [0.08, 0.1, 0.22]]).map(v => v + (Math.random() - 0.5) * 0.012); cm.setColorAt(i, pc.setRGB(...c)); colL(lx - 1.1, by, lz - 2.6, lx + 1.1, by + 1.8, lz + 2.6); });
   cm.frustumCulled = false; scene.add(cm);
@@ -903,36 +906,14 @@ export function buildVilla() {
   colL(mastL[0] - 2, by, mastL[1] - 2, mastL[0] + 2, by + mastH, mastL[1] + 2);
   VILLA.mast = { ...(() => { const [x, z] = W(mastL[0], mastL[1]); return { x, z }; })(), y: by + mastH };
 
-  // ---------- Fest: Lichterketten, Band, Tanzende, Gäste ----------
-  const bulbs = (ax, az, ay, bx, bz, byy, sag) => { for (let k = 0; k <= 20; k++) { const t = k / 20, lx = ax + (bx - ax) * t, lz = az + (bz - az) * t, y = ay + (byy - ay) * t - Math.sin(Math.PI * t) * sag; const [x, z] = W(lx, lz); addGlow(x, y, z, k % 3 ? [1.35, 1.0, 0.6] : [1.3, 0.75, 0.4], 0.6); } };
-  for (let lx = -24; lx <= 24; lx += 12) bulbs(lx, 2, by + 8.5, lx * 1.2, 28, by + 4.5, 1.2);
-  for (const [z0, z1, w, top] of TER_) bulbs(-w / 2, (z0 + z1) / 2, top + 4, w / 2, (z0 + z1) / 2, top + 4, 1.6);
-  for (const [z0, z1, w, top] of TER_) for (const sd of [-1, 1]) { put('iron', new T.CylinderGeometry(0.08, 0.1, 4, 6), sd * w / 2, top + 2, (z0 + z1) / 2); }
-  // kleine Bühne links auf dem Plateau
-  put('dark', new T.BoxGeometry(12, 0.8, 6), -20, by + 0.4, 14); colL(-26, by, 11, -14, by + 0.8, 17);
-  { const [x, z] = W(-20, 11.5); const fm = new T.Mesh(new T.PlaneGeometry(10, 5), new T.MeshBasicMaterial({ map: FAN_TEX, transparent: true, color: new T.Color(1.2, 1.0, 0.7), depthWrite: false, side: T.DoubleSide })); fm.position.set(x, by + 3.3, z); fm.rotation.y = ry; scene.add(fm); }
-  G(-20, by + 4, 14, [1.3, 0.9, 0.5], 6);
-  const crowd = VILLA.crowd = new Crowd(['tux', 'gown', 'dress', 'livery'], 420);
+  // ---------- V33: kein Fest mehr. Nur Randolf und die Bediensteten wohnen und arbeiten hier ----------
+  const crowd = VILLA.crowd = new Crowd(['tux', 'gown', 'dress', 'livery'], 160);
   const pl = (kind, color, lx, y, lz, yaw) => { const a = crowd.add(kind, color); const [x, z] = W(lx, lz); a.x = x; a.y = y; a.z = z; a.yaw = yaw + ry; return a; };
-  VILLA.sway = [];
-  for (const [lx, kind] of [[-24, 'tux'], [-22, 'tux'], [-20, 'gown'], [-18, 'tux'], [-16, 'tux']]) VILLA.sway.push(pl(kind, [0.95, 0.75, 0.38], lx, by + 0.8, 15.5, Math.PI));
-  VILLA.dancers = [];
-  for (let k = 0; k < 14; k++) { const ch = k >= 10, c = { ang: k / 10 * Math.PI * 2, rho0: 0.55 + (k % 2) * 0.35, cx: 14 + ((k - 10) % 2 - 0.5) * 2.4, cz: 16 + (k < 12 ? -1.1 : 1.1), h0: R() * 6.28 }; c.m = crowd.add('tux', [1, 1, 1]); c.w = crowd.add(ch ? 'dress' : 'gown', pick(GOWNS)); setDance(c, ch ? 'charl' : 'fox'); VILLA.dancers.push(c); }
-  const guest = (lx, y, lz) => pl(R() < 0.5 ? 'tux' : 'gown', pick(GOWNS), lx, y, lz, R() * 6.28);
-  for (let k = 0; k < 40; k++) guest(rand(-55, 55), by, rand(2, 28));
-  for (let k = 0; k < 30; k++) guest(rand(-42, 42), t1, rand(33, 50));
-  for (let k = 0; k < 16; k++) guest(rand(-34, 34), t2, rand(54, 70));
-  for (let k = 0; k < 10; k++) guest(rand(-26, 26), t3, rand(74, 88));
-  for (let k = 0; k < 8; k++) pl('livery', [0.9, 0.88, 0.82], rand(-40, 40), by, rand(4, 26), R() * 6);
-  for (let k = 0; k < 4; k++) pl('livery', [0.32, 0.05, 0.07], -30 + k * 20, by, -50, 0);
-  // V23: Portiers am Eingang zur Vorfahrt, Gäste kommen an
+  VILLA.sway = []; VILLA.dancers = [];
+  // Portiers an den Türen zur Vorfahrt, Chauffeure bei den Wagen, ein Gärtner und ein Diener auf der Terrasse
   for (const sd of [-1, 1]) for (const e of [-1, 1]) pl('livery', [0.32, 0.05, 0.07], sd * VILLA_DOOR.x + e * 1.9, by, -24.6, Math.PI);
-  for (let k = 0; k < 6; k++) guest(rand(-12, 12), by, rand(-35, -27));
-  // Gäste drinnen: im Salon, an der Bar, in der Bibliothek; ein Barmann hinter dem Tresen
-  for (let k = 0; k < 14; k++) guest(rand(-12, 12), by, rand(-19, -5));
-  for (let k = 0; k < 6; k++) pl(R() < 0.5 ? 'tux' : 'gown', pick(GOWNS), 17 + k * 1.8, by, -15.6, Math.PI);
-  for (let k = 0; k < 3; k++) guest(rand(-27, -18), by, rand(-12, -4));
-  pl('livery', [0.9, 0.88, 0.82], 22, by, -20.6, 0);
+  for (let k = 0; k < 2; k++) pl('livery', [0.32, 0.05, 0.07], -6 + k * 18, by, -50, 0);
+  pl('livery', [0.3, 0.32, 0.22], -24, by, 22, 0.8); pl('livery', [0.9, 0.88, 0.82], 9, by, 6, Math.PI * 0.2);
   // V28: alle Innenräume, ihre Möbel, Türen, Lichter und Bewohner (vor crowd.finish, weil Figuren dazukommen)
   buildVillaRooms({ W, V, G, colL, pl, by, ry, M, crowd });
   crowd.finish();
@@ -1108,12 +1089,17 @@ export function buildMountains() {
   const mat = new T.ShaderMaterial({
     uniforms: U,
     vertexShader: `varying vec3 vW; varying vec3 vN; varying float vD; void main(){ vec4 w = modelMatrix*vec4(position,1.0); vW = w.xyz; vN = normalize(mat3(modelMatrix)*normal); vec4 mv = viewMatrix*w; vD = length(mv.xyz); gl_Position = projectionMatrix*mv; }`,
-    fragmentShader: `uniform vec3 uFogColor; uniform float uFogDensity; uniform vec3 uMoonDir; uniform vec3 uTeal; uniform vec3 uVilla; uniform vec3 uCam; uniform float uSnowCover; uniform float uMoonLit; varying vec3 vW; varying vec3 vN; varying float vD;
+    fragmentShader: `uniform vec3 uFogColor; uniform float uFogDensity; uniform vec3 uMoonDir; uniform vec3 uTeal; uniform vec3 uVilla; uniform vec3 uVillaRot; uniform vec3 uCam; uniform float uSnowCover; uniform float uMoonLit; varying vec3 vW; varying vec3 vN; varying float vD;
       ${FOG_GLSL}
       float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7)))*43758.5453); }
       float vnoise(vec2 p){ vec2 i=floor(p), f=fract(p); f=f*f*(3.0-2.0*f); return mix(mix(hash(i),hash(i+vec2(1,0)),f.x), mix(hash(i+vec2(0,1)),hash(i+vec2(1,1)),f.x), f.y); }
       float fbm(vec2 p){ return vnoise(p)*0.5 + vnoise(p*2.03+3.1)*0.25 + vnoise(p*4.11+7.3)*0.125 + vnoise(p*8.3+1.7)*0.0625; }
       void main(){
+        // V33: im Grundriss der Villa kein Hang (das grobe Geländenetz ragte sonst in die Räume)
+        #ifdef VILLA_CUT
+        if (uVillaRot.z > 0.5) { vec2 dq = vW.xz - uVilla.xz; float hx = abs(dq.x*uVillaRot.x - dq.y*uVillaRot.y), hz = dq.x*uVillaRot.y + dq.y*uVillaRot.x;
+          if (hx < 55.4 && hz > -23.4 && (hz < -0.9 || (hx > 29.2 && hz < 7.4)) && vW.y > uVilla.y - 30.0) discard; }
+        #endif
         vec3 n0 = normalize(vN);
         // Feinrelief: Rauschen als Höhe, daraus eine gestörte Normale
         float fade = 1.0 - smoothstep(250.0, 1300.0, vD);
@@ -1158,6 +1144,18 @@ export function buildMountains() {
   });
   mat.extensions.derivatives = true;
   const m = new T.Mesh(geo, mat); m.position.set(0, 0, -100); m.frustumCulled = false; scene.add(m);
+  // V33: die Dreiecke um die Villa bekommen ein eigenes Netz, das im Hausgrundriss verworfen wird (discard nur dort, nicht im ganzen Gelände)
+  if (VILLA.y) {
+    const ix = geo.index.array, P = pos.array, keep = [], cut = [];
+    for (let t = 0; t < ix.length; t += 3) {
+      const a = ix[t] * 3, b = ix[t + 1] * 3, c = ix[t + 2] * 3, x = (P[a] + P[b] + P[c]) / 3, z = (P[a + 2] + P[b + 2] + P[c + 2]) / 3 - 100;
+      (Math.hypot(x - VILLA.x, z - VILLA.z) < 140 ? cut : keep).push(ix[t], ix[t + 1], ix[t + 2]);
+    }
+    const g2 = new T.BufferGeometry(); for (const k in geo.attributes) g2.setAttribute(k, geo.attributes[k]); g2.setIndex(cut);
+    geo.setIndex(keep);
+    const mc = mat.clone(); mc.uniforms = U; mc.defines = { VILLA_CUT: 1 }; mc.extensions.derivatives = true;
+    const m2 = new T.Mesh(g2, mc); m2.position.copy(m.position); m2.frustumCulled = false; scene.add(m2);
+  }
   buildSerpTerrain(mat);
   // Tannenwald im Tal und an den unteren Hängen
   const pine = mergeGeos([new T.ConeGeometry(2.6, 7, 6).translate(0, 5.5, 0), new T.ConeGeometry(1.9, 6, 6).translate(0, 9.5, 0), new T.CylinderGeometry(0.3, 0.4, 2.2, 5).translate(0, 1.1, 0)]);

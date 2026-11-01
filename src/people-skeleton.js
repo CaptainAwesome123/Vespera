@@ -365,6 +365,22 @@ void humanPose(float fem, float gs, float elder) {
     poseStand(fem, gs);
     if (uMocapOn > 0.5) { mcSample(MC_IDLE, uTime / MC_IDLE.z + hh(aGait.x * 5.9), 0.0); mcApply(1.0, fem, 0.0); nkY *= 0.5; }
     poseHold(step(0.25, actI));
+  } else if (act > 42.5 && act < 43.9) {
+    // ---------- V33: Alexander fliegt (nur der Spieler). actI = Tempo 0..1; die Neigung des ganzen Körpers kommt aus der Lage der Figur ----------
+    float k = clamp(actI, 0.0, 1.0), hov = 1.0 - k, bob = sin(uTime * 1.7);
+    // Schweben: Beine hängen locker, ein Knie etwas angezogen, Arme leicht vom Körper
+    thP = mix(vec2(0.08, 0.3), vec2(-0.06, -0.02), k); knF = mix(vec2(0.22, 0.55), vec2(0.06, 0.1), k);
+    thA = vec2(mix(0.05, 0.02, k)); thY = vec2(0.04); anF = mix(vec2(-0.35, -0.45), vec2(-0.65), k);
+    uaP = vec2(0.12, 0.12) * hov; uaA = vec2(0.28) * hov + vec2(0.0, 0.08) * k; elF = vec2(0.35) * hov + vec2(0.0, 0.2) * k; uaT = vec2(0.2); fgC = vec2(0.5);
+    // im schnellen Flug: rechte Faust voraus über den Kopf, linker Arm am Körper, Kopf gehoben in Flugrichtung
+    if (k > 0.02) {
+      vec3 Hf = vec3(-0.11, rTop + 0.47, 0.3);
+      float ap, aa, e, at; armIK(-1.0, Hf, 0.3, ap, aa, e, at);
+      uaP.x = mix(uaP.x, ap, k); uaA.x = mix(uaA.x, aa, k); elF.x = mix(elF.x, e, k); uaT.x = mix(uaT.x, at, k);
+      uaP.y = mix(uaP.y, -0.18, k); fgC.x = mix(0.5, 1.25, k);
+    }
+    spP = -0.08 * k + 0.03 * hov; nkP = -0.9 * k + 0.03 * hov * bob; nkY = 0.25 * hov * sin(uTime * 0.21);
+    pvO.y = 0.015 * hov * bob; pvR = 0.02 * hov * sin(uTime * 0.9);
   } else if (act > 23.5 && act < 40.5) {
     // ---------- Arbeit und Steuer ----------
     poseStand(fem, gs); nkY *= 0.3;
@@ -636,8 +652,12 @@ void humanRig(inout vec3 p, inout vec3 n, float L, float piv, float fem, float s
       }
     }
     // Kopf am Hals
-    if (p.y > neckY - 0.04) {
-      vec3 nj = vec3(0.0, neckY, rNeckZ); float w = smoothstep(neckY - 0.04, neckY + 0.05, p.y);
+    // V33: Kinn, Unterlippe und Kieferwinkel liegen am MakeHuman-Kopf auf Höhe des Halsgelenks (Kinn 1,559 m, Hals 1,558 m).
+    // Nach der Höhe allein gingen sie nur halb mit dem Kopf mit und das Gesicht verzog sich bei jedem Nicken und Umsehen.
+    // Was vorn vor dem Hals liegt, zählt deshalb ganz zum Kopf; nur Kehle und Nacken dehnen sich.
+    float hFront = smoothstep(0.045, 0.11, p.z - rNeckZ) * smoothstep(neckY - 0.035, neckY - 0.01, p.y);
+    if (p.y + 0.08 * hFront > neckY - 0.04) {
+      vec3 nj = vec3(0.0, neckY, rNeckZ); float w = smoothstep(neckY - 0.04, neckY + 0.05, p.y + 0.08 * hFront);
       vec3 hp = nj + rY(rX(rZ(p - nj, -nkR), nkP), nkY);
       p = mix(p, hp, w); n = mix(n, rY(rX(rZ(n, -nkR), nkP), nkY), w);
     }
