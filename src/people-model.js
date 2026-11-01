@@ -357,6 +357,7 @@ export function personShare(kind, q) {
 // mh.rig gibt dann Schulter und Handgelenk vor, Arme, Kopf, Beine und Schuhe baut der MakeHuman-Körper
 export const PB = { mh: null };
 export function personBuild(kind, q) {
+  if (kind === 'furcoat') kind = 'lady';   // V39: ohne MakeHuman-Figuren trägt die Dame im Pelzmantel das gebaute Kostüm
   // Teile: [Geometrie, Farbe, Glied, Drehpunkthöhe, Variante, Stoff, Etikett]
   const P = []; let LB = [0, 0], HIP = 0.95, OPT = 0, FB = 0, TAG = 'body';
   const MHR = PB.mh && PB.mh.rig;
@@ -735,7 +736,7 @@ export function personBuild(kind, q) {
   return personMerge(P, kind);
 }
 // Hutmaske je Art: welche Hutvarianten das Haar bedecken (Bit 0-2), 8 = immer eine Mütze
-export const HATMASK = { coat: 7, suit: 3, worker: 7, kid: 7, lady: 7, dress: 2, police: 8, chauffeur: 8, sailor: 8, livery: 8 };
+export const HATMASK = { coat: 7, suit: 3, worker: 7, kid: 7, lady: 7, dress: 2, police: 8, chauffeur: 8, sailor: 8, livery: 8, furcoat: 7 };
 // Zusammenfügen mit Index; Farben, Glieder, Varianten, Stoffart und Schwung je Ecke
 export function personMerge(parts, kind) {
   let n = 0, ni = 0;

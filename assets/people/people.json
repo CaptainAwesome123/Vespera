@@ -542,11 +542,13 @@
   "shoes-m": 4,
   "boots-m": 8,
   "lady-f": 16,
-  "heels-f": 32
+  "heels-f": 32,
+  "coat-f": 128,
+  "shoes2-m": 256
  },
  "atlas": {
   "w": 2048,
-  "h": 3072,
+  "h": 3584,
   "tile": 512,
   "rect": {
    "skin_m": [
@@ -686,6 +688,48 @@
     5,
     1,
     1
+   ],
+   "hairD_m": [
+    0.5,
+    4.5,
+    0.5,
+    0.5
+   ],
+   "hairD_f": [
+    2,
+    5,
+    1,
+    1
+   ],
+   "hairE_f": [
+    3,
+    5,
+    1,
+    1
+   ],
+   "furcoat": [
+    0,
+    6,
+    1,
+    1
+   ],
+   "fedora": [
+    1,
+    6,
+    0.5,
+    0.5
+   ],
+   "shoes2": [
+    1.5,
+    6,
+    0.5,
+    0.5
+   ],
+   "hairE_m": [
+    1,
+    6.5,
+    0.5,
+    0.5
    ]
   },
   "skinTiles": 4
@@ -758,6 +802,38 @@
   "hairC-f": {
    "verts": 4049,
    "tris": 10704
+  },
+  "hairD-m": {
+   "verts": 1071,
+   "tris": 3844
+  },
+  "hairE-m": {
+   "verts": 2276,
+   "tris": 4384
+  },
+  "hairD-f": {
+   "verts": 3314,
+   "tris": 8216
+  },
+  "hairE-f": {
+   "verts": 4771,
+   "tris": 11036
+  },
+  "fedora-m": {
+   "verts": 702,
+   "tris": 1244
+  },
+  "fedora2-m": {
+   "verts": 702,
+   "tris": 1244
+  },
+  "coat-f": {
+   "verts": 4747,
+   "tris": 7400
+  },
+  "shoes2-m": {
+   "verts": 1904,
+   "tris": 3320
   },
   "brows-m": {
    "verts": 126,
@@ -850,6 +926,38 @@
   "hairC-f@1": {
    "verts": 889,
    "tris": 2070
+  },
+  "hairD-m@1": {
+   "verts": 369,
+   "tris": 1144
+  },
+  "hairE-m@1": {
+   "verts": 300,
+   "tris": 824
+  },
+  "hairD-f@1": {
+   "verts": 492,
+   "tris": 1478
+  },
+  "hairE-f@1": {
+   "verts": 688,
+   "tris": 1596
+  },
+  "fedora-m@1": {
+   "verts": 224,
+   "tris": 372
+  },
+  "fedora2-m@1": {
+   "verts": 227,
+   "tris": 373
+  },
+  "coat-f@1": {
+   "verts": 1161,
+   "tris": 1325
+  },
+  "shoes2-m@1": {
+   "verts": 350,
+   "tris": 497
   }
  }
 }
