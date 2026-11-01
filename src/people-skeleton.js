@@ -872,18 +872,26 @@ export const HUM_VS_RIG = `
     vec3 dC = cameraPosition - hIM[3].xyz;
     camB = vec3(dot(dC, hIM[0].xyz) / dot(hIM[0].xyz, hIM[0].xyz), dot(dC, hIM[1].xyz) / dot(hIM[1].xyz, hIM[1].xyz), dot(dC, hIM[2].xyz) / dot(hIM[2].xyz, hIM[2].xyz));
   }
-  // V35: der Spieler blendet weich von seiner vorigen Haltung (uPl[0]: Handlung, Tempo, Gewicht, Schrittphase) in die jetzige
+  // V35: der Spieler blendet weich von seiner vorigen Haltung (uPl[0]: Handlung, Tempo, Gewicht, Schrittphase) in die jetzige.
+  // V36: nur im eigenen Shader der Spielerfigur (HUM_PLAYER). Die Schleife hat einen veränderlichen Anfang, damit der
+  // Windows-Shader-Übersetzer (ANGLE/Direct3D) sie nicht ausrollt und humanPose nicht doppelt einbaut; sonst dauert das
+  // Übersetzen am PC minutenlang und der Start bleibt bei "Menschen der Stadt werden eingekleidet" stehen.
+#ifdef HUM_PLAYER
   {
-    float hFade = gPlayer > 0.5 ? uPl[0].z : 0.0, gPh0 = gPh; HPose hPrev;
-    for (int i = 0; i < 2; i++) {
-      if (i == 0) { if (hFade < 0.001) continue; gG = vec4(aGait.x, uPl[0].x, uPl[0].y, aGait.w); gPh = uPl[0].w; }
+    float hFade = uPl[0].z, gPh0 = gPh; HPose hPrev = poseGet();
+    int i0 = hFade > 0.001 ? 0 : 1;
+    for (int i = i0; i < 2; i++) {
+      if (i == 0) { gG = vec4(aGait.x, uPl[0].x, uPl[0].y, aGait.w); gPh = uPl[0].w; }
       else { gG = aGait; gPh = gPh0; }
       humanPose(hFemV, hGs, hElder);
       if (i == 0) hPrev = poseGet();
     }
     if (hFade > 0.001) poseMix(hPrev, hFade);
-    if (gPlayer > 0.5) playerPose(hFemV);
+    playerPose(hFemV);
   }
+#else
+  gG = aGait; humanPose(hFemV, hGs, hElder);
+#endif
   float hSk = mod(aSoft.z, 16.0), hSw = aSoft.y;
   vec3 hP = position, hN = objectNormal;
   // Breite der Figur gilt nicht für den Kopf: Kopf und Hals behalten ihre Form
@@ -1250,7 +1258,11 @@ export function getMats() {
   MAT.carPaint = snowy(carPaintMat(), 0.75, false);   // V30: Schnee auf Dach, Haube und Kotflügeln
   MAT.cloth = paintMat({ color: 0xffffff, metalness: 0, roughness: 0.85, envI: 0.25, emissive: 0x100905 });
   // V17: Skelett, Gesten, Tänze und Stoffe im Shader (humanShader)
-  { const pc = MAT.cloth.onBeforeCompile; MAT.cloth.onBeforeCompile = sh => { pc(sh); humanShader(sh); }; }
+  { const pc = MAT.cloth.onBeforeCompile; MAT.cloth.onBeforeCompile = sh => { pc(sh); humanShader(sh); }; MAT.cloth.customProgramCacheKey = () => 'human'; }
+  // V36: die Spielerfigur bekommt einen eigenen Shader mit Überblenden und Alexanders Bewegungen (HUM_PLAYER);
+  // die Menge bleibt schlank, so übersetzt der Grafiktreiber am PC die vielen Varianten der Menschen wieder schnell
+  MAT.clothPlayer = paintMat({ color: 0xffffff, metalness: 0, roughness: 0.85, envI: 0.25, emissive: 0x100905 });
+  { const pc = MAT.clothPlayer.onBeforeCompile; MAT.clothPlayer.onBeforeCompile = sh => { pc(sh); humanShader(sh); sh.vertexShader = '#define HUM_PLAYER\n' + sh.vertexShader; }; MAT.clothPlayer.customProgramCacheKey = () => 'humanPlayer'; }
   MAT.black = stdMat({ color: 0x0b0a0c, metalness: 0.2, roughness: 0.35, envI: 0.6 });
 }
 // Farbiges Zusammenfügen: jedes Teil bekommt eine Farbe; reines Weiß (1,1,1) wird später durch die Instanzfarbe ersetzt
