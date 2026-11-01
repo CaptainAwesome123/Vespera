@@ -69,7 +69,7 @@ export async function start(data) {
   if (!MHP.ready) MHP.late = true;
   const lab = new URLSearchParams(location.search);
   if (lab.get('lab')) { const { startLab } = await import('./lab.js'); startLab(lab); return; }
-  build();
+  await build();
   setupProps().catch(e => console.warn('Requisiten:', e));
   await precompile();
   $('enter').disabled = false;

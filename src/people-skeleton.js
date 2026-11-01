@@ -408,6 +408,7 @@ void humanPose(float fem, float gs, float elder) {
       thP = mix(thP, vec2(0.75, 0.55), br); knF = mix(knF, vec2(0.7, 0.95), br); anF = mix(anF, vec2(0.0), br);
       uaP = mix(uaP, vec2(0.35), br); uaA = mix(uaA, vec2(1.05), br); elF = mix(elF, vec2(0.35), br); uaT = mix(uaT, vec2(-0.3), br); fgC = mix(fgC, vec2(0.15), br); spP = mix(spP, -0.18, br); nkP = mix(nkP, 0.1, br);
     }
+#ifdef HUM_PLAYER
     // Abheben vom Boden: tief in die Knie, Fäuste nach hinten, Blick nach oben; dann explosiv gestreckt, die rechte Faust voraus
     float to = gPlayer * uPl[5].x;
     if (to > 0.001) {
@@ -426,6 +427,7 @@ void humanPose(float fem, float gs, float elder) {
         thP = mix(thP, vec2(-0.08, 0.1), up); knF = mix(knF, vec2(0.05, 0.25), up); anF = mix(anF, vec2(-0.9), up); spP = mix(spP, -0.1, up); nkP = mix(nkP, -0.35, up);
       }
     }
+#endif
   } else if (act > 23.5 && act < 40.5) {
     // ---------- Arbeit und Steuer ----------
     poseStand(fem, gs); nkY *= 0.3;
@@ -877,18 +879,11 @@ export const HUM_VS_RIG = `
   // Windows-Shader-Übersetzer (ANGLE/Direct3D) sie nicht ausrollt und humanPose nicht doppelt einbaut; sonst dauert das
   // Übersetzen am PC minutenlang und der Start bleibt bei "Menschen der Stadt werden eingekleidet" stehen.
 #ifdef HUM_PLAYER
-  {
-    float hFade = uPl[0].z, gPh0 = gPh; HPose hPrev = poseGet();
-    int i0 = hFade > 0.001 ? 0 : 1;
-    for (int i = i0; i < 2; i++) {
-      if (i == 0) { gG = vec4(aGait.x, uPl[0].x, uPl[0].y, aGait.w); gPh = uPl[0].w; }
-      else { gG = aGait; gPh = gPh0; }
-      humanPose(hFemV, hGs, hElder);
-      if (i == 0) hPrev = poseGet();
-    }
-    if (hFade > 0.001) poseMix(hPrev, hFade);
-    playerPose(hFemV);
-  }
+  // V36d: kein zweiter humanPose-Durchlauf mehr zum Überblenden. Selbst als Schleife war der Shader für den
+  // Windows-Treiber (ANGLE/Direct3D, AMD) zu groß: das Übersetzen dauerte so lange, dass Chrome die Grafik
+  // zurücksetzte (webglcontextlost). Alexanders eigene Bewegungen (playerPose) blenden über uPl weiterhin weich.
+  gG = aGait; humanPose(hFemV, hGs, hElder);
+  playerPose(hFemV);
 #else
   gG = aGait; humanPose(hFemV, hGs, hElder);
 #endif
