@@ -4,6 +4,7 @@ import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { shared, T, renderer, MOBILE, LOW, scene, camera, U } from './core.js';
 import { resizeReflection } from './water.js';
+import { depthOptions, passWithoutReverse } from './depth.js';
 
 /* =====================================================================
    NACHLEUCHTEN (Bloom)
@@ -12,12 +13,12 @@ export let composer = null, bloomPass = null, gradePass = null; shared.bloomOn =
 const BLOOM_DIV = LOW ? 3 : 2;   // V38: Nachleuchten auf der niedrigen Stufe in einem Drittel der Auflösung
 export function setupComposer() {
   const sz = renderer.getDrawingBufferSize(new T.Vector2());
-  // Mit Stencil bekommt das Ziel einen 24-Bit-Tiefenpuffer statt 16 Bit: sonst flimmern nahe Flächen (Z-Fighting)
-  const rt = new T.WebGLRenderTarget(sz.x, sz.y, { type: T.HalfFloatType, samples: renderer.capabilities.isWebGL2 && !MOBILE ? (LOW ? 2 : 4) : 0, stencilBuffer: true });   // V38: niedrige Stufe 2x statt 4x
+  // Tiefe: mit Reverse-Z (V40) 32-Bit-Gleitkomma, sonst erzwingt der Stencil einen 24-Bit-Puffer statt 16 Bit (nahe Flächen flimmerten)
+  const rt = new T.WebGLRenderTarget(sz.x, sz.y, { type: T.HalfFloatType, samples: renderer.capabilities.isWebGL2 && !MOBILE ? (LOW ? 2 : 4) : 0, ...depthOptions(sz.x, sz.y) });   // V38: niedrige Stufe 2x statt 4x
   composer = new EffectComposer(renderer, rt);
   composer.addPass(new RenderPass(scene, camera));
   bloomPass = new UnrealBloomPass(new T.Vector2(window.innerWidth / BLOOM_DIV, window.innerHeight / BLOOM_DIV), 0.72, 0.6, 0.72);
-  composer.addPass(bloomPass);
+  composer.addPass(passWithoutReverse(bloomPass));   // V40: Quad-Pässe ohne Reverse-Z (siehe depth.js)
   // Filmischer Abschluss: weiche Lichterkappe, Türkis in den Schatten, Gold im Licht, Vignette, feines Korn
   gradePass = new ShaderPass({
     uniforms: { tDiffuse: { value: null }, uTime: U.uTime, uRes: { value: new T.Vector2(sz.x, sz.y) } },
@@ -35,7 +36,7 @@ export function setupComposer() {
         c *= 1.0 - 0.38 * smoothstep(0.35, 1.05, length(q));
         gl_FragColor = vec4(c, 1.0); }`,
   });
-  composer.addPass(gradePass);
+  composer.addPass(passWithoutReverse(gradePass));
 }
 export function resize() {
   const w = window.innerWidth, h = window.innerHeight;

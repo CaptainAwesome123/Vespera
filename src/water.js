@@ -1,4 +1,5 @@
 import { U, T, MOBILE, renderer, scene, camera, FOG_GLSL, LOW } from './core.js';
+import { depthOptions, REVZ, toReverse } from './depth.js';
 import { addCollider } from './people-skeleton.js';
 import { lamps, addSeg, addGlow, NEON } from './facade-shader.js';
 import { ISL, landDist, QX, QUAY } from './island.js';
@@ -154,7 +155,8 @@ export function setupReflection() {
   const sz = renderer.getDrawingBufferSize(new T.Vector2());
   // V34: stencilBuffer erzwingt in three r147 einen 24-Bit-Tiefenpuffer (ohne: 16 Bit). Mit 16 Bit flackerte im nassen Pflaster
   // das ganze gespiegelte Belmont: 300 m entfernt waren zwei Flächen erst ab rund 7 m Abstand sicher getrennt.
-  REFL.rt = new T.WebGLRenderTarget(Math.max(2, Math.round(sz.x * 0.5)), Math.max(2, Math.round(sz.y * 0.5)), { type: T.HalfFloatType, stencilBuffer: true });
+  const rw = Math.max(2, Math.round(sz.x * 0.5)), rh = Math.max(2, Math.round(sz.y * 0.5));
+  REFL.rt = new T.WebGLRenderTarget(rw, rh, { type: T.HalfFloatType, ...depthOptions(rw, rh) });   // V40: mit Reverse-Z 32-Bit-Gleitkomma-Tiefe
   REFL.rt.texture.generateMipmaps = false;
   U.uRefl.value = REFL.rt.texture;
   REFL.dummy = new T.DataTexture(new Uint8Array([0, 0, 0, 255]), 1, 1); REFL.dummy.needsUpdate = true;
@@ -195,7 +197,7 @@ export function renderReflection() {
   V.look.set(0, 0, -1).applyMatrix4(V.rot).add(V.cp);
   V.tgt.subVectors(V.rp, V.look).reflect(V.n).negate().add(V.rp);
   vc.position.copy(V.view); vc.up.set(0, 1, 0).applyMatrix4(V.rot).reflect(V.n); vc.lookAt(V.tgt);
-  vc.far = cam.far; vc.near = cam.near; vc.updateMatrixWorld(); vc.projectionMatrix.copy(cam.projectionMatrix);
+  vc.far = cam.far; vc.near = cam.near; vc.updateMatrixWorld(); vc.projectionMatrix.copy(REVZ.on ? REVZ.glProj : cam.projectionMatrix);   // V40: die schräge Nahebene rechnet im alten Clip-Raum, danach umrechnen
   U.uReflMat.value.set(0.5, 0, 0, 0.5, 0, 0.5, 0, 0.5, 0, 0, 0.5, 0.5, 0, 0, 0, 1).multiply(vc.projectionMatrix).multiply(vc.matrixWorldInverse);
   // schräge Nahebene: nichts unter der Wasserlinie darf ins Spiegelbild
   V.plane.setFromNormalAndCoplanarPoint(V.n, V.rp).applyMatrix4(vc.matrixWorldInverse);
@@ -204,6 +206,7 @@ export function renderReflection() {
   V.q.set((Math.sign(V.clip.x) + e[8]) / e[0], (Math.sign(V.clip.y) + e[9]) / e[5], -1, (1 + e[10]) / e[14]);
   V.clip.multiplyScalar(2 / V.clip.dot(V.q));
   e[2] = V.clip.x; e[6] = V.clip.y; e[10] = V.clip.z + 1 - 0.003; e[14] = V.clip.w;
+  if (REVZ.on) toReverse(vc.projectionMatrix);
   vc.projectionMatrixInverse.copy(vc.projectionMatrix).invert();
   harborWater.visible = false; if (street && STREET.ground) STREET.ground.visible = false;
   const prev = renderer.getRenderTarget();

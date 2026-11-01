@@ -1734,9 +1734,23 @@ export function flushInstances() {
   // daher werden sie um ein paar Tiefenstufen nach vorn geschoben (wirkt nur in der Ferne merklich)
   // V34: zusätzlich rückt jede Ecke entlang des Sehstrahls um 0,05 % ihres Abstands zur Kamera vor (1 km: 50 cm, 10 m: 5 mm).
   // Der Bildpunkt bleibt dabei exakt gleich, nur der Tiefenwert wird kleiner: so gewinnen dünne Leisten auch flach angeschaut.
+  // V40: Leisten von 15 bis 35 cm sind ab gut 100 m schmaler als ein Bildpunkt. Eine Linie, die mal einen halben Bildpunkt trifft und mal
+  // keinen, glitzert beim Gehen (das Nachleuchten verstärkt es). Darum wird jede Leiste in ihren beiden dünnen Richtungen auf mindestens
+  // 1,6 Bildpunkte verbreitert und im gleichen Maß abgedunkelt: gleiche Lichtmenge, ruhige Linie. In der Nähe ändert sich nichts.
   const neonMat = new T.MeshBasicMaterial({ color: 0xd2d2d2, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -3 });
-  neonMat.onBeforeCompile = sh => { sh.vertexShader = sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\n  gl_Position = projectionMatrix * vec4(mvPosition.xyz * 0.9995, 1.0);'); };
-  neonMat.customProgramCacheKey = () => 'neonPull';
+  neonMat.onBeforeCompile = sh => {
+    sh.uniforms.uScale = U.uScale;
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nuniform float uScale; varying float vDim;').replace('#include <project_vertex>', `
+  vec3 sc = vec3(length(instanceMatrix[0].xyz), length(instanceMatrix[1].xyz), length(instanceMatrix[2].xyz));
+  vec4 c0 = modelViewMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0);
+  vec3 grow = max(vec3(1.0), (max(-c0.z, 1.0) / uScale * 1.6) / sc);
+  float mx = max(sc.x, max(sc.y, sc.z)); grow = mix(grow, vec3(1.0), step(mx, sc));
+  vDim = 1.0 / max(grow.x, max(grow.y, grow.z));
+  vec4 mvPosition = modelViewMatrix * instanceMatrix * vec4(transformed * grow, 1.0);
+  gl_Position = projectionMatrix * vec4(mvPosition.xyz * 0.9995, 1.0);`);
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vDim;').replace('#include <color_fragment>', '#include <color_fragment>\n  diffuseColor.rgb *= vDim;');
+  };
+  neonMat.customProgramCacheKey = () => 'neonPull40';
   const nm = new T.InstancedMesh(box, neonMat, neons.length);
   const col = new T.Color();
   neons.forEach((n, i) => { if (n.ry || n.rz) m.compose(_p.set(n.x, n.y, n.z), _q.setFromEuler(_e.set(0, n.ry || 0, n.rz || 0)), _s.set(n.sx, n.sy, n.sz)); else m.makeScale(n.sx, n.sy, n.sz).setPosition(n.x, n.y, n.z); nm.setMatrixAt(i, m); nm.setColorAt(i, col.setRGB(n.c[0], n.c[1], n.c[2])); });
