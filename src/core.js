@@ -44,6 +44,10 @@ export const MOBILE = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || (
 export const renderer = new T.WebGLRenderer({ canvas, antialias: !MOBILE && /[?&]lab=/.test(location.search), powerPreference: 'high-performance' });
 export const ANISO = Math.min(16, renderer.capabilities.getMaxAnisotropy());
 renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, MOBILE ? 1 : 1.5));
+// V36: Shader nicht sofort nach dem Übersetzen abfragen. Die sofortige Fehlerprüfung zwingt den Grafiktreiber, jeden Shader
+// einzeln und blockierend fertig zu übersetzen (unter Windows/Direct3D teils Sekunden je Shader, bis Chrome die Grafik abbricht).
+// boot.js übersetzt stattdessen alle Shader beim Laden parallel und prüft sie danach selbst. ?shaderlog schaltet die alte Prüfung ein.
+renderer.debug.checkShaderErrors = /[?&]shaderlog/.test(location.search);
 renderer.setSize(window.innerWidth, window.innerHeight);
 export const scene = new T.Scene();
 export const FOG_COLOR = new T.Color(0.03, 0.125, 0.142);   // V25: etwas türkiser
