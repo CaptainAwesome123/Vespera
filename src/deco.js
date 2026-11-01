@@ -294,6 +294,8 @@ function buildSign(S, bag) {
 
 /* ---------- Chunk-Schichten ---------- */
 export function setupDecoLayers() {
+  const q = new URLSearchParams(location.search);   // Fehlersuche: ?nodeco schaltet den Schmuck ab, ?nofar nur die Dachreklame
+  if (q.has('nodeco')) return;
   registerLayer({
     name: 'deco', size: DECO_CELL, radius: cam => DECO_RADIUS + Math.max(0, cam.position.y) * 0.8,
     build(cx, cz) {
@@ -310,6 +312,7 @@ export function setupDecoLayers() {
       return g.children.length ? g : null;
     },
   });
+  if (q.has('nofar')) return;
   registerLayer({
     name: 'decoFar', size: DECO_FAR_CELL, radius: cam => DECO_FAR_RADIUS + Math.max(0, cam.position.y) * 1.5,
     build(cx, cz) {
