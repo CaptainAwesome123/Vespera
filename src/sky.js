@@ -10,7 +10,7 @@ export function buildSky() {
   const sky = new T.Mesh(new T.SphereGeometry(9000, 48, 24), new T.ShaderMaterial({
     uniforms: U, side: T.BackSide, depthWrite: false, fog: false,
     defines: LOW ? { SKY_LITE: 1 } : {},
-    vertexShader: `varying vec3 vD; void main(){ vD = normalize(position); vec4 p = projectionMatrix*modelViewMatrix*vec4(position,1.0); gl_Position = p.xyww; }`,
+    vertexShader: `uniform float uRevZ; varying vec3 vD; void main(){ vD = normalize(position); vec4 p = projectionMatrix*modelViewMatrix*vec4(position,1.0); gl_Position = vec4(p.xy, p.w * (1.0 - uRevZ), p.w); }`,   // V40: ganz hinten, bei Reverse-Z ist das z = 0
     fragmentShader: `uniform vec3 uMoonDir; uniform vec3 uFogColor; uniform float uTime; uniform float uAurora; uniform float uCloud; uniform float uMoonPhase; uniform float uMoonLit; uniform float uMist; uniform float uRain; uniform float uSnow;
       varying vec3 vD;
       float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7)))*43758.5453); }

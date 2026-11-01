@@ -31,7 +31,7 @@ export function villaLocal(p, o = _l) { const dx = p.x - VILLA.x, dz = p.z - VIL
 export function inVillaHouse(p) {
   if (!VILLA.boxes || Math.abs(p.x - VILLA.x) > 90 || Math.abs(p.z - VILLA.z) > 90) return false;
   const l = villaLocal(p);
-  if (l.y < YK - 1 || l.y > 16) return false;
+  if (l.y < YK - 2.5 || l.y > 16) return false;   // V40: das Schwimmbecken liegt 1,6 m unter dem Kellerboden; wer hineinstieg, galt als 'außerhalb' und wurde auf den Hang (Erdgeschosshöhe) gehoben
   return Math.abs(l.x) < 55 && l.z > -23 && (l.z < -1 || (Math.abs(l.x) > 29 && l.z < 7));
 }
 // Im ganzen Haus (V33: nicht nur im Keller) gilt nicht der Hang als Boden, sondern die Böden und Treppen des Hauses

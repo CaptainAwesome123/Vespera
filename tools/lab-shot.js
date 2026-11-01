@@ -16,7 +16,7 @@ const [,, url = 'http://localhost:8765/', out = 'lab', views = 'alle', time = '1
     fs.existsSync(fp) ? r.fulfill({ body: fs.readFileSync(fp), contentType: 'application/javascript', headers: { 'Access-Control-Allow-Origin': '*' } }) : r.abort();
   });
   const t0 = Date.now();
-  await p.goto(url + '?lab=' + (process.env.LAB || 'menschen') + '&t=' + time, { waitUntil: 'commit', timeout: 120000 });
+  await p.goto(url + (url.includes('?') ? '&' : '?') + 'lab=' + (process.env.LAB || 'menschen') + '&t=' + time, { waitUntil: 'commit', timeout: 120000 });
   try { await p.waitForFunction(() => (window.labFrames || 0) > 1, null, { timeout: 240000, polling: 500 }); }
   catch (e) { console.log('kein Bild:', logs.join('\n')); await b.close(); process.exit(1); }
   console.log('Labor bereit nach', Date.now() - t0, 'ms');

@@ -1,5 +1,6 @@
 import { updateChunks, layers } from './chunks.js';
-import { shared, T, scene, camera, MOBILE, LOW, renderer, U, FOG_DENSITY, hemi, moonLight, $, FOGVIS, fogHideDist } from './core.js';
+import { shared, T, scene, camera, MOBILE, LOW, renderer, U, FOG_DENSITY, hemi, moonLight, $, FOGVIS, fogHideDist, REVZ } from './core.js';
+import { skipDepthResolve } from './depth.js';
 import { updateIndustry, updateShops } from './shops.js';
 import { inBelmont, interiorCrowd, updateBelmontDoor } from './belmont.js';
 import { inPenthouse, updatePenthouse } from './penthouse.js';
@@ -146,6 +147,8 @@ export function nearTarget() {
   return clear < 6 ? 0.5 : Math.min(cap, 0.5 + (clear - 6) * 0.12);
 }
 export function updateNearPlane(dt) {
+  // V40: mit Reverse-Z ist die Tiefe in jeder Entfernung genau, die Nahebene bleibt bei 0,2 m (nichts wird mehr vorn abgeschnitten)
+  if (REVZ.on) { if (camera.near !== 0.2) { camera.near = 0.2; camera.updateProjectionMatrix(); } return; }
   if ((NEARP.t -= dt) > 0) return;
   NEARP.t = 0.25;
   const n = nearTarget();
@@ -253,6 +256,6 @@ export function frame(now) {
   if (shared.sayTimer > 0 && (shared.sayTimer -= dt) <= 0) $('say').style.opacity = 0;
 
   renderReflection();
-  if (composer) { bloomPass.enabled = shared.bloomOn; composer.render(); } else renderer.render(scene, camera);
+  if (composer) { bloomPass.enabled = shared.bloomOn; skipDepthResolve(renderer, composer.renderTarget1); skipDepthResolve(renderer, composer.renderTarget2); composer.render(); } else renderer.render(scene, camera);
   requestAnimationFrame(frame);
 }

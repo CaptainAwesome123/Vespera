@@ -52,7 +52,9 @@ export function collide(p, flying) {
   let ground = onLand ? 0 : WATER_Y + 0.2;
   const rd = roadHeightAt(p.x, p.z, p.y);
   if (rd.tunnel) ground = rd.y;
-  else if (!onLand) { const sr = villaRoadAt(p.x, p.z, p.y); ground = Math.max(ground, inVillaCellar(p) ? -1e9 : terrainHeight(p.x, p.z) + 0.3, rd.y, sr ? sr.y : -1e9); }   // V28: im Keller der Villa zählt der Hang nicht
+  // V28: im Keller der Villa zählt der Hang nicht. V40: auch Vorfahrt und Serpentine nicht: in der Schwimmhalle unter dem Ballsaal
+  // hob die Vorfahrt (gleiche Höhe wie das Erdgeschoss) den Spieler durch die Decke nach oben, sobald er über dem Becken stand
+  else if (!onLand) { const sr = villaRoadAt(p.x, p.z, p.y); ground = inVillaCellar(p) ? -1e9 : Math.max(ground, terrainHeight(p.x, p.z) + 0.3, rd.y, sr ? sr.y : -1e9); }
   else ground = Math.max(ground, rd.y);
   const gr = Math.max(ground, g0, vg);
   if (pg < gr - 0.001) collideOn = null;
