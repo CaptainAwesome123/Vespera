@@ -1432,12 +1432,12 @@ export function streetDetail(mat, walk) {
     if (prev) prev(sh);
     // V25: Nässe, Schneedecke, Regenringe und die echte Spiegelung der Straße (water.js rendert sie bei Nässe in Bodenhöhe)
     sh.uniforms.uTimeSd = U.uTime;
-    for (const k of ['uWet', 'uSnowCover', 'uRain', 'uRefl', 'uReflMat', 'uStreetRefl', 'uFogColor', 'uMoonDir', 'uMoonLit', 'uLamps']) sh.uniforms[k] = U[k];
+    for (const k of ['uWet', 'uSnowCover', 'uRain', 'uRefl', 'uReflMat', 'uStreetRefl', 'uFogColor', 'uMoonDir', 'uMoonLit', 'uLamps', 'uFrost']) sh.uniforms[k] = U[k];
     sh.vertexShader = 'varying vec3 vSdW;\n' + sh.vertexShader.replace('#include <worldpos_vertex>', `#include <worldpos_vertex>
       vSdW = (modelMatrix * ${walk === true ? 'instanceMatrix * ' : ''}vec4(transformed, 1.0)).xyz;`);
     sh.fragmentShader = `#define SD_NL ${LAMP_N}
       uniform vec4 uLamps[16];
-      varying vec3 vSdW; uniform float uWet, uSnowCover, uRain, uTimeSd, uStreetRefl, uMoonLit; uniform sampler2D uRefl; uniform mat4 uReflMat; uniform vec3 uFogColor, uMoonDir;
+      varying vec3 vSdW; uniform float uWet, uSnowCover, uRain, uTimeSd, uStreetRefl, uMoonLit, uFrost; uniform sampler2D uRefl; uniform mat4 uReflMat; uniform vec3 uFogColor, uMoonDir;
       float sdH(vec2 p){ p = fract(p*vec2(123.34, 456.21)); p += dot(p, p+45.32); return fract(p.x*p.y); }
       float sdN(vec2 p){ vec2 i = floor(p), f = fract(p); f = f*f*(3.0 - 2.0*f); return mix(mix(sdH(i), sdH(i + vec2(1.0, 0.0)), f.x), mix(sdH(i + vec2(0.0, 1.0)), sdH(i + vec2(1.0, 1.0)), f.x), f.y); }
       ` + sh.fragmentShader
@@ -1543,6 +1543,15 @@ export function streetDetail(mat, walk) {
           }
           vec3 lampC = vec3(1.0, 0.66, 0.32);
           outgoingLight += lampC * (diffuseColor.rgb * lD * 2.2 + lS * wetK * 0.35 * (1.0 - sdSnow) + vec3(0.55, 0.6, 0.7) * lD * sdSnow * 0.5);
+          // V38: Eisglitzern: einzelne Kristalle im Schnee und im Raureif blitzen auf, wenn Laterne oder Mond im richtigen Winkel stehen;
+          // die Körner sitzen fest in der Welt (Raster 6 cm), der Glanz wandert mit dem Blick
+          float glK = sdSnow * sdFine + (1.0 - sdSnow) * uFrost * 0.5 * sdTop * sdFine;
+          if (glK > 0.01) {
+            vec2 gc = floor(sw * 16.0); float gh = sdH(gc + 0.77);
+            vec3 Hm = normalize(uMoonDir + sdV);
+            float gl = step(0.93, gh) * (lS.x * 6.0 + pow(max(dot(nW, Hm), 0.0), 120.0) * uMoonLit * 1.2) * (0.5 + 0.5 * sin(gh * 60.0 + uTimeSd * 1.5));
+            outgoingLight += vec3(0.9, 0.95, 1.0) * gl * glK * 0.5;
+          }
         }
         // Spiegelung: Pfützen klar, nasses Pflaster verschwommen und zu Lichtsäulen gezogen; ohne echte Spiegelung (Handy) der Himmel und Nebel
         float sdFr = 0.02 + 0.98 * pow(1.0 - clamp(sdV.y, 0.0, 1.0), 5.0);

@@ -1,10 +1,10 @@
-import { T, U, scene, camera, MOBILE, renderer, MOON_DIR, moonLight, hemi, FOG_COLOR, shared, $ } from './core.js';
+import { T, U, scene, camera, MOBILE, LOW, renderer, MOON_DIR, moonLight, hemi, FOG_COLOR, shared, $ } from './core.js';
 import { segs, facadeMat } from './facade-shader.js';
 import { CLOCK } from './ragdoll.js';
 import { toast } from './boat.js';
 import { STREET } from './serpentine.js';
 import { reflSweep, LAND_GLSL } from './water.js';
-import { GROUND_FOG } from './airships.js';
+import { GROUND_FOG, HAZE } from './airships.js';
 
 /* =====================================================================
    V25 · POLARNACHT UND WETTER
@@ -103,7 +103,7 @@ function precipMesh(n, vs, fs) {
 }
 export const PRECIP = { rain: null, snow: null, fogBanks: null };
 export function buildPrecip() {
-  PRECIP.rain = precipMesh(MOBILE ? 2600 : 7000, `uniform float uRain; varying float vA; varying vec2 vQ;
+  PRECIP.rain = precipMesh(LOW ? 2600 : 7000, `uniform float uRain; varying float vA; varying vec2 vQ;
     void main(){
       vec3 B = vec3(36.0, 24.0, 36.0);
       if (aSeed.w > uRain || uInside > 0.5) { gl_Position = vec4(2.0, 2.0, 2.0, 1.0); return; }
@@ -123,7 +123,7 @@ export function buildPrecip() {
       float a = 1.0 - abs(vQ.x) * 2.0; a *= a * smoothstep(0.0, 0.35, vQ.y) * smoothstep(1.0, 0.55, vQ.y);
       gl_FragColor = vec4(vec3(0.5, 0.66, 0.7) * a * vA * 0.5, 1.0);
     }`);
-  PRECIP.snow = precipMesh(MOBILE ? 2200 : 6000, `uniform float uSnow; uniform float uFrost; varying float vA; varying vec2 vQ; varying float vK;
+  PRECIP.snow = precipMesh(LOW ? 2200 : 6000, `uniform float uSnow; uniform float uFrost; varying float vA; varying vec2 vQ; varying float vK;
     void main(){
       vec3 B = vec3(40.0, 26.0, 40.0);
       float flake = step(aSeed.w, uSnow), spark = step(1.0 - uFrost * 0.6, aSeed.w) * (1.0 - flake);
@@ -165,7 +165,7 @@ export function buildPrecip() {
       }`,
   });
   const banks = new T.Group();
-  for (const y of MOBILE ? [3.5, 12] : [0.4, 3.5, 8, 14]) { const m = new T.Mesh(new T.PlaneGeometry(6000, 6000), mat); m.rotation.x = -Math.PI / 2; m.position.set(0, y, 0); m.renderOrder = 1; m.frustumCulled = false; m.userData.noRefl = true; banks.add(m); }
+  for (const y of LOW ? [3.5, 12] : [0.4, 3.5, 8, 14]) { const m = new T.Mesh(new T.PlaneGeometry(6000, 6000), mat); m.rotation.x = -Math.PI / 2; m.position.set(0, y, 0); m.renderOrder = 1; m.frustumCulled = false; m.userData.noRefl = true; banks.add(m); }
   scene.add(banks); PRECIP.fogBanks = banks;
 }
 
@@ -182,7 +182,7 @@ export function fogAddScan() {
 
 /* ---------- Mondschatten (nur am PC): Gebäude und Autos werfen lange Schatten auf Straße und Gehweg ---------- */
 export function setupShadows() {
-  if (MOBILE || new URLSearchParams(location.search).has('ohneSchatten')) return;
+  if (LOW || new URLSearchParams(location.search).has('ohneSchatten')) return;   // V38: Mondschatten nur in der hohen Qualitätsstufe
   renderer.shadowMap.enabled = true; renderer.shadowMap.type = T.PCFSoftShadowMap; renderer.shadowMap.autoUpdate = false;
   moonLight.castShadow = true;
   const sh = moonLight.shadow, c = sh.camera;
@@ -256,6 +256,7 @@ export function updateAtmosphere(dt) {
   // Nebelschichten, die man von der eigenen Höhe aus ohnehin nicht sieht, gar nicht erst zeichnen (spart auf dem Handy viel Füllrate)
   if (PRECIP.fogBanks) for (const m of PRECIP.fogBanks.children) m.visible = Math.abs(cp.y - m.position.y) > 2 && A.inside < 0.9;
   for (const m of GROUND_FOG) m.visible = Math.abs(cp.y - m.position.y) > 6 && U.uInside.value < 0.9;
+  for (const m of HAZE) m.visible = Math.abs(cp.y - m.position.y) > 4 && U.uInside.value < 0.9;   // V38: Dunstschichten zwischen den Türmen
   if ((A.sweepT -= dt) <= 0) { A.sweepT = 4; reflSweep(); fogAddScan(); }
   if ((A.hudT -= dt) <= 0) { A.hudT = 1; const el = $('wx'); if (el) el.textContent = W.name + ' · ' + moonName(A.phase); }
 }

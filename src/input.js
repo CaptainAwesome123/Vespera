@@ -1,4 +1,4 @@
-import { shared, canvas, $ } from './core.js';
+import { shared, canvas, $, QUALITY } from './core.js';
 import { player, keys, touch } from './player.js';
 import { DINE, placeOrder, closeMenu } from './venues.js';
 import { DRIVE } from './eating.js';
@@ -58,6 +58,7 @@ window.addEventListener('keydown', e => {
   if (e.code === 'KeyE' && activeUse) activeUse.act();
   if (e.code === 'KeyB') { shared.bloomOn = !shared.bloomOn && !!composer; toast(shared.bloomOn ? 'Leuchteffekt an' : 'Leuchteffekt aus'); }
   if (e.code === 'KeyN') cycleWeather();
+  if (e.code === 'KeyK') toggleQuality();   // V38: Qualitätsstufe
   if (e.code === 'KeyR' && LOOSE.held) rotateHeld();
   if (e.code === 'KeyV') toast(toggleView() === 'third' ? 'Ansicht von hinten' : 'Ich-Ansicht');
   if (e.code === 'KeyG') { if (PM.view !== 'third') toggleView(); const d = toggleDance(); toast(d === 1 ? 'Charleston' : d === 2 ? 'Langsamer Tanz' : 'Tanz aus'); }
@@ -67,6 +68,14 @@ window.addEventListener('keydown', e => {
 window.addEventListener('keyup', e => { keys[e.code] = false; });
 window.addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
 
+// V38: Qualitätsstufe wechseln: Wahl merken und die Seite neu laden (die Stufe wirkt beim Aufbau)
+export function toggleQuality() {
+  const next = QUALITY === 'niedrig' ? 'hoch' : 'niedrig';
+  try { localStorage.setItem('vespera.qualitaet', next); } catch {}
+  toast('Qualität: ' + (next === 'hoch' ? 'Hoch' : 'Niedrig') + ' … Vespera wird neu geladen');
+  setTimeout(() => { const u = new URL(location.href); u.searchParams.delete('qualitaet'); location.href = u.href; }, 900);
+}
+{ const b = $('qual'); if (b) { b.textContent = 'Qualität: ' + (QUALITY === 'hoch' ? 'Hoch' : 'Niedrig'); b.addEventListener('click', toggleQuality); } }
 export function pause() {
   paused = true;
   $('enter').textContent = 'Weiter';

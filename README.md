@@ -44,7 +44,9 @@ src/                der Spielcode als ES-Module, ein Abschnitt pro Datei
   ragdoll.js          Gliederpuppen-Physik
   sky.js              Himmel der Polarnacht: drehender Sternhimmel, Mond mit Phase, Polarlicht (V25)
   atmosphere.js       Wetter (Taste N), Nebeldichte, Regen, Schnee, Eisglitzern, Nässe, Schneedecke, Mondschatten (V25)
-  airships.js         Luftschiffe
+                      Qualitätsstufe hoch/niedrig: core.js QUALITY (?qualitaet=niedrig, Taste K, Knopf im Startbild) (V38)
+  airships.js         Luftschiffe, Lichtsäulen, Bodennebel, Dunstschichten zwischen den Türmen und Scheinwerfer-Lichtfleck (V38)
+  carlight.js         Scheinwerferkegel und Lichtteppich der nächsten Automobile (V38)
   cars.js             Autos mit Innenraum und Insassen
   traffic.js          Verkehr auf dem Straßennetz
   player.js           Spieler: Gehen, Schwerkraft, Fliegen

@@ -1,4 +1,4 @@
-import { shared, mulberry32, canvasTex, T, R, scene, U, MOBILE, bakeGroup } from './core.js';
+import { shared, mulberry32, canvasTex, T, R, scene, U, MOBILE, LOW, bakeGroup } from './core.js';
 import { stdMat, MAT } from './people-skeleton.js';
 import { shafts } from './facade-shader.js';
 import { BEL } from './belmont.js';
@@ -151,7 +151,7 @@ export function buildAirship(L, R0, adIndex, beam, opts = {}) {
   grp.add(lights);
   bakeGroup(grp);   // V29: Rumpf, Gondel, Flossen, Motoren, Propeller, Ringe: je Material ein Netz (vorher rund 50 Draw Calls je Luftschiff)
   if (beam) {
-    const b = makeBeam(420, 28, 0.06);
+    const b = makeBeam(420, 28, 0.06, true);   // V38: mit Lichtfleck auf dem Boden
     b.position.set(L * 0.1, -R0 - 3.4, 0); b.rotation.x = Math.PI; grp.add(b);
     grp.userData.beam = b;
   }
@@ -199,9 +199,48 @@ export function buildGroundFog() {
         a *= 1.0 - uInside;
         gl_FragColor = vec4(uTeal * a, 1.0); }`,
   });
-  for (const y of MOBILE ? [4, 11, 20, 32, -0.4] : [2, 4, 7, 11, 20, 32, -0.4]) {
+  for (const y of LOW ? [4, 11, 20, 32, -0.4] : [2, 4, 7, 11, 20, 32, -0.4]) {
     const m = new T.Mesh(new T.PlaneGeometry(y < 0 ? 3600 : 2600, y < 0 ? 3600 : 2400), mat);
     m.rotation.x = -Math.PI / 2; m.position.set(0, y, 100); m.renderOrder = 1; m.frustumCulled = false; scene.add(m); GROUND_FOG.push(m);
+  }
+  buildHaze();
+}
+/* ---------- V38: Dunstschichten zwischen den Türmen ----------
+   Der Bodennebel endet nach wenigen Dutzend Metern; darüber standen die Türme in klarer Luft. Jetzt ziehen in 50 bis 150 m Höhe
+   dünne, wogende Schleier aus türkisem Dunst zwischen den Türmen hindurch (gewellte Flächen, damit die Schnittlinie mit den
+   Fassaden nicht gerade ist). Von der Straße aus verschwinden die Kronen im Schleier, im Flug fliegt man hindurch. Die oberste
+   Lage nimmt bei Polarlicht einen grünen Schimmer an. Wenige Dreiecke, Fragment-Shader mit drei Rauschproben. */
+export const HAZE = [];
+function buildHaze() {
+  const mat = new T.ShaderMaterial({
+    uniforms: U, transparent: true, depthWrite: false, blending: T.AdditiveBlending, side: T.DoubleSide,
+    vertexShader: `uniform float uTime; uniform vec4 uWind; varying vec3 vW; varying float vD;
+      float hzH(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7)))*43758.5453); }
+      float hzN(vec2 p){ vec2 i=floor(p), f=fract(p); f=f*f*(3.0-2.0*f); return mix(mix(hzH(i),hzH(i+vec2(1,0)),f.x), mix(hzH(i+vec2(0,1)),hzH(i+vec2(1,1)),f.x), f.y); }
+      void main(){
+        vec4 w = modelMatrix*vec4(position,1.0);
+        // die Schicht wogt um einige Meter auf und ab, zieht mit dem Wind
+        w.y += (hzN(w.xz*0.004 + uWind.xy*uTime*0.002) - 0.5) * 14.0 + (hzN(w.xz*0.011 - uTime*0.004) - 0.5) * 5.0;
+        vW = w.xyz; vec4 mv = viewMatrix*w; vD = -mv.z; gl_Position = projectionMatrix*mv; }`,
+    fragmentShader: `uniform float uTime; uniform vec3 uTeal; uniform vec3 uFogColor; uniform vec3 uCam; uniform float uInside; uniform float uMist; uniform float uAurora; uniform float uCloud; uniform vec4 uWind; varying vec3 vW; varying float vD;
+      float hzH(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7)))*43758.5453); }
+      float hzN(vec2 p){ vec2 i=floor(p), f=fract(p); f=f*f*(3.0-2.0*f); return mix(mix(hzH(i),hzH(i+vec2(1,0)),f.x), mix(hzH(i+vec2(0,1)),hzH(i+vec2(1,1)),f.x), f.y); }
+      void main(){
+        vec2 p = vW.xz*0.0035 + uWind.xy*uTime*0.0016;
+        float n = hzN(p)*0.55 + hzN(p*2.6 + 4.0)*0.3 + hzN(p*6.0 - uTime*0.006)*0.15;
+        float a = smoothstep(0.38 - 0.1*min(uMist, 2.0), 0.85, n) * 0.075 * (0.6 + 0.5*min(uMist, 2.2));
+        // nur über der Stadt (im Umkreis von 900 m), weich ausblendend; nicht in Kamerahöhe (sonst eine Scheibe vor der Nase)
+        a *= smoothstep(1000.0, 650.0, length(vW.xz - vec2(0.0, 60.0)));
+        a *= smoothstep(4.0, 30.0, abs(uCam.y - vW.y)) * smoothstep(2200.0, 500.0, vD) * smoothstep(0.0, 40.0, vD) * (1.0 - uInside);
+        // Farbe: Türkis der Stadt, in der Höhe mit einem Hauch Polarlichtgrün
+        vec3 c = mix(uTeal, uFogColor*4.0, 0.35);
+        c = mix(c, vec3(0.2, 0.9, 0.5), uAurora * (1.0 - uCloud) * smoothstep(70.0, 150.0, vW.y) * 0.35);
+        gl_FragColor = vec4(c * a, 1.0); }`,
+  });
+  // V38: drei Lagen am PC, eine auf der niedrigen Stufe
+  for (const y of LOW ? [85] : [52, 92, 140]) {
+    const m = new T.Mesh(new T.PlaneGeometry(2200, 2200, 48, 48), mat);
+    m.rotation.x = -Math.PI / 2; m.position.set(0, y, 60); m.renderOrder = 1; m.frustumCulled = false; m.userData.noRefl = true; scene.add(m); HAZE.push(m);
   }
 }
 
@@ -211,11 +250,42 @@ export const beamMat = (alpha) => new T.ShaderMaterial({
   vertexShader: `varying float vT; varying vec3 vN; varying vec3 vV; uniform float uLen; void main(){ vT = position.y/uLen; vN = normalize(normalMatrix*normal); vec4 mv = modelViewMatrix*vec4(position,1.0); vV = normalize(-mv.xyz); gl_Position = projectionMatrix*mv; }`,
   fragmentShader: `uniform float uA; uniform float uMist; varying float vT; varying vec3 vN; varying vec3 vV; void main(){ float e = pow(abs(dot(normalize(vN), normalize(vV))), 1.5); float a = uA*pow(1.0 - vT, 1.6)*e*(0.7 + 0.4*min(uMist, 2.0)); gl_FragColor = vec4(vec3(1.0, 0.86, 0.62)*a, 1.0); }`,
 });
-export function makeBeam(len, radius, alpha) {
+export function makeBeam(len, radius, alpha, spot = false) {
   const g = new T.ConeGeometry(radius, len, 32, 1, true); g.translate(0, -len / 2, 0); g.rotateX(Math.PI);
   const mt = beamMat(alpha); mt.uniforms.uLen.value = len;
   const m = new T.Mesh(g, mt); m.frustumCulled = false; m.renderOrder = 3;
+  if (spot) addBeamSpot(m, len, radius);
   return m;
+}
+/* ---------- V38: Lichtfleck des Luftschiff-Scheinwerfers auf der Stadt ----------
+   Der Suchscheinwerfer unter dem Luftschiff endete bisher im Nichts. Jetzt wandert dort, wo sein Strahl den Boden trifft,
+   ein weicher warmer Lichtfleck über Straßen und Plätze (eine flache Scheibe, je Bild an den Schnittpunkt mit y = 0 gesetzt,
+   in Strahlrichtung zur Ellipse gestreckt). Ein Draw Call je Strahl. */
+export const BEAM_SPOTS = [];
+const spotMat = new T.ShaderMaterial({
+  uniforms: U, transparent: true, depthWrite: false, blending: T.AdditiveBlending,
+  vertexShader: `varying vec2 vQ; void main(){ vQ = position.xz; gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
+  fragmentShader: `uniform float uWet; uniform float uSnowCover; varying vec2 vQ;
+    void main(){ float r = length(vQ) * 2.0; float a = smoothstep(1.0, 0.15, r) * (0.75 + 0.25 * smoothstep(0.5, 0.0, r));
+      gl_FragColor = vec4(vec3(1.0, 0.86, 0.62) * a * 0.22 * (0.7 + 0.5 * uWet + 0.4 * uSnowCover), 1.0); }`,
+});
+function addBeamSpot(beam, len, radius) {
+  const m = new T.Mesh(new T.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), spotMat);
+  m.frustumCulled = false; m.renderOrder = 2; m.userData.noRefl = true; m.visible = false; scene.add(m);
+  BEAM_SPOTS.push({ beam, len, radius, m });
+}
+const _bo = new T.Vector3(), _bd = new T.Vector3();
+export function updateBeamSpots() {
+  for (const s of BEAM_SPOTS) {
+    const b = s.beam; b.updateWorldMatrix(true, false);
+    _bo.setFromMatrixPosition(b.matrixWorld); _bd.set(0, 1, 0).transformDirection(b.matrixWorld);   // der Kegel zeigt entlang seiner +y-Achse
+    if (_bd.y > -0.2 || _bo.y < 5) { s.m.visible = false; continue; }
+    const t = -_bo.y / _bd.y;
+    if (t > s.len) { s.m.visible = false; continue; }
+    const r = s.radius * (t / s.len) * 1.25, k = 1 / Math.max(0.25, -_bd.y);   // flacher Winkel: längerer Fleck
+    s.m.visible = true; s.m.position.set(_bo.x + _bd.x * t, 0.06, _bo.z + _bd.z * t);
+    s.m.rotation.y = Math.atan2(_bd.x, _bd.z); s.m.scale.set(r * 2, 1, r * 2 * Math.min(k, 2.5));
+  }
 }
 export const searchlights = [];
 export function buildSearchlights() {

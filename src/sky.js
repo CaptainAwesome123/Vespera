@@ -1,4 +1,4 @@
-import { T, U, scene, MOBILE } from './core.js';
+import { T, U, scene, LOW } from './core.js';
 
 /* =====================================================================
    HIMMEL DER POLARNACHT (V25): Vespera liegt am Nordpol, die Sonne geht nie auf.
@@ -9,7 +9,7 @@ import { T, U, scene, MOBILE } from './core.js';
 export function buildSky() {
   const sky = new T.Mesh(new T.SphereGeometry(9000, 48, 24), new T.ShaderMaterial({
     uniforms: U, side: T.BackSide, depthWrite: false, fog: false,
-    defines: MOBILE ? { SKY_LITE: 1 } : {},
+    defines: LOW ? { SKY_LITE: 1 } : {},
     vertexShader: `varying vec3 vD; void main(){ vD = normalize(position); vec4 p = projectionMatrix*modelViewMatrix*vec4(position,1.0); gl_Position = p.xyww; }`,
     fragmentShader: `uniform vec3 uMoonDir; uniform vec3 uFogColor; uniform float uTime; uniform float uAurora; uniform float uCloud; uniform float uMoonPhase; uniform float uMoonLit; uniform float uMist; uniform float uRain; uniform float uSnow;
       varying vec3 vD;
@@ -65,6 +65,8 @@ export function buildSky() {
           #ifndef SKY_LITE
           au += curtain(ring * 1.3 + 4.0, elev - 0.1, 1.0, t) * 0.7;
           #endif
+          // V38: Helligkeitswellen laufen langsam durch den Vorhang (das Polarlicht atmet)
+          au *= 0.7 + 0.3 * sin(ang * 3.0 + t * 0.09) * sin(elev * 7.0 - t * 0.05) + 0.15 * sin(t * 0.21);
           col += au * uAurora * clear * 0.42 * (1.0 - 0.7 * min(uMist, 1.0) * smoothstep(0.5, 0.1, y));
           col += vec3(0.02, 0.09, 0.06) * uAurora * clear * exp(-y * 3.0) * 0.4;   // grüner Widerschein am Horizont
         }

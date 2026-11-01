@@ -2,20 +2,21 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
-import { shared, T, renderer, MOBILE, scene, camera, U } from './core.js';
+import { shared, T, renderer, MOBILE, LOW, scene, camera, U } from './core.js';
 import { resizeReflection } from './water.js';
 
 /* =====================================================================
    NACHLEUCHTEN (Bloom)
    ===================================================================== */
 export let composer = null, bloomPass = null, gradePass = null; shared.bloomOn = true;
+const BLOOM_DIV = LOW ? 3 : 2;   // V38: Nachleuchten auf der niedrigen Stufe in einem Drittel der Auflösung
 export function setupComposer() {
   const sz = renderer.getDrawingBufferSize(new T.Vector2());
   // Mit Stencil bekommt das Ziel einen 24-Bit-Tiefenpuffer statt 16 Bit: sonst flimmern nahe Flächen (Z-Fighting)
-  const rt = new T.WebGLRenderTarget(sz.x, sz.y, { type: T.HalfFloatType, samples: renderer.capabilities.isWebGL2 && !MOBILE ? 4 : 0, stencilBuffer: true });
+  const rt = new T.WebGLRenderTarget(sz.x, sz.y, { type: T.HalfFloatType, samples: renderer.capabilities.isWebGL2 && !MOBILE ? (LOW ? 2 : 4) : 0, stencilBuffer: true });   // V38: niedrige Stufe 2x statt 4x
   composer = new EffectComposer(renderer, rt);
   composer.addPass(new RenderPass(scene, camera));
-  bloomPass = new UnrealBloomPass(new T.Vector2(window.innerWidth / 2, window.innerHeight / 2), 0.72, 0.6, 0.72);
+  bloomPass = new UnrealBloomPass(new T.Vector2(window.innerWidth / BLOOM_DIV, window.innerHeight / BLOOM_DIV), 0.72, 0.6, 0.72);
   composer.addPass(bloomPass);
   // Filmischer Abschluss: weiche Lichterkappe, Türkis in den Schatten, Gold im Licht, Vignette, feines Korn
   gradePass = new ShaderPass({
@@ -41,7 +42,7 @@ export function resize() {
   renderer.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix();
   const v = new T.Vector2(); renderer.getDrawingBufferSize(v);
   resizeReflection();
-  if (composer) { composer.setSize(w, h); bloomPass.resolution.set(w / 2, h / 2); gradePass.uniforms.uRes.value.copy(v); }
+  if (composer) { composer.setSize(w, h); bloomPass.resolution.set(w / BLOOM_DIV, h / BLOOM_DIV); gradePass.uniforms.uRes.value.copy(v); }
   U.uScale.value = v.y / (2 * Math.tan(T.MathUtils.degToRad(camera.fov) / 2));
 }
 window.addEventListener('resize', resize);

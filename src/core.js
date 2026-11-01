@@ -39,6 +39,17 @@ export const pick = arr => arr[Math.floor(R() * arr.length)];
 export const canvas = $('c');
 // Handys und Tablets (vor allem iPhone/iPad) haben wenig Grafikspeicher: dort kleinere Texturen, weniger Figuren, niedrigere Auflösung
 export const MOBILE = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent));
+/* ---------- V38: Qualitätsstufe ----------
+   'hoch' (PC) oder 'niedrig' (Handy, schwache Grafikkarten, oder auf Wunsch): die niedrige Stufe lässt die teuren Stimmungs-
+   effekte weg oder verkleinert sie (echte Spiegelung im nassen Pflaster, Mondschatten, Niederschlagsmenge, Nebelschichten,
+   Scheinwerferkegel, Startauflösung). Festgelegt beim Laden (?qualitaet=niedrig|hoch oder gespeicherte Wahl, Taste K wechselt
+   und lädt neu), denn die meisten Dinge entstehen beim Aufbau. */
+export const QUALITY = (() => {
+  const q = new URLSearchParams(location.search).get('qualitaet'); let s = null;
+  try { s = localStorage.getItem('vespera.qualitaet'); } catch {}
+  const v = q || s; return v === 'niedrig' || v === 'hoch' ? v : MOBILE ? 'niedrig' : 'hoch';
+})();
+export const LOW = QUALITY === 'niedrig';
 // V29: Kantenglättung macht der Composer in seinem eigenen Ziel (4x MSAA). Auf der Leinwand landet nur noch ein bildfüllendes
 // Rechteck, dort wäre Antialiasing ein zweiter, unsichtbarer Mehrfach-Puffer in voller Größe. Nur die Testbühne (?lab) zeichnet direkt.
 export const renderer = new T.WebGLRenderer({ canvas, antialias: !MOBILE && /[?&]lab=/.test(location.search), powerPreference: 'high-performance' });
