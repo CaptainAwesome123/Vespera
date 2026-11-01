@@ -36,8 +36,10 @@ export function buildPenthouse() {
   const put = (k, g, where = 'inner') => (B[where][k] ||= []).push(g);
   const col = addCollider;
   const glow = (x, y, z, c, s) => addGlow(x, y, z, c, s);
-  const BOX = (w, h, d, x, y, z) => new T.BoxGeometry(w, h, d).translate(x, y, z);
-  const CYL = (r0, r1, h, x, y, z, n = 16) => new T.CylinderGeometry(r0, r1, h, n).translate(x, y, z);
+  // V34: Lage mit 0 vorbelegt. Vorher machte BOX(w, h, d).translate(...) ohne Lage alle Ecken zu NaN: Goldsprossen, Bänder und
+  // Oberlichtfächer der Glasfassade fehlten, und der Software-Renderer stürzte an diesen Ecken ab
+  const BOX = (w, h, d, x = 0, y = 0, z = 0) => new T.BoxGeometry(w, h, d).translate(x, y, z);
+  const CYL = (r0, r1, h, x = 0, y = 0, z = 0, n = 16) => new T.CylinderGeometry(r0, r1, h, n).translate(x, y, z);
   // Rechteck in der Waagerechten mit UV aus einem Rahmen [X0, Z0, B, T] (Leinwand oben = Norden) oder gekachelt (rep Meter)
   const rectXZ = (x0, x1, z0, z1, y, frame, down = false, rep = 0) => {
     const g = new T.BufferGeometry(), P = [[x0, z0], [x1, z0], [x1, z1], [x0, z1]];

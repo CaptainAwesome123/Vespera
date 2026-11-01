@@ -266,6 +266,8 @@ export function updateCars(dt) {
       yaw = Math.atan2(-dz, dx);
       car.wx = x; car.wz = z; car.wy = ly; car.yaw = yaw;
     }
+    // V34: Wagen ohne gültige Lage (noch nicht ins Straßennetz gesetzt) ausblenden; vorher landeten NaN-Ecken in den Scheinwerfern
+    if (!Number.isFinite(x + z + ly + yaw)) { hidden = true; x = z = ly = yaw = 0; pitch = roll = 0; }
     _q.setFromEuler(_ce.set(roll, yaw, pitch, 'YXZ'));
     _p.set(x, 0.22 + ly, z);
     car._x = x; car._y = 0.22 + ly; car._z = z; car._yr = car._yaw === undefined ? 0 : Math.atan2(Math.sin(yaw - car._yaw), Math.cos(yaw - car._yaw)) / Math.max(dt, 1e-3); car._yaw = yaw; car._hid = hidden;
