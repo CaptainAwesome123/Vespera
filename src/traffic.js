@@ -13,6 +13,7 @@ import { DRIVE } from './eating.js';
 import { buildFX } from './particles.js';
 import { buildFlags, buildLeaves } from './wind.js';
 import { paused } from './input.js';
+import { CARM, CARM_PAINT, isModelCar, modelCarMeshes } from './carmodel.js';
 
 /* =====================================================================
    V16 · VERKEHR: Autos fahren auf dem Straßennetz, biegen an Kreuzungen ab,
@@ -164,6 +165,9 @@ export const OBSTACLES = [];
 
 /* ---------- Autos: Bau und Darstellung (ersetzt die geraden Spuren von V15; Hochstraßen und Viadukt bleiben) ---------- */
 export let carGlass = null;
+// Lampen je Wagentyp: [vorn x, Höhe über 0.95, seitlich, hinten x, Höhe über 0.95, seitlich]; m wird nach dem Laden des Modells gesetzt
+export const CAR_LAMPS = { p: [2.62, 0.12, 0.62, -2.35, 0, 0.7], m: [2.62, 0.12, 0.62, -2.35, 0, 0.7] };
+export function carLampsFromModel() { const D = CARM.dim; CAR_LAMPS.m = [D.lamp[0] + 0.12, D.lamp[1] + 0.22 - 0.95, D.lamp[2], D.tail[0], D.tail[1] + 0.22 - 0.95, D.tail[2]]; }
 export function buildCars() {
   buildLanes();
   const lanes = [];
@@ -190,6 +194,12 @@ export function buildCars() {
   for (const im of [shared.carMesh, shared.carMeshHi]) { im.count = 0; im.instanceMatrix.setUsage(T.DynamicDrawUsage); im.frustumCulled = false; scene.add(im); }
   carGlass = glassFor(shared.carMeshHi);
   shared.carCmp = lodCompactor(shared.carMeshHi, shared.carMesh, LOD_CAR2);
+  // V39: ein Teil des Verkehrs fährt als Pierce Arrow (echtes Modell), mit eigenen Lackfarben
+  if (CARM.ready) {
+    const M = modelCarMeshes(cars.length); carLampsFromModel();
+    cars.forEach((car, i) => { if (!isModelCar(i)) return; car.model = true; car.col = pick(CARM_PAINT).map(v => v + (Math.random() - 0.5) * 0.012); });
+    TRF.modelCmp = lodCompactor(M.hi, M.lo, CARM.near2);
+  }
   const pts = [];
   for (let i = 0; i < cars.length; i++) {
     pts.push({ p: [0, 0, 0], c: [1.4, 1.25, 0.95], s: 0.9, ph: 0, bl: 0 }, { p: [0, 0, 0], c: [1.4, 1.25, 0.95], s: 0.9, ph: 0, bl: 0 });
@@ -229,6 +239,7 @@ export function updateDrivers(dt) {
   const free = k => DRV.slots.find(sl => !sl.car && sl.kind === k) || DRV.slots.find(sl => !sl.car && sl.kind !== 'lady');
   cars.forEach((car, i) => {
     if (car._x === undefined || car._hid || d2(car) > R2) return;
+    if (car.model) return;   // V39: Pierce Arrow hat dunkle, undurchsichtige Scheiben; ohne Figuren darin
     if (!car.drv) { const h = drvH(i, 1), sl = free(h < 0.25 ? 'chauffeur' : h < 0.5 ? 'coat' : h < 0.9 ? 'suit' : 'lady'); if (sl) { sl.car = car; sl.role = 'drv'; car.drv = sl; } }
     if (!car.pax && drvH(i, 2) < 0.38) { const sl = free(drvH(i, 3) < 0.7 ? 'lady' : 'suit'); if (sl) { sl.car = car; sl.role = 'pax'; car.pax = sl; } }
   });
@@ -239,14 +250,14 @@ export function updateDrivers(dt) {
   }
   // der eigene Wagen: Fahrer dreht das Lenkrad mit dem Einschlag der Vorderräder
   const B = DRIVE.body, P = DRV.player;
-  if (B && DRIVE.on && DRIVE.mesh) { const by = (B.gy !== undefined && !B.air ? B.gy : B.y); seatPerson(P, B.x, by + 0.22, B.z, B.h, -0.42, 0.38, (DRIVE.delta || 0) * 3.2); }
+  if (B && DRIVE.on && DRIVE.mesh && !DRIVE.model) { const by = (B.gy !== undefined && !B.air ? B.gy : B.y); seatPerson(P, B.x, by + 0.22, B.z, B.h, -0.42, 0.38, (DRIVE.delta || 0) * 3.2); }
   else P.a.on = false;
   DRV.crowd.flag();
 }
 export function updateCars(dt) {
   updateTraffic(dt, U.uTime.value);
   const pos = shared.carLights.geometry.attributes.position.array, cp = camera.position;
-  shared.carCmp.begin();
+  shared.carCmp.begin(); const MC = TRF.modelCmp; if (MC) MC.begin();
   cars.forEach((car, i) => {
     let x, z, ly, yaw, hidden = false, pitch = 0, roll = 0;
     if (car.graph) {
@@ -272,15 +283,17 @@ export function updateCars(dt) {
     _p.set(x, 0.22 + ly, z);
     car._x = x; car._y = 0.22 + ly; car._z = z; car._yr = car._yaw === undefined ? 0 : Math.atan2(Math.sin(yaw - car._yaw), Math.cos(yaw - car._yaw)) / Math.max(dt, 1e-3); car._yaw = yaw; car._hid = hidden;
     const cd2 = (x - cp.x) ** 2 + (z - cp.z) ** 2 + (_p.y - cp.y) ** 2;
-    if (!hidden && cd2 < Math.min(CAR_DIST2, FOGVIS.ped * FOGVIS.ped, FOGVIS.cap * FOGVIS.cap)) shared.carCmp.put(_m.compose(_p, _q, _s.setScalar(1)), car, car.col, cd2);
+    if (!hidden && cd2 < Math.min(CAR_DIST2, FOGVIS.ped * FOGVIS.ped, FOGVIS.cap * FOGVIS.cap)) (car.model && MC ? MC : shared.carCmp).put(_m.compose(_p, _q, _s.setScalar(1)), car, car.col, cd2);
     const fx = Math.cos(yaw), fz = -Math.sin(yaw), sx = -fz, sz = fx, y = hidden ? -50 : 0.95 + ly;
     const o = i * 12, dmg = car.dmg, hl0 = dmg && dmg[0] > 0.55 ? -60 : 0, hl1 = dmg && dmg[0] > 0.8 ? -60 : 0;
-    pos[o] = x + fx * 2.62 + sx * 0.62; pos[o + 1] = y + 0.12 + hl0; pos[o + 2] = z + fz * 2.62 + sz * 0.62;
-    pos[o + 3] = x + fx * 2.62 - sx * 0.62; pos[o + 4] = y + 0.12 + hl1; pos[o + 5] = z + fz * 2.62 - sz * 0.62;
-    pos[o + 6] = x - fx * 2.35 + sx * 0.7; pos[o + 7] = y; pos[o + 8] = z - fz * 2.35 + sz * 0.7;
-    pos[o + 9] = x - fx * 2.35 - sx * 0.7; pos[o + 10] = y; pos[o + 11] = z - fz * 2.35 - sz * 0.7;
+    // Scheinwerfer und Rücklichter (V39: beim Pierce Arrow an seinen Lampen)
+    const L = car.model && MC ? CAR_LAMPS.m : CAR_LAMPS.p, yh = y + L[1] + hl0, yh1 = y + L[1] + hl1, yt = y + L[4];
+    pos[o] = x + fx * L[0] + sx * L[2]; pos[o + 1] = yh; pos[o + 2] = z + fz * L[0] + sz * L[2];
+    pos[o + 3] = x + fx * L[0] - sx * L[2]; pos[o + 4] = yh1; pos[o + 5] = z + fz * L[0] - sz * L[2];
+    pos[o + 6] = x + fx * L[3] + sx * L[5]; pos[o + 7] = yt; pos[o + 8] = z + fz * L[3] + sz * L[5];
+    pos[o + 9] = x + fx * L[3] - sx * L[5]; pos[o + 10] = yt; pos[o + 11] = z + fz * L[3] - sz * L[5];
   });
-  shared.carCmp.end();
+  shared.carCmp.end(); if (MC) MC.end();
   updateDrivers(dt);
   if (carGlass) carGlass.count = shared.carMeshHi.count;
   shared.carLights.geometry.attributes.position.needsUpdate = true;

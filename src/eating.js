@@ -171,7 +171,7 @@ export function placeActor(c, x, y, z, h) { _q.setFromAxisAngle(_up, h); _p.set(
 export function startCarScene() {
   const cp = camera.position, ped = CARSCENE.peds.find(p => p.st === 6 && p.a && !p.busy), car = carActor();
   if (!ped || !car || cp.y > 40) return;
-  const cand = parked.filter(c => !c.hidden && !c.scene && c.ox !== undefined && (c.x - cp.x) ** 2 + (c.z - cp.z) ** 2 < 70 * 70 && (c.x - cp.x) ** 2 + (c.z - cp.z) ** 2 > 12 * 12);
+  const cand = parked.filter(c => !c.hidden && !c.scene && !c.model && c.ox !== undefined && (c.x - cp.x) ** 2 + (c.z - cp.z) ** 2 < 70 * 70 && (c.x - cp.x) ** 2 + (c.z - cp.z) ** 2 > 12 * 12);
   if (!cand.length) return;
   const pc = pick(cand), e = pc.m.elements, h = Math.atan2(e[8], e[0]), fx = Math.cos(h), fz = -Math.sin(h);
   // Fahrertür auf der Straßenseite oder zum Gehweg, je nachdem wie der Wagen steht

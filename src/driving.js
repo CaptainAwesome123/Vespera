@@ -8,6 +8,7 @@ import { villaRoadAt, SERP, carGeoHi, COL, serpReset, parked, serpWallHit } from
 import { makeGlowPoints } from './ragdoll.js';
 import { cars } from './airships.js';
 import { carDamageAttr, glassFor } from './cars.js';
+import { CARM, modelCarMeshes } from './carmodel.js';
 import { TRF, OBSTACLES, placeTrafficCar, polyAt, _q, _ce, _p, _s, _m } from './traffic.js';
 import { player, keys, touch } from './player.js';
 import { DRIVE } from './eating.js';
@@ -66,6 +67,19 @@ export function playerCarMesh() {
   for (let k = 0; k < 2; k++) lp.push({ p: [0, -50, 0], c: [1.5, 1.35, 1.0], s: 1.1, ph: 0, bl: 0 });
   for (let k = 0; k < 2; k++) lp.push({ p: [0, -50, 0], c: [1.5, 0.1, 0.06], s: 0.6, ph: 0, bl: 0 });
   DRIVE.lights = makeGlowPoints(lp, true); scene.add(DRIVE.lights);
+  // V39: Pierce Arrow als Spielerwagen (Karosserie und vier drehbare Räder aus dem Modell); verborgen, bis man einen nimmt
+  if (CARM.ready) {
+    const M = modelCarMeshes(1, false); M.lo.visible = false; DRIVE.mMesh = M.hi;
+    DRIVE.mWheels = new T.InstancedMesh(CARM.geoWheel, CARM.mat, 4); DRIVE.mWheels.frustumCulled = false; DRIVE.mWheels.castShadow = true; DRIVE.mWheels.count = 0;
+    DRIVE.mWheels.instanceMatrix.setUsage(T.DynamicDrawUsage); for (let k = 0; k < 4; k++) DRIVE.mWheels.setColorAt(k, new T.Color(1, 1, 1)); scene.add(DRIVE.mWheels);
+  }
+  carKind(false);
+}
+// V39: sichtbaren Wagentyp des Spielerwagens wählen (eigene Limousine oder Pierce Arrow)
+export function carKind(model) {
+  DRIVE.model = !!(model && DRIVE.mMesh);
+  DRIVE.mesh.count = DRIVE.glass.count = DRIVE.model ? 0 : 1; DRIVE.wheels.count = DRIVE.model ? 0 : 4;
+  if (DRIVE.mMesh) { DRIVE.mMesh.count = DRIVE.model ? 1 : 0; DRIVE.mWheels.count = DRIVE.model ? 4 : 0; }
 }
 // Drahtspeichenrad mit Weißwandreifen (Achse entlang z, außen = +z)
 export function wheelGeo() {
@@ -94,6 +108,8 @@ export function driveEnter(c) {
     DRIVE.col = c.c;
     DRIVE.mesh.setColorAt(0, new T.Color(...c.c)); DRIVE.mesh.instanceColor.needsUpdate = true;
     DRIVE.wheels.setColorAt(0, new T.Color(...c.c)); for (let k = 1; k < 4; k++) DRIVE.wheels.setColorAt(k, new T.Color(...c.c)); DRIVE.wheels.instanceColor.needsUpdate = true;
+    carKind(c.model);
+    if (DRIVE.model) { DRIVE.mMesh.setColorAt(0, new T.Color(...c.c)); DRIVE.mMesh.instanceColor.needsUpdate = true; }
     BODIES.add(DRIVE.body); DRIVE.body.player = true;
     DRIVE.gear = 0; DRIVE.rpm = VP.idle; DRIVE.revMode = false; DRIVE.stalled = false;
   }
@@ -493,38 +509,42 @@ export function drawPlayerCar(dt) {
   const by = (B.gy !== undefined && !B.air ? B.gy : B.y);
   _q.setFromEuler(_ce.set(B.roll, B.h, B.pitch, 'YXZ'));
   _p.set(B.x, by + 0.22 + Math.min(0.05, Math.abs(B.pv) * 0.02), B.z);
-  D.mesh.setMatrixAt(0, _m.compose(_p, _q, _s.setScalar(1))); D.mesh.instanceMatrix.needsUpdate = true;
-  const da = D.mesh.geometry.attributes.aDmg; da.setXYZW(0, B.dmg[0], B.dmg[1], B.dmg[2], 1 - B.dmg[3]); da.needsUpdate = true;
+  const BM = D.model ? D.mMesh : D.mesh, WM = D.model ? D.mWheels : D.wheels, MD = CARM.dim;
+  BM.setMatrixAt(0, _m.compose(_p, _q, _s.setScalar(1))); BM.instanceMatrix.needsUpdate = true;
+  if (!D.model) { const da = D.mesh.geometry.attributes.aDmg; da.setXYZW(0, B.dmg[0], B.dmg[1], B.dmg[2], 1 - B.dmg[3]); da.needsUpdate = true; }
+  // Radlage: eigene Limousine (Achsen ±1,55, Spur 0,86, Halbmesser 0,44) oder Pierce Arrow (aus dem Modell)
+  const ax = D.model ? [MD.front, MD.rear] : [1.55, -1.55], tr = D.model ? MD.track : 0.86, wr = D.model ? MD.r : 0.44;
   // Räder: Drehung aus der Geschwindigkeit, durchdrehen und blockieren sichtbar
   const fx = Math.cos(B.h), fz = -Math.sin(B.h), u = B.vx * fx + B.vz * fz;
-  const spinV = D.on && D.spinning ? Math.sign(D.revMode ? -1 : 1) * 30 : (D.lock || (D.inp && D.inp.hb && D.on)) ? 0 : u / VP.rw;
+  const spinV = D.on && D.spinning ? Math.sign(D.revMode ? -1 : 1) * 30 : (D.lock || (D.inp && D.inp.hb && D.on)) ? 0 : u / (D.model ? wr : VP.rw);
   D.wheelA = (D.wheelA + spinV * dt) % (Math.PI * 2);
   const frontLock = D.lock ? 0 : 1;
   let k = 0;
-  for (const sx of [1.55, -1.55]) for (const sz of [1, -1]) {
+  for (const sx of ax) for (const sz of [1, -1]) {
     const steer = sx > 0 ? D.delta : 0, ang = sx > 0 && !frontLock ? 0 : D.wheelA;
     _wq.setFromAxisAngle(_wy, B.h + steer); _wq2.setFromAxisAngle(_wz, -ang);
     if (sz < 0) _wq2.premultiply(new T.Quaternion().setFromAxisAngle(_wy, Math.PI));
     _wq.multiply(_wq2);
-    _wv.set(sx, 0.44, sz * 0.86).applyQuaternion(_q);
+    _wv.set(sx, wr, sz * tr).applyQuaternion(_q);
     _p.set(B.x + _wv.x, by + 0.22 + _wv.y, B.z + _wv.z);
     // Räder bleiben am Boden, die Karosserie federt darüber
-    _p.y = Math.max(by + 0.44, _p.y - 0.05);
-    D.wheels.setMatrixAt(k++, _wm.compose(_p, _wq, _s.setScalar(1)));
+    _p.y = Math.max(by + wr, _p.y - 0.05);
+    WM.setMatrixAt(k++, _wm.compose(_p, _wq, _s.setScalar(1)));
   }
-  D.wheels.instanceMatrix.needsUpdate = true;
+  WM.instanceMatrix.needsUpdate = true;
   // Scheinwerfer und Rücklichter (Bremslicht heller); kaputte Lampen bleiben dunkel
-  const pos = D.lights.geometry.attributes.position.array, sx2 = -fz, sz2 = fx, y = by + 1.34;
+  const pos = D.lights.geometry.attributes.position.array, sx2 = -fz, sz2 = fx;
+  const LP = D.model ? [MD.lamp[0] + 0.1, MD.lamp[1] + 0.22, MD.lamp[2], -MD.tail[0], MD.tail[1] + 0.22, MD.tail[2]] : [2.55, 1.34, 0.62, 2.47, 1.17, 0.7], y = by + LP[1];
   const hl = [B.dmg[0] < 0.55, B.dmg[0] < 0.8], brake = D.on && D.inp && (D.revMode ? D.inp.up : D.inp.dn) > 0.1;
-  pos.set([B.x + fx * 2.55 + sx2 * 0.62, hl[0] ? y : -60, B.z + fz * 2.55 + sz2 * 0.62, B.x + fx * 2.55 - sx2 * 0.62, hl[1] ? y : -60, B.z + fz * 2.55 - sz2 * 0.62,
-    B.x - fx * 2.47 + sx2 * 0.7, by + 1.17, B.z - fz * 2.47 + sz2 * 0.7, B.x - fx * 2.47 - sx2 * 0.7, by + 1.17, B.z - fz * 2.47 - sz2 * 0.7]);
+  pos.set([B.x + fx * LP[0] + sx2 * LP[2], hl[0] ? y : -60, B.z + fz * LP[0] + sz2 * LP[2], B.x + fx * LP[0] - sx2 * LP[2], hl[1] ? y : -60, B.z + fz * LP[0] - sz2 * LP[2],
+    B.x - fx * LP[3] + sx2 * LP[5], by + LP[4], B.z - fz * LP[3] + sz2 * LP[5], B.x - fx * LP[3] - sx2 * LP[5], by + LP[4], B.z - fz * LP[3] - sz2 * LP[5]]);
   D.lights.geometry.attributes.position.needsUpdate = true;
   const sa = D.lights.geometry.attributes.size || D.lights.geometry.attributes.aSize;
   if (sa) { sa.array[2] = sa.array[3] = brake ? 1.0 : 0.55; sa.needsUpdate = true; }
   // Reifenspuren und Qualm, wenn die Reifen rutschen
   if (D.on && !B.air && !B.sunk) {
     const lx = -Math.sin(B.h), lz = -Math.cos(B.h), slip = D.slip || 0;
-    const wp = [[-1.55, 0.86], [-1.55, -0.86], [1.55, 0.86], [1.55, -0.86]].map(([a, l]) => [B.x + fx * a + lx * l, B.z + fz * a + lz * l]);
+    const wp = [[ax[1], tr], [ax[1], -tr], [ax[0], tr], [ax[0], -tr]].map(([a, l]) => [B.x + fx * a + lx * l, B.z + fz * a + lz * l]);
     if (slip > 0.22 && Math.hypot(B.vx, B.vz) > 2 && D.lastW) {
       const n = D.lock ? 4 : 2;
       for (let i = 0; i < n; i++) skidMark(D.lastW[i][0], D.lastW[i][1], wp[i][0], wp[i][1], by, 0.2);

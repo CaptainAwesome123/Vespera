@@ -1,6 +1,6 @@
 # Herkunft und Lizenzen der Assets
 
-Alle Dateien in `assets/` sind frei nutzbar (CC0 oder MIT). Die Originale wurden für das Spiel verkleinert
+Alle Dateien in `assets/` sind frei nutzbar (CC0, MIT oder, seit V39, CC BY 4.0 mit Namensnennung). Die Originale wurden für das Spiel verkleinert
 (Texturen auf 512/256 px, Modelltexturen als JPEG), sonst nicht verändert. Umfärbungen passieren erst im Spiel
 (`MODEL_USE` in `src/props.js`).
 
@@ -12,6 +12,7 @@ Alle Dateien in `assets/` sind frei nutzbar (CC0 oder MIT). Die Originale wurden
 | `kenney-bench.glb` | Kenney „Graveyard Kit“ (`bench.glb`) | [Kenney](https://kenney.nl) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) |
 | `kenney-trashcan.glb` | Kenney „Furniture Kit“ 2.0 (`trashcan.glb`) | [Kenney](https://kenney.nl) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) |
 | `kenney-goods.glb` | Kenney „Food Kit“: 21 Stücke (`apple`, `bottle`, `bottle-large`, `bread`, `cake`, `cheese`, `cocktail`, `croissant`, `cup-saucer`, `cupcake`, `glass-wine`, `loaf`, `loaf-baguette`, `muffin`, `orange`, `pear`, `pie`, `soda-bottle`, `whole-ham`, `wine-red`, `wine-white`) aus dem Spiegel [`pmndrs/market-assets`](https://github.com/pmndrs/market-assets), mit gltf-transform zu einer Datei zusammengelegt (ein Knoten je Stück, Draco-Kompression entfernt) | [Kenney](https://kenney.nl) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) |
+| `pierce-arrow.glb` (V39, Wagen im Verkehr, in Parkreihen und zum Fahren) | [„1920'S Pierce Arrow“](https://sketchfab.com/3d-models/1920s-pierce-arrow-ab9e5dfffd474d3b9d8c76f46da1a499) auf Sketchfab. **Verändert:** mit `tools/make-car.mjs` gedreht und auf 5,1 m skaliert, Laufräder als eigenes Netz gelöst, die zehn 2048-px-Bilder in einen Atlas verkleinert (Farbe 2048 px WebP mit Lackmaske, Metall/Rauheit und Normalen 1024 px JPEG), Lack und Scheiben glatter für die Nacht, vereinfachte ferne Fassung | [Dkerr](https://sketchfab.com/daleraymondkerr) | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), Namensnennung auch im Spiel (Startbild) |
 | `deco-bollard.glb` | eigenes Beispielmodell (`tools/make-example-asset.py`) | Vespera | wie das Projekt |
 
 Die Kenney-Dateien stammen aus dem GitHub-Spiegel `ETdoFresh/kenney.nl` (Inhalt unverändert zu kenney.nl).
