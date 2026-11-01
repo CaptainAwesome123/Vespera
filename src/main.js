@@ -30,76 +30,145 @@ import { buildImperial, IMP } from './imperial.js';
    AUFBAU UND SPIELSCHLEIFE
    ===================================================================== */
 export let shipDefs = [];
-export function build() {
+export async function build() {
+  // V36c: Aufbau in Schritten, zwischen denen der Browser kurz Luft holt: die Seite meldet nicht "reagiert nicht",
+  // das Startbild zeigt, woran gerade gebaut wird, und die Konsole nennt die Dauer jedes Schritts (Fehlersuche am PC)
+  const label = document.getElementById('loading'), times = [];
+  let t = performance.now();
+  const step = async name => {
+    const now = performance.now(); times.push([name, Math.round(now - t)]); t = now;
+    if (label) label.textContent = 'Vespera wird gebaut … ' + name;
+    await new Promise(r => setTimeout(r, 0));
+    t = performance.now();
+  };
   initDriveState();
+  await step('initDriveState');
   buildEnv(); getMats(); planAccess();
+  await step('buildEnv');
   buildSky();
+  await step('buildSky');
   buildCity();
+  await step('buildCity');
   finishShops();
+  await step('finishShops');
   buildNetwork();
+  await step('buildNetwork');
   // Straßenbahn und Hochstraßen enden am Rand des Rasters
   for (const L of TRAM_LINES) { const on = NET.nodes.filter(n => n.kind === 'grid' && Math.abs((L.axis === 'x' ? n.z : n.x) - L.at) < 30); if (on.length) { const v = on.map(n => L.axis === 'x' ? n.x : n.z); L.from = Math.max(L.from, Math.min(...v) - 5); L.to = Math.min(L.to, Math.max(...v) + 5); } }
+  await step('Straßenbahn');
   buildOuter();
+  await step('buildOuter');
   buildIndustry();
+  await step('buildIndustry');
   buildTerraces();
+  await step('buildTerraces');
   buildBelmont();
+  await step('buildBelmont');
   buildBelmontInterior();
+  await step('buildBelmontInterior');
   buildPenthouse();   // V33: Alexanders Suite und die größere Terrasse auf 250 m
+  await step('buildPenthouse');
   buildBelmontDoor();
+  await step('buildBelmontDoor');
   buildHarbor();
+  await step('buildHarbor');
   buildPort();
+  await step('buildPort');
   buildImperial();   // V33: Alexanders Aurora Imperial (vor buildSerpentine, damit die Besatzung in die Menge kommt)
+  await step('buildImperial');
   buildShoreV16();
+  await step('buildShoreV16');
   buildVenues();
+  await step('buildVenues');
   buildGround();
+  await step('buildGround');
   buildSigns();
+  await step('buildSigns');
   buildBridges();
+  await step('buildBridges');
   buildElevated();
+  await step('buildElevated');
   buildVilla();
+  await step('buildVilla');
   planSerpentine();
+  await step('planSerpentine');
   // V33: kein Feuerwerk mehr über der Villa (dort wird nicht mehr gefeiert)
   buildAccessRoad();
+  await step('buildAccessRoad');
   buildSerpentine();
+  await step('buildSerpentine');
   buildCars();
+  await step('buildCars');
   buildTrucks();
+  await step('buildTrucks');
   buildTrams();
+  await step('buildTrams');
   flushInstances();
+  await step('flushInstances');
   buildMountains();
+  await step('buildMountains');
   buildShafts();
+  await step('buildShafts');
   buildGroundFog();
+  await step('buildGroundFog');
   buildSearchlights();
+  await step('buildSearchlights');
   buildParticles();
+  await step('buildParticles');
   buildMap();
+  await step('buildMap');
   buildInteractions();
+  await step('buildInteractions');
   portInteractions();
+  await step('portInteractions');
   driveInteractions();
+  await step('driveInteractions');
   boatInteractions();
+  await step('boatInteractions');
   venueInteractions();
+  await step('venueInteractions');
   setupLoose();   // V26: zuletzt, damit 'Ablegen' vor allen anderen Handlungen geprüft wird
+  await step('setupLoose');
   // Luftschiffe: V33 Alexanders Aurora Imperial (eigener Flug, src/imperial.js) statt des Schiffs am Belmont-Mast,
   // dazu der Zubringer an der Villa und nur noch drei kleinere Schiffe auf Rundkursen (vorher sechs)
   shipDefs.push({ g: IMP.g, imperial: true, L: IMP.L });
+  await step('Straßenbahn');
   shipDefs.push({ g: buildAirship(64, 7.5, 0, false), villa: true, L: 64 });
+  await step('Straßenbahn');
   const routes = [
     { r: [520, 380], c: [0, 0], h: 230, w: 0.022, L: 130, ad: 0, beam: true },
     { r: [900, 700], c: [0, -200], h: 260, w: 0.012, L: 140, ad: 1, beam: false },
     { r: [450, 650], c: [350, -300], h: 200, w: 0.017, L: 120, ad: 1, beam: false },
   ];
+  await step('Straßenbahn');
   for (const rt of routes) {
     const sd = { ...rt, g: buildAirship(rt.L, rt.L * 0.115, rt.ad, rt.beam), t0: R() * 100 };
     sd.lift = liftProfile(u => { const tt = u * Math.PI * 2; return [sd.c[0] + Math.cos(tt) * sd.r[0], sd.h, sd.c[1] + Math.sin(tt) * sd.r[1]]; }, sd.L / 2 + 25, sd.L * 0.115 * 1.6 + 30);
     shipDefs.push(sd);
   }
+  await step('Straßenbahn');
   setupComposer();
+  await step('setupComposer');
   buildLightPool();
+  await step('buildLightPool');
   collectDetails();
+  await step('collectDetails');
   setupReflection();
+  await step('setupReflection');
   setPR(PR_LEVELS[prIdx]);
+  await step('setPR');
   resize();
+  await step('resize');
   setupStreetLayers();   // V21: Laternen und Stadtmobiliar als Chunk-Schichten
+  await step('setupStreetLayers');
   primeChunks();
+  await step('primeChunks');
   buildPlayerModel();    // V24: der Spieler als Figur (Third-Person-Ansicht, Taste V)
+  await step('buildPlayerModel');
   buildAtmosphere();     // V25: Polarnacht, Wetter, Niederschlag, Mondschatten
+  await step('buildAtmosphere');
+  console.info('Aufbau (ms):', times.filter(x => x[1] > 50).map(x => x[0] + ' ' + x[1]).join(', '));
+
 }
 
 // Höhenkarte der Dächer (20-m-Raster), damit Luftschiffe über die Türme steigen statt hindurchzufahren

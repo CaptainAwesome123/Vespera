@@ -86,7 +86,7 @@ export function ragStart(pd, B) {
     geo.boundingSphere = sub.g.boundingSphere;
     im.setColorAt(0, _cc.setRGB(a.color[0], a.color[1], a.color[2])); im.instanceColor.needsUpdate = true;
   }
-  s.busy = true; s.pd = pd; s.p = p; s.q = q; s.L = L; s.rest = rest; s.S = _gS.clone(); s.t = 0; s.ph = 'fly'; s.B = B; s.fem = fem;
+  s.busy = true; s.soft = false; s.pd = pd; s.p = p; s.q = q; s.L = L; s.rest = rest; s.S = _gS.clone(); s.t = 0; s.ph = 'fly'; s.B = B; s.fem = fem;
   pd.rag = s; a.on = false; RAG.live.push(s);
   B.vx *= 0.93; B.vz *= 0.93;
   return true;
@@ -170,6 +170,34 @@ export function knockDown(pd, vx, vz, fromX, fromZ) {
   pd.rag.gy = pd.ragGy; pd.rag.B = { x: fromX ?? e[12] - vx, z: fromZ ?? e[14] - vz };   // beim Aufstehen dorthin schauen, woher der Stoß kam
   return true;
 }
+// V35: Alexander hebt jemanden mit Telekinese hoch: die Figur wird zur Puppe, die er am Rumpf hält (aufrecht, Arme und Beine hängen
+// und zappeln ein wenig). Losgelassen sinkt sie gebremst wie an einem Fallschirm und kommt auf die Füße
+export function ragLift(pd) {
+  if (pd.rag || pd.sit || !pd.a || !pd.a.on) return null;
+  const e = pd.a.m.elements;
+  const g = groundAt(e[12], e[14], e[13] + 0.3); pd.ragGy = g ? g.y : e[13];
+  if (!ragStart(pd, { x: e[12], z: e[14], y: e[13], vx: 0.01, vz: 0, h: 0, hl: 0.3, hw: 0.3 })) return null;
+  const s = pd.rag; s.gy = pd.ragGy; s.ph = 'tk'; s.t = 0; s.B = null;
+  s.tkP = new T.Vector3(s.p[0][0], s.p[0][1] + 0.4, s.p[0][2]); s.tkYaw = Math.atan2(e[8], e[10]);
+  return s;
+}
+const TK_TORSO = [0, 1, 2, 3, 4, 9, 10];
+function ragTkStep(s, dt) {
+  const p = s.p, q = s.q, R = s.rest, S = s.S, cs = Math.cos(s.tkYaw), sn = Math.sin(s.tkYaw), sw = 0.08 * Math.sin(s.t * 1.7);
+  // Rumpf weich zur gehaltenen Stelle, aufrecht, leicht pendelnd
+  for (const i of TK_TORSO) {
+    const x = (R[i][0] - R[0][0]) * S.x, y = (R[i][1] - R[0][1]) * S.y, z = (R[i][2] - R[0][2]) * S.z;
+    const tx = s.tkP.x + x * cs + z * sn + y * sw, ty = s.tkP.y + y, tz = s.tkP.z - x * sn + z * cs;
+    const P = p[i], Q = q[i];
+    let vx = (P[0] - Q[0]) / dt, vy = (P[1] - Q[1]) / dt, vz = (P[2] - Q[2]) / dt;
+    const k = Math.min(1, dt * 7), wx = (tx - P[0]) * 6, wy = (ty - P[1]) * 6, wz = (tz - P[2]) * 6;
+    const L = Math.hypot(wx, wy, wz), m = L > 14 ? 14 / L : 1;
+    vx += (wx * m - vx) * k; vy += (wy * m - vy) * k + 9.81 * dt; vz += (wz * m - vz) * k;
+    Q[0] = P[0] - vx * dt; Q[1] = P[1] - vy * dt; Q[2] = P[2] - vz * dt;
+  }
+  // überrascht zappeln: Hände und Füße
+  for (const [i, f] of [[7, 9.0], [8, 8.1], [13, 6.3], [14, 7.2]]) { const a = 0.9 * dt; q[i][0] -= Math.sin(s.t * f + i) * a; q[i][1] -= Math.cos(s.t * f * 0.8 + i) * a * 0.6; q[i][2] -= Math.sin(s.t * f * 1.1 + i * 2) * a; }
+}
 export function ragFree(s) { s.busy = false; for (const im of s.parts) im.visible = false; RAG.live.splice(RAG.live.indexOf(s), 1); s.pd.rag = null; }
 // Anfahrten erkennen (nur schnelle Wagen in der Nähe), Puppen rechnen, Aufstehen und Weitergehen
 export function updateRagdolls(dt) {
@@ -193,6 +221,24 @@ export function updateRagdolls(dt) {
       let mv = 0; for (let i = 0; i < s.p.length; i++) mv += Math.abs(s.p[i][0] - s.q[i][0]) + Math.abs(s.p[i][1] - s.q[i][1]) + Math.abs(s.p[i][2] - s.q[i][2]);
       if ((s.t > 3.2 && mv < 0.02) || s.t > 7) { s.ph = 'lie'; s.t = 0; }
       ragPose(s);
+    } else if (s.ph === 'tk' || s.ph === 'drop') {
+      // V35: von Alexander gehalten oder sanft abgesetzt
+      { const c = s.p[0]; s.boxes = []; for (const b of nearBoxes(c[0], c[2], 3)) if (b.y1 > c[1] - 2.5 && b.y0 < c[1] + 2.5 && b.x1 > c[0] - 3 && b.x0 < c[0] + 3 && b.z1 > c[2] - 3 && b.z0 < c[2] + 3) s.boxes.push(b); }
+      const c = s.p[0], g = groundAt(c[0], c[2], c[1] + 0.3); if (g) s.gy = g.y;
+      if (s.ph === 'tk') ragTkStep(s, dt);
+      ragStep(s, dt);
+      if (s.ph === 'drop') {
+        // gebremst sinken, höchstens 3,5 m/s; der Schwung eines Wurfs verliert sich
+        const vmax = 3.5 * dt;
+        for (let i = 0; i < s.p.length; i++) { const P = s.p[i], Q = s.q[i]; if (P[1] - Q[1] < -vmax) Q[1] = P[1] + vmax; Q[0] = P[0] - (P[0] - Q[0]) * 0.985; Q[2] = P[2] - (P[2] - Q[2]) * 0.985; }
+        // nahe am Boden: auf die Füße (wie beim Aufstehen, nur ohne Liegen)
+        if (s.p[0][1] - s.gy < 1.05 * s.S.y || s.t > 25) {
+          const B = s.B, yaw = B ? Math.atan2(B.x - c[0], B.z - c[2]) : 0, cs = Math.cos(yaw), sn = Math.sin(yaw);
+          s.from = s.p.map(P => P.slice()); s.to = s.rest.map(R => { const x = R[0] * s.S.x, z = R[2] * s.S.z; return [c[0] + x * cs + z * sn, s.gy + R[1] * s.S.y, c[2] - x * sn + z * cs]; });
+          s.yaw = yaw; s.ph = 'up'; s.t = 0; s.soft = true;
+        }
+      }
+      ragPose(s);
     } else if (s.ph === 'lie') {
       if (s.t > 1.4) {
         // aufstehen: Punkte gleiten in die Standhaltung über dem Becken, Blick zum Wagen
@@ -212,7 +258,7 @@ export function updateRagdolls(dt) {
       if (k >= 1) {
         // als Figur weiter: kurz schimpfen, dann zurück auf den Weg
         const c = s.to[0], a = pd.a; ragFree(s);
-        pd.back = { x: c[0], y: s.gy, z: c[2], yaw: s.yaw, t: 0 }; a.on = true; setAct(pd, 13);
+        pd.back = { x: c[0], y: s.gy, z: c[2], yaw: s.yaw, t: 0 }; a.on = true; setAct(pd, s.soft ? 2 : 13);   // V35: nach dem Schweben lacht man, nach dem Umfallen schimpft man
       }
     }
   }

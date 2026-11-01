@@ -9,6 +9,8 @@ import { mocapGLSL, MOCAP } from './mocap.js';
    Blick zur Kamera, Kopfformen und Statur je Person, Arbeitsbewegungen,
    Gesten, Tänze. Haare, Röcke, Fransen und Ketten schwingen nach
    ===================================================================== */
+// V35: Alexanders Bewegungen für den Shader (8 × vec4, Belegung bei playerPose); player-model.js schreibt sie jedes Bild
+export const PL_U = { value: Array.from({ length: 8 }, () => new T.Vector4()) };
 export const DANCE = { fox: 2.0, charl: 2.6, sway: 2.0 };   // Schläge pro Sekunde
 // Lenkräder und Steuerräder: Mitte (Körperraum), Radius, Neigung der Achse nach oben
 export const WHEEL = { car: [0, 1.19, 0.47, 0.18, 0.5], boat: [0, 1.08, 0.42, 0.17, 0.5], ship: [0, 1.15, 0.52, 0.36, 0.0] };
@@ -52,6 +54,8 @@ attribute vec2 aLimb; attribute vec4 aGait; attribute float aOpt; attribute vec3
 attribute vec4 aMH;   // V22: Atlas-UV, Stoffart, Mischgewicht + 2 (fehlt bei gebauten Figuren = 0)
 attribute vec4 aLive; // V24: Kopfdrehung zu jemandem (rad), Beginn der Drehung (s) bzw. Schrittphase des Spielers, 1 = Spieler, 1 + Lächeln (fehlt = 0,0,0,1)
 uniform float uTime; uniform vec4 uWind;
+uniform vec4 uPl[8];   // V35: Alexanders eigene Bewegungen (nur die Spielerfigur liest sie), siehe PL_U
+vec4 gG;               // V35: Gangdaten dieser Pose (sonst aGait; beim Überblenden die vorige Haltung des Spielers)
 varying vec2 vFaceUV; varying float vFaceId; varying vec3 vClP; varying float vPnt; varying vec3 vSoft; varying float vBlink; varying vec2 vGaze; varying vec4 vLook;
 varying vec2 vTexUV; varying float vTexK; varying float vFold;
 float fEyeX, fEyeY, fBrowY, fNoseY, fMouthY, fMouthW, fChinY, fEyeZ, fMouthZ, gPh, gPlayer, gSmile, gTurn;
@@ -111,6 +115,21 @@ void armTo(float sd, vec3 H, float tw) {
   if (sd < 0.0) { uaP.x = ap; uaA.x = aa; elF.x = e; uaT.x = at; } else { uaP.y = ap; uaA.y = aa; elF.y = e; uaT.y = at; }
 }
 ${mocapGLSL()}
+// V35: eine ganze Haltung zum Merken und Überblenden (nur für die Spielerfigur gebraucht)
+struct HPose { vec2 thP, thA, thY, knF, anF, uaP, uaA, uaT, elF, wrF, fgC, fgP; float spP, spR, spY, nkP, nkY, nkR, pvP, pvR, pvY, jawO, runK; vec3 pvO; };
+HPose poseGet() { HPose s; s.thP = thP; s.thA = thA; s.thY = thY; s.knF = knF; s.anF = anF; s.uaP = uaP; s.uaA = uaA; s.uaT = uaT; s.elF = elF; s.wrF = wrF; s.fgC = fgC; s.fgP = fgP;
+  s.spP = spP; s.spR = spR; s.spY = spY; s.nkP = nkP; s.nkY = nkY; s.nkR = nkR; s.pvP = pvP; s.pvR = pvR; s.pvY = pvY; s.jawO = jawO; s.runK = runK; s.pvO = pvO; return s; }
+void poseSet(HPose s) { thP = s.thP; thA = s.thA; thY = s.thY; knF = s.knF; anF = s.anF; uaP = s.uaP; uaA = s.uaA; uaT = s.uaT; elF = s.elF; wrF = s.wrF; fgC = s.fgC; fgP = s.fgP;
+  spP = s.spP; spR = s.spR; spY = s.spY; nkP = s.nkP; nkY = s.nkY; nkR = s.nkR; pvP = s.pvP; pvR = s.pvR; pvY = s.pvY; jawO = s.jawO; runK = s.runK; pvO = s.pvO; }
+void poseMix(HPose s, float w) { thP = mix(thP, s.thP, w); thA = mix(thA, s.thA, w); thY = mix(thY, s.thY, w); knF = mix(knF, s.knF, w); anF = mix(anF, s.anF, w);
+  uaP = mix(uaP, s.uaP, w); uaA = mix(uaA, s.uaA, w); uaT = mix(uaT, s.uaT, w); elF = mix(elF, s.elF, w); wrF = mix(wrF, s.wrF, w); fgC = mix(fgC, s.fgC, w); fgP = mix(fgP, s.fgP, w);
+  spP = mix(spP, s.spP, w); spR = mix(spR, s.spR, w); spY = mix(spY, s.spY, w); nkP = mix(nkP, s.nkP, w); nkY = mix(nkY, s.nkY, w); nkR = mix(nkR, s.nkR, w);
+  pvP = mix(pvP, s.pvP, w); pvR = mix(pvR, s.pvR, w); pvY = mix(pvY, s.pvY, w); jawO = mix(jawO, s.jawO, w); runK = mix(runK, s.runK, w); pvO = mix(pvO, s.pvO, w); }
+// die eben gesetzte Haltung mit Gewicht w über die gemerkte b legen
+void poseOver(HPose b, float w) { HPose c = poseGet(); poseSet(b); poseMix(c, w); }
+// Punkt im Körperraum (nach Becken und Oberkörper) <-> Raum vor der Drehung des Oberkörpers (für armTo)
+vec3 toTorso(vec3 W) { vec3 v = W - pvO - vec3(0.0, hHip, 0.0); v = rZ(rX(rY(v, -pvY), -pvP), -pvR) + vec3(0.0, hHip - rWaist, 0.0); v = rZ(rX(rY(v, -spY), -spP), spR); return v + vec3(0.0, rWaist, 0.0); }
+vec3 fromTorso(vec3 v) { v = rY(rX(rZ(v - vec3(0.0, rWaist, 0.0), -spR), spP), spY) + vec3(0.0, rWaist - hHip, 0.0); return rY(rX(rZ(v, pvR), pvP), pvY) + vec3(0.0, hHip, 0.0) + pvO; }
 // Werkzeug im Körperraum: Ursprung, Stiel entlang -Y; side zeigt grob in Richtung der lokalen Z-Achse
 void toolFrame(vec3 o, vec3 up, vec3 side) { toolO = o; toolY = normalize(up); toolX = normalize(cross(toolY, side)); toolZ = cross(toolX, toolY); toolOn = 1.0; }
 vec3 toolPt(vec3 l) { return toolO + toolX * l.x + toolY * l.y + toolZ * l.z; }
@@ -352,8 +371,8 @@ void humanPose(float fem, float gs, float elder) {
   thP = thA = thY = knF = anF = uaP = uaA = uaT = elF = wrF = fgC = fgP = vec2(0.0);
   spP = spR = spY = nkP = nkY = nkR = pvP = pvR = pvY = sitK = chew = jawO = danceK = flareK = bounceV = walkC = walkA = runK = carryK = toolOn = legIKon = 0.0;
   pvO = vec3(0.0); toolO = toolX = toolY = toolZ = vec3(0.0);
-  float walking = step(0.01, aGait.z), amp = aGait.z;
-  float act = (1.0 - walking) * floor(aGait.y + 0.001), actI = fract(aGait.y); hAct = act;
+  float walking = step(0.01, gG.z), amp = gG.z;
+  float act = (1.0 - walking) * floor(gG.y + 0.001), actI = fract(gG.y); hAct = act;
   if (act > 98.5) return;
   float tt = uTime * (0.9 + 0.2 * fract(aGait.x * 3.7)) + aGait.x * 7.0;
   if (walking > 0.5) { poseWalk(gPh, amp, fem, gs); }
@@ -366,21 +385,47 @@ void humanPose(float fem, float gs, float elder) {
     if (uMocapOn > 0.5) { mcSample(MC_IDLE, uTime / MC_IDLE.z + hh(aGait.x * 5.9), 0.0); mcApply(1.0, fem, 0.0); nkY *= 0.5; }
     poseHold(step(0.25, actI));
   } else if (act > 42.5 && act < 43.9) {
-    // ---------- V33: Alexander fliegt (nur der Spieler). actI = Tempo 0..1; die Neigung des ganzen Körpers kommt aus der Lage der Figur ----------
-    float k = clamp(actI, 0.0, 1.0), hov = 1.0 - k, bob = sin(uTime * 1.7);
-    // Schweben: Beine hängen locker, ein Knie etwas angezogen, Arme leicht vom Körper
-    thP = mix(vec2(0.08, 0.3), vec2(-0.06, -0.02), k); knF = mix(vec2(0.22, 0.55), vec2(0.06, 0.1), k);
-    thA = vec2(mix(0.05, 0.02, k)); thY = vec2(0.04); anF = mix(vec2(-0.35, -0.45), vec2(-0.65), k);
-    uaP = vec2(0.12, 0.12) * hov; uaA = vec2(0.28) * hov + vec2(0.0, 0.08) * k; elF = vec2(0.35) * hov + vec2(0.0, 0.2) * k; uaT = vec2(0.2); fgC = vec2(0.5);
-    // im schnellen Flug: rechte Faust voraus über den Kopf, linker Arm am Körper, Kopf gehoben in Flugrichtung
-    if (k > 0.02) {
-      vec3 Hf = vec3(-0.11, rTop + 0.47, 0.3);
+    // ---------- V33/V35: Alexander fliegt (nur der Spieler). actI = Tempo 0..1; die Neigung des ganzen Körpers kommt aus der Lage der Figur ----------
+    float k = clamp(actI, 0.0, 1.0), br = gPlayer * uPl[5].y, bo = gPlayer * uPl[5].z, bob = sin(uTime * 1.4), br2 = sin(uTime * 0.9), ankH = mix(0.09, rAnk, hMH);
+    // Schweben wie ein Herrscher über der Stadt: aufrecht, Brust heraus, Schultern zurück, Fäuste geballt ein wenig vom Körper;
+    // Beine geschlossen, das linke Knie leicht angewinkelt, Fußspitzen gestreckt; ruhiger Atem
+    thP = vec2(0.03, 0.2 + 0.04 * bob); knF = vec2(0.1, 0.42 + 0.05 * bob); thA = vec2(-0.025); thY = vec2(0.02); anF = vec2(-0.6, -0.7);
+    uaP = vec2(-0.1 + 0.03 * br2); uaA = vec2(0.36); elF = vec2(0.3); uaT = vec2(0.4); fgC = vec2(1.22); wrF = vec2(0.12);
+    spP = -0.1 - 0.015 * br2; nkP = -0.08 + 0.02 * bob; nkY = 0.22 * sin(uTime * 0.19); pvO.y = 0.012 * bob; pvR = 0.015 * sin(uTime * 0.7);
+    // schneller Flug: rechte Faust voraus über dem Kopf, linker Arm eng am Körper, Beine geschlossen und gestreckt, Kopf gehoben in Flugrichtung;
+    // im Schnellflug (Shift) alles noch straffer, der Fahrtwind zerrt an den Gliedern
+    if (k > 0.001) {
+      vec3 Hf = vec3(-0.1, rTop + 0.5, 0.2 - 0.08 * bo);
       float ap, aa, e, at; armIK(-1.0, Hf, 0.3, ap, aa, e, at);
-      uaP.x = mix(uaP.x, ap, k); uaA.x = mix(uaA.x, aa, k); elF.x = mix(elF.x, e, k); uaT.x = mix(uaT.x, at, k);
-      uaP.y = mix(uaP.y, -0.18, k); fgC.x = mix(0.5, 1.25, k);
+      float fl = 0.03 * k * sin(uTime * 21.0) * (0.4 + bo);
+      uaP.x = mix(uaP.x, ap, k); uaA.x = mix(uaA.x, aa, k); elF.x = mix(elF.x, e, k); uaT.x = mix(uaT.x, at, k); fgC.x = mix(fgC.x, 1.3, k);
+      uaP.y = mix(uaP.y, -0.3 - 0.12 * bo + fl, k); uaA.y = mix(uaA.y, 0.1 - 0.05 * bo, k); elF.y = mix(elF.y, 0.15, k); uaT.y = mix(uaT.y, 0.6, k);
+      thP = mix(thP, vec2(-0.05 + fl, 0.05 + 0.12 * (1.0 - bo) - fl), k); knF = mix(knF, vec2(0.04, 0.24 * (1.0 - bo)), k); thA = mix(thA, vec2(-0.03), k); anF = mix(anF, vec2(-0.85), k);
+      spP = mix(spP, -0.12, k); nkP = mix(nkP, -1.0, k); nkY *= 1.0 - k; pvO.y *= 1.0 - k;
     }
-    spP = -0.08 * k + 0.03 * hov; nkP = -0.9 * k + 0.03 * hov * bob; nkY = 0.25 * hov * sin(uTime * 0.21);
-    pvO.y = 0.015 * hov * bob; pvR = 0.02 * hov * sin(uTime * 0.9);
+    // scharf abbremsen: aufrichten, Beine nach vorn, Arme ausgebreitet, Hände offen
+    if (br > 0.001) {
+      thP = mix(thP, vec2(0.75, 0.55), br); knF = mix(knF, vec2(0.7, 0.95), br); anF = mix(anF, vec2(0.0), br);
+      uaP = mix(uaP, vec2(0.35), br); uaA = mix(uaA, vec2(1.05), br); elF = mix(elF, vec2(0.35), br); uaT = mix(uaT, vec2(-0.3), br); fgC = mix(fgC, vec2(0.15), br); spP = mix(spP, -0.18, br); nkP = mix(nkP, 0.1, br);
+    }
+    // Abheben vom Boden: tief in die Knie, Fäuste nach hinten, Blick nach oben; dann explosiv gestreckt, die rechte Faust voraus
+    float to = gPlayer * uPl[5].x;
+    if (to > 0.001) {
+      float cr = smoothstep(0.0, 0.2, to) * (1.0 - smoothstep(0.36, 0.5, to)), up = smoothstep(0.36, 0.52, to) * (1.0 - smoothstep(0.75, 1.0, to));
+      HPose b = poseGet();
+      pvO = vec3(0.0, -0.3, -0.06); pvP = 0.25; pvR = 0.0; pvY = 0.0;
+      legsTo(vec3(-hHx - 0.05, ankH, 0.04), vec3(hHx + 0.05, ankH, -0.06));
+      anF = vec2(knF.x - thP.x + pvP, knF.y - thP.y + pvP);
+      spP = 0.35; spR = 0.0; spY = 0.0; nkP = -0.55; nkY = 0.0; nkR = 0.0;
+      uaP = vec2(-0.45); uaA = vec2(0.22); elF = vec2(0.5); uaT = vec2(0.3); fgC = vec2(1.3); wrF = vec2(0.0);
+      poseOver(b, cr);
+      if (up > 0.001) {
+        vec3 Hu = vec3(-0.12, rTop + 0.55, 0.06); float ap, aa, e, at; armIK(-1.0, Hu, 0.3, ap, aa, e, at);
+        uaP.x = mix(uaP.x, ap, up); uaA.x = mix(uaA.x, aa, up); elF.x = mix(elF.x, e, up); uaT.x = mix(uaT.x, at, up); fgC.x = mix(fgC.x, 1.3, up);
+        uaP.y = mix(uaP.y, -0.25, up); uaA.y = mix(uaA.y, 0.18, up); elF.y = mix(elF.y, 0.2, up);
+        thP = mix(thP, vec2(-0.08, 0.1), up); knF = mix(knF, vec2(0.05, 0.25), up); anF = mix(anF, vec2(-0.9), up); spP = mix(spP, -0.1, up); nkP = mix(nkP, -0.35, up);
+      }
+    }
   } else if (act > 23.5 && act < 40.5) {
     // ---------- Arbeit und Steuer ----------
     poseStand(fem, gs); nkY *= 0.3;
@@ -549,6 +594,92 @@ void humanPose(float fem, float gs, float elder) {
   }
   // Ältere: gebeugt; gemächliche Leute lassen den Kopf etwas hängen
   spP += elder * (0.1 + 0.05 * walking); nkP += elder * 0.08 + step(0.33, gs) * (1.0 - step(0.66, gs)) * 0.06 * walking;
+}
+// ---------- V35: Alexanders eigene Bewegungen über der Grundhaltung (nur die Spielerfigur) ----------
+// uPl[1] Luft (Gewicht, Steigen -1..1, langer Sturz, kurz vor dem Aufprall), uPl[2] Landung (Zeit seit Aufprall, Heldenlandung, Federn),
+// uPl[3] Telekinese (Gewicht, schwer, Wurf 0..1, Zugriff 0..1), uPl[4] Richtung zum Gehaltenen im Körperraum + Anstrengung,
+// uPl[5] Flug (Abheben 0..1, Bremsen, Schnellflug, breiter Stand), uPl[6] Fahrtwind im Sturz
+void playerPose(float fem) {
+  float ankH = mix(0.09, rAnk, hMH), hx = hHx;
+  // ---------- Sprung und Sturz ----------
+  float airW = uPl[1].x;
+  if (airW > 0.001) {
+    HPose b = poseGet();
+    float rise = smoothstep(-0.15, 0.5, uPl[1].y), fall = uPl[1].z, prep = uPl[1].w, fl = uPl[6].x;
+    pvO = vec3(0.0); pvP = 0.0; pvR = 0.0; pvY = 0.0; spR = 0.0; spY = 0.0; nkY = 0.0; nkR = 0.0; thY = vec2(0.04); thA = vec2(0.03); wrF = vec2(0.0); fgP = vec2(0.0); uaT = vec2(0.25);
+    // abwärts: die Beine strecken sich dem Boden entgegen, die Arme gehen zur Seite
+    thP = vec2(0.32, 0.12); knF = vec2(0.5, 0.32); anF = vec2(-0.3);
+    uaP = vec2(0.3, 0.42); uaA = vec2(0.62, 0.55); elF = vec2(0.45, 0.6); fgC = vec2(0.6); spP = 0.06; nkP = 0.12;
+    // aufwärts: führendes Knie hoch, das andere Bein bleibt zurück, die Arme schwingen mit nach oben
+    thP = mix(thP, vec2(1.05, 0.12), rise); knF = mix(knF, vec2(1.45, 0.75), rise); anF = mix(anF, vec2(-0.45, -0.6), rise);
+    uaP = mix(uaP, vec2(0.95, 0.55), rise); uaA = mix(uaA, vec2(0.28), rise); elF = mix(elF, vec2(1.0, 0.8), rise); fgC = mix(fgC, vec2(0.85), rise); spP = mix(spP, 0.1, rise); nkP = mix(nkP, -0.12, rise);
+    // langer Sturz: er fällt, wie er es will: rechtes Bein gestreckt, linkes Knie angezogen, Fäuste schräg nach unten, Blick zum Boden; der Fahrtwind zerrt
+    if (fall > 0.001) {
+      float f1 = sin(uTime * 23.0) * fl, f2 = sin(uTime * 19.0 + 1.3) * fl;
+      thP = mix(thP, vec2(0.08 + 0.04 * f1, 0.95), fall); knF = mix(knF, vec2(0.12, 1.55), fall); anF = mix(anF, vec2(-0.55, -0.35), fall); thA = mix(thA, vec2(0.06, 0.02), fall);
+      uaP = mix(uaP, vec2(-0.2 + 0.06 * f1), fall); uaA = mix(uaA, vec2(0.8 + 0.07 * f2), fall); elF = mix(elF, vec2(0.3), fall); uaT = mix(uaT, vec2(0.35), fall); fgC = mix(fgC, vec2(1.28), fall);
+      spP = mix(spP, 0.04, fall); nkP = mix(nkP, 0.42, fall);
+    }
+    // kurz vor dem Aufprall: Knie hoch, die rechte Faust holt aus
+    if (prep > 0.001) {
+      thP = mix(thP, vec2(0.45, 0.85), prep); knF = mix(knF, vec2(1.0, 1.25), prep); anF = mix(anF, vec2(-0.6, -0.2), prep);
+      uaP.x = mix(uaP.x, -0.55, prep); uaA.x = mix(uaA.x, 0.35, prep); elF.x = mix(elF.x, 1.7, prep); uaT.x = mix(uaT.x, 0.3, prep); fgC.x = mix(fgC.x, 1.3, prep);
+      uaP.y = mix(uaP.y, -0.4, prep); uaA.y = mix(uaA.y, 1.0, prep); elF.y = mix(elF.y, 0.2, prep); fgC.y = mix(fgC.y, 0.2, prep);
+      spP = mix(spP, 0.28, prep); nkP = mix(nkP, 0.3, prep);
+    }
+    poseOver(b, airW);
+  }
+  // ---------- Heldenlandung: rechtes Knie am Boden, linker Fuß vorn, rechte Faust auf dem Pflaster, linker Arm weit nach hinten; Blick erst nach unten, dann hinauf ----------
+  float hero = uPl[2].y;
+  if (hero > 0.001) {
+    HPose b = poseGet();
+    float t = uPl[2].x, sq = 1.0 + 0.1 * exp(-t * 8.0) * sin(min(t * 16.0, 3.14159));
+    pvO = vec3(0.03, -0.47 * sq, -0.04); pvP = 0.32; pvR = 0.05; pvY = 0.22;
+    legsTo(vec3(-hx - 0.03, ankH + 0.05, -0.44), vec3(hx + 0.12, ankH, 0.4));
+    anF = vec2(-1.1, knF.y - thP.y + pvP); thY = vec2(0.05, -0.05);
+    spP = 0.55 + 0.3 * (sq - 1.0); spR = -0.04; spY = -0.16;
+    float lu = smoothstep(0.3, 0.85, t);
+    nkP = mix(0.3, -0.62, lu); nkY = 0.12 * lu; nkR = 0.0; jawO = 0.0;
+    armTo(-1.0, toTorso(vec3(-0.2, 0.12, 0.36)), 0.5); fgC.x = 1.3; wrF.x = 0.25;
+    uaP.y = -0.8; uaA.y = 0.85; elF.y = 0.22; uaT.y = 0.15; fgC.y = 0.12; wrF.y = -0.2; fgP = vec2(0.0);
+    poseOver(b, hero);
+  }
+  // kleine Landung: in die Knie federn
+  float dip = uPl[2].z;
+  if (dip > 0.001) { pvO.y -= 0.1 * dip; knF += vec2(0.32, 0.28) * dip; thP += vec2(0.18, 0.15) * dip; anF += vec2(0.12) * dip; spP += 0.1 * dip; nkP -= 0.05 * dip; uaA += 0.12 * dip; }
+  // ---------- Telekinese ----------
+  float tkW = uPl[3].x;
+  if (tkW > 0.001) {
+    HPose b = poseGet();
+    vec3 d = uPl[4].xyz; d.z = max(d.z, -0.15); d = normalize(d + vec3(0.0, 0.0, 1e-4));
+    float heavy = uPl[3].y, thr = uPl[3].z, grab = uPl[3].w, eff = uPl[4].w, brace = uPl[5].w;
+    float yaw = atan(d.x, d.z), pit = asin(clamp(d.y, -1.0, 1.0));
+    float tr = eff * (sin(uTime * 31.0) + 0.6 * sin(uTime * 47.0 + 1.0));   // Zittern vor Anstrengung
+    // im Stand: fester, breiter Stand, bei Schwerem tiefer
+    if (brace > 0.001) {
+      HPose b2 = poseGet();
+      pvO = vec3(0.0, -0.05 - 0.05 * heavy, 0.0); pvP = 0.04; pvR = 0.0; pvY = 0.18;
+      legsTo(vec3(-hx - 0.1, ankH, -0.18), vec3(hx + 0.09, ankH, 0.2));
+      anF = vec2(knF.x - thP.x + pvP, knF.y - thP.y + pvP); thY = vec2(0.1, 0.0);
+      poseOver(b2, brace);
+    }
+    // Oberkörper und Kopf zum Gehaltenen
+    spY = clamp(yaw * 0.35, -0.5, 0.5) - pvY * brace; spP = mix(spP, 0.05 + 0.1 * heavy, 0.8); spR = 0.0;
+    nkY = clamp(yaw - spY - pvY, -1.1, 1.1); nkP = clamp(-pit * 0.8 - spP - pvP, -0.8, 0.6); nkR = 0.0;
+    // Zugriff: die Hand stößt nach vorn und spreizt sich; Wurf: weit ausholen, dann mit der ganzen Schulter nach vorn
+    float g1 = clamp(grab, 0.0, 1.0), reach = mix(0.3, 0.58, smoothstep(0.0, 0.35, g1)) + 0.08 * sin(3.14159 * smoothstep(0.25, 0.9, g1));
+    float wu = smoothstep(0.0, 0.35, thr) * (1.0 - smoothstep(0.38, 0.5, thr)), st = smoothstep(0.38, 0.5, thr) * (1.0 - smoothstep(0.72, 1.0, thr));
+    spY += -0.45 * wu + 0.3 * st;
+    vec3 S = fromTorso(vec3(-rShX, rTop, rShZ)), Hr = S + d * reach + vec3(0.004, 0.006, 0.0) * tr;
+    Hr = mix(Hr, fromTorso(vec3(-0.34, rTop + 0.22, -0.2)), wu); Hr = mix(Hr, S + d * 0.7, st);
+    armTo(-1.0, toTorso(Hr), 0.2 + 0.3 * heavy);
+    fgC.x = mix(mix(1.3, 0.02, smoothstep(0.05, 0.3, g1)) + 0.05 * tr, 1.3, wu); fgP.x = 0.0; wrF.x = mix(-0.45, 0.2, wu);
+    // linke Hand: bei Leichtem zwei Finger an die Schläfe, bei Schwerem (Wagen, Menschen) beide Hände zum Ziel
+    vec3 Hl = mix(vec3(0.15, rHeadC - 0.01, rHeadZ + 0.1), toTorso(fromTorso(vec3(rShX, rTop, rShZ)) + normalize(d + vec3(0.2, -0.06, 0.0)) * (reach - 0.04) + vec3(-0.004, 0.006, 0.0) * tr), heavy);
+    armTo(1.0, Hl, mix(0.9, 0.3, heavy)); fgP.y = 1.0 - heavy; fgC.y = mix(0.9, 0.1 + 0.06 * tr, heavy); wrF.y = mix(0.2, -0.4, heavy);
+    jawO = 0.0;
+    poseOver(b, tkW);
+  }
 }
 // Drehung eines Arms (Oberarm-Winkel gewichtet)
 vec3 armRot(vec3 v, float sd, float ap, float aa, float at, float w) { return rX(rZ(rY(v, -sd * at * w), sd * aa * w), -ap * w); }
@@ -741,7 +872,26 @@ export const HUM_VS_RIG = `
     vec3 dC = cameraPosition - hIM[3].xyz;
     camB = vec3(dot(dC, hIM[0].xyz) / dot(hIM[0].xyz, hIM[0].xyz), dot(dC, hIM[1].xyz) / dot(hIM[1].xyz, hIM[1].xyz), dot(dC, hIM[2].xyz) / dot(hIM[2].xyz, hIM[2].xyz));
   }
-  humanPose(hFemV, hGs, hElder);
+  // V35: der Spieler blendet weich von seiner vorigen Haltung (uPl[0]: Handlung, Tempo, Gewicht, Schrittphase) in die jetzige.
+  // V36: nur im eigenen Shader der Spielerfigur (HUM_PLAYER). Die Schleife hat einen veränderlichen Anfang, damit der
+  // Windows-Shader-Übersetzer (ANGLE/Direct3D) sie nicht ausrollt und humanPose nicht doppelt einbaut; sonst dauert das
+  // Übersetzen am PC minutenlang und der Start bleibt bei "Menschen der Stadt werden eingekleidet" stehen.
+#ifdef HUM_PLAYER
+  {
+    float hFade = uPl[0].z, gPh0 = gPh; HPose hPrev = poseGet();
+    int i0 = hFade > 0.001 ? 0 : 1;
+    for (int i = i0; i < 2; i++) {
+      if (i == 0) { gG = vec4(aGait.x, uPl[0].x, uPl[0].y, aGait.w); gPh = uPl[0].w; }
+      else { gG = aGait; gPh = gPh0; }
+      humanPose(hFemV, hGs, hElder);
+      if (i == 0) hPrev = poseGet();
+    }
+    if (hFade > 0.001) poseMix(hPrev, hFade);
+    playerPose(hFemV);
+  }
+#else
+  gG = aGait; humanPose(hFemV, hGs, hElder);
+#endif
   float hSk = mod(aSoft.z, 16.0), hSw = aSoft.y;
   vec3 hP = position, hN = objectNormal;
   // Breite der Figur gilt nicht für den Kopf: Kopf und Hals behalten ihre Form
@@ -1020,6 +1170,10 @@ export const HUM_FS_COLOR = () => `
               float rib = sin(atan(p.x, p.z) * 120.0); hB = rib * 0.6 * aa; c *= 0.9 + 0.1 * rib; hRough = 0.95;
             } else if (fab < 12.5) {
               hMetal = 1.0; hRough = 0.3;
+            } else if (fab > 14.5) {
+              // V35: Lackleder: tiefschwarz, spiegelnd glatt; nur an der Kappe, wo der Fuß abrollt, ein paar weiche Knicke im Spiegelbild
+              float crease = sin(p.z * 260.0 + vN3(p * 40.0) * 4.0) * smoothstep(0.03, 0.06, p.y) * (1.0 - smoothstep(0.07, 0.1, p.y));
+              hB = crease * 0.05 * aa; c = vec3(0.012, 0.012, 0.015); c += vec3(0.05, 0.055, 0.06) * pow(1.0 - nv, 4.0); hRough = 0.06; hMetal = 0.0;
             } else {
               // Seidenstrümpfe: Haut schimmert durch, an den Rändern dichter
               c = mix(c, c * 0.75, 1.0 - nv); c += vec3(0.08, 0.06, 0.05) * pow(1.0 - nv, 3.0); hRough = 0.45;
@@ -1046,6 +1200,7 @@ export function humanShader(sh) {
   sh.uniforms.uTime = U.uTime; sh.uniforms.uFaces = { value: FACE_ATLAS }; sh.uniforms.uFaceMat = { value: FACE_MAT }; sh.uniforms.uWind = U.uWind;
   sh.uniforms.uPeople = { value: HRIG.tex || WHITE1 };
   sh.uniforms.uMocap = MOCAP.uTex; sh.uniforms.uMocapOn = MOCAP.uOn;
+  sh.uniforms.uPl = PL_U;
   sh.vertexShader = HUM_VS_HEAD() + sh.vertexShader
     .replace('#include <beginnormal_vertex>', '#include <beginnormal_vertex>\n' + HUM_VS_RIG)
     .replace('#include <begin_vertex>', '#include <begin_vertex>\n' + HUM_VS_POS);
@@ -1103,7 +1258,11 @@ export function getMats() {
   MAT.carPaint = snowy(carPaintMat(), 0.75, false);   // V30: Schnee auf Dach, Haube und Kotflügeln
   MAT.cloth = paintMat({ color: 0xffffff, metalness: 0, roughness: 0.85, envI: 0.25, emissive: 0x100905 });
   // V17: Skelett, Gesten, Tänze und Stoffe im Shader (humanShader)
-  { const pc = MAT.cloth.onBeforeCompile; MAT.cloth.onBeforeCompile = sh => { pc(sh); humanShader(sh); }; }
+  { const pc = MAT.cloth.onBeforeCompile; MAT.cloth.onBeforeCompile = sh => { pc(sh); humanShader(sh); }; MAT.cloth.customProgramCacheKey = () => 'human'; }
+  // V36: die Spielerfigur bekommt einen eigenen Shader mit Überblenden und Alexanders Bewegungen (HUM_PLAYER);
+  // die Menge bleibt schlank, so übersetzt der Grafiktreiber am PC die vielen Varianten der Menschen wieder schnell
+  MAT.clothPlayer = paintMat({ color: 0xffffff, metalness: 0, roughness: 0.85, envI: 0.25, emissive: 0x100905 });
+  { const pc = MAT.clothPlayer.onBeforeCompile; MAT.clothPlayer.onBeforeCompile = sh => { pc(sh); humanShader(sh); sh.vertexShader = '#define HUM_PLAYER\n' + sh.vertexShader; }; MAT.clothPlayer.customProgramCacheKey = () => 'humanPlayer'; }
   MAT.black = stdMat({ color: 0x0b0a0c, metalness: 0.2, roughness: 0.35, envI: 0.6 });
 }
 // Farbiges Zusammenfügen: jedes Teil bekommt eine Farbe; reines Weiß (1,1,1) wird später durch die Instanzfarbe ersetzt
