@@ -1,4 +1,5 @@
 import { registerLayer, chunkKey } from './chunks.js';
+import { decoPilaster } from './deco.js';
 import { shared, MOBILE, canvasTex, T, mulberry32, scene, pick, camera, R, rand, mergeGeos, U } from './core.js';
 import { addCollider, paintMat, mergeColored } from './people-skeleton.js';
 import { FL, addSeg, addGlow, addNeon, NEON, curbs, lamps, trees, steamPts, segs, towers, shafts, neons, spires, glowPts, roofs } from './facade-shader.js';
@@ -813,7 +814,8 @@ export function facadeRelief(cx, cz, sw, sd, y0, y1, style, tint, seed, edges, r
       const u = -L / 2 + margin + k * cellW;
       if (corner !== 'square' && Math.abs(u) > L / 2 - c - 0.5) continue;
       const px = ax ? cx + out * (sw / 2 + deep / 2) : cx + u, pz = ax ? cz + u : cz + out * (sd / 2 + deep / 2);
-      addSeg({ x: px, z: pz, w: ax ? deep : 0.7, d: ax ? 0.7 : deep, y0, y1, tint: pt, seed, style: 3, dens: 0, flood: 0.0, deco: DECO.g++ }, false);
+      const pil = { x: px, z: pz, w: ax ? deep : 0.7, d: ax ? 0.7 : deep, y0, y1, tint: pt, seed, style: 3, dens: 0, flood: 0.0, deco: DECO.g++ };
+      addSeg(pil, false); decoPilaster(pil, ax, out, deep, Math.hypot(cx, cz));   // V38: Kapitell und Sockel aus Gold und Bronze
     }
   }
   if (rr() < 0.7) {

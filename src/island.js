@@ -1,4 +1,5 @@
 import { shared, pick, R, rand, mulberry32, MOBILE, T, U, mergeGeos, scene } from './core.js';
+import { decoOuterDoor } from './deco.js';
 import { addCollider, stdMat } from './people-skeleton.js';
 import { STONES, addSeg, lamps, trees, addNeon, addGlow, NEON } from './facade-shader.js';
 import { BRICK, isFactoryZone, snapArrays, buildBlock, buildFactory } from './shops.js';
@@ -259,6 +260,7 @@ export function rotHouse(o) {
   const [ex, ez] = L(du, front - 0.3), nx = -s, nz = -c;   // Normale nach außen (lokal -z)
   DOORS.push({ x: ex + nx * 0.3, z: ez + nz * 0.3, nx, nz, kind: kind === 'home' ? 'shop' : kind });
   lamps.push({ x: ex + nx * 0.25 + c * 1.6, z: ez + nz * 0.25 - s * 1.6, h: 0, wall: true });
+  { const [wx, wz] = L(du, front); decoOuterDoor(wx, wz, nx, nz, worker, kind, tint); }   // V38: die Ringhäuser bekommen echte Türen (bisher nur ein Lichtfleck)
   OUTER.houses.push(o);
 }
 export const ENTRANCES = [];

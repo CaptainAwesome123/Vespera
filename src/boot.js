@@ -9,6 +9,7 @@ import './mocap.js';
 import './people-model.js';
 import './people-skeleton.js';
 import './facade-shader.js';
+import './deco.js';
 import './island.js';
 import './building-forms.js';
 import './shops.js';

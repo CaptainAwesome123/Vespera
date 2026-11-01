@@ -28,6 +28,7 @@ src/                der Spielcode als ES-Module, ein Abschnitt pro Datei
   people-skeleton.js  Skelett im Shader, Gang, Laufen, Tanzen, Sitzen (V18); Gelenkmaße je Körper (HRIG, V22)
   people-mh.js        Menschen aus MakeHuman (V22): lädt assets/people, setzt die Figuren je Kleidungsart zusammen
   facade-shader.js    Fassaden: Fenster, Goldbänder, Ladenzeilen, Flutlicht
+  deco.js             Fassadenschmuck als Chunk-Schicht (V38): Sonnenfächer, Goldfriese, Zinnen, Kapitelle, beleuchtete Vordächer, Laternen, Türen der Ringhäuser, Dachreklame, Wandreklame; Fassaden-Labor ?lab=fassade
   island.js           Stadtplan und Insel mit Ringstraße
   building-forms.js   Erker, Balkone, Arkaden, Haustüren (V19)
   shops.js            44 begehbare Läden (V19); ihre Meshes sind die erste Chunk-Schicht

@@ -5,6 +5,7 @@ import { BR_SPOTS } from './island.js';
 import { addArcade, addOriels, addBalconies, houseDoor } from './building-forms.js';
 import { BRICK, wantShop, shopFloor, tier, facadeRelief } from './shops.js';
 import { _m, _p, _q, _up, _s } from './traffic.js';
+import { decoPortal, decoCornice } from './deco.js';
 
 /* =====================================================================
    V16 · EINGÄNGE: Stufen aus Granit, verglaste Doppeltür mit Goldrahmen und
@@ -65,6 +66,7 @@ export function portal(cx, cz, sw, sd, edges, tint, rr, kind) {
   addGlow(fx + o[0] * 1.6, 4.3, fz + o[1] * 1.6, [1.2, 0.85, 0.45], 2.2);
   DOORS.push({ x: fx + o[0] * 0.3, z: fz + o[1] * 0.3, nx: o[0], nz: o[1], kind });
   PORTALS.push({ fx, fz, o, kind });
+  decoPortal(fx, fz, o, kind, tint[0] > tint[1] * 1.35, Math.hypot(cx, cz));   // V38: Sonnenfächer, Glühbirnen-Vordach, Pendelleuchten
 }
 /* ---------- Möbel: weich gerundete Modelle statt Kisten (Sessel, Sofas, Bistrostühle, runde Tische, Lampen) ---------- */
 export function roundBox(w, h, d, r, s = 3) {
@@ -211,6 +213,7 @@ export function decoBuilding(cx, cz, w, d, H, dist, edges, worker = false) {
     tier(cx, cz, sw, sd, y, form === 'twin' ? towerTop : y1, { tint, seed: seed + i, style, dens, flood: 0, rib }, corner, c);
     if (form === 'twin') y1 = towerTop;
     if (!worker || i === n - 1) tier(cx, cz, sw + 0.9, sd + 0.9, y1 - 0.8, y1 + 0.26 + (seed % 5) * 0.035, { tint: cTint, seed: seed + 50, style: 3, dens: 0, flood: 0 }, corner, bandC(corner, c, 0.9), false);
+    if (!worker && form !== 'twin') decoCornice(cx, cz, sw + 0.9, sd + 0.9, y1 + 0.26 + (seed % 5) * 0.035, 1.06 + (seed % 5) * 0.035, corner, bandC(corner, c, 0.9), dist < 520 ? 2 : 1, H > 60);   // V38: Zinnen und Goldfries
     if (!worker && i === 0 && H > 20) tier(cx, cz, sw + 0.5, sd + 0.5, 4.6, 5.38, { tint: tint.map(v => v * 1.2), seed: seed + 51, style: 3, dens: 0, flood: 0.3 }, corner, bandC(corner, c, 0.5), false);
     top = { x: cx, z: cz, w: sw, d: sd };
     if (i < n - 1 && rib[0] + rib[1] + rib[2] > 0 && form !== 'zig' && corner !== 'round') crownFins(cx, cz, sw, sd, y1, 3.5, rib);
@@ -388,6 +391,7 @@ export function rowHouses(cx, cz, w, d, H, dist, edges, worker, tint0, rr) {
     // Gesims (Breite leicht verschieden, damit Nachbargesimse nicht deckungsgleich liegen)
     const pad = 0.5 + 0.08 * (i % 3);
     addSeg({ x: px, z: pz, w: sw + pad, d: sd + pad, y0: h - 0.7, y1: h + 0.25, tint: tint.map(v => v * 1.18), seed: seed + 50, style: 3, dens: 0, flood: 0 }, false);
+    if (!worker) decoCornice(px, pz, sw + pad, sd + pad, h + 0.25, 0.95, 'square', 0, dist < 520 ? 2 : 1, false);
     if (!worker && h > 14) addSeg({ x: px, z: pz, w: sw + 0.36 + 0.04 * (i % 2), d: sd + 0.36 + 0.04 * (i % 2), y0: 4.6, y1: 5.2, tint: tint.map(v => v * 1.2), seed: seed + 51, style: 3, dens: 0, flood: 0.3 }, false);
     houseDoor(px, pz, sw, sd, e, tint, rr);
     const roof = rr();

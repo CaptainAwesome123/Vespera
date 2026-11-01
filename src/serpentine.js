@@ -1,4 +1,5 @@
 import { shared, canvasTex, mulberry32, T, mergeGeos, scene, MOBILE, U, pick, R, rand, camera, ANISO, FOG_GLSL, FOGVIS, snowy } from './core.js';
+import { planDeco } from './deco.js';
 import { personGeoHi, personShare, HQ } from './people-model.js';
 import { stdMat, MAT, addCollider, glowTex, paintMat, mergeColored, PAINT, personLook } from './people-skeleton.js';
 import { lamps, trees, addGlow, NEON, addNeon, addSeg, shafts, spires, neons, segs, dedupeSegs, facadeMat, glowPts, roofs, curbs } from './facade-shader.js';
@@ -1817,6 +1818,7 @@ export function flushInstances() {
   // Bäume
   buildTrees();
 
+  planDeco();   // V38: Dachreklame und Wandreklame planen (braucht die fertige Dachliste, vor den Lichtpunkten)
   buildRoofs();
   buildAwnings();
   buildParkedCars();

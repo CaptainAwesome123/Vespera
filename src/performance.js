@@ -89,7 +89,7 @@ export function updateDetails(dt) {
    Menschen und Autos (2 m), Möbel und Läden (5 m), Laternen und Bäume (10 m). Türme und Silhouette
    ragen aus dem Bodennebel heraus und bleiben immer stehen. Von oben (Flug, Villa) ist der Nebel dünn,
    dann greift nichts davon. */
-export const FOGCULL = { t: 0, low: new Set(['furniture', 'goods', 'shops', 'props']), tall: new Set(['lamps']), hidden: 0 };
+export const FOGCULL = { t: 0, low: new Set(['furniture', 'goods', 'shops', 'props', 'deco']), tall: new Set(['lamps', 'decoFar']), hidden: 0 };
 export function updateFogCull(dt) {
   if ((FOGCULL.t -= dt) > 0) return;
   FOGCULL.t = 0.3;
