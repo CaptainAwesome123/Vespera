@@ -6,6 +6,10 @@
    die gebauten Figuren: Gehen, Tanzen, Sitzen, Arbeiten, Ragdoll.
    Hüte, Requisiten, Werkzeuge, Mäntel, Abend- und Charlestonkleider kommen
    weiter aus personBuild und werden auf den neuen Körper gesetzt.
+   V39: jede Art hat ihr eigenes Set aus drei Frisuren (aus fünf je Geschlecht),
+   Herren tragen echte Fedoras aus MakeHuman, die Damen einen Pelzmantel (Art
+   'furcoat'); der Shader der Menge ist dafür nicht gewachsen, alles kommt aus
+   Netzen, Atlas und Daten.
    ===================================================================== */
 import { T, MOBILE, ANISO } from './core.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
@@ -53,20 +57,26 @@ export async function loadPeople() {
 
 /* ---------- Arten: welche Teile, welcher Stoffbereich im Atlas, was aus personBuild bleibt ---------- */
 const DARK_TROUSERS = [0.07, 0.07, 0.08], GLOVE_SATIN = [0.92, 0.9, 0.86];
+// V39: hair = drei Frisuren der Art (A short02 Tolle, B short04 glatt, C short01, D short03 Seitenscheitel, E afro01 kurze Locken;
+// Damen: A bob02, B bob01, C ponytail01, D long01 offen, E braid01 Zopf). mhHat = Hutvariante -> MakeHuman-Hut statt des gebauten
+// (Farbe des Filzes dazu). shoes2 = braune Halbschuhe (shoes04).
+const FED_DARK = [0.16, 0.14, 0.13], FED_BLACK = [0.05, 0.05, 0.06], FED_GREY = [0.24, 0.23, 0.22];
 export const MH_KIND = {
-  suit:      { g: 'm', parts: ['suit-m', 'shoes-m'], tile: 'suit', keep: ['hat', 'carry', 'props'] },
-  tux:       { g: 'm', parts: ['suit-m', 'shoes-m'], tile: 'tux', color: [0.025, 0.025, 0.03], keep: ['props'], shirt: true, bow: true },
-  livery:    { g: 'm', parts: ['suit-m', 'shoes-m'], tile: 'uniform', keep: ['hat', 'props'] },
-  police:    { g: 'm', parts: ['suit-m', 'boots-m'], tile: 'uniform', keep: ['hat', 'props'] },
-  chauffeur: { g: 'm', parts: ['suit-m', 'shoes-m'], tile: 'uniform', keep: ['hat', 'props'] },
-  waiter:    { g: 'm', parts: ['suit-m', 'shoes-m'], tile: 'waiter', keep: ['carry', 'props'], shirt: true, bow: true },
-  coat:      { g: 'm', parts: ['suit-m', 'shoes-m'], tile: 'suit', keep: ['body', 'hat', 'carry', 'props'], coat: true, cover: { from: 0.48, to: 1.45, mg: 0.022 } },
-  worker:    { g: 'm', parts: ['work-m', 'boots-m'], tile: 'work', keep: ['hat', 'props'] },
-  sailor:    { g: 'm', parts: ['work-m', 'boots-m'], tile: 'work', keep: ['hat', 'props'] },
-  kid:       { g: 'm', parts: ['work-m', 'boots-m'], tile: 'work', keep: ['hat', 'carry', 'props'] },
-  lady:      { g: 'f', parts: ['lady-f', 'heels-f'], tile: 'lady', keep: ['hat', 'carry', 'props'] },
-  gown:      { g: 'f', parts: ['heels-f'], keep: ['body', 'hat', 'props'], cover: { from: 0.02, to: 1.366, mg: 0.012 }, gloves: GLOVE_SATIN, longGloves: true },
-  dress:     { g: 'f', parts: ['heels-f'], keep: ['body', 'hat', 'props'], cover: { from: 0.42, to: 1.366, mg: 0.01 } },
+  suit:      { g: 'm', parts: ['suit-m', 'shoes-m'], tile: 'suit', keep: ['hat', 'carry', 'props'], hair: ['A', 'D', 'B'], mhHat: { 1: ['fedora-m', FED_DARK] } },
+  tux:       { g: 'm', parts: ['suit-m', 'shoes-m'], tile: 'tux', color: [0.025, 0.025, 0.03], keep: ['props'], shirt: true, bow: true, hair: ['B', 'D', 'A'] },
+  livery:    { g: 'm', parts: ['suit-m', 'shoes-m'], tile: 'uniform', keep: ['hat', 'props'], hair: ['B', 'A', 'D'] },
+  police:    { g: 'm', parts: ['suit-m', 'boots-m'], tile: 'uniform', keep: ['hat', 'props'], hair: ['B', 'C', 'D'] },
+  chauffeur: { g: 'm', parts: ['suit-m', 'shoes2-m'], tile: 'uniform', keep: ['hat', 'props'], hair: ['B', 'A', 'D'] },
+  waiter:    { g: 'm', parts: ['suit-m', 'shoes-m'], tile: 'waiter', keep: ['carry', 'props'], shirt: true, bow: true, hair: ['B', 'D', 'C'] },
+  coat:      { g: 'm', parts: ['suit-m', 'shoes2-m'], tile: 'suit', keep: ['body', 'hat', 'carry', 'props'], coat: true, cover: { from: 0.48, to: 1.45, mg: 0.022 }, hair: ['D', 'C', 'E'], mhHat: { 1: ['fedora-m', FED_BLACK], 3: ['fedora2-m', FED_GREY] } },
+  worker:    { g: 'm', parts: ['work-m', 'boots-m'], tile: 'work', keep: ['hat', 'props'], hair: ['C', 'E', 'A'] },
+  sailor:    { g: 'm', parts: ['work-m', 'boots-m'], tile: 'work', keep: ['hat', 'props'], hair: ['C', 'A', 'E'] },
+  kid:       { g: 'm', parts: ['work-m', 'boots-m'], tile: 'work', keep: ['hat', 'carry', 'props'], hair: ['A', 'C', 'D'] },
+  lady:      { g: 'f', parts: ['lady-f', 'heels-f'], tile: 'lady', keep: ['hat', 'carry', 'props'], hair: ['A', 'B', 'E'] },
+  gown:      { g: 'f', parts: ['heels-f'], keep: ['body', 'hat', 'props'], cover: { from: 0.02, to: 1.366, mg: 0.012 }, gloves: GLOVE_SATIN, longGloves: true, hair: ['A', 'B', 'D'] },
+  dress:     { g: 'f', parts: ['heels-f'], keep: ['body', 'hat', 'props'], cover: { from: 0.42, to: 1.366, mg: 0.01 } , hair: ['B', 'A', 'C'] },
+  // V39: Dame im langen Pelzmantel (Wintermantel mit Pelzkragen, -manschetten und -saum; Stoff in der Farbe der Figur), Hüte und Taschen wie das Kostüm
+  furcoat:   { g: 'f', parts: ['coat-f', 'heels-f'], tile: 'furcoat', keep: ['hat', 'carry', 'props'], build: 'lady', hair: ['A', 'B', 'C'] },
   // V24: der Spieler (nach den Referenzbildern): eigenes Gesicht, blondes Haar, weiße Rose am Revers, Einstecktuch
   // V32: im Smoking (Hemdbrust mit Biesen und Onyxknöpfen) mit schwarzer Fliege; Haar glatt zurückgekämmt
   player:    { g: 'm', body: 'p', parts: ['suit-m', 'shoes-m'], tile: 'tux', color: [0.025, 0.025, 0.03], keep: ['props'], player: true, shirt: true, bow: true },
@@ -237,8 +247,9 @@ export function mhPersonGeo(kind, q) {
   const meta = MHP.meta, RECT = meta.atlas.rect, AW = meta.atlas.w, AH = meta.atlas.h, TILE = meta.atlas.tile, hm = HATMASK[kind] || 0;
   // Zubehör aus personBuild (Hüte, Requisiten, Werkzeuge, Mäntel und Kleider)
   PB.mh = { rig, gloves: null }; let parts;
-  try { parts = personBuild(K.player ? 'tux' : kind, q); } finally { K._gloves = PB.mh.gloves; PB.mh = null; }
-  const keep = parts.filter(p => K.keep.includes(p[6]));
+  try { parts = personBuild(K.player ? 'tux' : K.build || kind, q); } finally { K._gloves = PB.mh.gloves; PB.mh = null; }
+  // V39: Hutvarianten, die ein MakeHuman-Hut ersetzt, fallen aus den gebauten Teilen (Ohrringe tragen Variante 0 und bleiben)
+  const keep = parts.filter(p => K.keep.includes(p[6]) && !(p[6] === 'hat' && K.mhHat && K.mhHat[p[4]]));
   const procHC = gk === 'f' ? 1.58 : 1.62, cf = collarFront(gk);
   for (const p of keep) {
     const g = p[0];
@@ -270,7 +281,7 @@ export function mhPersonGeo(kind, q) {
       const fu = o.face ? o.face(i) : null;
       if (fu) A.uv.push(fu[0], fu[1]); else A.uv.push(-1, -1);
       A.col.push(c[0], c[1], c[2]);
-      A.limb.push(src._limb[i * 2], src._limb[i * 2 + 1]); A.opt.push(o.opt0 ? 0 : src._opt[i]);
+      A.limb.push(src._limb[i * 2], src._limb[i * 2 + 1]); A.opt.push(o.opt0 ? 0 : o.opt != null ? o.opt : src._opt[i]);
       let sk = src._soft[i * 3 + 2]; if (sk === 1) sk += 16 * hm;
       A.soft.push(fab, src._soft[i * 3 + 1], sk);
       A.tuv.push(src.uv[i * 2] + du, src.uv[i * 2 + 1] + dv); A.tk.push(tk); A.bl.push(src._blend[i]);
@@ -287,14 +298,17 @@ export function mhPersonGeo(kind, q) {
   add(bodySrc, { isBody: true, face, drop: i => (bodySrc._hide[i] & mask) !== 0 || (inCover(bodySrc, i) && bodySrc._reg[i] !== 4 && bodySrc._reg[i] !== 5 && bodySrc._reg[i] !== 6 && bodySrc._reg[i] !== 1) });
   add(S('eyes-' + gk));
   if (K.player) add(S(`hairB-${gk}`), { opt0: true });       // V32: glatt zurückgekämmt mit Seitenscheitel (MakeHuman short04), immer
-  else for (const h of ['A', 'B', 'C']) add(S(`hair${h}-${gk}`));
+  else (K.hair || ['A', 'B', 'C']).forEach((h, i) => add(S(`hair${h}-${gk}`) || S(`hair${'ABC'[i]}-${gk}`), { opt: 11 + i }));   // V39: Frisur-Set der Art, Variante 11..13
+  // V39: Hüte aus MakeHuman (Filz in fester Farbe), sichtbar wie die gebauten über die Hutvariante der Figur
+  if (K.mhHat) for (const [v, [pn, col]] of Object.entries(K.mhHat)) add(S(pn), { opt: +v, color: col });
   add(S('brows-' + gk)); if (fine) add(S('lashes-' + gk));
   for (const pn of K.parts) {
     const src = S(pn); if (!src) continue;
     const o = {};
     if (pn === 'heels-f') o.color = [0.05, 0.04, 0.045];
     else if (pn === 'shoes-m' && K.player) { o.color = [0.014, 0.014, 0.017]; o.fab = FAB.patent; }   // V35: schwarze Lackschuhe
-    else if (pn === 'shoes-m' || pn === 'boots-m') o.color = NOPAINT;
+    else if (pn === 'shoes-m' || pn === 'boots-m' || pn === 'shoes2-m') o.color = NOPAINT;
+    else if (pn === 'coat-f') o.color = [1, 1, 1];                                              // V39: Mantelstoff in Figurenfarbe, Pelz aus dem Atlas
     else {
       const baseTile = pn === 'suit-m' ? 'suit' : pn === 'work-m' ? 'work' : 'lady', t = K.tile || baseTile;
       // V32: Smoking und Kellner: Hemdbrust ohne Krawatte statt der mit

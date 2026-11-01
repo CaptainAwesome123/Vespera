@@ -1,4 +1,6 @@
 // V22 · Figuren aus MakeHuman (CC0): Körper, Kleidung, Haare, Augen, Brauen, Wimpern.
+// V39: vier weitere Frisuren (short03, afro01, long01, braid01), echte Fedoras (zwei Formen), Pelzmantel der Damen
+// (Coat von punkduck, CC BY 3.0) und braune Herrenschuhe (shoes04); der Atlas wächst um eine Reihe auf 2048 x 3584.
 // V24: Gesichtsmerkmale (Brauen, Nase, Mund, Kinn) je Körper für die gemalten Gesichter; Spielerkörper 'p'
 // (Herrenkörper mit eigenen Gesichtszügen) mit Gesichtskachel aus einem Referenzbild (tools/people/player-ref.jpg).
 // Baut assets/people/people.glb (Netze in der Ruhehaltung des Spiels, mit Glied-Zuordnung),
@@ -56,6 +58,15 @@ const PARTS = {
   'hairA-f':   { body: 'f', src: 'hair/bob02', hair: true, sway: 0.7, bangs: true },
   'hairB-f':   { body: 'f', src: 'hair/bob01', hair: true, sway: 0.6, bangs: true },
   'hairC-f':   { body: 'f', src: 'hair/ponytail01', hair: true, sway: 0.8 },
+  // V39: weitere Frisuren (Seitenscheitel, kurze Locken, lang offen, Zopf), Hüte und Mantel aus MakeHuman, zweite Herrenschuhe
+  'hairD-m':   { body: 'm', src: 'hair/short03', hair: true },
+  'hairE-m':   { body: 'm', src: 'hair/afro01', hair: true },
+  'hairD-f':   { body: 'f', src: 'hair/long01', hair: true, sway: 0.9 },
+  'hairE-f':   { body: 'f', src: 'hair/Braid01', hair: true, sway: 0.5 },
+  'fedora-m':  { body: 'm', src: 'clothes/fedora', hat: true, fab: 'felt' },
+  'fedora2-m': { body: 'm', src: 'clothes/fedora_cocked', hat: true, fab: 'felt' },
+  'coat-f':    { body: 'f', src: 'clothes/Coat', fab: 'wool', skirt: true, furcoat: true },
+  'shoes2-m':  { body: 'm', src: 'clothes/shoes04', fab: 'leather' },
   'brows-m':   { body: 'm', src: 'eyebrows/eyebrow001', brow: true },
   'brows-f':   { body: 'f', src: 'eyebrows/eyebrow010', brow: true },
   'lashes-m':  { body: 'm', src: 'eyelashes/Eyelashes01', brow: true },
@@ -63,7 +74,7 @@ const PARTS = {
 };
 const FAB = { skin: 1, hair: 2, wool: 3, silk: 4, cotton: 5, leather: 6, fur: 7, felt: 8, straw: 9, sequin: 10, knit: 11, metal: 12, satin: 13, stock: 14 };
 // Atlas: 4 x 6 Kacheln zu 512 px. Haut: Kachel je Geschlecht und Alter/Herkunft (Auswahl im Shader); Reihe 5: Spieler
-const TILE = 512, AW = 4 * TILE, AH = 6 * TILE;
+const TILE = 512, AW = 4 * TILE, AH = 7 * TILE;   // V39: eine Reihe mehr
 const SKIN = {
   m: ['young_caucasian_male/textures/young_lightskinned_male_diffuse.png', 'middleage_caucasian_male/textures/middleage_lightskinned_male_diffuse.png', 'old_caucasian_male/textures/old_lightskinned_male_diffuse.png', 'young_african_male/textures/young_darkskinned_male_diffuse.png'],
   f: ['young_caucasian_female/textures/young_lightskinned_female_diffuse.png', 'middleage_caucasian_female/textures/middleage_lightskinned_female_diffuse.png', 'old_caucasian_female/textures/old_lightskinned_female_diffuse.png', 'young_african_female/textures/young_darkskinned_female_diffuse.png'],
@@ -78,6 +89,9 @@ const RECT = {
   hairA_m: [0, 4, 0.5, 0.5], hairB_m: [0.5, 4, 0.5, 0.5], hairC_m: [0, 4.5, 0.5, 0.5],
   hairA_f: [1, 4, 1, 1], hairB_f: [2, 4, 1, 1], hairC_f: [3, 4, 1, 1],
   skin_p: [0, 5, 1, 1], face_p: [1, 5, 1, 1],                      // Spieler: Körperhaut und Kopf in dreifacher Auflösung mit Gesicht
+  // V39
+  hairD_m: [0.5, 4.5, 0.5, 0.5], hairD_f: [2, 5, 1, 1], hairE_f: [3, 5, 1, 1],
+  furcoat: [0, 6, 1, 1], fedora: [1, 6, 0.5, 0.5], shoes2: [1.5, 6, 0.5, 0.5], hairE_m: [1, 6.5, 0.5, 0.5],
 };
 
 /* ---------------- Grunddaten ---------------- */
@@ -446,7 +460,8 @@ async function buildAtlas() {
   // Augen (braun; die Farbe der Iris wählt der Shader)
   { const r = rectPx(RECT.eyes); const b = await readRGBA(path.join(MH, 'eyes/materials/brown_eye.png'), r[2], r[3]); blit(b, RECT.eyes); }
   // Haare, Brauen, Wimpern: Grauwert (Strähnen) + Deckung
-  for (const [k, part] of [['hairA_m', 'hairA-m'], ['hairB_m', 'hairB-m'], ['hairC_m', 'hairC-m'], ['hairA_f', 'hairA-f'], ['hairB_f', 'hairB-f'], ['hairC_f', 'hairC-f'], ['brows_m', 'brows-m'], ['brows_f', 'brows-f'], ['lashes', 'lashes-m']]) {
+  for (const [k, part] of [['hairA_m', 'hairA-m'], ['hairB_m', 'hairB-m'], ['hairC_m', 'hairC-m'], ['hairA_f', 'hairA-f'], ['hairB_f', 'hairB-f'], ['hairC_f', 'hairC-f'], ['brows_m', 'brows-m'], ['brows_f', 'brows-f'], ['lashes', 'lashes-m'],
+    ['hairD_m', 'hairD-m'], ['hairE_m', 'hairE-m'], ['hairD_f', 'hairD-f'], ['hairE_f', 'hairE-f']]) {
     const r = rectPx(RECT[k]); const b = await readRGBA(parts[part].tex, r[2], r[3]);
     let s = 0, c = 0; for (let i = 0; i < b.length; i += 4) if (b[i + 3] > 128) { s += lum(b[i], b[i + 1], b[i + 2]); c++; }
     const kk = c ? 0.75 * 255 / (s / c) : 1;
@@ -455,6 +470,10 @@ async function buildAtlas() {
   }
   // Absatzschuhe: glattes Leder (Farbe kommt aus der Figur)
   { const [x0, y0, w, h] = rectPx(RECT.heels); for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const i = ((y0 + y) * AW + x0 + x) * 4; const g = 170 + 20 * Math.sin(x * 0.3) * Math.sin(y * 0.2); atlas[i] = atlas[i + 1] = atlas[i + 2] = g; atlas[i + 3] = 96; } }
+  // V39: Fedora (Filz, Farbe der Figur bzw. des Hutes), braune Herrenschuhe, Pelzmantel (blaugrauer Stoff wird gefärbt, Pelz und Schnalle bleiben)
+  { const r = rectPx(RECT.fedora); const b = await readRGBA(parts['fedora-m'].tex, r[2], r[3]); blit(paintMask(b, (bb, i) => bb[i + 3] > 10), RECT.fedora); }
+  { const r = rectPx(RECT.shoes2); const b = await readRGBA(parts['shoes2-m'].tex, r[2], r[3]); for (let i = 3; i < b.length; i += 4) b[i] = 255; blit(b, RECT.shoes2); }
+  { const b = await readRGBA(parts['coat-f'].tex, TILE, TILE); blit(paintMask(b, (bb, i) => bb[i + 3] > 10 && bb[i + 2] > bb[i] + 8), RECT.furcoat); }
   await playerTiles();
   // Ränder auffüllen: leere Texel bekommen die Farbe des nächsten Nachbarn (keine Säume beim Mipmapping)
   dilate(atlas, AW, AH, 4);
@@ -477,13 +496,17 @@ function dilate(buf, w, h, n) {
 const meshes = {}, HEADP = {};
 function addMesh(name, m) { meshes[name] = m; }
 // Körper: Verdeckung je Kleidungsstück als Bitmaske über die Grundnetz-Ecken
-const HIDEBIT = { 'suit-m': 1, 'work-m': 2, 'shoes-m': 4, 'boots-m': 8, 'lady-f': 16, 'heels-f': 32 };
+const HIDEBIT = { 'suit-m': 1, 'work-m': 2, 'shoes-m': 4, 'boots-m': 8, 'lady-f': 16, 'heels-f': 32, 'coat-f': 128, 'shoes2-m': 256 };   // 64: Krawatte im Anzug (eigenes Netz)
 for (const [gk, B] of Object.entries(bodies)) {
   const { U, pos } = B, n = U.vid.length, ws = U.vid.map(b => W[b]);
   const la = limbAttrs(ws, pos, gk);
   const hide = new Uint16Array(n);
   const clothOf = gk === 'p' ? 'm' : gk;            // der Spieler trägt die Herrenkleidung
-  for (const [pn, bit] of Object.entries(HIDEBIT)) { const P = parts[pn]; if (!P || P.def.body !== clothOf || !P.del) continue; for (let i = 0; i < n; i++) if (P.del[U.vid[i]]) hide[i] |= bit; }
+  for (const [pn, bit] of Object.entries(HIDEBIT)) { const P = parts[pn]; if (!P || P.def.body !== clothOf) continue; const del = P.del || (pn === 'shoes2-m' ? parts['shoes-m'].del : null); if (!del) continue; for (let i = 0; i < n; i++) if (del[U.vid[i]]) hide[i] |= bit; }
+  // V39: der Pelzmantel bringt keine Verdeckungsliste mit: Rumpf, Arme und Beine oberhalb des Saums (plus Rand) fallen unter ihm weg
+  if (gk === 'f' && parts['coat-f']) { let hem = 1e9; const cp = parts['coat-f'].pos; for (let i = 1; i < cp.length; i += 3) hem = Math.min(hem, cp[i]);
+    for (let i = 0; i < n; i++) { const r = la.reg[i], y = pos[i * 3 + 1]; if ((r === 3 || r === 4 || r === 5 || r === 7 || r === 8) && y > hem + 0.03 && y < RIG.f.top + 0.03) hide[i] |= HIDEBIT['coat-f']; }
+    console.log('Pelzmantel: Saum bei', hem.toFixed(3)); }
   const nrm = normals(pos, U.idx, U.vid);
   let uv, tex;
   if (gk === 'p') {
@@ -532,7 +555,8 @@ function eyeMesh(B, gk) {
 for (const [name, P] of Object.entries(parts)) {
   const def = P.def, gk = def.body, n = P.U.vid.length;
   const la = limbAttrs(P.w, P.pos, gk);
-  const rk = { 'suit-m': 'suit', 'work-m': 'work', 'shoes-m': 'shoes', 'boots-m': 'boots', 'lady-f': 'lady', 'brows-m': 'brows_m', 'brows-f': 'brows_f', 'lashes-m': 'lashes', 'lashes-f': 'lashes' }[name] || name.replace('-', '_');
+  const rk = { 'suit-m': 'suit', 'work-m': 'work', 'shoes-m': 'shoes', 'boots-m': 'boots', 'lady-f': 'lady', 'brows-m': 'brows_m', 'brows-f': 'brows_f', 'lashes-m': 'lashes', 'lashes-f': 'lashes',
+    'fedora-m': 'fedora', 'fedora2-m': 'fedora', 'coat-f': 'furcoat', 'shoes2-m': 'shoes2' }[name] || name.replace('-', '_');
   const uv = toAtlasUV(P.U.uv, RECT[rk]);
   const kindTex = def.hair ? 3 : def.brow ? 5 : 1;
   const soft = new Float32Array(n * 3), opt = new Float32Array(n);
@@ -541,8 +565,15 @@ for (const [name, P] of Object.entries(parts)) {
   // Bubikopf mit geradem Pony: was vor dem Gesicht unter die Brauen fällt, wird auf Brauenhöhe gekürzt
   if (def.bangs) { const cut = rig.eye[1] + 0.032, zf = rig.eye[2] - 0.035;
     for (let i = 0; i < n; i++) { const x = P.pos[i * 3], y = P.pos[i * 3 + 1], z = P.pos[i * 3 + 2]; if (z > zf && Math.abs(x) < 0.082 && y < cut && y > rig.eye[1] - 0.2) P.pos[i * 3 + 1] = cut + (y - cut) * 0.04; } }
+  // V39: Hüte: der Shader staucht das Haar unter dem Hut nur um 10 %, die MakeHuman-Krone liegt aber eng am Kopf (12,7 cm über der
+  // Kopfmitte, Haar bis 13,6 cm): die Krone wird höher (x 1,3) und weiter (x 1,15), weich ab der Krempe, die Krempe bleibt
+  if (def.hat) { const hc = rig.headC, hz = rig.headZ, sst = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+    for (let i = 0; i < n; i++) { const y = P.pos[i * 3 + 1], k = sst(hc + 0.015, hc + 0.06, y); P.pos[i * 3] *= 1 + 0.15 * k; P.pos[i * 3 + 2] = hz + (P.pos[i * 3 + 2] - hz) * (1 + 0.15 * k); P.pos[i * 3 + 1] = y + (y - hc - 0.035) * 0.3 * k; } }
+  const coatPix = def.furcoat ? await readRGBA(P.tex, TILE, TILE) : null;
   for (let i = 0; i < n; i++) {
     soft[i * 3] = fab;
+    if (coatPix) { const u = P.U.uv[i * 2], v = P.U.uv[i * 2 + 1], k = ((Math.min(TILE - 1, Math.max(0, Math.floor((1 - v) * TILE)))) * TILE + Math.min(TILE - 1, Math.max(0, Math.floor(u * TILE)))) * 4;
+      if (!(coatPix[k + 2] > coatPix[k] + 8) && coatPix[k + 3] > 10) soft[i * 3] = FAB.fur; }
     if (def.hair) {
       // Haar: schwingt unterhalb der Kopfmitte nach; Art 1 = Haar (unter dem Hut zusammengedrückt)
       const y = P.pos[i * 3 + 1]; soft[i * 3 + 1] = (def.sway || 0.3) * Math.min(1, Math.max(0, (rig.headC - y) / 0.15)); soft[i * 3 + 2] = 1;
@@ -597,6 +628,8 @@ for (const [name, P] of Object.entries(parts)) {
   addMesh('heels-f', { pos: Float32Array.from(P), nrm: Float32Array.from(N), uv, tex: new Float32Array(m).fill(1), idx: Uint32Array.from(ids), limb: Float32Array.from(L), blend, reg, soft, opt: new Float32Array(m), paint: true });
 }
 
+// V39: Höhen von Hüten und Frisuren über der Kopfmitte (Haar unter dem Hut wird im Shader nur um 10 % gestaucht)
+for (const k of ['fedora-m', 'fedora2-m', 'hairA-m', 'hairB-m', 'hairC-m', 'hairD-m', 'hairE-m', 'hairA-f', 'hairB-f', 'hairD-f', 'hairE-f']) { const m = meshes[k]; if (!m) continue; let y = -1e9, r = 0; const hc = RIG[k.endsWith('-f') ? 'f' : 'm'].headC; for (let i = 0; i < m.pos.length; i += 3) { y = Math.max(y, m.pos[i + 1]); if (m.pos[i + 1] > hc + 0.02) r = Math.max(r, Math.hypot(m.pos[i], m.pos[i + 2] - RIG.m.headZ)); } console.log(k, 'oben', (y - hc).toFixed(3), 'Radius', r.toFixed(3)); }
 /* ---------------- Detailstufe 1: vereinfacht ---------------- */
 function simplify(m, ratio, err = 0.02) {
   const target = Math.max(3, Math.floor(m.idx.length * ratio / 3) * 3);
@@ -606,7 +639,8 @@ function simplify(m, ratio, err = 0.02) {
 // Ziel: höchstens etwa 6000 Dreiecke je Figur in der mittleren Stufe (bis 45 m stehen oft hunderte Figuren);
 // Haare dürfen gröber werden (Fehler 0.05), in dem Abstand sieht man nur noch die Form
 const LOD1 = { 'shirt-m': 0.5, 'body-m': 0.15, 'body-f': 0.15, 'body-p': 0.3, 'suit-m': 0.18, 'work-m': 0.25, 'lady-f': 0.3, 'shoes-m': 0.15, 'boots-m': 0.2, 'heels-f': 0.25, 'eyes-m': 1, 'eyes-f': 1,
-  'hairA-m': 0.3, 'hairB-m': 0.4, 'hairC-m': 0.25, 'hairA-f': 0.3, 'hairB-f': 0.15, 'hairC-f': 0.2 };
+  'hairA-m': 0.3, 'hairB-m': 0.4, 'hairC-m': 0.25, 'hairA-f': 0.3, 'hairB-f': 0.15, 'hairC-f': 0.2,
+  'hairD-m': 0.3, 'hairE-m': 0.2, 'hairD-f': 0.2, 'hairE-f': 0.15, 'fedora-m': 0.3, 'fedora2-m': 0.3, 'coat-f': 0.18, 'shoes2-m': 0.15 };
 for (const [k, r] of Object.entries(LOD1)) if (meshes[k]) meshes[k + '@1'] = r < 1 ? simplify(meshes[k], r, /^hair/.test(k) ? 0.05 : 0.02) : meshes[k];
 
 /* ---------------- Vorschau ---------------- */

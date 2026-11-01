@@ -1223,10 +1223,12 @@ export function humanShader(sh) {
 }
 
 // Aussehen einer Figur in einer Zahl: Gesicht (0-63), Hautton (5), Haarfarbe (6)
+// V39: Haarfarbe passt zu Haut und Alter: dunkle Haut hat dunkles Haar, ältere Gesichter (FACE_TRAIT) werden oft grau
 export function personLook(kind) {
-  const female = kind === 'lady' || kind === 'gown' || kind === 'dress';
+  const female = kind === 'lady' || kind === 'gown' || kind === 'dress' || kind === 'furcoat';
   const face = Math.floor(Math.random() * 32) + (female ? 32 : 0);
-  const tone = [0, 0, 1, 1, 1, 2, 2, 3, 4][Math.floor(Math.random() * 9)], hair = Math.floor(Math.random() * 6);
+  const tone = [0, 0, 1, 1, 1, 2, 2, 3, 4][Math.floor(Math.random() * 9)], age = (face * 0.754877 + 0.13) % 1, r = Math.random();
+  const hair = age > 0.82 ? (r < 0.55 ? 4 : r < 0.8 ? 0 : 5) : tone >= 3 ? (r < 0.6 ? 0 : r < 0.85 ? 5 : 1) : tone === 2 ? (r < 0.4 ? 0 : r < 0.7 ? 5 : r < 0.85 ? 1 : 3) : Math.floor(r * 6);
   // Stoffmuster: 0 glatt, 1 Nadelstreifen, 2 Tweed, 3 Glencheck; Abendgarderobe und Livree bleiben glatt
   const pat = kind === 'gown' || kind === 'tux' || kind === 'livery' || kind === 'police' || kind === 'waiter' || kind === 'sailor' || kind === 'chauffeur' ? 0 : [0, 1, 1, 2, 2, 3][Math.floor(Math.random() * 6)];
   // Hutvariante, Frisur, Krawatte: je drei Möglichkeiten; ohne Hut eher in Abendgarderobe

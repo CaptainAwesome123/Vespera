@@ -66,7 +66,7 @@ export const _gv = new T.Vector3(), _gS = new T.Vector3(), _gP = new T.Vector3()
 // Anfahren: Figur wird zur Puppe; Wagengeschwindigkeit geht vor allem in die Beine
 export function ragStart(pd, B) {
   const s = ragSlot(); if (!s) return false;
-  const a = pd.a, fem = a.kind === 'lady' || a.kind === 'gown' || a.kind === 'dress', J = ragJoints(fem), sub = ragSub(a.kind);
+  const a = pd.a, fem = a.kind === 'lady' || a.kind === 'gown' || a.kind === 'dress' || a.kind === 'furcoat', J = ragJoints(fem), sub = ragSub(a.kind);
   if (pd.st === 7) { const P = pd.mp; endMeet(pd); if (P) endMeet(P); }
   a.m.decompose(_gP, _gQ, _gS);
   const sp = Math.hypot(B.vx, B.vz), ux = B.vx / sp, uz = B.vz / sp;
