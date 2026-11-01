@@ -263,7 +263,6 @@ export function mhPersonGeo(kind, q) {
     const inv = new Int32Array(k); for (let i = 0; i < n; i++) if (map[i] >= 0) inv[map[i]] = i;
     for (let j = 0; j < k; j++) {
       const i = inv[j]; let c = o.color ? (typeof o.color === 'function' ? o.color(i) : o.color) : NOPAINT, tk = src._texk[i], fab = src._soft[i * 3];
-      if (o.fab) { tk = 0; fab = o.fab; }
       if (glove && src._reg && (src._reg[i] === 6 || (K.longGloves && src._reg[i] === 5)) && o.isBody) { c = glove; tk = 0; fab = glove === GLOVE_SATIN ? FAB.satin : FAB.leather; }
       A.pos.push(src.position[i * 3], src.position[i * 3 + 1], src.position[i * 3 + 2]);
       A.nrm.push(src.normal[i * 3], src.normal[i * 3 + 1], src.normal[i * 3 + 2]);
@@ -293,7 +292,6 @@ export function mhPersonGeo(kind, q) {
     const src = S(pn); if (!src) continue;
     const o = {};
     if (pn === 'heels-f') o.color = [0.05, 0.04, 0.045];
-    else if (pn === 'shoes-m' && K.player) { o.color = [0.014, 0.014, 0.017]; o.fab = FAB.patent; }   // V35: schwarze Lackschuhe
     else if (pn === 'shoes-m' || pn === 'boots-m') o.color = NOPAINT;
     else {
       const baseTile = pn === 'suit-m' ? 'suit' : pn === 'work-m' ? 'work' : 'lady', t = K.tile || baseTile;

@@ -21,10 +21,10 @@ const [,, url = 'http://localhost:8765/', out = 'lab', views = 'alle', time = '1
   catch (e) { console.log('kein Bild:', logs.join('\n')); await b.close(); process.exit(1); }
   console.log('Labor bereit nach', Date.now() - t0, 'ms');
   for (const v of views.split(',')) {
-    const [nv, tt] = v.split('@'), [name, pose] = nv.split('#');   // V35: ansicht#pose (Alexanders Bewegungen, siehe LAB.poses)
-    await p.evaluate(([n, t, ps]) => { window.labView(n); if (ps && window.labPose) window.labPose(ps); if (t) window.labTime(+t); window.labFrames = 0; }, [name, tt, pose]);
+    const [name, tt] = v.split('@');
+    await p.evaluate(([n, t]) => { window.labView(n); if (t) window.labTime(+t); window.labFrames = 0; }, [name, tt]);
     await p.waitForFunction(() => window.labFrames > 1, null, { timeout: 120000, polling: 200 });
-    await p.screenshot({ path: `${out}-${name}${pose ? '-' + pose : ''}${tt ? '-' + tt : ''}.png`, timeout: 120000 });
+    await p.screenshot({ path: `${out}-${name}${tt ? '-' + tt : ''}.png`, timeout: 120000 });
     console.log(name, Date.now() - t0, 'ms');
   }
   console.log(logs.join('\n') || 'keine Fehler');

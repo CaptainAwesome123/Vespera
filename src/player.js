@@ -11,7 +11,7 @@ import { LOOSE } from './physics.js';
 import { peds, turnHead } from './serpentine.js';
 import { knockDown } from './ragdoll.js';
 import { toast } from './boat.js';
-import { landed, flightBump, heroLock, takeoffHold } from './powers.js';
+import { superLanding, flightBump } from './powers.js';
 
 /* =====================================================================
    SPIELER: Gehen mit Schwerkraft, Fliegen frei im Raum
@@ -85,7 +85,6 @@ export function updatePlayer(dt) {
   // am Tisch sitzen: jede Bewegung steht auf
   if (DINE.seat) { if ((Math.abs(fwd) + Math.abs(side) > 0.3 || player.fly)) standUp(); else return; }
   const fast = keys.ShiftLeft || keys.ShiftRight;
-  if (player.fly && takeoffHold()) { player.v.set(0, 0, 0); return; }   // V35: Alexander geht vor dem Abheben in die Knie
   if (player.fly) {
     // V33: Alexander fliegt (Kraft des Meteoritenkristalls): schweben ohne Eingabe, Leertaste steigt, C/Q/Strg sinkt, Shift ist schnell
     _f.set(-Math.sin(player.yaw) * Math.cos(player.pitch), Math.sin(player.pitch), -Math.cos(player.yaw) * Math.cos(player.pitch));
@@ -110,7 +109,7 @@ export function updatePlayer(dt) {
     const hsp = Math.hypot(player.v.x, player.v.z);
     if (player.p.y - g < 0.45 && (down || touch.down || vy0 < -3) && hsp < 14 && g > WATER_Y + 0.4) {
       player.p.y = g; player.fly = false; player.onGround = true; player.v.y = 0;
-      landed(-vy0);   // V35: aus dem Sinkflug weich, aus dem Sturzflug als Heldenlandung
+      if (-vy0 > 14) superLanding(-vy0);
     }
   } else {
     _f.set(-Math.sin(player.yaw), 0, -Math.cos(player.yaw));
@@ -119,20 +118,17 @@ export function updatePlayer(dt) {
     if (_w.lengthSq() > 1) _w.normalize();
     // V26: mit großen, schweren Dingen in den Armen langsamer
     const H = LOOSE.held, heavy = H && !H.small ? Math.min(1, H.m / 14) : 0;
-    // V35: nach der Heldenlandung kniet er kurz; wer losgehen will, lässt ihn früher aufstehen
-    const lk = heroLock(Math.abs(fwd) + Math.abs(side) > 0.1 || !!keys.Space);
-    const sp = ((H && !H.small) ? (fast ? 4.2 : 3.4) - heavy * 1.2 : fast ? 13 : 5.2) * (1 - lk);
+    const sp = H && !H.small ? (fast ? 4.2 : 3.4) - heavy * 1.2 : fast ? 13 : 5.2;
     const k = 1 - Math.exp(-dt * (player.onGround ? 10 : 2));
     player.v.x += (_w.x * sp - player.v.x) * k;
     player.v.z += (_w.z * sp - player.v.z) * k;
     player.v.y = Math.max(player.v.y - 22 * dt, -70);
-    if ((keys.Space) && player.onGround && lk < 0.3) { player.v.y = 7.2; player.onGround = false; }
+    if ((keys.Space) && player.onGround) { player.v.y = 7.2; player.onGround = false; }
     player.p.addScaledVector(player.v, dt);
     bumpPeople(dt);
     const g = collide(player.p, false);
     // V33: unverwundbar: ein Sturz aus jeder Höhe endet in einer Landung, die den Schnee aufwirbelt
-    player.gy = g;
-    if (player.p.y <= g) { if (!player.onGround && player.v.y < -2) landed(-player.v.y); player.p.y = g; player.v.y = 0; player.onGround = true; }
+    if (player.p.y <= g) { if (player.v.y < -14 && !player.onGround) superLanding(-player.v.y); player.p.y = g; player.v.y = 0; player.onGround = true; }
     else player.onGround = player.p.y - g < 0.05;
     if (player.onGround) player.on = collideOn;
     // Ins Wasser gefallen: nach kurzer Zeit die nächste Leiter hinauf ans Ufer der Stadtinsel

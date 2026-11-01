@@ -90,17 +90,6 @@ const SPOTS = [
       out.camBehind = r2(V.camera.position.distanceTo(V.player.p));
       V.player.p.set(0, 40, 118); V.player.v.set(0, -40, 0); P.stopFlight(); await wait(1500);
       out.landed = V.player.onGround; out.shake = r2(P.shake); out.flyAfter = V.player.fly;
-      out.hero = !!P.hero || out.landed; out.heroW = r2(V.playerModel.heroW || 0);
-      // V35: einen Passanten mit Telekinese heben, sanft absetzen
-      await wait(1500);
-      const pp = V.player.p, pd = P.pedList().filter(q => q.a && q.a.on && !q.rag && !q.sit).map(q => [q, Math.hypot(q.a.m.elements[12] - pp.x, q.a.m.elements[14] - pp.z)]).sort((a, b) => a[1] - b[1])[0];
-      if (pd) {
-        const e = pd[0].a.m.elements; V.player.p.set(e[12] - 4, e[13], e[14]); V.player.yaw = Math.PI / 2; V.player.pitch = 0.06; await wait(400);
-        const e2 = pd[0].a.m.elements, cp = V.camera.position, dx = e2[12] - cp.x, dy = e2[13] + 1 - cp.y, dz = e2[14] - cp.z;
-        V.player.yaw = Math.atan2(-dx, -dz); V.player.pitch = Math.atan2(dy, Math.hypot(dx, dz)); await wait(400);
-        out.pedGrab = P.tkGrab(); out.pedKind = P.tk && P.tk.kind;
-        if (P.tk && P.tk.kind === 'ped') { const S = P.tk.S, y0 = S.p[0][1]; V.player.pitch += 0.25; await wait(2000); out.pedLift = r2(S.p[0][1] - y0); P.tkRelease(false); await wait(6000); out.pedPhase = S.busy ? S.ph : 'frei'; }
-      }
       V.playerModel.view = 'first';
       return JSON.stringify(out);
     }));

@@ -10,7 +10,7 @@ import { COL } from './serpentine.js';
    ===================================================================== */
 export const HQ = { near2: (MOBILE ? 7 : 11) ** 2, cache: new Map() };
 // Stoffarten für den Shader
-export const FAB = { skin: 1, hair: 2, wool: 3, silk: 4, cotton: 5, leather: 6, fur: 7, felt: 8, straw: 9, sequin: 10, knit: 11, metal: 12, satin: 13, stock: 14, patent: 15 };   // V35: Lack (Alexanders Schuhe)
+export const FAB = { skin: 1, hair: 2, wool: 3, silk: 4, cotton: 5, leather: 6, fur: 7, felt: 8, straw: 9, sequin: 10, knit: 11, metal: 12, satin: 13, stock: 14 };
 // Schwungarten: 1 Haar, 2 Rock, 3 Fransen, 4 Mantelschoß, 5 Kette, 6 Krawatte
 // Gesichtsmerkmale relativ zur Kopfmitte: Atlas und Modell benutzen dieselben Werte
 export const HL = { eyeX: 0.031, eyeY: -0.005, browY: 0.018, noseY: -0.039, mouthY: -0.064, chinY: -0.101, fw: 0.17, fh: 0.2, fy: -0.02 };

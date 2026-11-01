@@ -9,7 +9,6 @@ import { T, scene, camera, renderer, U, $ } from './core.js';
 import { buildEnv, getMats } from './people-skeleton.js';
 import { Crowd, GOWNS, DRESSES, COATS } from './serpentine.js';
 import { buildPlayerModel, PM } from './player-model.js';
-import { PL_U } from './people-skeleton.js';
 
 export const LAB = { crowd: null, t: null, views: {} };
 export function startLab(params) {
@@ -59,22 +58,6 @@ export function startLab(params) {
     haende2: [[-1.05, 1.05, 0.8], [-0.75, 0.85, 0.0]],
     laeufer: [[-3.0, 1.0, 3.1], [-3.0, 0.95, 1.5]],
   };
-  // V35: Alexanders Bewegungen als Standbild (?pose=... oder window.labPose(name)); u: [Platz im uPl, x, y, z, w]
-  LAB.poses = {
-    stand: { act: 0 }, landung: { act: 0, u: [[2, 1.0, 1, 0, 0]] }, aufprall: { act: 0, u: [[2, 0.08, 1, 0, 0]] },
-    tk: { act: 0, u: [[3, 1, 0, 0, 1], [4, 0.35, 0.15, 0.92, 0.1], [5, 0, 0, 0, 1]] }, tkschwer: { act: 0, u: [[3, 1, 1, 0, 1], [4, 0.1, 0.3, 0.95, 0.5], [5, 0, 0, 0, 1]] },
-    wurf: { act: 0, u: [[3, 1, 0, 0.25, 1], [4, 0.2, 0.1, 0.97, 0.1], [5, 0, 0, 0, 1]] }, sturz: { act: 0, u: [[1, 1, -1, 1, 0]] }, aufprallvor: { act: 0, u: [[1, 1, -1, 1, 1]] },
-    sprung: { act: 0, u: [[1, 1, 0.8, 0, 0]] }, abheben: { act: 43, u: [[5, 0.25, 0, 0, 0]] }, start: { act: 43, u: [[5, 0.55, 0, 0, 0]] },
-    schweben: { act: 43 }, flug: { act: 43.99, pitch: 1.5 }, bremsen: { act: 43.5, u: [[5, 0, 1, 0, 0]] },
-  };
-  window.labPose = name => {
-    const P = LAB.poses[name] || LAB.poses.stand;
-    for (const v of PL_U.value) v.set(0, 0, 0, 0);
-    for (const [i, x, y, z, w] of P.u || []) PL_U.value[i].set(x, y, z, w);
-    if (PM.mesh) PM.place(0, P.act >= 43 && P.pitch ? 0.6 : P.act >= 43 ? 0.3 : 0, 2.2, 0, { act: P.act, pitch: P.pitch || 0 });
-  };
-  if (params.get('pose')) window.labPose(params.get('pose'));
-  Object.assign(LAB.views, { spielerseite: [[3.4, 1.0, 2.2], [0, 0.8, 2.2]], spielerschraeg: [[2.6, 1.4, 4.6], [0, 0.8, 2.2]] });
   LAB.t = params.get('t') != null ? +params.get('t') : null;
   window.labView = name => { const v = LAB.views[name] || LAB.views.alle; camera.position.set(...v[0]); camera.lookAt(...v[1]); C.flag(); };
   window.labTime = t => { LAB.t = t; };
