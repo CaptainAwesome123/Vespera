@@ -1286,14 +1286,21 @@ export function woodPanelTextures() {
 // Farbe, Rauheit und Relief (Normalenkarte aus einer Höhenkarte) aus einer Zeichenfunktion
 // Unscharfmaskierung (nahtlos): Farbe + k * (Farbe - 3x3-Mittel) lässt Fugen und Körnung schärfer wirken
 export function sharpen(g, N, k) {
-  const im = g.getImageData(0, 0, N, N), d = im.data, src = new Uint8ClampedArray(d);
+  // V37: 3x3-Mittel getrennt in Zeilen und Spalten (gleiches Ergebnis, ein Drittel der Lesezugriffe)
+  const im = g.getImageData(0, 0, N, N), d = im.data, src = new Uint8ClampedArray(d), h = new Uint16Array(N * N * 4), R = N * 4;
   for (let y = 0; y < N; y++) {
-    const ym = ((y + N - 1) % N) * N, y0 = y * N, yp = ((y + 1) % N) * N;
+    const r = y * R;
     for (let x = 0; x < N; x++) {
-      const xm = (x + N - 1) % N, xp = (x + 1) % N, i = (y0 + x) * 4;
+      const i = r + x * 4, im4 = r + (x === 0 ? N - 1 : x - 1) * 4, ip4 = r + (x === N - 1 ? 0 : x + 1) * 4;
+      h[i] = src[im4] + src[i] + src[ip4]; h[i + 1] = src[im4 + 1] + src[i + 1] + src[ip4 + 1]; h[i + 2] = src[im4 + 2] + src[i + 2] + src[ip4 + 2];
+    }
+  }
+  for (let y = 0; y < N; y++) {
+    const r = y * R, rm = (y === 0 ? N - 1 : y - 1) * R, rp = (y === N - 1 ? 0 : y + 1) * R;
+    for (let x = 0; x < R; x += 4) {
       for (let c = 0; c < 3; c++) {
-        const b = (src[(ym + xm) * 4 + c] + src[(ym + x) * 4 + c] + src[(ym + xp) * 4 + c] + src[(y0 + xm) * 4 + c] + src[i + c] + src[(y0 + xp) * 4 + c] + src[(yp + xm) * 4 + c] + src[(yp + x) * 4 + c] + src[(yp + xp) * 4 + c]) / 9;
-        d[i + c] = src[i + c] + k * (src[i + c] - b);
+        const i = r + x + c, v = src[i];
+        d[i] = v + k * (v - (h[rm + x + c] + h[i] + h[rp + x + c]) / 9);
       }
     }
   }
@@ -1315,7 +1322,7 @@ export function texSet(W, draw, strength = 2.2, S = 0) {
     const r0 = y * N, rm = ((y + N - 1) % N) * N, rp = ((y + 1) % N) * N;
     for (let x = 0; x < N; x++) {
       const xm = x === 0 ? N - 1 : x - 1, xp = x === N - 1 ? 0 : x + 1;
-      const dx = (hf[r0 + xp] - hf[r0 + xm]) * strength * S / 2, dy = (hf[rp + x] - hf[rm + x]) * strength * S / 2, l = Math.hypot(dx, dy, 1), i = (r0 + x) * 4;
+      const dx = (hf[r0 + xp] - hf[r0 + xm]) * strength * S / 2, dy = (hf[rp + x] - hf[rm + x]) * strength * S / 2, l = Math.sqrt(dx * dx + dy * dy + 1), i = (r0 + x) * 4;
       o[i] = (-dx / l * 0.5 + 0.5) * 255; o[i + 1] = (dy / l * 0.5 + 0.5) * 255; o[i + 2] = (1 / l * 0.5 + 0.5) * 255; o[i + 3] = 255;
     }
   }
