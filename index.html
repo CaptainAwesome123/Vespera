@@ -69,6 +69,8 @@ h1 {
 kbd { font: 600 12px/1 var(--body); letter-spacing: 0.08em; color: var(--gold-hi); border: 1px solid rgba(217,178,106,0.5); padding: 5px 7px 3px; white-space: nowrap; }
 .rule { width: 100%; height: 1px; background: linear-gradient(90deg, transparent, rgba(217,178,106,0.6), transparent); }
 .loading { font-size: 14px; letter-spacing: 0.12em; color: var(--muted); min-height: 1em; }
+.qual { font: 600 12px/1 var(--body); letter-spacing: 0.16em; text-transform: uppercase; color: var(--gold-hi); background: none; border: 1px solid rgba(217,178,106,0.5); padding: 8px 12px 6px; cursor: pointer; }
+.qual:hover { background: rgba(217,178,106,0.12); }
 @media (max-width: 480px) { .keys { grid-template-columns: 1fr; } .card { padding: 26px 18px 22px; } }
 
 .hud { position: fixed; z-index: 10; pointer-events: none; }
@@ -183,6 +185,7 @@ kbd { font: 600 12px/1 var(--body); letter-spacing: 0.08em; color: var(--gold-hi
     <p class="lede" id="lede">Du bist Alexander. Du hast Vespera für die Elite erbaut, im Krater eines Meteoriten am Nordpol, und der Kristall aus seinem Kern hat dir Kräfte gegeben: Du fliegst, bewegst Dinge mit dem Willen und nichts kann dich verletzen.</p>
     <button class="btn" id="enter" type="button" disabled>Stadt betreten</button>
     <div class="loading" id="loading">Die Lichter von Vespera werden entzündet …</div>
+    <button class="qual" id="qual" type="button" title="Niedrig: ohne echte Spiegelung und Mondschatten, weniger Nebel und Niederschlag (für schwächere Grafikkarten). Taste K im Spiel.">Qualität: Hoch</button>
     <div class="rule"></div>
     <div class="keys">
       <div><kbd>W A S D</kbd><span>Bewegen</span></div>
@@ -195,6 +198,7 @@ kbd { font: 600 12px/1 var(--body); letter-spacing: 0.08em; color: var(--gold-hi
       <div><kbd>V</kbd><span>Ich-Ansicht / von hinten, Mausrad: Abstand</span></div>
       <div><kbd>G</kbd><span>Tanzen (Charleston, langsam, aus)</span></div>
       <div><kbd>N</kbd><span>Wetter festlegen (klar, Polarlicht, Dunst, Nebel, Regen, Schnee, Eisnebel, automatisch)</span></div>
+      <div><kbd>K</kbd><span>Qualitätsstufe hoch / niedrig (lädt neu)</span></div>
       <div><kbd>1 – 8</kbd><span>Aussichtspunkte</span></div>
       <div><kbd>E</kbd><span>Fahrstuhl, Türen, ansprechen; Dinge aufheben und ablegen</span></div>
       <div><kbd>Klick</kbd><span>Getragenes werfen, <kbd>R</kbd> drehen</span></div>

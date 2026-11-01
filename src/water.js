@@ -1,4 +1,4 @@
-import { U, T, MOBILE, renderer, scene, camera, FOG_GLSL } from './core.js';
+import { U, T, MOBILE, renderer, scene, camera, FOG_GLSL, LOW } from './core.js';
 import { addCollider } from './people-skeleton.js';
 import { lamps, addSeg, addGlow, NEON } from './facade-shader.js';
 import { ISL, landDist, QX, QUAY } from './island.js';
@@ -145,7 +145,7 @@ export const WATER_COMMON = `${FOG_GLSL}
   }`;
 // Echte Spiegelung (am PC): die Szene wird an der Wasserfläche gespiegelt in ein halb so großes Bild gerendert;
 // das Wasser verzerrt es mit seinen Wellen. Auf Handys bleibt die gemalte Spiegelung.
-export const REFL = { rt: null, cam: new T.PerspectiveCamera(), on: !MOBILE };
+export const REFL = { rt: null, cam: new T.PerspectiveCamera(), on: !LOW };   // V38: echte Spiegelung nur in der hohen Qualitätsstufe
 U.uRefl = { value: null }; U.uReflMat = { value: new T.Matrix4() }; U.uReflOn = { value: 0 };
 U.uWakeL = { value: [27, 8.4, 8.4, 8.4] };
 export const _rv = { n: new T.Vector3(0, 1, 0), rp: new T.Vector3(), cp: new T.Vector3(), view: new T.Vector3(), look: new T.Vector3(), tgt: new T.Vector3(), rot: new T.Matrix4(), plane: new T.Plane(), clip: new T.Vector4(), q: new T.Vector4() };

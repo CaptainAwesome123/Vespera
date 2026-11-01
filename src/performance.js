@@ -1,5 +1,5 @@
 import { updateChunks, layers } from './chunks.js';
-import { shared, T, scene, camera, MOBILE, renderer, U, FOG_DENSITY, hemi, moonLight, $, FOGVIS, fogHideDist } from './core.js';
+import { shared, T, scene, camera, MOBILE, LOW, renderer, U, FOG_DENSITY, hemi, moonLight, $, FOGVIS, fogHideDist } from './core.js';
 import { updateIndustry, updateShops } from './shops.js';
 import { inBelmont, interiorCrowd, updateBelmontDoor } from './belmont.js';
 import { inPenthouse, updatePenthouse } from './penthouse.js';
@@ -10,7 +10,8 @@ import { updateVilla, updateParked, updateLampLod, updateTreeLod, updateFirework
 import { inVillaHouse, updateVillaZones } from './villa.js';
 import { inImperial } from './imperial.js';
 import { updatePedestrians, CLOCK, citizenNear, citizenDoing } from './ragdoll.js';
-import { searchlights } from './airships.js';
+import { searchlights, updateBeamSpots } from './airships.js';
+import { updateCarLights } from './carlight.js';
 import { updateCars, updateTrucks, updateTrams } from './traffic.js';
 import { player, updatePlayer, EYE } from './player.js';
 import { updateVenues } from './venues.js';
@@ -108,7 +109,7 @@ export function updateFogCull(dt) {
 // bei ruhigem Lauf langsam wieder höher, aber nie über eine Stufe, die schon zu langsam war.
 export const PR_DEV = window.devicePixelRatio || 1, PR_MAX = MOBILE ? Math.min(1.5, PR_DEV) : Math.min(2, Math.max(PR_DEV, 1) * 1.6);
 export const PR_LEVELS = [0.5, 0.6, 0.7, 0.8, 0.9, 1, 1.15, 1.3, 1.5, 1.75, 2].filter(v => v <= PR_MAX + 1e-6);
-export const PR_START = MOBILE ? Math.min(PR_MAX, 0.9) : Math.min(PR_MAX, Math.max(PR_DEV, 1) * 1.3);
+export const PR_START = MOBILE ? Math.min(PR_MAX, 0.9) : LOW ? Math.min(PR_MAX, 1) : Math.min(PR_MAX, Math.max(PR_DEV, 1) * 1.3);   // V38: niedrige Stufe startet mit 1,0
 export let prIdx = PR_LEVELS.reduce((b, v, i) => Math.abs(v - PR_START) < Math.abs(PR_LEVELS[b] - PR_START) ? i : b, 0);
 export let prCeil = PR_LEVELS.length - 1, ftAvg = 16.7, prTimer = 0, goodTime = 0, lastUp = -1e9, adaptOn = true;
 export function setPR(v) { renderer.setPixelRatio(v); if (composer) composer.setPixelRatio(v); resize(); }
@@ -190,6 +191,7 @@ export function frame(now) {
   updateAtmosphere(dt);   // V25: Wetter, Mond, Nebel, Mondschatten
   updateNearPlane(dt);
   updateCars(dt);
+  updateCarLights();   // V38
   updateTrucks(dt);
   updateTrams(dt);
   const inside = playing && (inBelmont(player.p.x, player.p.z, player.p.y) || inVillaHouse(player.p) || inImperial(player.p) || inPenthouse(player.p)) ? 1 : 0;   // V28: auch in der Villa kein Regen, kein Bodennebel; V33: Luftschiff und Penthouse
@@ -221,6 +223,9 @@ export function frame(now) {
   updateCarScenes(dt); updateCarReturns(dt);
   updateFireworks(dt);
   for (const s of searchlights) s.piv.rotation.set(Math.sin(t * 0.21 + s.ph) * s.tilt, t * 0.12 + s.ph, Math.cos(t * 0.17 + s.ph) * s.tilt);
+  updateBeamSpots();   // V38: Lichtfleck des Luftschiff-Scheinwerfers
+  // V38: im Dunst und bei Niederschlag leuchten die Lichter weicher und weiter (Nachleuchten etwas stärker, Schwelle tiefer)
+  if (bloomPass) { const mist = Math.min(U.uMist.value, 2.3), wet = U.uRain.value + U.uSnow.value; bloomPass.strength = 0.66 + 0.1 * mist + 0.12 * wet; bloomPass.threshold = 0.72 - 0.06 * mist * 0.5; }
 
   if (playing) {
     hudTimer -= dt;

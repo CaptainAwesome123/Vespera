@@ -25,6 +25,7 @@ import { buildPlayerModel } from './player-model.js';
 import { buildAtmosphere } from './atmosphere.js';
 import { setupLoose } from './physics.js';
 import { buildImperial, IMP } from './imperial.js';
+import { buildCarLights } from './carlight.js';
 
 /* =====================================================================
    AUFBAU UND SPIELSCHLEIFE
@@ -99,6 +100,8 @@ export async function build() {
   await step('buildSerpentine');
   buildCars();
   await step('buildCars');
+  buildCarLights();   // V38: Scheinwerferkegel und Lichtteppich der nächsten Wagen
+  await step('buildCarLights');
   buildTrucks();
   await step('buildTrucks');
   buildTrams();
