@@ -16,6 +16,7 @@ const SPOTS = [
   { name: 'dritte', p: [0, 0.26, 120], yaw: 0, pitch: -0.1, key: 'KeyV' },   // V24: Ansicht von hinten mit Spielermodell
   { name: 'tragen', p: [-3.2, 0.26, 118.6], yaw: 0.9, pitch: -0.45, loose: true },   // V26: lose Dinge vor dem Belmont, aufheben und werfen
   { name: 'flug', p: [-400, 220, 600], yaw: 0.6, pitch: -0.35, fly: true },
+  { name: 'kraefte', p: [-5, 0.26, 121], yaw: 0, pitch: -0.34, powers: true },   // V33: Telekinese (Koffer heben, schleudern), Flug von hinten, Superlandung
 ];
 (async () => {
   const b = await chromium.launch({ args: ['--use-gl=swiftshader', '--enable-webgl', '--ignore-gpu-blocklist', '--no-sandbox', '--enable-precise-memory-info'] });
@@ -74,6 +75,21 @@ const SPOTS = [
       const B = L.bodies.find(b => b.name === 'Hutschachtel') || L.bodies[0];
       if (B) { L.pickUp(B); await wait(1500); held = B.x.toArray().map(v => v.toFixed(2)).join('/'); L.drop(true); await wait(2500); after = info(); }
       return JSON.stringify({ bodies: n, before, held, after, stats: L.stats, mocap: vespera.mocap && vespera.mocap.ready });
+    }));
+    if (s.powers) console.log(s.name, await p.evaluate(async () => {
+      const V = vespera, P = V.powers, L = V.loose, wait = ms => new Promise(r => setTimeout(r, ms)), r2 = v => +v.toFixed(2);
+      const out = {};
+      out.grab = P.tkGrab(); out.kind = P.tk && P.tk.kind; const B = P.tk && P.tk.B;
+      const y0 = B ? (B.x.y ?? B.y) : null; await wait(1500);
+      out.lift = B ? r2((B.x.y ?? B.y) - y0) : null;
+      P.tkRelease(true); await wait(1500); out.released = !P.tk;
+      V.playerModel.view = 'third'; P.startFlight(); V.player.v.set(0, 0, -30); await wait(1200);
+      out.fly = V.player.fly; out.tilt = r2(V.playerModel.tilt); out.modelVisible = !!(V.playerModel.mesh && V.playerModel.mesh.visible);
+      out.camBehind = r2(V.camera.position.distanceTo(V.player.p));
+      V.player.p.set(0, 40, 118); V.player.v.set(0, -40, 0); P.stopFlight(); await wait(1500);
+      out.landed = V.player.onGround; out.shake = r2(P.shake); out.flyAfter = V.player.fly;
+      V.playerModel.view = 'first';
+      return JSON.stringify(out);
     }));
     console.log(s.name, 'messen …', Date.now() - t0, 'ms'); const m = await measure();
     result.spots[s.name] = m;

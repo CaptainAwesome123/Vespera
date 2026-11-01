@@ -25,6 +25,7 @@ import { DINE } from './venues.js';
 import { PM, updatePlayerModel, thirdPersonCamera } from './player-model.js';
 import { ATMO, updateAtmosphere } from './atmosphere.js';
 import { updateLoose, updateSpawns } from './physics.js';
+import { updatePowers, powersCamera } from './powers.js';
 
 /* =====================================================================
    LEISTUNG: Lichter-Pool, Sichtweiten für Details, adaptive Auflösung
@@ -138,7 +139,9 @@ export function nearTarget() {
   if (Math.hypot(cp.x - VILLA.x, cp.z - VILLA.z) < 160) ground = Math.max(ground, VILLA.y + 56);
   for (const s of shipDefs) if (s.g && s.g.position.distanceToSquared(cp) < (s.L + 30) ** 2) return 0.5;
   const clear = cp.y - ground;
-  return clear < 6 ? 0.5 : Math.min(4, 0.5 + (clear - 6) * 0.12);
+  // V33: im Flug von hinten steht die eigene Figur wenige Meter vor der Kamera
+  const cap = PM.view === 'third' && PM.mesh ? Math.max(0.5, Math.min(4, PM.dist - 1.6)) : 4;
+  return clear < 6 ? 0.5 : Math.min(cap, 0.5 + (clear - 6) * 0.12);
 }
 export function updateNearPlane(dt) {
   if ((NEARP.t -= dt) > 0) return;
@@ -165,13 +168,13 @@ export function frame(now) {
   }
   updatePort(dt, t);
   if (playing) carryPlayer();
-  if (playing && !paused) { if (DRIVE.on) updateDrive(dt); else if (BOAT.on) updateBoatInput(dt); else updatePlayer(dt); }
+  if (playing && !paused) { if (DRIVE.on) updateDrive(dt); else if (BOAT.on) updateBoatInput(dt); else updatePlayer(dt); updatePowers(dt, t); }   // V33: Alexanders Kräfte
   if (playing) updateVehicleWorld(dt);
   if (playing) { updateSpawns(); updateLoose(dt); }   // V26: lose Dinge
   if (playing && !paused) updateBoat(dt);
   if (playing && DRIVE.on) driveCamera();
   else if (playing && BOAT.on) boatCamera();
-  else if (playing && PM.mesh && PM.view === 'third' && !player.fly && !DINE.seat) thirdPersonCamera(dt);
+  else if (playing && PM.mesh && PM.view === 'third' && !DINE.seat) thirdPersonCamera(dt);   // V33: auch im Flug von hinten
   else if (playing) {
     camera.position.set(player.p.x, player.p.y + (player.fly ? 0.8 : EYE), player.p.z);
     camera.rotation.set(player.pitch, player.yaw, 0);
@@ -180,7 +183,8 @@ export function frame(now) {
     camera.position.set(Math.sin(a) * 430, 150 + Math.sin(t * 0.07) * 30, Math.cos(a) * 430);
     camera.lookAt(0, 210, 0);
   }
-  updatePlayerModel(dt, playing && !DRIVE.on && !BOAT.on && !player.fly && !DINE.seat);
+  updatePlayerModel(dt, playing && !DRIVE.on && !BOAT.on && !DINE.seat);
+  if (playing && !paused) powersCamera(dt);
   U.uCam.value.copy(camera.position);
   updateAtmosphere(dt);   // V25: Wetter, Mond, Nebel, Mondschatten
   updateNearPlane(dt);
@@ -220,7 +224,7 @@ export function frame(now) {
       hudTimer = 0.25;
       const d = districtAt(player.p.x, player.p.z, player.p.y);
       if (d[0] !== shared.lastDistrict) { shared.lastDistrict = d[0]; showDistrict(d); }
-      hudSet('mode', '<b>' + (BOAT.on ? 'Am Ruder' : DRIVE.on ? 'Am Steuer' : player.fly ? 'Flugmodus' : 'Zu Fuß') + '</b>', true);
+      hudSet('mode', '<b>' + (BOAT.on ? 'Am Ruder' : DRIVE.on ? 'Am Steuer' : player.fly ? 'Im Flug' : 'Zu Fuß') + '</b>', true);
       hudSet('alt', BOAT.on ? Math.round(Math.abs(BOAT.u) * 1.944) + ' Knoten · Gas ' + Math.round(BOAT.thr * 100) + ' %' : DRIVE.on ? Math.round(Math.abs(DRIVE.v) * 3.6) + ' km/h · ' + (DRIVE.revMode ? 'R' : (DRIVE.gear + 1) + '. Gang') + (DRIVE.body && DRIVE.body.dmg.some(v => v > 0.05) ? ' · Zustand ' + Math.round(100 - (DRIVE.body.dmg[0] + DRIVE.body.dmg[1] + DRIVE.body.dmg[2] + DRIVE.body.dmg[3]) * 25) + ' %' : '') : 'Höhe ' + Math.max(0, Math.round(player.p.y)) + ' m');
       const deg = ((-player.yaw * 180 / Math.PI) % 360 + 360) % 360;
       hudSet('head', 'Kurs ' + ['N', 'NO', 'O', 'SO', 'S', 'SW', 'W', 'NW'][Math.round(deg / 45) % 8] + ' · Wind ' + Math.round(WIND.s + WIND.gust * 6) + ' m/s aus ' + windName(WIND.a + Math.PI));

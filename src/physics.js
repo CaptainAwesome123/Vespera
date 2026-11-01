@@ -35,7 +35,7 @@ import { BOAT } from './boat.js';
 import { DINE } from './venues.js';
 import { $ } from './core.js';
 
-export const LOOSE = { bodies: [], batches: new Map(), held: null, aim: null, rot: 0, spawned: new Set(), mat: null, goodsIdx: null, stats: { awake: 0, bodies: 0, ms: 0 } };
+export const LOOSE = { bodies: [], batches: new Map(), held: null, tk: null, tkTarget: null, aim: null, rot: 0, spawned: new Set(), mat: null, goodsIdx: null, stats: { awake: 0, bodies: 0, ms: 0 } };
 const G = 9.81, SUB = MOBILE ? 5 : 8, MAX_BODIES = MOBILE ? 48 : 96, REACH = 2.6;
 const _v = new T.Vector3(), _v2 = new T.Vector3(), _v3 = new T.Vector3(), _q = new T.Quaternion(), _q2 = new T.Quaternion(), _m = new T.Matrix4(), _s = new T.Vector3(), _up = new T.Vector3(0, 1, 0);
 
@@ -76,6 +76,7 @@ function addToBatch(B) {
 function removeBody(B) {
   const bt = B.batch; bt.list.splice(bt.list.indexOf(B), 1); LOOSE.bodies.splice(LOOSE.bodies.indexOf(B), 1);
   if (LOOSE.held === B) LOOSE.held = null;
+  if (LOOSE.tk === B) LOOSE.tk = null;
 }
 function drawBatches() {
   for (const bt of LOOSE.batches.values()) {
@@ -345,12 +346,12 @@ function kinHit(P, k) {
 export function updateLoose(dt) {
   const H0 = LOOSE.held;
   if (H0 && (player.fly || DRIVE.on || BOAT.on || DINE.seat || H0.stuck > 0.45)) { if (H0.stuck > 0.45) toast(H0.name + ' bleibt hängen'); drop(false); }
-  if (isTouch) { const el = $('tThrow'); if (el.hidden === !!LOOSE.held) el.hidden = !LOOSE.held; }
+  if (isTouch) { const el = $('tThrow'), want = !!LOOSE.held || !!LOOSE.tkAny; if (el.hidden === want) el.hidden = !want; }   // V33: auch für die Telekinese
   if (paused || !LOOSE.bodies.length) { drawBatches(); return; }
   const t0 = performance.now();
   dt = Math.min(dt, 1 / 30);
   const cp = camera.position, H = LOOSE.held;
-  const act = LOOSE.bodies.filter(B => { const far = (B.x.x - cp.x) ** 2 + (B.x.z - cp.z) ** 2 > 160 * 160; return !far && (B.awake || B === H); });
+  const act = LOOSE.bodies.filter(B => { const far = (B.x.x - cp.x) ** 2 + (B.x.z - cp.z) ** 2 > 160 * 160; return !far && (B.awake || B === H || B === LOOSE.tk); });
   // Wecken: der Spieler, Wagen und Fußgänger in der Nähe schlafender Dinge
   gatherKinematic(player.p.x, player.p.z, 30);
   for (const B of LOOSE.bodies) if (!B.awake) for (const k of KIN) {
@@ -369,6 +370,7 @@ export function updateLoose(dt) {
     for (const B of act) {
       B.v0.copy(B.v); B.w0.copy(B.w); B.xp.copy(B.x); B.qp.copy(B.q);
       if (B === H) holdDrive(B, target, h);
+      else if (B === LOOSE.tk && LOOSE.tkTarget) tkDrive(B, LOOSE.tkTarget, h);
       else {
         B.v.y -= G * h;
         // Wasser: Auftrieb und Dämpfung (Holz und Papier schwimmen, Glas sinkt langsam)
@@ -419,7 +421,7 @@ export function updateLoose(dt) {
   }
   // Schlafen, Herunterfallen aus der Welt
   for (const B of act) {
-    if (B === H) { B.still = 0; continue; }
+    if (B === H || B === LOOSE.tk) { B.still = 0; continue; }
     // ruhig: bewegt sich kaum noch von der Stelle (kleines Zittern im Stapel zählt nicht)
     const calm = B.v.lengthSq() < 0.06 && B.w.lengthSq() < 0.4;
     if (calm) { if (!B.anchor) { B.anchor = B.x.clone(); B.anchorQ = B.q.clone(); B.still = 0; } B.still += dt; if (B.x.distanceTo(B.anchor) > 0.012 || B.q.angleTo(B.anchorQ) > 0.03) { B.anchor = null; B.still = 0; } }
@@ -534,8 +536,15 @@ function holdDrive(B, tg, h) {
   B.w.set(_q.x / sn, _q.y / sn, _q.z / sn).multiplyScalar(Math.min(ang * 10, 14));
   B.stuck = _v.length() > 1.1 ? (B.stuck || 0) + h : 0;
 }
+// V33: Telekinese (Alexander): jedes Gewicht schwebt zum Zielpunkt vor dem Blick und dreht sich langsam
+function tkDrive(B, p, h) {
+  _v.subVectors(p, B.x);
+  B.v.copy(_v).multiplyScalar(6).clampLength(0, 40);
+  B.w.multiplyScalar(1 - Math.min(1, h * 3)); B.w.y += h * 0.6;
+}
 export function pickUp(B) {
   if (!B) return;
+  if (LOOSE.tk === B) return;
   if (B.m > 20) { toast('Zu schwer zum Tragen'); return; }
   LOOSE.held = B; B.held = true; B.awake = true; B.still = 0; LOOSE.rot = 0;
   // Lage zum Blick merken, damit das Ding so bleibt, wie es gegriffen wurde (aufrecht bleibt aufrecht)

@@ -42,6 +42,9 @@ export const FX_KIND = {
   spark: { set: 'glow', col: [2.4, 1.3, 0.4, 1], s: [0.09, 0.03], life: [0.35, 0.8], grav: 9.8, drag: 0.3 },
   ember: { set: 'glow', col: [2.0, 0.7, 0.15, 1], s: [0.12, 0.05], life: [0.8, 1.6], grav: -0.8, drag: 0.8 },
   glass: { set: 'glow', col: [0.6, 0.75, 0.8, 0.8], s: [0.06, 0.05], life: [0.5, 0.9], grav: 9.8, drag: 0.2 },
+  // V33: Schimmer des Meteoritenkristalls (Alexanders Kräfte) und aufgewirbelter Schnee bei der Landung
+  crystal: { set: 'glow', col: [0.75, 2.1, 1.95, 0.9], s: [0.07, 0.015], life: [0.5, 1.1], grav: -0.25, drag: 1.4 },
+  snowburst: { set: 'soft', col: [0.86, 0.9, 0.95, 0.5], s: [0.5, 3.2], life: [1.0, 1.9], grav: 0.4, drag: 1.9 },
 };
 export function buildFX() {
   fxSet('soft', MOBILE ? 500 : 1400, false);

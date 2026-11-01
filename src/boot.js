@@ -40,6 +40,7 @@ import './input.js';
 import './main.js';
 import './performance.js';
 import './physics.js';
+import './powers.js';
 
 import { shared, $, renderer, scene, camera } from './core.js';
 import { layers, chunkStats } from './chunks.js';
@@ -55,6 +56,7 @@ import { STREET } from './serpentine.js';
 import { props } from './props.js';
 import { PM } from './player-model.js';
 import { LOOSE } from './physics.js';
+import { POWERS } from './powers.js';
 
 export async function start(data) {
   if (data && data.p) { player.p.set(...data.p); player.yaw = data.yaw; player.pitch = data.pitch; player.fly = data.fly; }
@@ -71,7 +73,7 @@ export async function start(data) {
   requestAnimationFrame(t => { shared.last = t; frame(t); });
 }
 // Handgriff für Werkzeuge und Tests (Konsole: vespera.player.p, vespera.renderer.info, vespera.chunkStats ...)
-window.vespera = { loose: LOOSE, mocap: MOCAP, renderer, scene, camera, player, shared, layers, chunkStats, assetStats, manifest, people: MHP, street: STREET, props, playerModel: PM };
+window.vespera = { loose: LOOSE, mocap: MOCAP, renderer, scene, camera, player, shared, layers, chunkStats, assetStats, manifest, people: MHP, street: STREET, props, playerModel: PM, powers: POWERS };
 window.claude?.hot?.snapshot?.(() => ({ p: player.p.toArray(), yaw: player.yaw, pitch: player.pitch, fly: player.fly }));
 
 export const fontsReady = (document.fonts && document.fonts.load)
