@@ -18,7 +18,7 @@ const SPOTS = [
   { name: 'flug', p: [-400, 220, 600], yaw: 0.6, pitch: -0.35, fly: true },
   { name: 'kraefte', p: [-5, 0.26, 121], yaw: 0, pitch: -0.34, powers: true },   // V33: Telekinese (Koffer heben, schleudern), Flug von hinten, Superlandung
   { name: 'ballsaal', p: [30, 0.26, -12], yaw: 0.6, pitch: 0.05 },                     // V33: Ballsaal mit neuer Ausstattung
-  { name: 'auto', p: [0, 0.26, 120], yaw: 0, pitch: 0, car: true },                   // V38: Pierce Arrow nehmen und ein Stück fahren
+  { name: 'auto', p: [0, 0.26, 120], yaw: 0, pitch: 0, car: true },                   // V39: Pierce Arrow nehmen und ein Stück fahren
   { name: 'penthouse', p: [0, 250, 17], yaw: 0, pitch: 0.05 },                       // V33: Alexanders Penthouse-Suite
 ];
 (async () => {

@@ -66,7 +66,7 @@ export function playerCarMesh() {
   for (let k = 0; k < 2; k++) lp.push({ p: [0, -50, 0], c: [1.5, 1.35, 1.0], s: 1.1, ph: 0, bl: 0 });
   for (let k = 0; k < 2; k++) lp.push({ p: [0, -50, 0], c: [1.5, 0.1, 0.06], s: 0.6, ph: 0, bl: 0 });
   DRIVE.lights = makeGlowPoints(lp, true); scene.add(DRIVE.lights);
-  // V38: Pierce Arrow als Spielerwagen (Karosserie und vier drehbare Räder aus dem Modell); verborgen, bis man einen nimmt
+  // V39: Pierce Arrow als Spielerwagen (Karosserie und vier drehbare Räder aus dem Modell); verborgen, bis man einen nimmt
   if (CARM.ready) {
     const M = modelCarMeshes(1, false); M.lo.visible = false; DRIVE.mMesh = M.hi;
     DRIVE.mWheels = new T.InstancedMesh(CARM.geoWheel, CARM.mat, 4); DRIVE.mWheels.frustumCulled = false; DRIVE.mWheels.castShadow = true; DRIVE.mWheels.count = 0;
@@ -74,7 +74,7 @@ export function playerCarMesh() {
   }
   carKind(false);
 }
-// V38: sichtbaren Wagentyp des Spielerwagens wählen (eigene Limousine oder Pierce Arrow)
+// V39: sichtbaren Wagentyp des Spielerwagens wählen (eigene Limousine oder Pierce Arrow)
 export function carKind(model) {
   DRIVE.model = !!(model && DRIVE.mMesh);
   DRIVE.mesh.count = DRIVE.glass.count = DRIVE.model ? 0 : 1; DRIVE.wheels.count = DRIVE.model ? 0 : 4;

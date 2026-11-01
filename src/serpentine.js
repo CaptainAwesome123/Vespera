@@ -2184,13 +2184,13 @@ export function buildParkedCars() {
   const im = new T.InstancedMesh(shared.carBodyGeo, MAT.carPaint, list.length), imHi = new T.InstancedMesh(carGeoHi(), MAT.carPaint, list.length);
   const paint = [[0.05, 0.05, 0.06], [0.22, 0.04, 0.06], [0.05, 0.14, 0.1], [0.08, 0.1, 0.22], [0.45, 0.33, 0.15], [0.12, 0.12, 0.13]];
   const col = new T.Color();
-  // V38: ein Teil der Parker sind Pierce Arrows (echtes Modell); die eigenen Limousinen bleiben
+  // V39: ein Teil der Parker sind Pierce Arrows (echtes Modell); die eigenen Limousinen bleiben
   const model = CARM.ready ? list.map((_, i) => isModelCar(i + 7)) : list.map(() => false);
   list.forEach((mm, i) => { im.setMatrixAt(i, mm); const p = pick(model[i] ? CARM_PAINT : paint).map(v => v + (Math.random() - 0.5) * 0.012); im.setColorAt(i, col.setRGB(p[0], p[1], p[2])); parked.push({ m: mm, c: p, x: mm.elements[12], z: mm.elements[14], ox: mm.ox, oz: mm.oz, model: model[i] || undefined }); });
   im.frustumCulled = imHi.frustumCulled = false; im.count = imHi.count = 0; scene.add(im, imHi);
   carDamageAttr(imHi); carDamageAttr(im);
   parkedCmp = lodCompactor(imHi, im, LOD_CAR2);
-  if (CARM.ready && model.some(Boolean)) { const M = modelCarMeshes(list.length); parkedModelCmp = lodCompactor(M.hi, M.lo, LOD_CAR2); }
+  if (CARM.ready && model.some(Boolean)) { const M = modelCarMeshes(list.length); parkedModelCmp = lodCompactor(M.hi, M.lo, CARM.near2); }
 }
 export const parked = []; export let parkedCmp = null, parkedModelCmp = null; shared.parkedTimer = 0;
 export function updateParked(dt) {

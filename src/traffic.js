@@ -194,11 +194,11 @@ export function buildCars() {
   for (const im of [shared.carMesh, shared.carMeshHi]) { im.count = 0; im.instanceMatrix.setUsage(T.DynamicDrawUsage); im.frustumCulled = false; scene.add(im); }
   carGlass = glassFor(shared.carMeshHi);
   shared.carCmp = lodCompactor(shared.carMeshHi, shared.carMesh, LOD_CAR2);
-  // V38: ein Teil des Verkehrs fährt als Pierce Arrow (echtes Modell), mit eigenen Lackfarben
+  // V39: ein Teil des Verkehrs fährt als Pierce Arrow (echtes Modell), mit eigenen Lackfarben
   if (CARM.ready) {
     const M = modelCarMeshes(cars.length); carLampsFromModel();
     cars.forEach((car, i) => { if (!isModelCar(i)) return; car.model = true; car.col = pick(CARM_PAINT).map(v => v + (Math.random() - 0.5) * 0.012); });
-    TRF.modelCmp = lodCompactor(M.hi, M.lo, LOD_CAR2);
+    TRF.modelCmp = lodCompactor(M.hi, M.lo, CARM.near2);
   }
   const pts = [];
   for (let i = 0; i < cars.length; i++) {
@@ -239,7 +239,7 @@ export function updateDrivers(dt) {
   const free = k => DRV.slots.find(sl => !sl.car && sl.kind === k) || DRV.slots.find(sl => !sl.car && sl.kind !== 'lady');
   cars.forEach((car, i) => {
     if (car._x === undefined || car._hid || d2(car) > R2) return;
-    if (car.model) return;   // V38: Pierce Arrow hat dunkle, undurchsichtige Scheiben; ohne Figuren darin
+    if (car.model) return;   // V39: Pierce Arrow hat dunkle, undurchsichtige Scheiben; ohne Figuren darin
     if (!car.drv) { const h = drvH(i, 1), sl = free(h < 0.25 ? 'chauffeur' : h < 0.5 ? 'coat' : h < 0.9 ? 'suit' : 'lady'); if (sl) { sl.car = car; sl.role = 'drv'; car.drv = sl; } }
     if (!car.pax && drvH(i, 2) < 0.38) { const sl = free(drvH(i, 3) < 0.7 ? 'lady' : 'suit'); if (sl) { sl.car = car; sl.role = 'pax'; car.pax = sl; } }
   });
@@ -286,7 +286,7 @@ export function updateCars(dt) {
     if (!hidden && cd2 < Math.min(CAR_DIST2, FOGVIS.ped * FOGVIS.ped, FOGVIS.cap * FOGVIS.cap)) (car.model && MC ? MC : shared.carCmp).put(_m.compose(_p, _q, _s.setScalar(1)), car, car.col, cd2);
     const fx = Math.cos(yaw), fz = -Math.sin(yaw), sx = -fz, sz = fx, y = hidden ? -50 : 0.95 + ly;
     const o = i * 12, dmg = car.dmg, hl0 = dmg && dmg[0] > 0.55 ? -60 : 0, hl1 = dmg && dmg[0] > 0.8 ? -60 : 0;
-    // Scheinwerfer und Rücklichter (V38: beim Pierce Arrow an seinen Lampen)
+    // Scheinwerfer und Rücklichter (V39: beim Pierce Arrow an seinen Lampen)
     const L = car.model && MC ? CAR_LAMPS.m : CAR_LAMPS.p, yh = y + L[1] + hl0, yh1 = y + L[1] + hl1, yt = y + L[4];
     pos[o] = x + fx * L[0] + sx * L[2]; pos[o + 1] = yh; pos[o + 2] = z + fz * L[0] + sz * L[2];
     pos[o + 3] = x + fx * L[0] - sx * L[2]; pos[o + 4] = yh1; pos[o + 5] = z + fz * L[0] - sz * L[2];

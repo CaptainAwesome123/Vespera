@@ -1,4 +1,4 @@
-// V38 · Echtes 1920er-Auto: bereitet ein Sketchfab-Modell für Vespera auf.
+// V39 · Echtes 1920er-Auto: bereitet ein Sketchfab-Modell für Vespera auf.
 // Eingabe: "1920'S Pierce Arrow" von Dkerr (https://sketchfab.com/3d-models/1920s-pierce-arrow-ab9e5dfffd474d3b9d8c76f46da1a499),
 // CC BY 4.0. Die Datei (GLB, 15,7 MB, zehn Bilder mit 2048 px) liegt nicht im Repo, nur das Ergebnis.
 //
@@ -234,7 +234,7 @@ scene.setExtras({ car: {
   // Scheinwerfer (Gläser vorn außen) und Rücklichter, gemessen am Modell
   lamp: [2.3, 1.22, 0.9], tail: [-2.45, 1.0, 0.72]
 } });
-doc.getRoot().getAsset().extras = { author: 'Dkerr (https://sketchfab.com/daleraymondkerr)', license: 'CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)', source: 'https://sketchfab.com/3d-models/1920s-pierce-arrow-ab9e5dfffd474d3b9d8c76f46da1a499', title: "1920'S Pierce Arrow", changes: 'Vespera V38: neu ausgerichtet und skaliert, Räder gelöst, Bilder in einen Atlas verkleinert, Lackmaske, ferne Fassung (tools/make-car.mjs)' };
+doc.getRoot().getAsset().extras = { author: 'Dkerr (https://sketchfab.com/daleraymondkerr)', license: 'CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)', source: 'https://sketchfab.com/3d-models/1920s-pierce-arrow-ab9e5dfffd474d3b9d8c76f46da1a499', title: "1920'S Pierce Arrow", changes: 'Vespera V39: neu ausgerichtet und skaliert, Räder gelöst, Bilder in einen Atlas verkleinert, Lackmaske, ferne Fassung (tools/make-car.mjs)' };
 await new NodeIO().registerExtensions([EXTTextureWebP]).write(OUT, doc);
 console.log('geschrieben:', OUT, (fs.statSync(OUT).size / 1024).toFixed(0), 'KB');
 console.log('extras:', JSON.stringify(scene.getExtras()));

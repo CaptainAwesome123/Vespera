@@ -1,5 +1,5 @@
 /* =====================================================================
-   V38 · ECHTES 1920er-AUTO: „1920'S Pierce Arrow“ von Dkerr (Sketchfab), CC BY 4.0
+   V39 · ECHTES 1920er-AUTO: „1920'S Pierce Arrow“ von Dkerr (Sketchfab), CC BY 4.0
    https://sketchfab.com/3d-models/1920s-pierce-arrow-ab9e5dfffd474d3b9d8c76f46da1a499
    Aufbereitet mit tools/make-car.mjs zu assets/models/pierce-arrow.glb (Knoten body, wheel, lo).
    Ein zusätzlicher Wagentyp neben den eigenen Limousinen (die bleiben): ein Teil des Verkehrs und der
@@ -16,6 +16,7 @@ import { resolveAsset } from './assets.js';
 
 export const CARM = {
   ready: false, share: 0.4,                  // Anteil der Pierce Arrows in Verkehr und Parkreihen
+  near2: 70 * 70,                            // bis 70 m die volle Fassung (27 000 Dreiecke), dahinter die ferne (4 300)
   geoHi: null, geoBody: null, geoWheel: null, geoLo: null, mat: null,
   // Maße aus der Datei (extras.car); Werte hier nur, bis sie geladen ist
   dim: { len: 5.1, front: 1.85, rear: -1.85, track: 0.89, r: 0.52, axle: 0.52, lamp: [2.3, 1.22, 0.9], tail: [-2.45, 1.0, 0.72] },
