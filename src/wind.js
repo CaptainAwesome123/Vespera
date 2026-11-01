@@ -6,6 +6,7 @@ import { COL } from './serpentine.js';
 import { _m, _p, _q, _s } from './traffic.js';
 import { DRIVE } from './eating.js';
 import { paused } from './input.js';
+import { audioCtx, audioBus } from './audio.js';
 
 /* =====================================================================
    V16 · WIND: eine Wetterlage für alles. Richtung wandert langsam, Böen ziehen
@@ -185,15 +186,15 @@ export function updateLeaves(dt) {
 /* ---------- Windgeräusch: Rauschen, bei Böen und in der Höhe lauter ---------- */
 export let WAU = null;
 export function initWindAudio() {
-  if (WAU) { if (WAU.ctx.state === 'suspended') WAU.ctx.resume(); return; }
-  const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
+  if (WAU) { audioCtx(); return; }
   try {
-    const ctx = new AC(), nb = ctx.createBuffer(1, ctx.sampleRate * 3, ctx.sampleRate), d = nb.getChannelData(0);
+    const ctx = audioCtx(); if (!ctx) return;   // V38: gemeinsamer Context, Taste M schaltet auch den Wind
+    const nb = ctx.createBuffer(1, ctx.sampleRate * 3, ctx.sampleRate), d = nb.getChannelData(0);
     // braunes Rauschen: tiefer, weicher
     let l = 0; for (let i = 0; i < d.length; i++) { l = (l + 0.02 * (Math.random() * 2 - 1)) / 1.02; d[i] = l * 3.5; }
     const src = ctx.createBufferSource(); src.buffer = nb; src.loop = true;
     const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 400; bp.Q.value = 0.6;
-    const g = ctx.createGain(); g.gain.value = 0; src.connect(bp); bp.connect(g); g.connect(ctx.destination); src.start();
+    const g = ctx.createGain(); g.gain.value = 0; src.connect(bp); bp.connect(g); g.connect(audioBus('out')); src.start();
     WAU = { ctx, bp, g };
   } catch (e) { WAU = null; }
 }

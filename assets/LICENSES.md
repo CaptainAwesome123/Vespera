@@ -52,6 +52,17 @@ Bearbeitung (`tools/make-mocap.mjs`, Auswahl in `tools/mocap-clips.json`): Gelen
 Figuren-Shaders umgerechnet (Becken, Oberkörper, Kopf, Fußziele für die Bein-IK, Arme), auf Beinlänge und
 Schrittlänge normiert, zu nahtlosen Schleifen geschnitten und auf 30 bzw. 15 Bilder je Sekunde verkleinert.
 
+## Klänge (`assets/audio/`, V38)
+
+| Datei | Original | Urheber | Lizenz |
+|---|---|---|---|
+| `vespera-sfx.mp3` (164 KB, mono, 64 kbit/s; Lage der Stücke in `SND_SPRITE`, `src/audio.js`) | Kenney „Impact Sounds“ 1.0: `footstep_concrete_000–004`, `footstep_snow_000–004`, `footstep_wood_000–004`, `footstep_carpet_000–004`, `footstep_grass_000–004`, `impactPunch_heavy_000–001`, `impactSoft_heavy_000–002`, `impactGlass_light_000–004`, `impactMetal_light_000–002`, `impactMining_000–003`; Kenney „Foley Sounds“ 1.0: `woosh1–5`; aus dem GitHub-Spiegel [`series-ai/jam-ready-assets`](https://github.com/series-ai/jam-ready-assets) (Lizenzdateien dort: CC0) | [Kenney](https://kenney.nl) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) |
+
+Bearbeitung: nach Mono gewandelt, Stille vorn und hinten abgeschnitten, mit 0,12 s Pause hintereinander in eine Datei
+gelegt und als MP3 gespeichert (läuft in allen Browsern, auch Safari). Alles andere, was man hört (Jazzband,
+Salonmusik, Stadt, Straßenbahn, Hupen, Regen, Wind, Luftschiff, Flugwind, Telekinese, Kristallklang), wird im Spiel
+mit Web Audio erzeugt und braucht keine Datei.
+
 ## Nicht enthalten (Stand V21)
 
 Für 1920er-Automobile, Hydranten, Litfaßsäulen und Pflasterstein-Fotos wurde keine frei lizenzierte Quelle
