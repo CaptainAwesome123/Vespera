@@ -114,7 +114,7 @@ export function fogHideDist(y, cy, dens) {
   const a = dens * dens * FOG_E2, b = (fogOptical(1, y, cy, dens) - a) / (1 - FOG_NEAR * (1 - Math.exp(-1 / FOG_NEAR))), c = 4.2 + b * FOG_NEAR;
   return a > 1e-12 ? (-b + Math.sqrt(b * b + 4 * a * c)) / (2 * a) : c / Math.max(b, 1e-9);
 }
-export const FOGVIS = { ped: 1e9, low: 1e9, tall: 1e9 };
+export const FOGVIS = { ped: 1e9, low: 1e9, tall: 1e9, cap: 1e9 };   // V34: cap = Sichtweite aus geschlossenen Innenräumen (Belmont-Sockel)
 // V31: der Abstand wird je Bildpunkt aus der (linear interpolierbaren) Blickraum-Lage gerechnet. Vorher kam length() je Ecke und wurde
 // über das Dreieck gemittelt: auf dem Straßenboden (wenige riesige Dreiecke bis an die Küste) lag so überall der Abstand der fernen
 // Ecken an, die Fahrbahn versank bis vor die Füße in flachem Türkis.
