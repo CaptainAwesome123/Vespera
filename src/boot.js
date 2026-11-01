@@ -16,6 +16,8 @@ import './entrances.js';
 import './belmont.js';
 import './plaza.js';
 import './fountain.js';
+import './deco-tex.js';
+import './penthouse.js';
 import './dance.js';
 import './water.js';
 import './harbour.js';

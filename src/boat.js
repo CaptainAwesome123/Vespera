@@ -2,7 +2,8 @@ import { shared, U, T, camera, $ } from './core.js';
 import { nearBoxes } from './people-skeleton.js';
 import { segs } from './facade-shader.js';
 import { landDist, inRect, PLAZA, COAST, NET, OUTER, obbCorners, blocks, MEDIAN } from './island.js';
-import { BEL, inBelmont } from './belmont.js';
+import { inBelmont } from './belmont.js';
+import { PH, inPenthouse, onPentTerrace } from './penthouse.js';
 import { WATER_Y } from './dance.js';
 import { floatPose, waterH } from './water.js';
 import { VESSELS, PIER_Y, terrainHeight, pfRead, VILLA, deckY, VIA, ROAD_Z0 } from './harbour.js';
@@ -173,7 +174,7 @@ export function boatCamera() {
 /* ---------- Aussichtspunkte ---------- */
 export const VIEWS = {
   Digit1: { name: 'Belmont-Platz', p: [0, 0.26, 120], yaw: 0, pitch: 0.22, fly: false },
-  Digit2: { name: 'Ballsaal-Terrasse', get p() { return [0, BEL.s2, 22.5]; }, yaw: Math.PI, pitch: -0.12, fly: false },
+  Digit2: { name: 'Penthouse-Suite im Belmont', get p() { return [0, PH.F1, 15.5]; }, yaw: 0, pitch: 0.0, fly: false },
   Digit3: { name: 'Hafenpromenade', p: [60, 0.26, 520], yaw: 0.12, pitch: 0.3, fly: false },
   Digit4: { name: 'Am Ankermast', p: [150, 405, 180], yaw: Math.atan2(150, 180), pitch: -0.05, fly: true },
   Digit5: { name: 'Bergvilla', get p() { return [VILLA.x + VILLA.ux * 88, VILLA.y - 17 + 0.1, VILLA.z + VILLA.uz * 88]; }, get yaw() { return Math.atan2(VILLA.ux, VILLA.uz); }, pitch: 0.12, fly: false },
@@ -191,6 +192,8 @@ export function goView(code) {
 /* ---------- Stadtviertel ---------- */
 export function districtAt(x, z, y) {
   if (inBelmont(x, z, y)) return z > -5 ? ['The Belmont · Lobby', 'Grand Hotel seit 1912'] : ['Der große Ballsaal', 'Jazz, Champagner und Tanz'];
+  if (inPenthouse({ x, y, z })) return y > PH.F2 - 0.3 && z < -0.5 ? (x > 5 ? ['Penthouse · Schlafzimmer', 'Alexanders Suite im Belmont'] : x < -5 ? ['Penthouse · Bad', 'Alexanders Suite im Belmont'] : ['Penthouse · Bibliothek', 'Alexanders Suite im Belmont']) : ['Penthouse-Suite', 'Privat · Alexander, Eigentümer des Belmont'];
+  if (onPentTerrace({ x, y, z })) return ['Dachterrasse der Penthouse-Suite', 'The Belmont · 250 m über Vespera'];
   if (y > 200 && Math.hypot(x, z) < 60) return ['Turm des Belmont', 'Grand Hotel · ' + Math.round(y) + ' m'];
   if (inRect(x, z, PLAZA, 2)) return ['Belmont-Platz', 'Grand Hotel The Belmont'];
   if (z > 500) return ['Hafenpromenade', 'Am Abendmeer'];

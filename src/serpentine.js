@@ -1712,7 +1712,9 @@ export function flushInstances() {
   im.frustumCulled = false; scene.add(im);
 
   // Leuchtleisten
-  const nm = new T.InstancedMesh(box, new T.MeshBasicMaterial({ color: 0xd2d2d2 }), neons.length);
+  // V33: Leuchtleisten liegen oft nur 5 bis 30 cm vor der Fassade; aus der Ferne reicht die Tiefengenauigkeit dafür nicht,
+  // daher werden sie um ein paar Tiefenstufen nach vorn geschoben (wirkt nur in der Ferne merklich)
+  const nm = new T.InstancedMesh(box, new T.MeshBasicMaterial({ color: 0xd2d2d2, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -3 }), neons.length);
   const col = new T.Color();
   neons.forEach((n, i) => { if (n.ry || n.rz) m.compose(_p.set(n.x, n.y, n.z), _q.setFromEuler(_e.set(0, n.ry || 0, n.rz || 0)), _s.set(n.sx, n.sy, n.sz)); else m.makeScale(n.sx, n.sy, n.sz).setPosition(n.x, n.y, n.z); nm.setMatrixAt(i, m); nm.setColorAt(i, col.setRGB(n.c[0], n.c[1], n.c[2])); });
   nm.frustumCulled = false; scene.add(nm);

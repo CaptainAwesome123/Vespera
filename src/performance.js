@@ -2,6 +2,7 @@ import { updateChunks, layers } from './chunks.js';
 import { shared, T, scene, camera, MOBILE, renderer, U, FOG_DENSITY, hemi, moonLight, $, FOGVIS, fogHideDist } from './core.js';
 import { updateIndustry, updateShops } from './shops.js';
 import { inBelmont, interiorCrowd, updateBelmontDoor } from './belmont.js';
+import { inPenthouse, updatePenthouse } from './penthouse.js';
 import { WATER_Y, updateInterior } from './dance.js';
 import { REFL, updateWaves, harborWater, renderReflection } from './water.js';
 import { updatePort, carryPlayer, VILLA, terrainHeight } from './harbour.js';
@@ -42,7 +43,7 @@ const _ranked = [], _rankK = [];
 export function updateLights(dt) {
   if ((lightTimer -= dt) <= 0) {
     lightTimer = 0.2;
-    const cp = camera.position, ins = playing && inBelmont(player.p.x, player.p.z, player.p.y);
+    const cp = camera.position, ins = playing && (inBelmont(player.p.x, player.p.z, player.p.y) || inPenthouse(player.p));
     // die nächsten (Abstand im Verhältnis zur Reichweite) ohne Zwischenlisten: Einfügen in eine kurze sortierte Liste
     const ranked = _ranked, rk = _rankK, N = lightPool.length; ranked.length = 0;
     for (const a of LIGHTS) {
@@ -191,13 +192,14 @@ export function frame(now) {
   updateCars(dt);
   updateTrucks(dt);
   updateTrams(dt);
-  const inside = playing && (inBelmont(player.p.x, player.p.z, player.p.y) || inVillaHouse(player.p) || inImperial(player.p)) ? 1 : 0;   // V28: auch in der Villa kein Regen, kein Bodennebel
+  const inside = playing && (inBelmont(player.p.x, player.p.z, player.p.y) || inVillaHouse(player.p) || inImperial(player.p) || inPenthouse(player.p)) ? 1 : 0;   // V28: auch in der Villa kein Regen, kein Bodennebel; V33: Luftschiff und Penthouse
   U.uInside.value += (inside - U.uInside.value) * Math.min(1, dt * 4);
   hemi.intensity = (0.9 + 0.12 * U.uSnowCover.value) * (1 - 0.72 * U.uInside.value); moonLight.intensity = ATMO.moonI * (1 - U.uInside.value);
   const nearBel = !playing || (Math.abs(camera.position.x) < 70 && Math.abs(camera.position.z) < 75 && camera.position.y < 45);
   if (interiorCrowd) interiorCrowd.show(nearBel);
   updateInterior(t, nearBel);
   updateBelmontDoor(dt);
+  updatePenthouse(dt);
   const nearVilla = Math.hypot(camera.position.x - VILLA.x, camera.position.z - VILLA.z) < 650;
   if (VILLA.crowd) VILLA.crowd.show(nearVilla);
   if (nearVilla) updateVilla(t); else updateVillaZones(false);

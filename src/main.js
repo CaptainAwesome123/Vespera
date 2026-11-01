@@ -8,6 +8,7 @@ import { buildCity, buildNetwork, NET, buildOuter, buildShoreV16, buildBridges, 
 import { finishShops, buildIndustry } from './shops.js';
 import { buildTerraces, buildSigns } from './entrances.js';
 import { buildBelmont, buildBelmontInterior, buildBelmontDoor, BEL } from './belmont.js';
+import { buildPenthouse } from './penthouse.js';
 import { buildHarbor, setupReflection } from './water.js';
 import { planAccess, buildPort, portInteractions, VILLA } from './harbour.js';
 import { buildGround, buildVilla, planSerpentine, buildAccessRoad, buildSerpentine, flushInstances, buildMountains } from './serpentine.js';
@@ -43,6 +44,7 @@ export function build() {
   buildTerraces();
   buildBelmont();
   buildBelmontInterior();
+  buildPenthouse();   // V33: Alexanders Suite und die größere Terrasse auf 250 m
   buildBelmontDoor();
   buildHarbor();
   buildPort();

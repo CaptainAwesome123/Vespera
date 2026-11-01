@@ -64,7 +64,12 @@ export function buildFountain(P = FOUNT.P) {
     jets.push({ a, x0: ca * F.nozR, z0: sa * F.nozR, x1: ca * F.landR, z1: sa * F.landR });
   }
   scene.add(noz);
-  addCollider(cx - 15.9, 0, cz - 15.9, cx + 15.9, P + 1.12, cz + 15.9);
+  // V33: Kollision als runde Scheibe aus schmalen Streifen statt eines Quadrats von 32 x 32 m:
+  // vorher standen in den vier Ecken neben dem runden Becken unsichtbare Wände
+  for (let z0 = -15.9; z0 < 15.9 - 1e-6; z0 += 0.8) {
+    const z1 = Math.min(15.9, z0 + 0.8), zm = Math.max(Math.abs(z0), Math.abs(z1)), hw = Math.sqrt(Math.max(0, 15.9 * 15.9 - zm * zm));
+    if (hw > 0.05) addCollider(cx - hw, 0, cz + z0, cx + hw, P + 1.12, cz + z1);
+  }
   // Wasserfläche
   U.uFS = { value: Array.from({ length: 16 }, () => new T.Vector4()) }; U.uFRing = { value: F.ring }; U.uFN = { value: F.n };
   jets.forEach((j, i) => U.uFS.value[i].set(j.x1, j.z1, rnd() * 6.28, 0));
