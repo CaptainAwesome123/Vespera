@@ -242,7 +242,9 @@ export function bakeGroup(grp) {
 }
 // Texturen werden mit doppelter Auflösung gezeichnet, solange sie nicht zu groß werden (scharfe Schrift und Böden)
 export function canvasTex(w, h, draw) {
-  const S = MOBILE ? (w * h > 1000000 ? 0.5 : 1) : w * h <= 300000 && Math.max(w, h) * 3 <= renderer.capabilities.maxTextureSize ? 3 : w * h <= 2400000 && Math.max(w, h) * 2 <= renderer.capabilities.maxTextureSize ? 2 : 1;
+  // V34: höchstens doppelte Auflösung und nur für kleine Leinwände. Vorher bis dreifach (512² wurde 1536²) und große Böden doppelt
+  // (4096 x 2220): zusammen rund 1,7 GB Grafikspeicher plus 1,3 GB Leinwände, daran stürzte der Browser im Belmont ab.
+  const S = MOBILE ? (w * h > 1000000 ? 0.5 : 1) : w * h <= 300000 && Math.max(w, h) * 2 <= renderer.capabilities.maxTextureSize ? 2 : 1;
   const c = document.createElement('canvas'); c.width = w * S; c.height = h * S;
   const g = c.getContext('2d'); g.scale(S, S);
   draw(g, w, h);

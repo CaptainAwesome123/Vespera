@@ -1714,7 +1714,12 @@ export function flushInstances() {
   // Leuchtleisten
   // V33: Leuchtleisten liegen oft nur 5 bis 30 cm vor der Fassade; aus der Ferne reicht die Tiefengenauigkeit dafür nicht,
   // daher werden sie um ein paar Tiefenstufen nach vorn geschoben (wirkt nur in der Ferne merklich)
-  const nm = new T.InstancedMesh(box, new T.MeshBasicMaterial({ color: 0xd2d2d2, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -3 }), neons.length);
+  // V34: zusätzlich rückt jede Ecke entlang des Sehstrahls um 0,05 % ihres Abstands zur Kamera vor (1 km: 50 cm, 10 m: 5 mm).
+  // Der Bildpunkt bleibt dabei exakt gleich, nur der Tiefenwert wird kleiner: so gewinnen dünne Leisten auch flach angeschaut.
+  const neonMat = new T.MeshBasicMaterial({ color: 0xd2d2d2, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -3 });
+  neonMat.onBeforeCompile = sh => { sh.vertexShader = sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\n  gl_Position = projectionMatrix * vec4(mvPosition.xyz * 0.9995, 1.0);'); };
+  neonMat.customProgramCacheKey = () => 'neonPull';
+  const nm = new T.InstancedMesh(box, neonMat, neons.length);
   const col = new T.Color();
   neons.forEach((n, i) => { if (n.ry || n.rz) m.compose(_p.set(n.x, n.y, n.z), _q.setFromEuler(_e.set(0, n.ry || 0, n.rz || 0)), _s.set(n.sx, n.sy, n.sz)); else m.makeScale(n.sx, n.sy, n.sz).setPosition(n.x, n.y, n.z); nm.setMatrixAt(i, m); nm.setColorAt(i, col.setRGB(n.c[0], n.c[1], n.c[2])); });
   nm.frustumCulled = false; scene.add(nm);

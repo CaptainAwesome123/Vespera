@@ -142,9 +142,9 @@ export function buildPenthouse() {
     const c = col(c0[0], F1, c0[1], c0[2], F1 + DOOR_H, c0[3]);
     PH.doors.push({ g, base, t, dir, c, open: 0, cx: ax ? um : ox * W, cz: ax ? oz * W : um });
   }
-  // Ferne: warmer Kasten hinter dem Glas statt des Innenlebens
+  // Ferne: warmer Kasten hinter dem Glas statt des Innenlebens (V34: 80 cm hinter Glas und Sprossen statt 25 cm, die flackerten aus der Ferne dagegen)
   { const t = glowRoomTex(); t.wrapS = T.RepeatWrapping; t.repeat.set(2, 1);
-    const far = new T.Mesh(new T.BoxGeometry(39.4, TOP - F1 - 0.4, 39.4), new T.MeshBasicMaterial({ map: t, color: new T.Color(0.8, 0.7, 0.6) }));
+    const far = new T.Mesh(new T.BoxGeometry(38.4, TOP - F1 - 0.4, 38.4), new T.MeshBasicMaterial({ map: t, color: new T.Color(0.8, 0.7, 0.6) }));
     far.position.set(0, (F1 + TOP) / 2, 0); scene.add(far); PH.far = far; }
 
   /* ================= Böden, Decken, Galerie, Kern ================= */
@@ -513,7 +513,7 @@ export function buildPenthouse() {
     const parent = where === 'inner' ? inner : where === 'terr' ? terr : shell;
     for (const k in B[where]) {
       const geos = B[where][k].map(g => { if (!g.attributes.uv) g.setAttribute('uv', new T.BufferAttribute(new Float32Array(g.attributes.position.count * 2), 2)); if (!g.attributes.normal) g.computeVertexNormals(); return g; });
-      const m = new T.Mesh(mergeGeos(geos), M[k]); m.frustumCulled = false; if (k === 'glass') m.renderOrder = 3; parent.add(m);
+      const m = new T.Mesh(mergeGeos(geos), M[k]); if (k === 'glass') m.renderOrder = 3; parent.add(m);   // V34: wieder nach Sichtfeld aussortiert
     }
   }
   // Licht: Salon, Speisezimmer und Küche, Bar, Schlafzimmer, Bad (nur wenn man drinnen ist), Terrasse
