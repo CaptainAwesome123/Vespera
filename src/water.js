@@ -152,7 +152,9 @@ export const _rv = { n: new T.Vector3(0, 1, 0), rp: new T.Vector3(), cp: new T.V
 export function setupReflection() {
   if (!REFL.on) return;
   const sz = renderer.getDrawingBufferSize(new T.Vector2());
-  REFL.rt = new T.WebGLRenderTarget(Math.max(2, Math.round(sz.x * 0.5)), Math.max(2, Math.round(sz.y * 0.5)), { type: T.HalfFloatType });
+  // V34: stencilBuffer erzwingt in three r147 einen 24-Bit-Tiefenpuffer (ohne: 16 Bit). Mit 16 Bit flackerte im nassen Pflaster
+  // das ganze gespiegelte Belmont: 300 m entfernt waren zwei Flächen erst ab rund 7 m Abstand sicher getrennt.
+  REFL.rt = new T.WebGLRenderTarget(Math.max(2, Math.round(sz.x * 0.5)), Math.max(2, Math.round(sz.y * 0.5)), { type: T.HalfFloatType, stencilBuffer: true });
   REFL.rt.texture.generateMipmaps = false;
   U.uRefl.value = REFL.rt.texture;
   REFL.dummy = new T.DataTexture(new Uint8Array([0, 0, 0, 255]), 1, 1); REFL.dummy.needsUpdate = true;

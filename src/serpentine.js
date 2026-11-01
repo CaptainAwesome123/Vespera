@@ -1714,7 +1714,12 @@ export function flushInstances() {
   // Leuchtleisten
   // V33: Leuchtleisten liegen oft nur 5 bis 30 cm vor der Fassade; aus der Ferne reicht die Tiefengenauigkeit dafür nicht,
   // daher werden sie um ein paar Tiefenstufen nach vorn geschoben (wirkt nur in der Ferne merklich)
-  const nm = new T.InstancedMesh(box, new T.MeshBasicMaterial({ color: 0xd2d2d2, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -3 }), neons.length);
+  // V34: zusätzlich rückt jede Ecke entlang des Sehstrahls um 0,05 % ihres Abstands zur Kamera vor (1 km: 50 cm, 10 m: 5 mm).
+  // Der Bildpunkt bleibt dabei exakt gleich, nur der Tiefenwert wird kleiner: so gewinnen dünne Leisten auch flach angeschaut.
+  const neonMat = new T.MeshBasicMaterial({ color: 0xd2d2d2, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -3 });
+  neonMat.onBeforeCompile = sh => { sh.vertexShader = sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\n  gl_Position = projectionMatrix * vec4(mvPosition.xyz * 0.9995, 1.0);'); };
+  neonMat.customProgramCacheKey = () => 'neonPull';
+  const nm = new T.InstancedMesh(box, neonMat, neons.length);
   const col = new T.Color();
   neons.forEach((n, i) => { if (n.ry || n.rz) m.compose(_p.set(n.x, n.y, n.z), _q.setFromEuler(_e.set(0, n.ry || 0, n.rz || 0)), _s.set(n.sx, n.sy, n.sz)); else m.makeScale(n.sx, n.sy, n.sz).setPosition(n.x, n.y, n.z); nm.setMatrixAt(i, m); nm.setColorAt(i, col.setRGB(n.c[0], n.c[1], n.c[2])); });
   nm.frustumCulled = false; scene.add(nm);
@@ -2104,7 +2109,7 @@ export function buildParkPlants(parks) {
   im.frustumCulled = false; scene.add(im); LAMP_SETS.push({ im, pts: list, near: 90 });
 }
 
-export const TREE_SETS = []; export let treeTimer = 0;
+export const TREE_SETS = []; export let treeTimer = 0; export const TREE_CAP = { v: 1e9 };
 export function buildTrees() {
   if (!trees.length) return;
   const barkMat = snowy(windPatch(stdMat({ map: BARK.map, normalMap: BARK.normal, roughnessMap: BARK.rough, roughness: 1, color: 0x9a8a78, envI: 0.2, emissive: 0x0a0806 }), 0.5), 0.5);
@@ -2125,9 +2130,9 @@ export function buildTrees() {
   updateTreeLod(1);
 }
 export function updateTreeLod(dt) {
-  if ((treeTimer -= dt) > 0) return;
-  treeTimer = 0.3;
-  const cp = camera.position, D2 = ((MOBILE ? 110 : 230) + Math.max(0, cp.y) * 0.5) ** 2, F2 = Math.min(2600, FOGVIS.tall) ** 2;
+  if ((treeTimer -= dt) > 0 && TREE_CAP.v === FOGVIS.cap) return;
+  treeTimer = 0.3; TREE_CAP.v = FOGVIS.cap;
+  const cp = camera.position, D2 = Math.min((MOBILE ? 110 : 230) + Math.max(0, cp.y) * 0.5, FOGVIS.cap) ** 2, F2 = Math.min(2600, FOGVIS.tall, FOGVIS.cap) ** 2;
   for (const st of TREE_SETS) {
     let a = 0, b = 0;
     st.pts.forEach((p, i) => {
@@ -2169,7 +2174,7 @@ export const parked = []; export let parkedCmp = null; shared.parkedTimer = 0;
 export function updateParked(dt) {
   if (!parkedCmp || (shared.parkedTimer -= dt) > 0) return;
   shared.parkedTimer = 0.15;
-  const cp = camera.position, D2 = Math.min(420 + Math.max(0, cp.y), FOGVIS.ped) ** 2;   // V27: im Nebel nur so weit, wie man sieht
+  const cp = camera.position, D2 = Math.min(420 + Math.max(0, cp.y), FOGVIS.ped, FOGVIS.cap) ** 2;   // V27: im Nebel nur so weit, wie man sieht (V34: und aus dem Belmont nur durchs Portal)
   parkedCmp.begin();
   for (const c of parked) { if (c.hidden) continue; const d2 = (c.x - cp.x) ** 2 + (c.z - cp.z) ** 2 + cp.y * cp.y; if (d2 < D2) parkedCmp.put(c.m, c, c.c, d2); }
   parkedCmp.end();
@@ -2370,7 +2375,8 @@ export class Crowd {
   // Nahe Figuren als feines Modell, entfernte als einfaches, ganz ferne gar nicht
   flag() {
     if (!this.vis) return;
-    const cp = camera.position, far2 = Math.min(this.far + Math.max(0, cp.y), FOGVIS.ped) ** 2;
+    // V34: in der Höhe wächst der Radius nur noch mit dem halben Höhenabstand (aus 250 m waren tausende Figuren von 2 bis 3 Pixeln im Bild)
+    const cp = camera.position, far2 = Math.min(this.far + Math.max(0, cp.y) * 0.5, FOGVIS.ped, FOGVIS.cap) ** 2;
     for (const k in this.hi) { this.nr[k].begin(); this.hi[k].begin(); this.lo[k].begin(); }
     glances(this);
     for (const a of this.list) {

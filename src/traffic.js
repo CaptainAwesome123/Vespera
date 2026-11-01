@@ -266,11 +266,13 @@ export function updateCars(dt) {
       yaw = Math.atan2(-dz, dx);
       car.wx = x; car.wz = z; car.wy = ly; car.yaw = yaw;
     }
+    // V34: Wagen ohne gültige Lage (noch nicht ins Straßennetz gesetzt) ausblenden; vorher landeten NaN-Ecken in den Scheinwerfern
+    if (!Number.isFinite(x + z + ly + yaw)) { hidden = true; x = z = ly = yaw = 0; pitch = roll = 0; }
     _q.setFromEuler(_ce.set(roll, yaw, pitch, 'YXZ'));
     _p.set(x, 0.22 + ly, z);
     car._x = x; car._y = 0.22 + ly; car._z = z; car._yr = car._yaw === undefined ? 0 : Math.atan2(Math.sin(yaw - car._yaw), Math.cos(yaw - car._yaw)) / Math.max(dt, 1e-3); car._yaw = yaw; car._hid = hidden;
     const cd2 = (x - cp.x) ** 2 + (z - cp.z) ** 2 + (_p.y - cp.y) ** 2;
-    if (!hidden && cd2 < Math.min(CAR_DIST2, FOGVIS.ped * FOGVIS.ped)) shared.carCmp.put(_m.compose(_p, _q, _s.setScalar(1)), car, car.col, cd2);
+    if (!hidden && cd2 < Math.min(CAR_DIST2, FOGVIS.ped * FOGVIS.ped, FOGVIS.cap * FOGVIS.cap)) shared.carCmp.put(_m.compose(_p, _q, _s.setScalar(1)), car, car.col, cd2);
     const fx = Math.cos(yaw), fz = -Math.sin(yaw), sx = -fz, sz = fx, y = hidden ? -50 : 0.95 + ly;
     const o = i * 12, dmg = car.dmg, hl0 = dmg && dmg[0] > 0.55 ? -60 : 0, hl1 = dmg && dmg[0] > 0.8 ? -60 : 0;
     pos[o] = x + fx * 2.62 + sx * 0.62; pos[o + 1] = y + 0.12 + hl0; pos[o + 2] = z + fz * 2.62 + sz * 0.62;

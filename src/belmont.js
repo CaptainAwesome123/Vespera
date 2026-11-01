@@ -50,10 +50,10 @@ export function buildBelmont() {
     crownFins(sx * 66, -10, 24, 60, 30, 4, GR);
     neonFrame(sx * 66, 22, -10, 32, 70, NEON.gold);
   }
-  // Kannelierte Pilaster am Sockel
+  // Kannelierte Pilaster am Sockel (V34: beginnen auf dem Arkadendach; vorher lag ihre Unterseite in der Unterseite des Dachs und flackerte)
   for (let k = -45; k <= 45; k += 6) for (const [ox, oz] of [[0, 1], [0, -1], [1, 0], [-1, 0]]) {
     if (Math.abs(k) < 12 && oz === 1) continue;
-    addSeg({ x: ox ? ox * 50.4 : k, z: oz ? oz * 50.4 : k, w: ox ? 0.8 : 1.6, d: oz ? 0.8 : 1.6, y0: 6, y1: BEL.podium - 2, tint: cream, seed: 545, style: 0, dens: 0, flood: 0.5, rib: GD }, false);
+    addSeg({ x: ox ? ox * 50.4 : k, z: oz ? oz * 50.4 : k, w: ox ? 0.8 : 1.6, d: oz ? 0.8 : 1.6, y0: 7.2, y1: BEL.podium - 2, tint: cream, seed: 545, style: 0, dens: 0, flood: 0.5, rib: GD }, false);
   }
   crownFins(0, 0, 100, 100, BEL.podium, 5, GR);
   // Turmstufen
@@ -73,6 +73,8 @@ export function buildBelmont() {
     for (let k = -w / 2 + step; k < w / 2; k += step) for (const [ox, oz] of [[0, 1], [0, -1], [1, 0], [-1, 0]]) {
       if (Math.abs(Math.abs(k) - w / 2) < 1) continue;
       if (w === 50 && ((oz === 1 && Math.abs(k) < 16.5) || (ox && Math.abs(k) < 9.5))) continue;   // V33: dort hängen die neuen Terrassen-Auskragungen
+      // V34: an der Nordseite umschloss die mittlere Kannelur die goldene Lichtleiste (gleich breit, gleiche Seitenflächen): 53 m Flackern
+      if (w === 50 && Math.abs(k) < 1) continue;
       addSeg({ x: ox ? ox * (w / 2 + 0.3) : k, z: oz ? oz * (w / 2 + 0.3) : k, w: ox ? 0.6 : 1.2, d: oz ? 0.6 : 1.2, y0, y1: y1 + (y1 === BEL.s2 ? 0 : 2), tint: cream, seed: 546, style: 0, dens: 0, flood: 0.5, rib: GD }, false);
     }
   }
@@ -127,7 +129,7 @@ export function buildBelmont() {
 
   // Portal: goldene Türen, Vordach, Schriftzug
   // offenes Portal mit Goldrahmen
-  addNeon(-8.15, P + 4.5, 50.12, 0.3, 9, 0.3, NEON.gold); addNeon(8.15, P + 4.5, 50.12, 0.3, 9, 0.3, NEON.gold);
+  addNeon(-8.15, P + 4.5, 50.12, 0.36, 9, 0.3, NEON.gold); addNeon(8.15, P + 4.5, 50.12, 0.36, 9, 0.3, NEON.gold);   // V34: etwas breiter als die Laibung (vorher bündig: Flackern)
   addNeon(0, 9.2, 50.12, 16.6, 0.3, 0.3, NEON.gold);
   addSeg({ x: 0, z: 61, w: 26, d: 14, y0: 11.5, y1: 12.6, tint: [0.5, 0.42, 0.3], seed: 530, style: 0, dens: 0, flood: 1 }, false);
   addNeon(0, 11.4, 68, 26, 0.25, 0.25, NEON.gold);
@@ -249,7 +251,10 @@ export function buildBelmontDoor() {
   addCollider(-2.4, P + 3.3, Z - 0.15, 2.4, H, Z + 0.15);
 }
 export function updateBelmontDoor(dt) {
-  if (BALL_DECO.g) { const c = camera.position; BALL_DECO.g.visible = Math.abs(c.x) < 70 && Math.abs(c.z) < 75 && c.y < 45; }
+  const c = camera.position;
+  if (BALL_DECO.g) BALL_DECO.g.visible = Math.abs(c.x) < 70 && Math.abs(c.z) < 75 && c.y < 45;
+  // durch das offene Portal sieht man die Lobby auch vom Platz und von der Allee aus
+  if (BEL_IN.g) BEL_IN.g.visible = c.y < 120 && Math.hypot(c.x, c.z) < 420;
   if (!BDOOR.wings) return;
   const p = player.p, d = Math.hypot(p.x, p.z - 49);
   // Drehtür dreht, wenn jemand näher als 7 m ist, langsam auslaufend
@@ -305,6 +310,9 @@ export function buildBelmontInterior() {
   const { P, G1, G2, LOBBY_H, BALL_H } = BI;
   const batch = {};
   const put = (k, g) => (batch[k] ||= []).push(g);
+  // V34: Lobby und Ballsaal in einer eigenen Gruppe, die nur in der Nähe des Belmont gezeichnet wird (vorher immer, aus der ganzen Stadt,
+  // im Hauptbild und im Spiegelbild des Pflasters). Die zusammengefassten Netze werden außerdem wieder nach Sichtfeld aussortiert.
+  const IG = new T.Group(); BEL_IN.g = IG; scene.add(IG);
   const col = addCollider;
   const glow = (x, y, z, c, s) => addGlow(x, y, z, c, s);
 
@@ -353,7 +361,7 @@ export function buildBelmontInterior() {
   lobbyFloor.anisotropy = ANISO;
   const lobbyRough = canvasTex(256, 139, (g, W, H) => { g.fillStyle = '#1e1e1e'; g.fillRect(0, 0, W, H); g.fillStyle = '#f0f0f0'; g.fillRect((44.5 / 96) * W, 0, (7 / 96) * W, H); });
   const fl = new T.Mesh(new T.PlaneGeometry(96, 52), stdMat({ map: lobbyFloor, roughnessMap: lobbyRough, roughness: 1, metalness: 0.1, envI: 0.9, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
-  fl.rotation.x = -Math.PI / 2; fl.position.set(0, P + 0.01, 22); scene.add(fl);
+  fl.rotation.x = -Math.PI / 2; fl.position.set(0, P + 0.01, 22); IG.add(fl);
   const ballFloor = canvasTex(2048, 896, (g, W, H) => {
     const X = x => (x + 48) / 96 * W, Z = z => (z + 48) / 42 * H, S = W / 96;
     for (let i = 0; i < 4; i++) g.drawImage(darkT.image, i * W / 4, 0, W / 4, W / 4), g.drawImage(darkT.image, i * W / 4, W / 4, W / 4, W / 4);
@@ -392,7 +400,7 @@ export function buildBelmontInterior() {
   } });
   const ballRough = canvasTex(256, 112, (g, W, H) => { g.fillStyle = '#262626'; g.fillRect(0, 0, W, H); g.fillStyle = '#707070'; g.fillRect((30 / 96) * W, (11 / 42) * H, (36 / 96) * W, (18 / 42) * H); });
   const bf = new T.Mesh(new T.PlaneGeometry(96, 42), stdMat({ map: ballFloor, roughnessMap: ballRough, roughness: 1, metalness: 0.08, envI: 0.85, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
-  bf.rotation.x = -Math.PI / 2; bf.position.set(0, P + 0.01, -27); scene.add(bf);
+  bf.rotation.x = -Math.PI / 2; bf.position.set(0, P + 0.01, -27); IG.add(bf);
 
   // ---------- Kassettendecken ----------
   const coffer = canvasTex(512, 512, (g, W, H) => {
@@ -405,8 +413,8 @@ export function buildBelmontInterior() {
   });
   coffer.wrapS = coffer.wrapT = T.RepeatWrapping;
   const ceilMat = (rx, ry) => { const t = coffer.clone(); t.needsUpdate = true; t.repeat.set(rx, ry); return stdMat({ map: t, emissiveMap: t, emissive: 0x6a5030, roughness: 0.5, metalness: 0.4, envI: 0.6 }); };
-  const c1 = new T.Mesh(new T.PlaneGeometry(96, 52), ceilMat(12, 6.5)); c1.rotation.x = Math.PI / 2; c1.position.set(0, LOBBY_H, 22); scene.add(c1);
-  const c2 = new T.Mesh(new T.PlaneGeometry(96, 42), ceilMat(12, 5.25)); c2.rotation.x = Math.PI / 2; c2.position.set(0, BALL_H, -27); scene.add(c2);
+  const c1 = new T.Mesh(new T.PlaneGeometry(96, 52), ceilMat(12, 6.5)); c1.rotation.x = Math.PI / 2; c1.position.set(0, LOBBY_H, 22); IG.add(c1);
+  const c2 = new T.Mesh(new T.PlaneGeometry(96, 42), ceilMat(12, 5.25)); c2.rotation.x = Math.PI / 2; c2.position.set(0, BALL_H, -27); IG.add(c2);
   col(-48, LOBBY_H, -4, 48, LOBBY_H + 1, 48);
 
   // ---------- Wände: Marmorverkleidung, Goldlinien, Trennwand mit Ballsaaltor ----------
@@ -423,9 +431,9 @@ export function buildBelmontInterior() {
   }
   const bsign = makeSignTex('GRAND BALLROOM', '#f6c76a', false);
   const bs = new T.Mesh(new T.PlaneGeometry(12, 12 * bsign.H / bsign.W), new T.MeshBasicMaterial({ map: bsign.t, color: new T.Color(1.2, 1.15, 1.05) }));
-  bs.position.set(0, 9.6, -3.85); scene.add(bs);
+  bs.position.set(0, 9.6, -3.85); IG.add(bs);
   const fanM = new T.MeshBasicMaterial({ map: FAN_TEX, transparent: true, color: new T.Color(1.3, 1.1, 0.8), depthWrite: false, side: T.DoubleSide });
-  const fanPlane = (x, y, z, w, ry) => { const m = new T.Mesh(new T.PlaneGeometry(w, w / 2), fanM); m.position.set(x, y + w / 4, z); m.rotation.y = ry; scene.add(m); return m; };
+  const fanPlane = (x, y, z, w, ry) => { const m = new T.Mesh(new T.PlaneGeometry(w, w / 2), fanM); m.position.set(x, y + w / 4, z); m.rotation.y = ry; IG.add(m); return m; };
   fanPlane(0, 11.2, -3.88, 10, 0);
   // Goldlinien und Pilaster
   for (let z = 0; z <= 46; z += 4) for (const sx of [-1, 1]) {
@@ -459,12 +467,12 @@ export function buildBelmontInterior() {
   for (let z = 12; z <= 32; z += 2.5) put('gold', new T.BoxGeometry(0.05, 1.0, 0.12).translate(-37.47, P + 0.6, z));
   put('dark', boxW(0.3, 4.5, 24, -47.6, P + 3.6, 22, 3));
   for (let z = 11; z <= 33; z += 1.1) for (let y = 2.2; y <= 5; y += 0.7) put('brass', new T.BoxGeometry(0.06, 0.5, 0.8).translate(-47.42, P + y, z));
-  const clock = new T.Mesh(new T.CircleGeometry(1.4, 40), M.lamp); clock.position.set(-47.4, 9.5, 22); clock.rotation.y = Math.PI / 2; scene.add(clock);
+  const clock = new T.Mesh(new T.CircleGeometry(1.4, 40), M.lamp); clock.position.set(-47.4, 9.5, 22); clock.rotation.y = Math.PI / 2; IG.add(clock);
   put('gold', new T.TorusGeometry(1.45, 0.12, 8, 40).rotateY(Math.PI / 2).translate(-47.38, 9.5, 22));
   col(-40.5, 0, 11, -37.5, 1.2, 33);
   const desk = makeSignTex('RECEPTION', '#f6c76a', false);
   const ds = new T.Mesh(new T.PlaneGeometry(6, 6 * desk.H / desk.W), new T.MeshBasicMaterial({ map: desk.t, color: new T.Color(1.2, 1.15, 1.05) }));
-  ds.position.set(-47.3, 7.2, 22); ds.rotation.y = Math.PI / 2; scene.add(ds);
+  ds.position.set(-47.3, 7.2, 22); ds.rotation.y = Math.PI / 2; IG.add(ds);
   for (let z = 14; z <= 30; z += 8) { put('brass', new T.CylinderGeometry(0.05, 0.12, 0.6, 8).translate(-39, P + 1.5, z)); put('lamp', new T.CylinderGeometry(0.18, 0.32, 0.3, 12).translate(-39, P + 1.9, z)); glow(-39, P + 1.9, z, [1.3, 0.9, 0.5], 1.5); }
   // Fahrstühle im Osten
   for (const z of [12, 22, 32]) {
@@ -599,7 +607,7 @@ export function buildBelmontInterior() {
   col(-15, 0, -48, 15, S0, -39);
   for (let k = 0; k < 3; k++) { const z = -38.6 + k * 0.6, y = S0 - (k + 1) * 0.43; put('dark', boxW(10, y, 0.6, 0, y / 2, z, 2)); col(-5, 0, z - 0.3, 5, y, z + 0.3); }
   const bigFan = new T.Mesh(new T.PlaneGeometry(34, 17), new T.MeshBasicMaterial({ map: FAN_TEX, transparent: true, color: new T.Color(1.15, 0.95, 0.65), depthWrite: false }));
-  bigFan.position.set(0, S0 + 8.5, -47.8); scene.add(bigFan);
+  bigFan.position.set(0, S0 + 8.5, -47.8); IG.add(bigFan);
   for (const r of [16, 17.2, 18.4]) put('gold', new T.TorusGeometry(r, 0.12, 6, 64, Math.PI).translate(0, S0, -47.6));
   for (const r of [16.6, 17.8]) addNeonArc(0, S0, -47.5, r);
   // Band: Flügel, Kontrabass, Schlagzeug, Bläser, Sängerin
@@ -616,7 +624,7 @@ export function buildBelmontInterior() {
   const fanStand = (x, z) => { put('dark', new T.BoxGeometry(0.9, 0.9, 0.06).translate(x, S0 + 0.45, z)); fanPlane(x, S0 + 0.35, z + 0.04, 0.85, 0); };
   for (const x of [7.5, 10, 12.5]) fanStand(x, -43.2);
   put('chrome', new T.CylinderGeometry(0.015, 0.03, 1.55, 6).translate(0, S0 + 0.78, -40.3)); put('chrome', new T.SphereGeometry(0.06, 8, 6).translate(0, S0 + 1.58, -40.3));
-  const spot = makeBeam(BALL_H - S0 - 2, 2.2, 0.08); spot.position.set(0, BALL_H - 1, -40.6); spot.rotation.x = Math.PI; scene.add(spot);
+  const spot = makeBeam(BALL_H - S0 - 2, 2.2, 0.08); spot.position.set(0, BALL_H - 1, -40.6); spot.rotation.x = Math.PI; IG.add(spot);
   // Tische mit Leinen, Tischlampen und Champagner
   const tables = [];
   for (const sx of [-1, 1]) for (let z = -38; z <= -18; z += 5) for (const xo of [22, 27.5]) tables.push([sx * xo, z]);
@@ -647,7 +655,7 @@ export function buildBelmontInterior() {
     addLight(0xffc27a, i * 0.72, d, 1.6, x, y, z, true);
   }
 
-  for (const k in batch) { const m = new T.Mesh(mergeGeos(batch[k]), M[k]); m.frustumCulled = false; scene.add(m); }
+  for (const k in batch) IG.add(new T.Mesh(mergeGeos(batch[k]), M[k]));
 
   // ---------- Menschen ----------
   const C = interiorCrowd = new Crowd(['tux', 'gown', 'dress', 'livery'], 400);
@@ -706,6 +714,7 @@ export function buildBelmontInterior() {
    Alles in eigenen Netzen (BALL_DECO), die nur in der Nähe des Belmont gezeichnet werden.
    ===================================================================== */
 export const BALL_DECO = { g: null };
+export const BEL_IN = { g: null };   // V34: Lobby und Ballsaal (nur in der Nähe sichtbar)
 function buildBallroomDeco({ P, G1, G2, BALL_H, S0, tables, put, col, glow, M }) {
   const grp = new T.Group(); BALL_DECO.g = grp; scene.add(grp);
   const batch = {}, add = (k, g) => (batch[k] ||= []).push(g);
@@ -798,5 +807,5 @@ function buildBallroomDeco({ P, G1, G2, BALL_H, S0, tables, put, col, glow, M })
   for (let k = 0; k < 24; k++) { const a = k / 24 * Math.PI * 2; put('gold', new T.BoxGeometry(3.4, 0.06, 0.12).translate(7.25, 0, 0).rotateY(a).translate(0, BALL_H - 0.12, -28)); }
   for (let k = 0; k < 16; k++) { const a = k / 16 * Math.PI * 2; glow(Math.cos(a) * 8.1, BALL_H - 0.5, -28 + Math.sin(a) * 8.1, [1.2, 0.85, 0.45], 1.6); }
   DM.crystalD = M.crystal;
-  for (const k in batch) { const m = new T.Mesh(mergeGeos(batch[k]), DM[k]); m.frustumCulled = false; grp.add(m); }
+  for (const k in batch) grp.add(new T.Mesh(mergeGeos(batch[k]), DM[k]));
 }
