@@ -150,6 +150,43 @@ export const GEOS = {
     for (let i = 0; i < 7; i++) { const l = box(0.04, 0.32, 0.01, 0, 0.3, 0); l.rotateZ(0.5 * Math.cos(i * 0.9)); l.rotateY(i * 0.9); P.push(C(l, [0.12, 0.3, 0.12])); }
     return mergeColored(P);
   },
+  /* ---- V41: Dinge in Alexanders Penthouse (Mitte = Schwerpunkt) ---- */
+  // Bücherstapel: drei Bände in Leder, Goldprägung am Rücken
+  book: () => {
+    const P = [], cols = [[0.42, 0.1, 0.08], [0.1, 0.25, 0.26], [0.3, 0.2, 0.12]], hs = [0.035, 0.03, 0.04];
+    let y = -0.0525;
+    cols.forEach((c, i) => { const h = hs[i], w = 0.22 - i * 0.015, d = 0.16 - i * 0.01, ox = (i % 2) * 0.015;
+      P.push(C(box(w, h, d, ox, y + h / 2), c), C(box(w - 0.02, h - 0.006, d - 0.012, ox + 0.012, y + h / 2), [0.9, 0.86, 0.76]), C(box(0.004, h - 0.01, 0.1, ox - w / 2 + 0.002, y + h / 2), GOLD)); y += h; });
+    return mergeColored(P);
+  },
+  // Kerzenleuchter aus Messing mit Kerze
+  candlestick: () => mergeColored([C(lathe([[0, -0.16], [0.06, -0.16], [0.065, -0.145], [0.02, -0.12], [0.015, -0.02], [0.03, 0], [0.02, 0.01], [0, 0.01]], 14), BRASS), C(cyl(0.011, 0.011, 0.14, 0.08, 10), [0.93, 0.9, 0.82]), C(cyl(0.002, 0.002, 0.012, 0.156, 4), [0.1, 0.1, 0.1])]),
+  // Kristallkaraffe mit Stöpsel, halb voll mit Whisky
+  decanter: () => mergeColored([C(lathe([[0, -0.14], [0.065, -0.14], [0.07, -0.08], [0.06, -0.02], [0.025, 0.02], [0.022, 0.09], [0.028, 0.1], [0, 0.1]], 16), [0.86, 0.9, 0.92]), C(lathe([[0, -0.135], [0.06, -0.135], [0.065, -0.08], [0.055, -0.03], [0, -0.03]], 14), [0.62, 0.3, 0.08]), C(lathe([[0, 0.1], [0.02, 0.1], [0.028, 0.12], [0.012, 0.14], [0, 0.14]], 10), [0.9, 0.94, 0.96])]),
+  // Whiskyglas (Tumbler), schwerer Boden
+  tumbler: () => mergeColored([C(lathe([[0, -0.05], [0.035, -0.05], [0.04, 0.05], [0.036, 0.05], [0.032, -0.03], [0, -0.03]], 14), [0.85, 0.88, 0.9]), C(cyl(0.031, 0.031, 0.025, -0.017, 12), [0.68, 0.36, 0.1])]),
+  // Zigarrenkiste aus Zedernholz mit Messingschloss
+  cigarbox: () => mergeColored([C(box(0.24, 0.07, 0.16), [0.5, 0.3, 0.14]), C(box(0.242, 0.006, 0.162, 0, 0.012), [0.3, 0.17, 0.08]), C(box(0.03, 0.02, 0.004, 0, 0, 0.082), BRASS), C(box(0.14, 0.001, 0.08, 0, 0.0355), [0.85, 0.75, 0.5])]),
+  // Kissen (Samt, petrol) und Kissen (Seide, creme) mit Goldkordel
+  cushion: () => mergeColored([C(new T.SphereGeometry(0.22, 12, 8).scale(1, 0.32, 1), [0.06, 0.3, 0.31]), C(new T.TorusGeometry(0.2, 0.008, 5, 24).rotateX(Math.PI / 2), GOLD)]),
+  cushionC: () => mergeColored([C(new T.SphereGeometry(0.22, 12, 8).scale(1, 0.32, 1), [0.9, 0.84, 0.72]), C(new T.TorusGeometry(0.2, 0.008, 5, 24).rotateX(Math.PI / 2), GOLD)]),
+  // Stehrahmen mit Bild (Goldrahmen, dunkles Bild, Stütze hinten)
+  frame: () => mergeColored([C(box(0.22, 0.28, 0.02), GOLD), C(box(0.18, 0.24, 0.004, 0, 0, 0.011), [0.12, 0.1, 0.09]), C(box(0.12, 0.16, 0.004, 0, 0, 0.012), [0.5, 0.42, 0.34]), C(box(0.02, 0.22, 0.006, 0, -0.03, -0.04).rotateX(0.3), [0.3, 0.2, 0.1])]),
+  // Aschenbecher aus Messing
+  ashtray: () => mergeColored([C(lathe([[0, -0.02], [0.08, -0.02], [0.085, 0.015], [0.07, 0.02], [0.06, -0.005], [0, -0.005]], 16), BRASS)]),
+  // Cocktailshaker, Chrom
+  shaker: () => mergeColored([C(lathe([[0, -0.13], [0.04, -0.13], [0.045, 0.03], [0.04, 0.06], [0.035, 0.09], [0.02, 0.11], [0.02, 0.13], [0, 0.13]], 16), [0.85, 0.87, 0.9])]),
+  // Schellackplatte mit Etikett
+  record: () => mergeColored([C(cyl(0.15, 0.15, 0.012, 0, 32), [0.06, 0.06, 0.07]), C(cyl(0.05, 0.05, 0.013, 0, 20), [0.7, 0.2, 0.12]), C(cyl(0.004, 0.004, 0.014, 0, 6), [0.9, 0.9, 0.9])]),
+  // Kaminuhr: Holzgehäuse mit Rundbogen, Messingzifferblatt
+  clock: () => mergeColored([C(box(0.26, 0.17, 0.11, 0, -0.035), [0.35, 0.18, 0.08]), C(cyl(0.13, 0.13, 0.11, 0.05, 20).rotateX(Math.PI / 2).translate(0, 0, 0), [0.35, 0.18, 0.08]), C(cyl(0.095, 0.095, 0.004, 0, 24).rotateX(Math.PI / 2).translate(0, 0.03, 0.056), [0.92, 0.88, 0.75]), C(box(0.006, 0.07, 0.002, 0, 0.065, 0.059), [0.1, 0.1, 0.1]), C(box(0.05, 0.006, 0.002, 0.02, 0.03, 0.059), [0.1, 0.1, 0.1]), C(box(0.28, 0.02, 0.13, 0, -0.11), BRASS)]),
+  // Tischfernsprecher (Kerzenständer-Telefon), schwarzer Lack und Messing
+  telephone: () => mergeColored([C(lathe([[0, -0.15], [0.08, -0.15], [0.085, -0.13], [0.03, -0.11], [0.015, 0.05], [0.03, 0.07], [0.05, 0.1], [0.04, 0.12], [0, 0.12]], 14), [0.05, 0.05, 0.06]), C(cyl(0.012, 0.012, 0.14, 0.02, 8).rotateZ(Math.PI / 2).translate(-0.04, 0.02, 0), BRASS), C(lathe([[0, 0], [0.025, 0], [0.03, 0.05], [0, 0.06]], 10).translate(-0.11, 0.0, 0), [0.05, 0.05, 0.06]), C(cyl(0.006, 0.006, 0.1, 0.06, 6).rotateX(0.6).translate(0.05, 0.0, 0.08), [0.1, 0.1, 0.1])]),
+  // Whiskyflasche, bernsteinfarbenes Glas, Etikett
+  whisky: () => mergeColored([C(lathe([[0, -0.14], [0.04, -0.14], [0.042, 0.0], [0.03, 0.05], [0.014, 0.08], [0.014, 0.13], [0.017, 0.14], [0, 0.14]], 12), [0.5, 0.28, 0.08]), C(cyl(0.043, 0.043, 0.06, -0.06, 14), [0.9, 0.86, 0.74]), C(cyl(0.016, 0.016, 0.02, 0.135, 8), [0.2, 0.12, 0.06])]),
+  // Apfel und Orange
+  apple: () => mergeColored([C(new T.SphereGeometry(0.04, 12, 9).scale(1, 0.92, 1), [0.65, 0.12, 0.08]), C(cyl(0.003, 0.003, 0.02, 0.045, 5), [0.3, 0.2, 0.1])]),
+  orange: () => mergeColored([C(new T.SphereGeometry(0.04, 12, 9), [0.9, 0.45, 0.08])]),
 };
 // Maße, Masse, Stoff der eigenen Formen (Halbmaße wie die Hülle)
 const KINDS = {
@@ -161,6 +198,23 @@ const KINDS = {
   coupe: { name: 'Champagnerschale', kind: 'cyl', he: [0.05, 0.06, 0.05], m: 0.2, stuff: 'glass', small: true },
   papers: { name: 'Zeitungsbündel', kind: 'box', he: [0.2, 0.07, 0.15], m: 3, stuff: 'paper', small: false },
   vase: { name: 'Messingtopf mit Palme', kind: 'cyl', he: [0.14, 0.15, 0.14], m: 6, stuff: 'metal', small: false },
+  // V41: Penthouse
+  book: { name: 'Bücherstapel', kind: 'box', he: [0.115, 0.0525, 0.08], m: 1.6, stuff: 'paper', small: true },
+  candlestick: { name: 'Kerzenleuchter', kind: 'cyl', he: [0.065, 0.16, 0.065], m: 1.4, stuff: 'metal', small: true },
+  decanter: { name: 'Karaffe', kind: 'cyl', he: [0.07, 0.14, 0.07], m: 1.8, stuff: 'glass', small: true },
+  tumbler: { name: 'Whiskyglas', kind: 'cyl', he: [0.04, 0.05, 0.04], m: 0.3, stuff: 'glass', small: true },
+  cigarbox: { name: 'Zigarrenkiste', kind: 'box', he: [0.12, 0.035, 0.08], m: 0.9, stuff: 'wood', small: true },
+  cushion: { name: 'Samtkissen', kind: 'box', he: [0.2, 0.07, 0.2], m: 0.6, stuff: 'leather', small: true },
+  cushionC: { name: 'Seidenkissen', kind: 'box', he: [0.2, 0.07, 0.2], m: 0.6, stuff: 'leather', small: true },
+  frame: { name: 'Bilderrahmen', kind: 'box', he: [0.11, 0.14, 0.03], m: 0.5, stuff: 'wood', small: true },
+  ashtray: { name: 'Aschenbecher', kind: 'cyl', he: [0.085, 0.02, 0.085], m: 0.7, stuff: 'metal', small: true },
+  shaker: { name: 'Cocktailshaker', kind: 'cyl', he: [0.045, 0.13, 0.045], m: 0.8, stuff: 'metal', small: true },
+  record: { name: 'Schellackplatte', kind: 'cyl', he: [0.15, 0.012, 0.15], m: 0.25, stuff: 'paper', small: true },
+  clock: { name: 'Kaminuhr', kind: 'box', he: [0.14, 0.13, 0.065], m: 3, stuff: 'wood', small: true },
+  telephone: { name: 'Fernsprecher', kind: 'cyl', he: [0.085, 0.15, 0.085], m: 2.4, stuff: 'metal', small: true },
+  whisky: { name: 'Whiskyflasche', kind: 'cyl', he: [0.043, 0.14, 0.043], m: 1.2, stuff: 'glass', small: true },
+  apple: { name: 'Apfel', kind: 'ball', he: [0.04, 0.04, 0.04], m: 0.18, stuff: 'food', small: true },
+  orange: { name: 'Orange', kind: 'ball', he: [0.04, 0.04, 0.04], m: 0.2, stuff: 'food', small: true },
 };
 export function spawnProp(type, x, y, z, yaw = 0) {
   const k = KINDS[type]; if (!k || LOOSE.bodies.length >= MAX_BODIES) return null;
@@ -639,7 +693,7 @@ function floorBelow(x, z, yTop) {
 export function updateSpawns() {
   const p = player.p;
   for (const S of SPAWNS) {
-    if (S.done || (S.x - p.x) ** 2 + (S.z - p.z) ** 2 > 110 * 110) continue;
+    if (S.done || (S.x - p.x) ** 2 + (S.z - p.z) ** 2 > 110 * 110 || (S.y0 != null && p.y < S.y0)) continue;   // V41: y0 = erst ab dieser Höhe (Penthouse über der Lobby)
     S.done = true;
     for (const [type, x, z, yaw, up] of S.items) {
       const yTop = (S.floor ?? 0) + (typeof up === 'number' && up > 0.3 ? up + 0.3 : S.y);

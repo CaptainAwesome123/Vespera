@@ -333,6 +333,19 @@ export const decoStats = () => ({ portals: DECOR.portals.length, doors: DECOR.do
 
 /* ---------- V38 · FASSADEN-LABOR (index.html?lab=fassade): ein Elitehaus mit Portal, Haustür und Dachreklame,
    ein Backsteinhaus mit Wandreklame, eine Ringhaus-Tür, vor dunklem Grund; tools/lab-shot.js macht Bilder (LAB=fassade) ---------- */
+// Fassadenquader aus FS.segs wie in flushInstances, für die Labore (Fassaden-Labor, Penthouse-Labor V41)
+export function labFacadeMesh(FS) {
+  const box = new T.BoxGeometry(1, 1, 1), S = FS.segs, m = new T.Matrix4(), q = new T.Quaternion(), up = new T.Vector3(0, 1, 0), p3 = new T.Vector3(), s3 = new T.Vector3();
+  const tintA = new Float32Array(S.length * 3), par = new Float32Array(S.length * 4), rib = new Float32Array(S.length * 3), flg = new Float32Array(S.length);
+  const im = new T.InstancedMesh(box, FS.facadeMat, S.length);
+  S.forEach((s, i) => {
+    if (s.ry) m.compose(p3.set(s.x, (s.y0 + s.y1) / 2, s.z), q.setFromAxisAngle(up, s.ry), s3.set(s.w, s.y1 - s.y0, s.d)); else m.makeScale(s.w, s.y1 - s.y0, s.d).setPosition(s.x, (s.y0 + s.y1) / 2, s.z);
+    im.setMatrixAt(i, m); tintA.set(s.tint, i * 3); par.set([s.seed, s.style, s.dens, s.flood], i * 4); if (s.rib) rib.set(s.rib, i * 3); flg[i] = s.fl || 0;
+  });
+  box.setAttribute('aFlag', new T.InstancedBufferAttribute(flg, 1)); box.setAttribute('aTint', new T.InstancedBufferAttribute(tintA, 3));
+  box.setAttribute('aRib', new T.InstancedBufferAttribute(rib, 3)); box.setAttribute('aParams', new T.InstancedBufferAttribute(par, 4));
+  im.frustumCulled = false; return im;
+}
 export async function startFacadeLab(params) {
   const { scene, camera, renderer, U, $ } = await import('./core.js');
   const PS = await import('./people-skeleton.js'), FS = await import('./facade-shader.js');
@@ -366,17 +379,7 @@ export async function startFacadeLab(params) {
   decoOuterDoor(40 - 7, -3, -1, 0, true, 'pub', bt);
   planDeco();
   DECOR.signs.push({ x: 0, z: 9 - 1.4, o: [0, 1], w: 14, h: 14 * 160 / (110 * 6 + 40), y: 48.2 + 1.4 + 1.6, word: 'AURORA', col: 'gold', H: 48.2 });
-  // Fassadenquader wie in flushInstances
-  const box = new T.BoxGeometry(1, 1, 1), S = FS.segs, m = new T.Matrix4(), q = new T.Quaternion(), up = new T.Vector3(0, 1, 0), p3 = new T.Vector3(), s3 = new T.Vector3();
-  const tintA = new Float32Array(S.length * 3), par = new Float32Array(S.length * 4), rib = new Float32Array(S.length * 3), flg = new Float32Array(S.length);
-  const im = new T.InstancedMesh(box, FS.facadeMat, S.length);
-  S.forEach((s, i) => {
-    if (s.ry) m.compose(p3.set(s.x, (s.y0 + s.y1) / 2, s.z), q.setFromAxisAngle(up, s.ry), s3.set(s.w, s.y1 - s.y0, s.d)); else m.makeScale(s.w, s.y1 - s.y0, s.d).setPosition(s.x, (s.y0 + s.y1) / 2, s.z);
-    im.setMatrixAt(i, m); tintA.set(s.tint, i * 3); par.set([s.seed, s.style, s.dens, s.flood], i * 4); if (s.rib) rib.set(s.rib, i * 3); flg[i] = s.fl || 0;
-  });
-  box.setAttribute('aFlag', new T.InstancedBufferAttribute(flg, 1)); box.setAttribute('aTint', new T.InstancedBufferAttribute(tintA, 3));
-  box.setAttribute('aRib', new T.InstancedBufferAttribute(rib, 3)); box.setAttribute('aParams', new T.InstancedBufferAttribute(par, 4));
-  im.frustumCulled = false; scene.add(im);
+  scene.add(labFacadeMesh(FS));
   EN.buildEntrances(); BF.buildHouseDoors();
   setupDecoLayers();
   for (const L of CH.layers) for (let cx = -1; cx <= 1; cx++) for (let cz = -1; cz <= 1; cz++) { const o = L.build(cx, cz, 0, {}); if (o) scene.add(o); }

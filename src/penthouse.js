@@ -7,7 +7,8 @@ import { poolWaterMat } from './water.js';
 import { player } from './player.js';
 import { addLight } from './performance.js';
 import { BEL, boxW, marbleTex } from './belmont.js';
-import { inlayFloorTex, travertineTex, decoRugTex, damaskTex, veneerTex, onyxTex, cofferTex2, booksTex, tileTex, mosaicTex, glowRoomTex } from './deco-tex.js';
+import { inlayFloorTex, travertineTex, decoRugTex, damaskTex, veneerTex, onyxTex, cofferTex2, booksTex, tileTex, mosaicTex, glowRoomTex, paintingTex, RUNNER_TEX } from './deco-tex.js';
+import { SPAWNS } from './physics.js';
 
 /* =====================================================================
    V33 · ALEXANDERS PENTHOUSE-SUITE IM BELMONT (250 m, in der Turmstufe über der Terrasse)
@@ -22,7 +23,7 @@ import { inlayFloorTex, travertineTex, decoRugTex, damaskTex, veneerTex, onyxTex
 export const PH = {
   F1: 250, F2: 256.4, SLAB: 256.0, TOP: 263, W: 19.95,
   stair: { x: 0, z: -4, r: 2.55, n: 27, turn: Math.PI * 2.5 },
-  doors: [], inner: null, terrace: null, far: null, shell: null,
+  doors: [], inner: null, terrace: null, far: null, shell: null, emis: [], farK: 0,
 };
 // Spieler in der Suite (für Licht, Nebel, Regen, Musik, Ortsnamen)
 export const inPenthouse = p => Math.abs(p.x) < 20 && Math.abs(p.z) < 20 && p.y > PH.F1 - 0.5 && p.y < PH.TOP;
@@ -63,7 +64,8 @@ export function buildPenthouse() {
     dark: wantTexture(stdMat({ map: blackT, roughness: 0.12, metalness: 0.05, envI: 0.85 }), { map: 'marble-color', normalMap: 'marble-normal', roughnessMap: 'marble-rough', repeat: [2, 2], normalScale: 0.5, roughness: 0.45, color: 0xfff4e4 }),
     gold: wantTexture(MAT.gold.clone(), { map: 'gold-color', normalMap: 'gold-normal', roughnessMap: 'gold-rough', repeat: [3, 3], normalScale: 0.35, roughness: 0.9, color: 0xf2d79a }),
     chrome: MAT.chrome, lacquer: MAT.black,
-    glass: new T.MeshStandardMaterial({ color: 0x18282a, metalness: 0.7, roughness: 0.04, transparent: true, opacity: 0.2, depthWrite: false, side: T.DoubleSide, emissive: 0x120c06 }),
+    // V41: von außen durchsichtig (vorher Metallanteil 0,7 und dunkle Farbe: das Glas spiegelte die Umgebung und wirkte wie eine schwarze Wand)
+    glass: new T.MeshStandardMaterial({ color: 0x8fb4b8, metalness: 0.15, roughness: 0.05, transparent: true, opacity: 0.13, depthWrite: false, side: T.DoubleSide, emissive: 0x0a0806, envMap: MAT.gold.envMap || null, envMapIntensity: 0.5 }),
     veneer: stdMat({ map: veneerTex(), roughness: 0.18, metalness: 0.05, envI: 0.8 }),
     velvet: stdMat({ color: 0x0f4a4c, roughness: 0.9, envI: 0.12 }),
     cream: stdMat({ color: 0xe6d7bc, roughness: 0.85, envI: 0.15 }),
@@ -93,7 +95,17 @@ export function buildPenthouse() {
     cushion: stdMat({ color: 0xf0e6d2, roughness: 0.9, envI: 0.12 }),
     rug1: stdMat({ map: decoRugTex('#e2d4b8', '#a8823c', '#0d3a3c', 12, 8), roughness: 1, envI: 0.1, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 }),
     rug2: stdMat({ map: decoRugTex('#0d2f33', '#c9a050', '#4a0c14', 6, 5), roughness: 1, envI: 0.1, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 }),
+    // V41: mehr Einrichtung
+    runner: stdMat({ map: RUNNER_TEX(), roughness: 1, envI: 0.1, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 }),
+    copper: stdMat({ color: 0xb87333, metalness: 1, roughness: 0.3, envI: 0.8 }),
+    bronze: stdMat({ color: 0x6a4a2a, metalness: 0.9, roughness: 0.45, envI: 0.5 }),
+    parchment: stdMat({ color: 0xe8dcc0, roughness: 0.9, envI: 0.1 }),
+    ember: new T.MeshBasicMaterial({ color: new T.Color(1.3, 0.35, 0.08) }),
+    meteor: new T.MeshStandardMaterial({ color: 0x3fc8c0, emissive: new T.Color(0.25, 1.0, 0.9), emissiveIntensity: 0.9, roughness: 0.15, metalness: 0.1, transparent: true, opacity: 0.92 }),
+    art0: stdMat({ map: paintingTex(0), roughness: 0.8, envI: 0.1, emissive: 0x100c08 }), art1: stdMat({ map: paintingTex(1), roughness: 0.8, envI: 0.1, emissive: 0x100c08 }),
+    art2: stdMat({ map: paintingTex(2), roughness: 0.8, envI: 0.1, emissive: 0x100c08 }), art3: stdMat({ map: paintingTex(3), roughness: 0.8, envI: 0.1, emissive: 0x100c08 }), art4: stdMat({ map: paintingTex(4), roughness: 0.8, envI: 0.1, emissive: 0x100c08 }),
   };
+  for (const k in M) M[k].name = k;   // V41: Namen für Fehlersuche (Labor)
   // Onyx leuchtet von hinten: Eigenleuchten aus derselben Textur
   M.onyx.emissiveMap = M.onyx.map; M.onyx.emissiveIntensity = 0.75;
 
@@ -145,9 +157,10 @@ export function buildPenthouse() {
     PH.doors.push({ g, base, t, dir, c, open: 0, cx: ax ? um : ox * W, cz: ax ? oz * W : um });
   }
   // Ferne: warmer Kasten hinter dem Glas statt des Innenlebens (V34: 80 cm hinter Glas und Sprossen statt 25 cm, die flackerten aus der Ferne dagegen)
+  // V41: erst jenseits von 1 km (vorher 260 m: vom Platz aus war die Suite immer ein undurchsichtiger Klotz), und halbdurchsichtig
   { const t = glowRoomTex(); t.wrapS = T.RepeatWrapping; t.repeat.set(2, 1);
-    const far = new T.Mesh(new T.BoxGeometry(38.4, TOP - F1 - 0.4, 38.4), new T.MeshBasicMaterial({ map: t, color: new T.Color(0.8, 0.7, 0.6) }));
-    far.position.set(0, (F1 + TOP) / 2, 0); scene.add(far); PH.far = far; }
+    const far = new T.Mesh(new T.BoxGeometry(38.4, TOP - F1 - 0.4, 38.4), new T.MeshBasicMaterial({ map: t, color: new T.Color(0.9, 0.78, 0.62), transparent: true, opacity: 0.75, depthWrite: false }));
+    far.position.set(0, (F1 + TOP) / 2, 0); far.renderOrder = 1; scene.add(far); PH.far = far; }
 
   /* ================= Böden, Decken, Galerie, Kern ================= */
   const st = PH.stair, HX = 2.75, hz0 = st.z - 2.75, hz1 = st.z + 2.75;
@@ -510,6 +523,199 @@ export function buildPenthouse() {
     for (const sx of [-1, 1]) topiary(sx * 29.6, -7.6, 1.8);
   }
 
+
+  /* ================= V41: viel mehr Einrichtung (gemütlich und elegant) ================= */
+  // Gemälde mit Goldrahmen an einer Wand: Mitte (x, y, z), Breite, Höhe, Blickrichtung des Bildes (nx, nz)
+  const painting = (kind, x, y, z, w, h, nx, nz, where = 'inner') => {
+    const ry = Math.atan2(nx, nz);
+    put('gold', BOX(w + 0.18, h + 0.18, 0.07).rotateY(ry).translate(x + nx * 0.035, y, z + nz * 0.035), where);
+    put('lacquer', BOX(w + 0.08, h + 0.08, 0.02).rotateY(ry).translate(x + nx * 0.075, y, z + nz * 0.075), where);
+    put('art' + kind, new T.PlaneGeometry(w, h).rotateY(ry).translate(x + nx * 0.09, y, z + nz * 0.09), where);
+    glow(x + nx * 0.5, y + h / 2 + 0.25, z + nz * 0.5, [1.25, 0.95, 0.6], 0.9);
+  };
+  // Wandleuchte: goldener Fächer mit Lampenschirm
+  const sconce = (x, y, z, nx, nz, where = 'inner') => {
+    const ry = Math.atan2(nx, nz);
+    put('gold', BOX(0.22, 0.08, 0.1).rotateY(ry).translate(x + nx * 0.05, y, z + nz * 0.05), where);
+    for (let k = -3; k <= 3; k++) put('gold', BOX(0.03, 0.5, 0.02).translate(0, 0.25, 0).rotateZ(k * 0.18).rotateY(ry).translate(x + nx * 0.06, y + 0.04, z + nz * 0.06), where);
+    put('lamp', new T.ConeGeometry(0.14, 0.26, 10, 1, true).rotateX(Math.PI).translate(x + nx * 0.16, y + 0.2, z + nz * 0.16), where);
+    glow(x + nx * 0.25, y + 0.35, z + nz * 0.25, [1.35, 0.95, 0.55], 1.1);
+  };
+  // Schwerer Samtvorhang: fünf Bahnen vom Boden bis unter die Decke, goldene Raffhalter
+  const curtain = (x, y, z, h, along = 'x', mat = 'velvet') => {
+    for (let k = 0; k < 5; k++) { const o = (k - 2) * 0.19, d = (k % 2) * 0.07; put(mat, CYL(0.11, 0.12, h, along === 'x' ? x + o : x + d, y + h / 2, along === 'x' ? z + d : z + o, 8)); }
+    put('gold', new T.TorusGeometry(0.5, 0.03, 6, 20).rotateX(Math.PI / 2).scale(1, 1, 0.45).rotateY(along === 'x' ? 0 : Math.PI / 2).translate(x, y + 1.1, z));
+    put('gold', BOX(along === 'x' ? 1.1 : 0.2, 0.1, along === 'x' ? 0.2 : 1.1, x, y + h + 0.03, z));
+    col(x - 0.5, y, z - 0.5, x + 0.5, y + h, z + 0.5);
+  };
+  // Farn auf Goldständer
+  const fern = (x, y, z, s = 1, where = 'inner') => {
+    put('gold', lathe([[0.18 * s, 0], [0.05 * s, 0.03 * s], [0.03 * s, 0.75 * s], [0.14 * s, 0.8 * s], [0.16 * s, 0.9 * s]], 12).translate(x, y, z), where);
+    for (let k = 0; k < 11; k++) { const a = k * 2.399; put('leaf', new T.PlaneGeometry(0.1 * s, 0.6 * s).translate(0, 0.3 * s, 0).rotateX(-0.6 - (k % 4) * 0.25).rotateY(a).translate(x, y + 0.85 * s, z), where); }
+    col(x - 0.2 * s, y, z - 0.2 * s, x + 0.2 * s, y + 0.9 * s, z + 0.2 * s);
+  };
+  // Beistelltisch (Lack, Goldkante), Oberkante bei y + h
+  const sideTable = (x, y, z, w, d, h = 0.6, mat = 'lacquer', where = 'inner') => {
+    put(mat, roundBox(w, 0.05, d, 0.015).translate(x, y + h - 0.025, z), where); put('gold', BOX(w + 0.02, 0.02, d + 0.02, x, y + h - 0.06, z), where);
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) put(mat, CYL(0.025, 0.035, h - 0.05, x + sx * (w / 2 - 0.06), y + (h - 0.05) / 2, z + sz * (d / 2 - 0.06), 8), where);
+    col(x - w / 2, y, z - d / 2, x + w / 2, y + h, z + d / 2);
+  };
+  // ---------- Säulen am Galerierand, Deckenrosetten ----------
+  for (const x of [-14.5, -5.5, 5.5, 14.5]) {
+    put('dark', CYL(0.42, 0.46, SLAB - F1 - 0.95, x, F1 + 0.3 + (SLAB - F1 - 0.95) / 2, -0.3, 20));
+    put('gold', CYL(0.5, 0.58, 0.3, x, F1 + 0.15, -0.3, 20)); put('gold', lathe([[0.42, 0], [0.5, 0.25], [0.68, 0.55], [0.7, 0.65], [0, 0.65]], 20).translate(x, SLAB - 0.65, -0.3));
+    for (let k = 0; k < 16; k++) { const a = k / 16 * Math.PI * 2; put('gold', BOX(0.04, SLAB - F1 - 1.0, 0.03).translate(x + Math.cos(a) * 0.44, F1 + 0.3 + (SLAB - F1 - 1.0) / 2, -0.3 + Math.sin(a) * 0.44).rotateY(0)); }
+    col(x - 0.5, F1, -0.8, x + 0.5, SLAB, 0.2);
+    sconce(x + 0.46, F1 + 2.7, -0.3, 1, 0); sconce(x - 0.46, F1 + 2.7, -0.3, -1, 0);
+  }
+  for (const [x, z, r] of [[0, 9.5, 3.0], [-12, 3.2, 1.9]]) { put('gold', new T.TorusGeometry(r, 0.07, 6, 48).rotateX(Math.PI / 2).translate(x, TOP - 0.1, z)); for (let k = 0; k < 24; k++) { const a = k / 24 * Math.PI * 2; put('gold', BOX(r * 0.55, 0.03, 0.06).translate(r * 0.7, 0, 0).rotateY(a).translate(x, TOP - 0.1, z)); } }
+  // ---------- Vorhänge an den Glaswänden ----------
+  const CH1 = SLAB - F1 - 0.2, CH2 = TOP - F2 - 0.25;
+  for (const [x, z, al] of [[-3.5, 19.35, 'x'], [3.5, 19.35, 'x'], [19.35, 4.3, 'z'], [19.35, 8.2, 'z'], [-19.35, 4.3, 'z'], [-19.35, 8.2, 'z'], [-10.2, 19.35, 'x'], [10.2, 19.35, 'x'], [19.35, -3.5, 'z'], [-19.35, 15.5, 'z'], [19.35, 15.5, 'z']]) curtain(x, F1, z, CH1, al, 'velvet');
+  for (const [x, z, al] of [[19.35, -6.0, 'z'], [19.35, -14.5, 'z'], [-19.35, -7.5, 'z'], [-19.35, -14.5, 'z'], [12.5, -19.35, 'x'], [-8.0, -19.35, 'x']]) curtain(x, F2, z, CH2, al, 'bordeaux');
+  // ---------- Kamin als Raumteiler zwischen Salon und Speisezimmer (beidseitig, bis unter die Decke) ----------
+  {
+    const x = -6.6, z = 9.5, w = 3.4, d = 1.1;
+    put('dark', boxW(d, TOP - F1 - 0.1, w, x, (F1 + TOP - 0.1) / 2, z, 2));
+    for (const sx of [-1, 1]) for (const dz of [-1.5, 0, 1.5]) put('gold', BOX(0.03, TOP - F1 - 0.1, 0.08, x + sx * (d / 2 + 0.01), (F1 + TOP - 0.1) / 2, z + dz));
+    // Feuerraum nach Osten (Salon): schwarz, Bodenplatte, Holzscheite, Flammen, Glut
+    put('lacquer', BOX(0.9, 1.0, 1.3, x + d / 2 - 0.44, F1 + 0.52, z)); put('iron', BOX(0.5, 0.04, 1.26, x + d / 2 - 0.25, F1 + 0.04, z));
+    put('gold', BOX(0.06, 1.1, 0.08, x + d / 2 + 0.03, F1 + 0.55, z - 0.7)); put('gold', BOX(0.06, 1.1, 0.08, x + d / 2 + 0.03, F1 + 0.55, z + 0.7)); put('gold', BOX(0.06, 0.08, 1.48, x + d / 2 + 0.03, F1 + 1.08, z));
+    for (const [dz, dy, a] of [[-0.25, 0.14, 0.2], [0.25, 0.14, -0.15], [0, 0.3, 0.6]]) put('trunk', CYL(0.07, 0.08, 0.7, 0, 0, 0, 7).rotateZ(Math.PI / 2).rotateY(a).translate(x + d / 2 - 0.3, F1 + dy, z + dz));
+    for (let k = 0; k < 7; k++) put('fire', new T.ConeGeometry(0.07 + 0.03 * (k % 3), 0.3 + 0.12 * (k % 2), 6).translate(x + d / 2 - 0.3 + Math.cos(k * 1.7) * 0.12, F1 + 0.42 + 0.05 * (k % 3), z + (k - 3) * 0.1));
+    put('ember', BOX(0.4, 0.03, 0.9, x + d / 2 - 0.3, F1 + 0.08, z)); glow(x + d / 2, F1 + 0.6, z, [1.6, 0.7, 0.25], 3.2);
+    // Kaminsims aus weißem Marmor auf Goldkonsolen, darüber ein runder Spiegel im Goldkranz
+    put('white', boxW(0.5, 0.1, 2.2, x + d / 2 + 0.1, F1 + 1.3, z, 1)); for (const dz of [-0.9, 0.9]) put('gold', BOX(0.3, 0.16, 0.1, x + d / 2 + 0.05, F1 + 1.17, z + dz));
+    put('mirror', new T.CircleGeometry(0.75, 32).rotateY(Math.PI / 2).translate(x + d / 2 + 0.02, F1 + 2.5, z)); put('gold', new T.TorusGeometry(0.78, 0.05, 8, 40).rotateY(Math.PI / 2).translate(x + d / 2 + 0.02, F1 + 2.5, z));
+    for (let k = 0; k < 24; k++) { const a = k / 24 * Math.PI * 2; put('gold', BOX(0.03, 0.35 + 0.2 * (k % 2), 0.04).translate(0, 0.95 + 0.1 * (k % 2), 0).rotateX(a).translate(x + d / 2 + 0.02, F1 + 2.5, z)); }
+    col(x - d / 2, F1, z - w / 2, x + d / 2 + 0.35, F1 + 1.35, z + w / 2); col(x - d / 2, F1, z - w / 2, x + d / 2, TOP, z + w / 2);
+    // Rückseite zum Speisezimmer: großes Gemälde, zwei Wandleuchten
+    painting(2, x - d / 2, F1 + 2.4, z, 2.0, 1.5, -1, 0); sconce(x - d / 2, F1 + 2.6, z - 1.45, -1, 0); sconce(x - d / 2, F1 + 2.6, z + 1.45, -1, 0);
+    // Kaminbesteck und Holzkorb
+    put('iron', CYL(0.14, 0.14, 0.02, x + d / 2 + 0.9, F1 + 0.01, z - 1.05, 10)); for (let k = 0; k < 3; k++) put('iron', CYL(0.012, 0.012, 0.7, x + d / 2 + 0.9 + Math.cos(k * 2.1) * 0.06, F1 + 0.36, z - 1.05 + Math.sin(k * 2.1) * 0.06, 5));
+    put('gold', lathe([[0.22, 0], [0.26, 0.3], [0.28, 0.32]], 12).translate(x + d / 2 + 0.9, F1, z + 1.1)); for (let k = 0; k < 4; k++) put('trunk', CYL(0.05, 0.05, 0.45, x + d / 2 + 0.9 + (k % 2) * 0.1 - 0.05, F1 + 0.33 + Math.floor(k / 2) * 0.1, z + 1.1 + (k % 2 ? 0.04 : -0.04), 6));
+    col(x + d / 2 + 0.6, F1, z + 0.8, x + d / 2 + 1.2, F1 + 0.5, z + 1.4);
+    // Sessel vor dem Feuer, Fell davor
+    furn(FURN.clubChair(), MAP('bordeaux'), x + 2.6, F1, z - 1.3, -Math.PI / 2 - 0.5); col(x + 2.1, F1, z - 1.8, x + 3.1, F1 + 0.9, z - 0.8);
+    furn(FURN.clubChair(), MAP('bordeaux'), x + 2.6, F1, z + 1.3, -Math.PI / 2 + 0.5); col(x + 2.1, F1, z + 0.8, x + 3.1, F1 + 0.9, z + 1.8);
+    put('cushion', new T.CircleGeometry(0.9, 18).scale(1.3, 1, 0.8).rotateX(-Math.PI / 2).translate(x + 1.6, F1 + 0.04, z));
+  }
+  // ---------- Barwagen bei den Sofas, Konsole hinter dem Sofa ----------
+  {
+    const x = 4.4, z = 13.4;
+    for (const yy of [0.32, 0.82]) { put('glass', BOX(0.78, 0.015, 0.48, x, F1 + yy, z)); put('gold', BOX(0.82, 0.03, 0.03, x, F1 + yy - 0.02, z - 0.24)); put('gold', BOX(0.82, 0.03, 0.03, x, F1 + yy - 0.02, z + 0.24)); put('gold', BOX(0.03, 0.03, 0.5, x - 0.4, F1 + yy - 0.02, z)); put('gold', BOX(0.03, 0.03, 0.5, x + 0.4, F1 + yy - 0.02, z)); }
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) { put('gold', CYL(0.012, 0.012, 0.86, x + sx * 0.4, F1 + 0.46, z + sz * 0.24, 6)); put('lacquer', new T.TorusGeometry(0.05, 0.015, 6, 12).rotateY(Math.PI / 2).translate(x + sx * 0.36, F1 + 0.05, z + sz * 0.24)); }
+    put('gold', new T.TorusGeometry(0.1, 0.012, 6, 12).rotateX(Math.PI / 2).translate(x - 0.44, F1 + 0.86, z));
+    col(x - 0.41, F1, z - 0.25, x + 0.41, F1 + 0.82, z + 0.25);
+    put('veneer', boxW(3.0, 0.06, 0.4, 0, F1 + 0.8, 14.3, 1)); put('gold', BOX(3.02, 0.02, 0.42, 0, F1 + 0.76, 14.3)); for (const dx of [-1.4, 1.4]) put('veneer', boxW(0.1, 0.77, 0.36, dx, F1 + 0.385, 14.3, 1)); col(-1.5, F1, 14.1, 1.5, F1 + 0.8, 14.5);
+    for (const dx of [-1.1, 1.1]) { furn(FURN.tableLamp(0.5), MAP('lacquer'), dx, F1 + 0.8, 14.3); glow(dx, F1 + 1.2, 14.3, [1.35, 0.95, 0.55], 0.9); }
+    for (const sx of [-1, 1]) fern(sx * 5.4, F1, 15.2, 1.1);
+  }
+  // ---------- Schreibtisch an der Ostseite (Alexanders Arbeitsplatz) ----------
+  {
+    const x = 16.4, z = -3.4;
+    put('veneer', boxW(1.1, 0.06, 2.2, x, F1 + 0.75, z, 1)); put('leather', BOX(0.7, 0.012, 1.4, x, F1 + 0.785, z)); put('gold', BOX(1.12, 0.02, 2.22, x, F1 + 0.71, z));
+    for (const sz of [-1, 1]) { put('veneer', boxW(1.0, 0.68, 0.5, x, F1 + 0.36, z + sz * 0.85, 1)); for (const dy of [0.18, 0.4, 0.6]) put('gold', BOX(0.06, 0.02, 0.2, x - 0.5, F1 + dy, z + sz * 0.85)); }
+    col(x - 0.55, F1, z - 1.1, x + 0.55, F1 + 0.78, z + 1.1);
+    furn(FURN.clubChair(), MAP('leather'), x + 1.3, F1, z, -Math.PI / 2); col(x + 0.8, F1, z - 0.5, x + 1.8, F1 + 0.9, z + 0.5);
+    furn(FURN.tableLamp(0.55), MAP('gold', { lamp: 'bottlesG' }), x - 0.3, F1 + 0.78, z - 0.8); glow(x - 0.3, F1 + 1.2, z - 0.8, [0.9, 1.2, 0.7], 0.9);
+    // Schreibmaschine und Tintenfass
+    put('lacquer', roundBox(0.3, 0.1, 0.3, 0.02).translate(x - 0.05, F1 + 0.83, z + 0.1)); put('lacquer', BOX(0.3, 0.1, 0.12, x - 0.05, F1 + 0.92, z + 0.0)); put('chrome', CYL(0.03, 0.03, 0.32, 0, 0, 0, 10).rotateX(Math.PI / 2).translate(x - 0.05, F1 + 0.99, z + 0.0));
+    for (let r = 0; r < 3; r++) for (let k = 0; k < 8; k++) put('cab', CYL(0.012, 0.012, 0.01, x - 0.14 + k * 0.04 + r * 0.01, F1 + 0.885 + r * 0.012, z + 0.2 - r * 0.045, 6));
+    put('parchment', BOX(0.21, 0.001, 0.3, x - 0.05, F1 + 1.0, z - 0.02).rotateX(0)); 
+    put('crystal', lathe([[0.03, 0], [0.04, 0.02], [0.035, 0.05], [0.015, 0.06], [0.015, 0.075], [0, 0.075]], 10).translate(x + 0.35, F1 + 0.785, z + 0.6)); put('gold', CYL(0.004, 0.004, 0.18, 0, 0, 0, 5).rotateZ(0.6).translate(x + 0.38, F1 + 0.9, z + 0.62));
+    fern(x + 0.2, F1, z + 2.0, 1.2);
+  }
+  // ---------- Der Meteoritenkristall: Vitrine auf der Salonachse (Alexanders Fund, Ursprung seiner Kräfte) ----------
+  {
+    const x = 0, z = 1.8;
+    put('dark', CYL(0.5, 0.55, 1.05, x, F1 + 0.525, z, 8)); put('gold', CYL(0.57, 0.57, 0.04, x, F1 + 1.07, z, 8)); put('gold', CYL(0.6, 0.55, 0.06, x, F1 + 0.03, z, 8));
+    put('white', CYL(0.46, 0.46, 0.03, x, F1 + 1.105, z, 24));
+    for (const [dx, dz, h, a] of [[0, 0, 0.62, 0], [0.12, -0.08, 0.42, 0.4], [-0.1, 0.1, 0.34, -0.5], [0.05, 0.14, 0.26, 0.9]]) put('meteor', new T.OctahedronGeometry(0.11, 0).scale(1, h / 0.11, 1).rotateZ(a * 0.3).rotateY(a).translate(x + dx, F1 + 1.12 + h * 0.55, z + dz));
+    put('stone', new T.DodecahedronGeometry(0.17, 0).scale(1.3, 0.5, 1.1).translate(x, F1 + 1.17, z));
+    put('glass', lathe([[0, 0.9], [0.2, 0.88], [0.38, 0.75], [0.45, 0.45], [0.45, 0]], 24).translate(x, F1 + 1.12, z));
+    glow(x, F1 + 1.5, z, [0.4, 1.4, 1.25], 2.4); glow(x, F1 + 0.5, z + 0.56, [0.3, 1.0, 0.9], 0.8);
+    put('gold', BOX(0.3, 0.12, 0.01, x, F1 + 0.8, z + 0.56)); 
+    col(x - 0.56, F1, z - 0.56, x + 0.56, F1 + 2.0, z + 0.56);
+  }
+  // ---------- Bilder: Fahrstuhlkern, Foyerwände, Barseite ----------
+  painting(0, 2.03, F1 + 2.6, -18.2, 1.3, 1.0, 1, 0); painting(1, -2.03, F1 + 2.6, -18.2, 1.3, 1.0, -1, 0);
+  painting(2, -6.88, F1 + 2.6, -15.5, 2.4, 1.6, 1, 0); painting(3, 6.88, F1 + 2.6, -15.5, 2.4, 1.6, -1, 0);
+  painting(4, 7.12, F1 + 2.7, -14.0, 1.6, 1.2, 1, 0); painting(0, 7.12, F1 + 3.0, -17.5, 1.2, 0.9, 1, 0);
+  sconce(-6.88, F1 + 2.6, -12.2, 1, 0); sconce(6.88, F1 + 2.6, -12.2, -1, 0); sconce(2.03, F1 + 2.6, -19.3, 1, 0); sconce(-2.03, F1 + 2.6, -19.3, -1, 0);
+  // ---------- Foyer: Läufer, Garderobe, Schirmständer ----------
+  { const m = new T.Mesh(new T.PlaneGeometry(2.2, 8.4), M.runner); m.rotation.x = -Math.PI / 2; m.position.set(0, F1 + 0.035, -11.8); inner.add(m); M.runner.map.repeat.set(1, 4); }
+  { const x = 3.4, z = -15.6;
+    put('gold', lathe([[0.3, 0], [0.32, 0.03], [0.05, 0.05], [0.03, 1.75], [0.08, 1.8], [0.03, 1.85]], 12).translate(x, F1, z));
+    for (let k = 0; k < 6; k++) { const a = k / 6 * Math.PI * 2; put('gold', CYL(0.012, 0.012, 0.28, 0, 0, 0, 6).rotateZ(Math.PI / 2 - 0.4).rotateY(a).translate(x + Math.cos(a) * 0.14, F1 + 1.66, z + Math.sin(a) * 0.14)); }
+    put('lacquer', lathe([[0, 0], [0.16, 0], [0.16, 0.14], [0.1, 0.14], [0.1, 0.0]], 16).translate(x + 0.2, F1 + 1.62, z + 0.02).rotateY(0)); put('lacquer', CYL(0.17, 0.17, 0.01, x + 0.2, F1 + 1.62, z + 0.02, 16));
+    put('cream', BOX(0.05, 1.3, 0.9, x + 0.1, F1 + 0.9, z + 0.3).rotateY(0.3));
+    col(x - 0.3, F1, z - 0.3, x + 0.3, F1 + 1.85, z + 0.3);
+    put('gold', lathe([[0.14, 0], [0.16, 0.02], [0.15, 0.55], [0.17, 0.6]], 12).translate(-3.4, F1, -15.6)); for (const [dx, dz] of [[0.04, 0.02], [-0.05, 0.03], [0.01, -0.06]]) put(dx > 0 ? 'lacquer' : 'bordeaux', CYL(0.012, 0.02, 0.9, -3.4 + dx, F1 + 0.5, -15.6 + dz, 6));
+    col(-3.6, F1, -15.8, -3.2, F1 + 0.6, -15.4);
+  }
+  // ---------- Küche: Topfhänger mit Kupfer, Kessel, Brett und Brot, Weinregal ----------
+  {
+    const y = F1;
+    put('gold', BOX(4.6, 0.04, 0.04, -13.2, y + 2.25, -10.45)); put('gold', BOX(4.6, 0.04, 0.04, -13.2, y + 2.25, -10.75)); for (const dx of [-2.2, 0, 2.2]) put('gold', CYL(0.012, 0.012, 0.9, -13.2 + dx, y + 2.7, -10.6, 4));
+    for (let k = 0; k < 7; k++) { const x = -15.2 + k * 0.65, r = 0.1 + 0.03 * (k % 3), h = 0.12 + 0.04 * (k % 2); put('copper', lathe([[0, 0], [r, 0], [r + 0.01, h], [r - 0.01, h]], 14).rotateX(Math.PI).translate(x, y + 2.22, -10.6)); put('copper', BOX(0.02, 0.02, 0.1, x, y + 2.05 - h, -10.6)); }
+    put('copper', lathe([[0, 0], [0.12, 0], [0.14, 0.1], [0.1, 0.17], [0.04, 0.19], [0.04, 0.22], [0, 0.22]], 14).translate(-13.15, y + 0.96, -19.25)); put('copper', tube([[-13.05, y + 1.05, -19.25], [-12.95, y + 1.15, -19.25], [-13.0, y + 1.0, -19.25]], 0.012, 6));
+    put('veneer', boxW(0.5, 0.03, 0.35, -11.2, y + 0.935, -19.35, 0.5)); put('cab', new T.CapsuleGeometry(0.06, 0.2, 4, 8).rotateZ(Math.PI / 2).translate(-11.2, y + 1.0, -19.35)); put('lacquer', BOX(0.015, 0.02, 0.2, -10.85, y + 0.96, -19.3));
+    put('veneer', boxW(0.6, 1.2, 0.35, -9.3, y + 1.52, -19.6, 1)); for (let i = 0; i < 3; i++) for (let j = 0; j < 4; j++) put(j % 2 ? 'bottles' : 'bottlesG', CYL(0.035, 0.035, 0.3, 0, 0, 0, 8).rotateX(Math.PI / 2).translate(-9.52 + j * 0.15, y + 1.05 + i * 0.3, -19.5));
+    col(-9.6, y + 0.92, -19.78, -9.0, y + 2.12, -19.42);
+    put('gold', new T.TorusGeometry(0.22, 0.03, 8, 24).translate(-16.5, y + 3.2, -19.72)); put('white', new T.CircleGeometry(0.2, 24).translate(-16.5, y + 3.2, -19.7)); put('lacquer', BOX(0.01, 0.14, 0.01, -16.5, y + 3.26, -19.68)); put('lacquer', BOX(0.1, 0.01, 0.01, -16.46, y + 3.2, -19.68));
+  }
+  // ---------- Bar und Rauchersalon: Radio, Schachtisch, Zeitschriften ----------
+  {
+    const y = F1;
+    put('veneer', boxW(0.5, 0.55, 0.36, 7.45, y + 2.05, -17.5, 0.6)); put('veneer', CYL(0.25, 0.25, 0.36, 0, 0, 0, 16).rotateX(Math.PI / 2).translate(7.45, y + 2.32, -17.5)); put('lamp', new T.PlaneGeometry(0.2, 0.08).rotateY(Math.PI / 2).translate(7.64, y + 2.3, -17.5)); put('linen', new T.CircleGeometry(0.12, 16).rotateY(Math.PI / 2).translate(7.64, y + 2.1, -17.5)); glow(7.75, y + 2.32, -17.5, [1.2, 0.7, 0.3], 0.5);
+    sideTable(16.4, y, -14.6, 0.7, 0.7, 0.64, 'veneer'); for (let i = 0; i < 8; i++) for (let j = 0; j < 8; j++) put((i + j) % 2 ? 'lacquer' : 'cream', BOX(0.065, 0.004, 0.065, 16.4 - 0.23 + i * 0.065, y + 0.642, -14.6 - 0.23 + j * 0.065));
+    for (let k = 0; k < 10; k++) { const i = k % 8, j = k < 8 ? 0 : 1 + (k - 8) * 3, c = 'cream'; put(c, CYL(0.02, 0.025, 0.04, 16.4 - 0.23 + i * 0.065, y + 0.665, -14.6 - 0.23 + j * 0.065, 8)); put('lacquer', CYL(0.02, 0.025, 0.04, 16.4 - 0.23 + i * 0.065, y + 0.665, -14.6 + 0.23 - j * 0.065, 8)); }
+    for (const [x, ry] of [[15.6, Math.PI / 2], [17.2, -Math.PI / 2]]) furn(FURN.diningChair(), MAP('leather'), x, y, -14.6, ry);
+    put('bordeaux', BOX(0.3, 0.02, 0.4, 11.0, y + 0.51, -16.3)); put('cream', BOX(0.28, 0.02, 0.38, 11.0, y + 0.53, -16.3).rotateY(0.2));
+  }
+  // ---------- Ebene 2: Schlafzimmer (Paravent, Frisiertisch, Teetablett), Bad (Wannenbrett), Bibliothek (Leiter, Büste) ----------
+  { const y = F2, bx = 12.5;
+    for (let k = 0; k < 3; k++) { const a = (k - 1) * 0.5, px = 17.6 + (k - 1) * 0.66 * Math.cos(0.2), pz = -16.2 + (k - 1) * 0.66 * Math.sin(-0.2); put('lacquer', BOX(0.7, 1.9, 0.03).rotateY(0.9 + a * 0.6).translate(px, y + 0.98, pz)); put('gold', BOX(0.72, 0.03, 0.05).rotateY(0.9 + a * 0.6).translate(px, y + 1.94, pz)); for (let b = -3; b <= 3; b++) put('gold', BOX(0.02, 0.6, 0.01).translate(0, 0.3, 0).rotateZ(b * 0.2).rotateY(0.9 + a * 0.6).translate(px, y + 1.1, pz)); }
+    col(16.8, y, -16.9, 18.4, y + 1.95, -15.5);
+    for (let k = 0; k < 4; k++) put('crystal', lathe([[0.02, 0], [0.035, 0.02], [0.03, 0.09], [0.012, 0.1], [0.012, 0.13], [0, 0.13]], 10).translate(16.4 + k * 0.14, y + 0.75, -19.5)); put('gold', CYL(0.05, 0.05, 0.02, 17.6, y + 0.76, -19.5, 12)); put('lacquer', BOX(0.03, 0.02, 0.2, 17.55, y + 0.76, -19.25));
+    put('gold', roundBox(0.5, 0.02, 0.36, 0.01).translate(bx, y + 0.5, -3.6)); put('white', lathe([[0, 0], [0.07, 0], [0.09, 0.08], [0.04, 0.12], [0.04, 0.14], [0, 0.14]], 12).translate(bx - 0.1, y + 0.51, -3.6)); put('gold', tube([[bx - 0.02, y + 0.58, -3.6], [bx + 0.03, y + 0.64, -3.6], [bx - 0.01, y + 0.54, -3.6]], 0.01, 6)); for (const dx of [0.1, 0.18]) put('white', lathe([[0, 0], [0.03, 0], [0.035, 0.05], [0, 0.05]], 10).translate(bx + dx, y + 0.51, -3.6 + (dx > 0.15 ? 0.1 : -0.08)));
+    painting(1, 5.12, y + 2.4, -5.5, 2.0, 1.5, 1, 0); painting(3, 5.12, y + 2.4, -2.6, 1.0, 1.5, 1, 0); sconce(5.12, y + 2.5, -8.2, 1, 0);
+    put('veneer', boxW(0.22, 0.04, 1.9, -12.5, y + 0.69, -16.5, 0.5)); 
+    painting(2, -5.12, y + 2.4, -5.5, 2.0, 1.5, -1, 0); sconce(-5.12, y + 2.5, -8.2, -1, 0);
+    put('linen', roundBox(0.45, 0.3, 0.45, 0.06).translate(-12.5, y + 0.6, -2.1)); put('linen', roundBox(0.4, 0.1, 0.4, 0.04).translate(-12.5, y + 0.8, -2.1));
+    // Bibliothek: Leiter an den Regalen, Bronzebüste auf Sockel
+    for (const sx of [-1, 1]) put('gold', CYL(0.02, 0.02, 3.3, 0, 0, 0, 6).rotateZ(0.22).translate(4.1 - sx * 0.22, y + 1.6, -13.0 + sx * 0.0).translate(0, 0, sx * 0.25));
+    for (let k = 0; k < 8; k++) put('veneer', CYL(0.015, 0.015, 0.5, 0, 0, 0, 6).rotateX(Math.PI / 2).translate(4.1 + 0.22 * (1 - (k + 0.5) / 8) * 2 - 0.22, y + 0.3 + k * 0.4, -13.0));
+    col(3.5, y, -13.3, 4.6, y + 3.3, -12.7);
+    put('dark', CYL(0.22, 0.26, 1.2, -3.6, y + 0.6, -15.6, 8)); put('bronze', new T.SphereGeometry(0.17, 14, 10).scale(0.85, 1.1, 0.9).translate(-3.6, y + 1.5, -15.6)); put('bronze', CYL(0.05, 0.07, 0.12, -3.6, y + 1.3, -15.6, 8)); put('bronze', BOX(0.42, 0.1, 0.22, -3.6, y + 1.23, -15.6).rotateY(0)); col(-3.86, y, -15.86, -3.34, y + 1.7, -15.34);
+    glow(-3.6, y + 1.9, -15.6, [1.2, 0.9, 0.55], 0.8);
+    painting(4, 0, y + 4.4, -16.53, 2.4, 1.6, 0, 1);   // über dem Regal am schwarzen Fahrstuhlkern: der Meteorit im Krater
+  }
+  // ---------- Lose Dinge der Suite (Physik: aufheben, tragen, werfen); erscheinen, wenn man hinaufkommt ----------
+  const I1 = [
+    ['book', 0.45, 9.1, 0.3, 0.42], ['ashtray', -0.5, 9.9, 0, 0.42],                                             // Salontisch
+    ['frame', -1.0, 14.3, 0.2, 0.8], ['book', 0.4, 14.3, -0.3, 0.8], ['vase', 2.4, 15.3, 0],                     // Konsole hinter dem Sofa, Palme daneben
+    ['clock', -5.95, 9.5, Math.PI / 2, 1.35], ['candlestick', -5.95, 8.6, 0, 1.35], ['candlestick', -5.95, 10.4, 0, 1.35],   // Kaminsims
+    ['decanter', 4.25, 13.3, 0, 0.82], ['tumbler', 4.55, 13.25, 0, 0.82], ['tumbler', 4.6, 13.55, 0, 0.82], ['shaker', 4.0, 13.55, 0, 0.82], ['whisky', 4.3, 13.4, 0, 0.32],   // Barwagen
+    ['cushion', -1.6, 5.9, 0.2, 0.7], ['cushionC', 1.5, 5.95, -0.3, 0.7], ['cushion', 0.2, 13.1, 0.1, 0.7], ['cushionC', -4.0, 8.2, 0.5, 0.5],   // Sofas, Kaminsessel
+    ['telephone', 16.2, -4.1, -0.3, 0.78], ['papers', 16.5, -2.7, 0.2, 0.78], ['book', 16.55, -3.9, 0.1, 0.78], ['frame', 16.75, -2.3, -0.6, 0.78],   // Schreibtisch
+    ['record', -18.6, 8.75, 0, 0.9], ['record', -18.6, 8.5, 0.3, 0.912],                                            // Grammophon-Kommode
+    ['coupe', 10.6, -8.25, 0, 1.135], ['coupe', 10.9, -8.3, 0, 1.135], ['tumbler', 14.3, -8.2, 0, 1.135],          // Bartheke
+    ['cigarbox', 12.75, -16.75, 0.3, 0.5], ['ashtray', 13.1, -16.45, 0, 0.5], ['tumbler', 12.6, -16.4, 0, 0.5],   // Rauchertisch
+    ['apple', -11.6, -10.55, 0, 0.92], ['apple', -11.45, -10.4, 0, 0.92], ['orange', -11.75, -10.3, 0, 0.92], ['champagne', -14.4, -10.7, 0, 0.92],   // Kochinsel
+    ['hatbox', 2.5, -14.6, 0.2], ['suitcase', -2.6, -15.0, 1.3], ['suitcase', -2.3, -14.6, 1.1, 0.22],             // Foyer, Gepäck neben dem Fahrstuhl
+  ];
+  const I2 = [
+    ['cushion', 11.8, -2.6, 0.2, 0.86], ['cushionC', 13.2, -2.6, -0.2, 0.86], ['cushion', 12.5, -2.0, 0.6, 0.86],  // Bett
+    ['book', 10.5, -0.75, 0.3, 0.6], ['frame', 14.5, -0.72, -0.4, 0.6],                                             // Nachttische
+    ['hatbox', 6.4, -10.6, 0.3], ['suitcase', 6.5, -11.4, 1.6],                                                     // am Kleiderschrank
+    ['book', 0.25, -11.25, 0.4, 0.55], ['book', -0.3, -11.6, -0.2, 0.55],                                           // Bibliothekstisch
+    ['candlestick', -12.95, -16.5, 0, 0.71], ['book', -12.1, -16.5, 0.1, 0.71],                                     // Wannenbrett
+    ['frame', 16.5, -19.3, 0.2, 0.75], ['book', 17.4, -19.3, -0.1, 0.75],                                           // Frisiertisch
+  ];
+  SPAWNS.push({ x: 0, z: 0, y0: F1 - 40, items: I1, y: F1 + 2.2, floor: F1, pent: true }, { x: 0, z: 0, y0: F1 - 40, items: I2, y: F2 + 2.2, floor: F2, pent: true });
+
   /* ================= Netze bauen ================= */
   for (const where in B) {
     const parent = where === 'inner' ? inner : where === 'terr' ? terr : shell;
@@ -518,6 +724,10 @@ export function buildPenthouse() {
       const m = new T.Mesh(mergeGeos(geos), M[k]); if (k === 'glass') m.renderOrder = 3; parent.add(m);   // V34: wieder nach Sichtfeld aussortiert
     }
   }
+  // V41: Stoffe, die von außen "beleuchtet" erscheinen sollen: Eigenleuchten = warme Lampenfarbe mal Grundfarbe
+  for (const k in M) { const m = M[k]; if (!m.isMeshStandardMaterial || m.transparent || k === 'onyx' || k === 'mirror' || k === 'chrome') continue;
+    const base = m.map ? new T.Color(0.75, 0.68, 0.58) : m.color.clone(); const c1 = base.multiply(new T.Color(0.62, 0.5, 0.34));
+    PH.emis.push({ m, c0: m.emissive.clone(), c1: m.emissive.clone().lerp(c1, 0.9) }); }
   // Licht: Salon, Speisezimmer und Küche, Bar, Schlafzimmer, Bad (nur wenn man drinnen ist), Terrasse
   for (const [x, yy, z, i, d] of [[0, F1 + 5.5, 9.5, 1.0, 26], [-12, F1 + 4.2, -3, 0.7, 18], [13.5, F1 + 3.2, -10, 0.7, 16], [12.5, F2 + 4.5, -9, 0.6, 16], [-12.5, F2 + 4.5, -9, 0.6, 16]]) addLight(0xffc27a, i * 0.75, d, 1.6, x, yy, z, true);
   addLight(0xffa860, 0.6, 30, 1.8, 0, F1 + 3, 30);
@@ -527,9 +737,13 @@ export function buildPenthouse() {
 // Nähe: Innenleben und Terrassenmöbel zeigen oder den warmen Kasten; Schiebetüren öffnen sich vor dem Spieler
 export function updatePenthouse(dt, force = false) {
   if (!PH.inner) return;
-  const c = camera.position, d = Math.hypot(c.x, c.y - 256, c.z), lim = MOBILE ? 150 : 260;
+  const c = camera.position, d = Math.hypot(c.x, c.y - 256, c.z), lim = MOBILE ? 320 : 1100;
   const near = d < lim;
-  if (near !== PH.inner.visible || force) { PH.inner.visible = near; PH.far.visible = !near; PH.terrace.visible = d < lim * 1.2; }
+  if (near !== PH.inner.visible || force) { PH.inner.visible = near; PH.far.visible = !near; PH.terrace.visible = d < lim; }
+  // V41: von außen wirken die Räume warm beleuchtet (die Punktlichter brennen nur in der Nähe): Eigenleuchten der Innenstoffe
+  // wird mit dem Abstand eingeblendet (ab 25 m außerhalb der Suite voll), nahe ist alles wie zuvor
+  const fk = inPenthouse(c) || onPentTerrace(c) ? 0 : Math.min(1, Math.max(0, (Math.hypot(c.x, c.z) - 22) / 25 + Math.max(0, Math.abs(c.y - 256) - 8) / 25));
+  if (Math.abs(fk - PH.farK) > 0.02 || force) { PH.farK = fk; for (const e of PH.emis) e.m.emissive.copy(e.c0).lerp(e.c1, fk); }
   const p = player.p;
   if (Math.abs(p.y - PH.F1) > 8 || Math.abs(p.x) > 40 || Math.abs(p.z) > 40) { if (!near) return; }
   for (const D of PH.doors) {
