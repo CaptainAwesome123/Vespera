@@ -23,8 +23,15 @@ export function updateWind(dt) {
   if ((W.gT -= dt) <= 0) { W.gT = 5 + Math.random() * 12; W.gA = 0.35 + Math.random() * 0.65; W.gDur = 2 + Math.random() * 3; W.g0 = W.t; }
   const k = W.g0 !== undefined ? (W.t - W.g0) / W.gDur : 2;
   W.gust = k < 1 ? Math.sin(Math.PI * k) ** 2 * W.gA : 0;
+  // V54: im Schneesturm (U.uStorm aus atmosphere.js) bläst es kräftig und die Böen kommen dichter
+  const st = U.uStorm.value;
+  W.s += st * 7; W.gust *= 1 + st * 0.8; if (st > 0.3 && W.gT > 4) W.gT = 2 + Math.random() * 3;
   W.dx = Math.cos(W.a); W.dz = Math.sin(W.a);
   U.uWind.value.set(W.dx, W.dz, W.s, W.gust);
+  // V54: Windweg aufsummieren: Schneeflocken, Fahnen und Gras rechnen damit statt mit Zeit × Windstärke (das sprang beim Auffrischen)
+  const D = U.uDrift.value, sp = W.s * 0.35 + st * 6;
+  D.x += W.dx * sp * dt; D.y += W.dz * sp * dt; D.z += (1 + st * 0.8) * dt; D.w += W.s * dt;
+  U.uGustRun.value += W.gust * dt;
 }
 // Wind an einem Ort (m/s, Vektor): Böenwelle zieht mit dem Wind, oben weht es stärker
 export function windAt(x, z, y = 0) {
@@ -105,16 +112,16 @@ export function buildFlags() {
   const tex = flagTex();
   const mat = stdMat({ map: tex, side: T.DoubleSide, roughness: 0.85, metalness: 0, envI: 0.25, emissive: 0x070707 });
   mat.onBeforeCompile = sh => {
-    sh.uniforms.uTime = U.uTime; sh.uniforms.uWind = U.uWind;
-    sh.vertexShader = 'uniform float uTime; uniform vec4 uWind;\n' + sh.vertexShader
+    sh.uniforms.uTime = U.uTime; sh.uniforms.uWind = U.uWind; sh.uniforms.uDrift = U.uDrift; sh.uniforms.uGustRun = U.uGustRun;
+    sh.vertexShader = 'uniform float uTime; uniform vec4 uWind; uniform vec4 uDrift; uniform float uGustRun;\n' + sh.vertexShader
       .replace('#include <beginnormal_vertex>', `#include <beginnormal_vertex>
         vec2 ip = instanceMatrix[3].xz;
         float fph = dot(ip, vec2(0.37, 0.21));
         float fstr = clamp(uWind.z / 7.0 + uWind.w * 0.8, 0.12, 1.4);
         float fx = position.x / 2.6;
-        float fsp = 5.0 + uWind.z * 0.9 + uWind.w * 4.0;
-        float fw = sin(position.x * 2.4 - uTime * fsp + fph) * (0.06 + 0.32 * fx) * (0.5 + fstr * 0.6) + sin(position.x * 4.7 - uTime * fsp * 1.6 + position.y * 2.0 + fph) * 0.05 * fx;
-        float fdw = cos(position.x * 2.4 - uTime * fsp + fph) * 2.4 * (0.06 + 0.32 * fx);
+        float fsp = uTime * 5.0 + uDrift.w * 0.9 + uGustRun * 4.0;   // V54: Phase aus dem aufsummierten Windweg
+        float fw = sin(position.x * 2.4 - fsp + fph) * (0.06 + 0.32 * fx) * (0.5 + fstr * 0.6) + sin(position.x * 4.7 - fsp * 1.6 + position.y * 2.0 + fph) * 0.05 * fx;
+        float fdw = cos(position.x * 2.4 - fsp + fph) * 2.4 * (0.06 + 0.32 * fx);
         vec2 fwd = normalize(uWind.xy + 1e-5); vec2 fpd = vec2(-fwd.y, fwd.x);
         objectNormal = normalize(vec3(fpd.x - fwd.x * fdw * 0.4, 0.0, fpd.y - fwd.y * fdw * 0.4));`)
       .replace('#include <begin_vertex>', `#include <begin_vertex>

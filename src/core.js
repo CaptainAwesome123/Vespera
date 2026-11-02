@@ -94,6 +94,9 @@ export const U = {
   uRain: { value: 0 }, uSnow: { value: 0 }, uFrost: { value: 0 }, uWet: { value: 0.3 }, uSnowCover: { value: 0.4 },
   uAurora: { value: 0.4 }, uCloud: { value: 0.3 }, uMoonPhase: { value: 0.5 }, uMoonLit: { value: 1 }, uMist: { value: 1 },
   uStreetRefl: { value: 0 },
+  // V54 · Wetter: Schneesturm (0..1), Eisblumen auf den Fenstern (0..1), eigene Uhr des Polarlichts (läuft im starken Polarlicht schneller),
+  // Windweg (aufsummiert, damit Flocken, Fahnen und Gras beim Auffrischen nicht springen): x/z Drift in m, y Fallweg der Flocken, w Windlauf (∫ Stärke dt)
+  uStorm: { value: 0 }, uIce: { value: 0.15 }, uAuroraT: { value: 0 }, uDrift: { value: new T.Vector4(0, 0, 0, 0) }, uGustRun: { value: 0 },
   uGlacier: { value: [new T.Vector4(0, 0, 0, 0), new T.Vector4(0, 0, 0, 0)] },   // V44: zwei Gletscher (Winkel, Breite, Uferabstand, an) für den Geländeshader
   uRevZ: { value: REVZ.on ? 1 : 0 },   // V40: Himmel ganz hinten (z = 0 statt w)
   // V30: die nächsten Straßenlaternen (xyz = Leuchtkopf, w = Stärke) für warmes Licht und Glanz auf dem Pflaster (streetDetail)

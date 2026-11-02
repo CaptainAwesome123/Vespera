@@ -1534,12 +1534,12 @@ export function streetDetail(mat, walk) {
     if (prev) prev(sh);
     // V25: Nässe, Schneedecke, Regenringe und die echte Spiegelung der Straße (water.js rendert sie bei Nässe in Bodenhöhe)
     sh.uniforms.uTimeSd = U.uTime;
-    for (const k of ['uWet', 'uSnowCover', 'uRain', 'uRefl', 'uReflMat', 'uStreetRefl', 'uFogColor', 'uMoonDir', 'uMoonLit', 'uLamps', 'uFrost']) sh.uniforms[k] = U[k];
+    for (const k of ['uWet', 'uSnowCover', 'uRain', 'uRefl', 'uReflMat', 'uStreetRefl', 'uFogColor', 'uMoonDir', 'uMoonLit', 'uLamps', 'uFrost', 'uAurora']) sh.uniforms[k] = U[k];
     sh.vertexShader = 'varying vec3 vSdW;\n' + sh.vertexShader.replace('#include <worldpos_vertex>', `#include <worldpos_vertex>
       vSdW = (modelMatrix * ${walk === true ? 'instanceMatrix * ' : ''}vec4(transformed, 1.0)).xyz;`);
     sh.fragmentShader = `#define SD_NL ${LAMP_N}
       uniform vec4 uLamps[16];
-      varying vec3 vSdW; uniform float uWet, uSnowCover, uRain, uTimeSd, uStreetRefl, uMoonLit, uFrost; uniform sampler2D uRefl; uniform mat4 uReflMat; uniform vec3 uFogColor, uMoonDir;
+      varying vec3 vSdW; uniform float uWet, uSnowCover, uRain, uTimeSd, uStreetRefl, uMoonLit, uFrost, uAurora; uniform sampler2D uRefl; uniform mat4 uReflMat; uniform vec3 uFogColor, uMoonDir;
       float sdH(vec2 p){ p = fract(p*vec2(123.34, 456.21)); p += dot(p, p+45.32); return fract(p.x*p.y); }
       float sdN(vec2 p){ vec2 i = floor(p), f = fract(p); f = f*f*(3.0 - 2.0*f); return mix(mix(sdH(i), sdH(i + vec2(1.0, 0.0)), f.x), mix(sdH(i + vec2(0.0, 1.0)), sdH(i + vec2(1.0, 1.0)), f.x), f.y); }
       ` + sh.fragmentShader
@@ -1553,7 +1553,7 @@ export function streetDetail(mat, walk) {
         // Pfützen
         // V25: je nasser, desto mehr und größere Pfützen; nasser Stein ist dunkler
         float pudN = sdN(sw * 0.09 + 5.0) * 0.75 + sdN(sw * 0.4) * 0.25;
-        float pud = smoothstep(0.71 - 0.13 * uWet, 0.75 - 0.13 * uWet, pudN) * sdTop;
+        float pud = smoothstep(0.71 - 0.17 * uWet, 0.75 - 0.17 * uWet, pudN) * sdTop;   // V54: nach Regen mehr und größere Pfützen
         diffuseColor.rgb *= (1.0 - 0.45 * pud) * (1.0 - 0.22 * uWet);
         // Schneedecke: zuerst in Fugen und Rinnen, dann geschlossen; Fahrspuren bleiben dunkler
         // V30: die dauernde leichte Decke (uSnowCover ab 0,4) liegt in Flecken und in den Fugen, Fahrspuren und Laufwege bleiben frei
@@ -1628,6 +1628,7 @@ export function streetDetail(mat, walk) {
         normal = normalize(normal + vec3(sdRip.x, 0.0, sdRip.y) * 0.25 * sdPud);`)
       .replace('#include <output_fragment>', `{
         vec3 sdV = normalize(cameraPosition - vSdW);
+        float sdLR = 0.0;   // V54: Lichtsäulen der Laternen im Nassen
         // V30: warmes Laternenlicht: Lichtkreis um jeden Mast und ein gestreckter Glanz auf nassen Steinen, Pfützen und Schnee
         {
           vec3 nW = normalize((vec4(normal, 0.0) * viewMatrix).xyz);
@@ -1636,7 +1637,13 @@ export function streetDetail(mat, walk) {
           vec3 lD = vec3(0.0), lS = vec3(0.0);
           for (int i = 0; i < SD_NL; i++) {
             vec4 lp = uLamps[i]; vec3 Lv = lp.xyz - vSdW; float d2 = dot(Lv, Lv);
-            if (lp.w <= 0.0 || d2 > 400.0) continue;
+            if (lp.w <= 0.0) continue;
+            // V54: Spiegelbild des Leuchtkopfs: quer zum Blick schmal, zum Betrachter hin lang gezogen (in der Pfütze kurz und scharf)
+            vec3 mV = vec3(lp.x, -lp.y, lp.z) - cameraPosition, mD = normalize(mV);
+            vec3 sX = normalize(cross(mD, vec3(0.0, 1.0, 0.0)) + 1e-5), dF = -sdV - mD;
+            float ax = dot(dF, sX) / mix(0.022, 0.01, sdPud), ay = dot(dF, cross(sX, mD)) / mix(0.16, 0.03, sdPud);
+            sdLR += exp(-ax * ax - ay * ay) * smoothstep(4900.0, 1600.0, dot(mV.xz, mV.xz));
+            if (d2 > 400.0) continue;
             vec3 L = Lv * inversesqrt(d2);
             float att = lp.w * smoothstep(400.0, 60.0, d2) / (1.0 + 0.09 * d2);
             lD += att * max(dot(nW, L), 0.0);
@@ -1657,18 +1664,23 @@ export function streetDetail(mat, walk) {
         }
         // Spiegelung: Pfützen klar, nasses Pflaster verschwommen und zu Lichtsäulen gezogen; ohne echte Spiegelung (Handy) der Himmel und Nebel
         float sdFr = 0.02 + 0.98 * pow(1.0 - clamp(sdV.y, 0.0, 1.0), 5.0);
-        float sdK = (sdPud + 0.3 * uWet * (1.0 - sdPud)) * (1.0 - sdSnow) * sdTop;
+        // V54: nasses Pflaster spiegelt kräftiger (0,45 statt 0,3), die Lichtsäulen von Laternen und Fenstern ziehen sich länger,
+        // Regenringe kräuseln auch das Spiegelbild auf dem nassen Stein; ohne echte Spiegelung schimmert das Polarlicht grün im Nassen
+        float sdK = (sdPud + 0.45 * uWet * (1.0 - sdPud)) * (1.0 - sdSnow) * sdTop;
         vec3 sdR = uFogColor * 1.6 + vec3(0.6, 0.62, 0.7) * pow(max(dot(reflect(-sdV, vec3(0.0, 1.0, 0.0)), uMoonDir), 0.0), 300.0) * uMoonLit * 3.0;
+        sdR += vec3(0.04, 0.32, 0.18) * uAurora * 0.22 * (1.0 - uStreetRefl);
         if (uStreetRefl > 0.5 && sdK > 0.01) {
           vec4 rc = uReflMat * vec4(vSdW.x, 0.0, vSdW.z, 1.0);
-          vec2 ruv = rc.xy / rc.w + sdRip * 0.01 * sdPud;
+          vec2 ruv = rc.xy / rc.w + sdRip * (0.01 * sdPud + 0.004 * uWet);
           float blur = (1.0 - sdPud) * 0.03 + 0.004;
           vec3 s0 = texture2D(uRefl, clamp(ruv, 0.002, 0.998)).rgb;
           vec3 s1 = texture2D(uRefl, clamp(ruv + vec2(0.0, blur), 0.002, 0.998)).rgb, s2 = texture2D(uRefl, clamp(ruv - vec2(0.0, blur), 0.002, 0.998)).rgb;
           vec3 s3 = texture2D(uRefl, clamp(ruv + vec2(0.0, blur * 2.2), 0.002, 0.998)).rgb;
-          sdR = mix(s0, (s0 + s1 + s2 + s3) * 0.25, 1.0 - sdPud);
+          vec3 s4 = texture2D(uRefl, clamp(ruv - vec2(0.0, blur * 2.4), 0.002, 0.998)).rgb, s5 = texture2D(uRefl, clamp(ruv + vec2(0.0, blur * 4.0), 0.002, 0.998)).rgb;
+          sdR = mix(s0, (s0 + s1 + s2 + s3 + s4 * 0.8 + s5 * 0.6) / 5.4, 1.0 - sdPud);
         }
-        outgoingLight = mix(outgoingLight, sdR, clamp(sdFr * sdK * 1.1, 0.0, 0.92));
+        outgoingLight = mix(outgoingLight, sdR, clamp(sdFr * sdK * 1.25, 0.0, 0.92));
+        outgoingLight += vec3(1.0, 0.68, 0.36) * sdLR * clamp(0.15 + 0.85 * uWet + sdPud, 0.0, 1.0) * (1.0 - sdSnow) * sdTop * 1.4;
       }
       #include <output_fragment>`);
   };
