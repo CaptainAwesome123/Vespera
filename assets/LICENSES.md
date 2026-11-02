@@ -75,3 +75,10 @@ Für 1920er-Automobile, Hydranten, Litfaßsäulen und Pflasterstein-Fotos wurde 
 gefunden, die aus der Build-Umgebung erreichbar war (Poly Haven, Sketchfab, kenney.nl, ambientcg.com, Quaternius
 sind dort gesperrt). Diese Dinge bleiben vorerst aus handgebauten Formen. Ein eigenes Modell kommt so hinein:
 Datei nach `assets/models/`, Eintrag in `assets/manifest.json`, Verwendung in `MODEL_USE` (`src/props.js`).
+
+## Rocketbox-Test (`assets/rocketbox/`, nur im Labor `?lab=rocketbox`)
+
+| Dateien | Original | Urheber | Lizenz |
+|---|---|---|---|
+| `herr-anzug.glb`, `herr-weste.glb`, `dame-kostuem.glb`, `arbeiter.glb`, `uniform.glb`, `alexander-probe.glb` | [Microsoft Rocketbox](https://github.com/microsoft/Microsoft-Rocketbox) (Stand 0943055): `Business_Male_02`, `Business_Male_04`, `Business_Female_03`, `Gardener_Male_01`, `Pilot_Male_01`, `Business_Male_01`. **Verändert** mit `tools/make-rocketbox.mjs`: FBX nach GLB, Texturen auf 1024/512 px WebP verkleinert, bei `alexander-probe` Haare blond und Krawatte weiß umgefärbt | Microsoft | [MIT](https://github.com/microsoft/Microsoft-Rocketbox/blob/master/LICENSE.md) |
+| `anim-m-gehen.glb`, `anim-f-gehen.glb`, `anim-m-stehen.glb`, `anim-f-stehen.glb` | Rocketbox-Bewegungen `m_walk_neutral_01`, `f_walk_neutral_01`, `m_idle_neutral_01`, `f_idle_neutral_02` (nur Skelettspuren) | Microsoft | [MIT](https://github.com/microsoft/Microsoft-Rocketbox/blob/master/LICENSE.md) |
