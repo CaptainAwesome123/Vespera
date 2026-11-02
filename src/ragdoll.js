@@ -1,5 +1,6 @@
 import { shared, MOBILE, T, scene, camera, mulberry32, $, U } from './core.js';
-import { aweStep, aweEnd } from './awe.js';
+import { aweStep, aweEnd, talkLine, greetNow } from './awe.js';
+import { lifeStep, updateLife } from './life.js';
 import { personShare } from './people-model.js';
 import { MAT, HRIG } from './people-skeleton.js';
 import { FACTORIES, FACTORY_NAMES, FACTORY_LOOPS } from './shops.js';
@@ -304,6 +305,7 @@ export function updatePedestrians(dt, t) {
   if (!pedCrowd) return;
   updateCitizens(dt);
   pedSocial(dt);
+  updateLife(dt);   // V55
   updateRagdolls(dt);
   // V29: Rundwege, die ganz außerhalb der Sichtweite der Passanten liegen (pedCrowd.far, Nebel nicht mitgerechnet), brauchen
   // keine neue Lage: die Leute laufen weiter (t), aber Ort und Matrix werden erst gerechnet, wenn der Weg wieder in Reichweite ist
@@ -312,6 +314,7 @@ export function updatePedestrians(dt, t) {
     const lp = pd.lp;
     if (pd.st === 5 || pd.st === 6 || pd.rag || pd.back) continue;
     if (pd.st === 9) { aweStep(pd, dt); continue; }   // V52: steht und staunt über Alexander
+    if (pd.st === 10) { lifeStep(pd, dt); continue; }   // V55: Kellner auf der Terrasse
     if (pd.st === 4) { pedCrowd.set(pd.a, pd.x, pd.y - (pd.yo || 0), pd.z, pd.yaw, pd.sc, pd.tilt || 0); continue; }
     if (pd.st === 7) {
       // Begegnung: Hand geben, reden und zuhören im Wechsel, lachen, zum Abschied winken
@@ -376,7 +379,7 @@ export const TRAITS = [
   { k: 'ehrgeizig', v: 1.15, say: ['In fünf Jahren habe ich mein eigenes Geschäft.', 'Zeit ist Geld, mein Herr. Besonders in Vespera.', 'Ich arbeite heute länger. Der Chef soll sehen, was ich kann.'] },
   { k: 'fröhlich', v: 1.05, say: ['Was für ein Abend! Hören Sie die Musik?', 'Heute ist Zahltag, heute wird getanzt!', 'Lächeln kostet nichts, sagt meine Mutter immer.'] },
   { k: 'schüchtern', v: 0.9, say: ['Oh … guten Abend.', 'Ich … ich muss weiter, entschuldigen Sie.', 'Sie sind sehr freundlich. Danke.'] },
-  { k: 'neugierig', v: 1.0, say: ['Sie sind nicht von hier, oder? Wie ist es hinter den Bergen?', 'Man sagt, oben in der Villa feiern sie bis zum Morgen. Stimmt das?', 'Haben Sie schon gehört? Im {work} gibt es Neuigkeiten.'] },
+  { k: 'neugierig', v: 1.0, say: ['Herr Alexander! Sie waren doch draußen, hinter den Bergen. Wie ist es dort?', 'Man sagt, Ihre Villa oben am Berg hat fünfunddreißig Zimmer. Stimmt das?', 'Haben Sie schon gehört? Im {work} gibt es Neuigkeiten.'] },
   { k: 'elegant', v: 0.95, say: ['Ein Abend ohne Champagner ist ein verlorener Abend.', 'Man trifft sich später im Ballsaal des Belmont, nicht wahr?', 'Achten Sie auf die Schuhe, mein Lieber. Die Schuhe verraten alles.'] },
 ];
 export const PLACE_NAMES = {
@@ -594,7 +597,9 @@ export function citizenNear(p, r = 4) {
   return best;
 }
 export function citizenSay(c) {
-  const lines = c.trait.say, s = lines[Math.floor(Math.random() * lines.length)].replace('{bar}', c.at.bar.name).replace('{work}', c.at.work.name);
+  // V55: meist spricht man Alexander direkt an, je nach Haltung (bewundernd, neidisch, skeptisch, ängstlich, respektvoll); sonst Alltag
+  const lines = c.trait.say, s = Math.random() < 0.6 ? talkLine(c.ped) : lines[Math.floor(Math.random() * lines.length)].replace('{bar}', c.at.bar.name).replace('{work}', c.at.work.name);
+  greetNow(c.ped);
   const el = $('say'); el.innerHTML = '<b></b><span></span>'; el.querySelector('b').textContent = c.name; el.querySelector('span').textContent = '„' + s + '“';
   el.style.opacity = 1; shared.sayTimer = 5;
 }

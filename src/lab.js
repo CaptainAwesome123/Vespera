@@ -21,6 +21,7 @@ export function startLab(params) {
   if (params.get('lab') === 'belmont') { import('./lab-belmont.js').then(L => L.startBelmontLab(params)); return; }   // V51: Lobby und Ballsaal
   if (params.get('lab') === 'wetter') { import('./lab-wetter.js').then(L => L.startWeatherLab(params)); return; }   // V54: Polarlicht, Schneesturm, Eisblumen, nasse Straßen
   if (params.get('lab') === 'kram') { import('./lab-kram.js').then(L => L.startKramLab(params)); return; }   // V53: die vielen neuen losen Dinge
+  if (params.get('lab') === 'leben') { import('./lab-leben.js').then(L => L.startLifeLab(params)); return; }   // V55: Straßenmusik, Kellner, Haltungen zu Alexander
   if (params.get('lab') === 'kraft') { import('./lab-kraft.js').then(L => L.startKraftLab(params)); return; }   // V52: Telekinese-Möbel und staunende Leute
   if (params.get('lab') === 'landschaft') { import('./lab-landschaft.js').then(L => L.startLandscapeLab(params)); return; }   // V44: Landschafts-Labor
   buildEnv(); getMats();
