@@ -390,7 +390,9 @@ export async function startFacadeLab(params) {
   window.labView(params.get('view') || 'alle');
   $('overlay').hidden = true;
   for (const h of document.querySelectorAll('.hud, .touch')) h.style.display = 'none';
+  // V40: ?composer=1 zeichnet wie im Spiel über den Composer (Zwischenbild mit Gleitkomma-Tiefe, Nachleuchten): Tiefentest wie am PC
+  let comp = null, D = null; if (params.get('composer')) { const B = await import('./bloom.js'); D = await import('./depth.js'); B.setupComposer(); comp = B.composer; window.labDepthBits = renderer.getContext().getParameter(renderer.getContext().DEPTH_BITS); }
   const t0 = performance.now();
-  const loop = now => { U.uTime.value = LABF.t != null ? LABF.t : (now - t0) / 1000; U.uCam.value.copy(camera.position); renderer.render(scene, camera); window.labFrames = (window.labFrames || 0) + 1; requestAnimationFrame(loop); };
+  const loop = now => { U.uTime.value = LABF.t != null ? LABF.t : (now - t0) / 1000; U.uCam.value.copy(camera.position); if (comp) { D.skipDepthResolve(renderer, comp.renderTarget1); D.skipDepthResolve(renderer, comp.renderTarget2); comp.render(); } else renderer.render(scene, camera); window.labFrames = (window.labFrames || 0) + 1; requestAnimationFrame(loop); };
   requestAnimationFrame(loop);
 }

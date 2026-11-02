@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import { setupReverseZ, REVZ } from './depth.js';
+export { REVZ };
 
 /* =====================================================================
    VESPERA
@@ -68,6 +70,8 @@ scene.fog = new T.FogExp2(FOG_COLOR, FOG_DENSITY);
 scene.background = FOG_COLOR.clone();
 export const camera = new T.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.2, 20000);
 camera.rotation.order = 'YXZ';
+// V40: umgekehrte Gleitkomma-Tiefe gegen das Flackern ferner Fassadenschichten (src/depth.js); ohne EXT_clip_control bleibt alles wie bisher
+setupReverseZ(renderer, camera, T);
 
 export const MOON_DIR = new T.Vector3(-0.42, 0.42, -0.8).normalize();
 export const U = {
@@ -90,6 +94,7 @@ export const U = {
   uRain: { value: 0 }, uSnow: { value: 0 }, uFrost: { value: 0 }, uWet: { value: 0.3 }, uSnowCover: { value: 0.4 },
   uAurora: { value: 0.4 }, uCloud: { value: 0.3 }, uMoonPhase: { value: 0.5 }, uMoonLit: { value: 1 }, uMist: { value: 1 },
   uStreetRefl: { value: 0 },
+  uRevZ: { value: REVZ.on ? 1 : 0 },   // V40: Himmel ganz hinten (z = 0 statt w)
   // V30: die nächsten Straßenlaternen (xyz = Leuchtkopf, w = Stärke) für warmes Licht und Glanz auf dem Pflaster (streetDetail)
   uLamps: { value: Array.from({ length: 16 }, () => new T.Vector4(0, -1000, 0, 0)) },
   uRoofMap: { value: new T.DataTexture(new Uint8Array([0, 0, 0, 255]), 1, 1) }, uRoofBox: { value: new T.Vector4(-1200, -1200, 2400, 255) },
