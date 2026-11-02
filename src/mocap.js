@@ -62,6 +62,16 @@ vec4 pC0, pC1, pC2, pC3, pC4, pC5, pC6, pC7; float pW, pLz;
 void mcPrev(vec3 clip, float t, float mir, float lz) {
   mcSample(clip, t, mir); pC0 = mcC0; pC1 = mcC1; pC2 = mcC2; pC3 = mcC3; pC4 = mcC4; pC5 = mcC5; pC6 = mcC6; pC7 = mcC7; pLz = lz;
 }
+// V47: Alexanders Stand statt der Warte-Aufnahme: ruhig, aufrecht und mächtig. Füße schulterbreit und fest, Gewicht in der Mitte,
+// Brust heraus, Kinn leicht gehoben, die Hände auf dem Rücken; nur der Atem hebt die Brust und der Blick wandert langsam über die Stadt.
+// Als Aufnahmekanäle geschrieben, damit der Übergang Gehen <-> Stehen weich bleibt (mcApply mischt wie bei jeder Aufnahme)
+void plStand() {
+  float Lg = hHip - mix(0.09, rAnk, hMH), fx = (hHx + 0.065) / Lg, br = sin(uTime * 1.25);
+  mcC0 = vec4(0.0, 1.0 - 0.012 / Lg, 0.0, -0.01); mcC1 = vec4(0.0, 0.0, -0.06 - 0.008 * br, 0.0); mcC2 = vec4(0.0, -0.07 + 0.006 * br, 0.0, 0.16 * sin(uTime * 0.11));
+  mcC3 = vec4(-fx, 0.0, 0.012, 0.0); mcC4 = vec4(fx, 0.0, -0.012, 0.0);
+  mcC5 = vec4(-0.3, 0.1, 1.5, 1.45); mcC6 = mcC5; mcC7 = vec4(0.0);
+}
+void plPrevStand() { plStand(); pC0 = mcC0; pC1 = mcC1; pC2 = mcC2; pC3 = mcC3; pC4 = mcC4; pC5 = mcC5; pC6 = mcC6; pC7 = mcC7; pLz = -1.0; }
 #endif
 // ganze Aufnahme auf die Figur: Lz = Länge für z (Schrittlänge beim Gehen, sonst Beinlänge)
 void mcApply(float Lz, float fem, float useZ) {

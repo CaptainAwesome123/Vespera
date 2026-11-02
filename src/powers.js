@@ -7,7 +7,7 @@
    - Fliegen: F, oder im Sprung noch einmal Leertaste. Leertaste steigt,
      C sinkt, Shift schneller. Nahe am Boden sinken landet. Von hinten (V)
      sieht man die Figur im Flug: im Stand schwebend, im schnellen Flug
-     waagrecht mit der Faust voraus.
+     waagrecht, V47: beide Arme gestreckt nach hinten.
    - Telekinese: T (oder rechte Maustaste halten) packt, worauf man schaut,
      bis 120 m weit: lose Dinge jeden Gewichts und Wagen. Mausrad näher und
      weiter, Klick schleudert, T / rechte Maustaste loslassen lässt fallen.

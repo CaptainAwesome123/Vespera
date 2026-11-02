@@ -443,9 +443,17 @@ async function detailTiles() {
 async function playerTiles() {
   const skinFile = sk(SKIN.m[0]);
   blit(bodyRelief(await readRGBA(skinFile, TILE, TILE), TILE, TILE, 9), RECT.skin_p);
-  const [bx, by, bw, bh] = HEADBOX.head;
-  const head = await upscaleBox(skinFile, HEADBOX.head, TILE, TILE, 0.8);   // V44: nachgeschärft, unten Poren und Lippen wie bei allen
-  for (let i = 3; i < head.length; i += 4) head[i] = 255;
+  // V44: nachgeschärft, unten Poren und Lippen wie bei allen. V47: die Kopfinsel ist um das Gesicht gedehnt (siehe Netze): die Kachel
+  // wird je Texel über die ursprüngliche UV (dreiecksweise wie auf der Grafikkarte) aus einem doppelt so großen Ausschnitt abgetastet
+  const SB = TILE * 2, big = await upscaleBox(skinFile, HEADBOX.head, SB, SB, 0.8), S0 = rasterSrc(HEADP, TILE);
+  const head = Buffer.alloc(TILE * TILE * 4);
+  for (let t = 0; t < TILE * TILE; t++) {
+    const u = S0[t * 3 + 2] > 0 ? S0[t * 3] : ((t % TILE) + 0.5) / TILE, v = S0[t * 3 + 2] > 0 ? S0[t * 3 + 1] : 1 - (Math.floor(t / TILE) + 0.5) / TILE;
+    const x = Math.min(SB - 1.001, Math.max(0, u * SB - 0.5)), y = Math.min(SB - 1.001, Math.max(0, (1 - v) * SB - 0.5)), x0 = Math.floor(x), y0 = Math.floor(y), fx = x - x0, fy = y - y0;
+    for (let d = 0; d < 3; d++) { const a = big[(y0 * SB + x0) * 4 + d], b = big[(y0 * SB + x0 + 1) * 4 + d], c = big[((y0 + 1) * SB + x0) * 4 + d], e = big[((y0 + 1) * SB + x0 + 1) * 4 + d];
+      head[t * 4 + d] = Math.round((a * (1 - fx) + b * fx) * (1 - fy) + (c * (1 - fx) + e * fx) * fy); }
+    head[t * 4 + 3] = 255;
+  }
   if (fs.existsSync(PLAYER_REF.file)) {
     const meta = await sharp(PLAYER_REF.file).metadata(), RW = meta.width, RH = meta.height;
     const ref = await sharp(PLAYER_REF.file).removeAlpha().raw().toBuffer(), blur = await sharp(PLAYER_REF.file).removeAlpha().blur(5).raw().toBuffer();
@@ -486,6 +494,25 @@ function rasterRect(H, size) {
         const k = (py * size + px) * 7;
         for (let d = 0; d < 3; d++) { R[k + d] = P[a * 3 + d] * w0 + P[b * 3 + d] * w1 + P[c * 3 + d] * w2; R[k + 3 + d] = N[a * 3 + d] * w0 + N[b * 3 + d] * w1 + N[c * 3 + d] * w2; }
         R[k + 6] = 1;
+      }
+  }
+  return R;
+}
+// V47: je Texel der Kopfkachel die ursprüngliche UV (H.src0, vor dem Dehnen) und Deckung; ohne src0 die UV selbst
+function rasterSrc(H, size) {
+  const R = new Float32Array(size * size * 3), I = H.idx, uv = H.uv, S = H.src0 || H.uv;
+  for (let t = 0; t < I.length; t += 3) {
+    const a = I[t], b = I[t + 1], c = I[t + 2]; if (!H.inHead[a] || !H.inHead[b] || !H.inHead[c]) continue;
+    const X = [uv[a * 2] * size, uv[b * 2] * size, uv[c * 2] * size], Y = [(1 - uv[a * 2 + 1]) * size, (1 - uv[b * 2 + 1]) * size, (1 - uv[c * 2 + 1]) * size];
+    const den = (Y[1] - Y[2]) * (X[0] - X[2]) + (X[2] - X[1]) * (Y[0] - Y[2]); if (Math.abs(den) < 1e-9) continue;
+    for (let py = Math.max(0, Math.floor(Math.min(...Y))); py <= Math.min(size - 1, Math.ceil(Math.max(...Y))); py++)
+      for (let px = Math.max(0, Math.floor(Math.min(...X))); px <= Math.min(size - 1, Math.ceil(Math.max(...X))); px++) {
+        const qx = px + 0.5, qy = py + 0.5;
+        const w0 = ((Y[1] - Y[2]) * (qx - X[2]) + (X[2] - X[1]) * (qy - Y[2])) / den, w1 = ((Y[2] - Y[0]) * (qx - X[2]) + (X[0] - X[2]) * (qy - Y[2])) / den, w2 = 1 - w0 - w1;
+        if (w0 < -0.03 || w1 < -0.03 || w2 < -0.03) continue;
+        const k = (py * size + px) * 3;
+        if (R[k + 2] > 0 && Math.min(w0, w1, w2) < 0) continue;   // Texel, die ein Dreieck wirklich enthält, gewinnen gegen den Saum
+        R[k] = S[a * 2] * w0 + S[b * 2] * w1 + S[c * 2] * w2; R[k + 1] = S[a * 2 + 1] * w0 + S[b * 2 + 1] * w1 + S[c * 2 + 1] * w2; R[k + 2] = 1;
       }
   }
   return R;
@@ -632,6 +659,23 @@ for (const [gk, B] of Object.entries(bodies)) {
     for (let i = 0; i < n; i++) if (set.has(isl[i])) { where[i] = code; local[i * 2] = (U.uv[i * 2] - bu0) / (bu1 - bu0); local[i * 2 + 1] = (U.uv[i * 2 + 1] - bv0) / (bv1 - bv0); }
   };
   remap([best], 1, 'head'); remap(handR, 2, 'handR'); remap(handL, 3, 'handL');
+  // V47: Alexanders Gesicht bekommt mehr Texel. In der Kopfinsel nimmt das Gesicht nur etwa ein Zehntel der Kachel ein (der Rest
+  // ist Schädel unter dem Haar, Ohren und Hals). Die Insel wird um die Gesichtsmitte radial gedehnt (Mitte 2,6-fach, zum Rand hin
+  // stetig zurück auf 1), so liegen Augen, Nase und Mund auf etwa doppelt so vielen Texeln; Schädel und Nacken werden dafür enger.
+  // Die Quell-UV bleibt in src0 (die Kachel wird darüber aus dem Hautbild abgetastet)
+  if (gk === 'p') {
+    const fm = RIG.p.face; let cu = 0, cv = 0, cn = 0;
+    for (let i = 0; i < n; i++) if (where[i] === 1) { const x = pos[i * 3], y = pos[i * 3 + 1], z = pos[i * 3 + 2]; if (Math.abs(x) < 0.03 && y > fm.mouthY && y < fm.eyeY && z > fm.noseZ - 0.05) { cu += local[i * 2]; cv += local[i * 2 + 1]; cn++; } }
+    cu /= cn; cv /= cn;
+    const src0 = new Float32Array(local), R0 = 0.46, MAG = 2.6, h = s => s * MAG / (1 + (MAG - 1) * s);
+    for (let i = 0; i < n; i++) if (where[i] === 1) {
+      const du = local[i * 2] - cu, dv = local[i * 2 + 1] - cv, r = Math.hypot(du, dv);
+      if (r < 1e-6 || r >= R0) continue;
+      const f = R0 * h(r / R0) / r; local[i * 2] = Math.min(0.997, Math.max(0.003, cu + du * f)); local[i * 2 + 1] = Math.min(0.997, Math.max(0.003, cv + dv * f));
+    }
+    HEADP.src0 = src0; HEADP.c = [cu, cv];
+    console.log('Spielergesicht: Mitte', cu.toFixed(3), cv.toFixed(3), 'aus', cn, 'Ecken, Dehnung', MAG);
+  }
   const hr = gk === 'f' ? RECT.hands_f : RECT.hands_m, half = r => [r[0], r[1], r[2] / 2, r[3]];
   const dest = [toAtlasUV(local, skinU), toAtlasUV(local, gk === 'p' ? RECT.face_p : RECT['face_' + gk]), toAtlasUV(local, half(hr)), toAtlasUV(local, [hr[0] + hr[2] / 2, hr[1], hr[2] / 2, hr[3]])];
   const uv = new Float32Array(n * 2); for (let i = 0; i < n; i++) { const s2 = dest[where[i]]; uv[i * 2] = s2[i * 2]; uv[i * 2 + 1] = s2[i * 2 + 1]; }
