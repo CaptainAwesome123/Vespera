@@ -23,7 +23,7 @@ const [,, url = 'http://localhost:8765/', out = 'lab', views = 'alle', time = '1
   for (const v of views.split(',')) {
     const [nv, tt] = v.split('@'), [name, pose] = nv.split('#');   // V35: ansicht#pose (Alexanders Bewegungen, siehe LAB.poses)
     await p.evaluate(([n, t, ps]) => { window.labView(n); if (ps && window.labPose) window.labPose(ps); if (t) window.labTime(+t); window.labFrames = 0; }, [name, tt, pose]);
-    await p.waitForFunction(() => window.labFrames > 1, null, { timeout: 120000, polling: 200 });
+    await p.waitForFunction(() => window.labFrames > 1, null, { timeout: +(process.env.WAIT || 120000), polling: 200 });
     await p.screenshot({ path: `${out}-${name}${pose ? '-' + pose : ''}${tt ? '-' + tt : ''}.png`, timeout: 120000 });
     console.log(name, Date.now() - t0, 'ms');
     if (process.env.STATS) console.log('  ', JSON.stringify(await p.evaluate(() => window.labStats ? window.labStats() : null)));   // V41: Zahlen aus dem Labor

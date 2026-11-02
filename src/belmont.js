@@ -13,6 +13,7 @@ import { player } from './player.js';
 import { addLight } from './performance.js';
 import { plazaMaterial } from './plaza.js';
 import { buildFountain } from './fountain.js';
+import { buildBelmontLuxe } from './belmont-luxe.js';
 
 /* =====================================================================
    THE BELMONT — das Grand Hotel im Zentrum
@@ -317,11 +318,12 @@ export function buildBelmontInterior() {
   const glow = (x, y, z, c, s) => addGlow(x, y, z, c, s);
 
   // ---------- Materialien ----------
-  const wallT = marbleTex('#0c1514', '#c9d6cf', 11); wallT.wrapS = wallT.wrapT = T.RepeatWrapping;
+  // V51: Wände in hellem Champagner-Marmor statt fast schwarzem Petrol (Lobby und Ballsaal wirkten finster)
+  const wallT = marbleTex('#b8a685', '#6e5a3a', 11); wallT.wrapS = wallT.wrapT = T.RepeatWrapping;
   const darkT = marbleTex('#08080a', '#9a8a70', 12, 40); darkT.wrapS = darkT.wrapT = T.RepeatWrapping;
   const M = {
     // V21: Fototexturen (ambientCG Marble006 / Metal007, CC0) kommen per applyTextures, bis dahin die gezeichneten
-    wall: stdMat({ map: wallT, color: 0xb8c4c0, roughness: 0.16, metalness: 0.05, envI: 0.7 }),
+    wall: stdMat({ map: wallT, color: 0xf0e6d8, roughness: 0.2, metalness: 0.05, envI: 0.7 }),
     // V21: schwarzer Marmor und Gold als Fototexturen (ambientCG Marble006 / Metal007, CC0) per applyTextures, bis dahin die gezeichneten
     dark: wantTexture(stdMat({ map: darkT, color: 0xffffff, roughness: 0.12, metalness: 0.05, envI: 0.8 }), { map: 'marble-color', normalMap: 'marble-normal', roughnessMap: 'marble-rough', repeat: [2, 2], normalScale: 0.5, roughness: 0.45, color: 0xfff4e4 }),
     gold: wantTexture(MAT.gold.clone(), { map: 'gold-color', normalMap: 'gold-normal', roughnessMap: 'gold-rough', repeat: [3, 3], normalScale: 0.35, roughness: 0.9, color: 0xf2d79a }), brass: MAT.brass, chrome: MAT.chrome, piano: MAT.black,
@@ -649,6 +651,8 @@ export function buildBelmontInterior() {
 
   // ---------- V33: Ballsaal mit mehr Ausstattung ----------
   buildBallroomDeco({ P, G1, G2, BALL_H, S0, tables, put, col, glow, M });
+  // ---------- V51: Licht, Wandleuchten, Gemälde, Teppiche, Gepäckwagen, Barhocker ----------
+  buildBelmontLuxe({ IG, P, G1, G2, LOBBY_H, BALL_H, put, col, glow, M });
 
   // ---------- Lichter ----------
   for (const [x, y, z, i, d] of [[0, 12, 22, 1.2, 70], [0, 13, 40, 0.7, 40], [0, 24, -24, 0.9, 70], [-28, 15, -30, 0.7, 50], [28, 15, -30, 0.7, 50], [0, 10, -40, 0.6, 22]]) {
@@ -658,11 +662,17 @@ export function buildBelmontInterior() {
   for (const k in batch) IG.add(new T.Mesh(mergeGeos(batch[k]), M[k]));
 
   // ---------- Menschen ----------
-  const C = interiorCrowd = new Crowd(['tux', 'gown', 'dress', 'livery'], 400);
+  const C = interiorCrowd = new Crowd(['tux', 'gown', 'dress', 'livery'], 680);
   const place = (kind, color, x, y, z, yaw) => { const a = C.add(kind, color); a.x = x; a.y = y; a.z = z; a.yaw = yaw; return a; };
   const tux = (x, y, z, yaw) => place('tux', [1, 1, 1], x, y, z, yaw);
   const gown = (x, y, z, yaw) => place('gown', pick(GOWNS), x, y, z, yaw);
   const staff = (x, y, z, yaw, c = [0.32, 0.05, 0.07]) => place('livery', c, x, y, z, yaw);
+  // V51: Tätigkeiten (Nachkommastelle = Stärke): 0.6 plaudern, 5.3 Glas trinken, 9 klatschen, 7.8 sitzend plaudern, 11.4 sitzend trinken
+  const act = (a, v) => { a.gait[1] = v; return a; };
+  const anyone = (x, y, z, yaw, v) => act((R() < 0.5 ? tux : gown)(x, y, z, yaw), v);
+  const sitAt = (x, seatY, z, yaw, v) => { const m = R() < 0.5; return act((m ? tux : gown)(x, seatY - (m ? 0.87 : 0.8), z, yaw), v); };
+  const dens = MOBILE ? 0.55 : 1;   // auf dem Handy weniger Zuschauer und Galeriegäste
+  const standAct = () => { const r = R(); return r < 0.45 ? 0.6 : r < 0.8 ? 5.3 : 0.2; };
   // Band
   const face = Math.PI * 0 + 0;
   const band = [
@@ -674,32 +684,55 @@ export function buildBelmontInterior() {
   singer.gait[1] = 23;
   for (const x of [7.5, 10, 12.5]) put('gold', new T.CylinderGeometry(0.04, 0.09, 0.5, 8).rotateX(1.1).translate(x, S0 + 1.38, -43.6));
   // Tanzpaare im Kreis
-  for (let k = 0; k < 18; k++) {
-    const ring = k % 2, ang = k / 18 * Math.PI * 2;
-    const c = { ang, rho0: ring ? 0.5 : 0.9, cx: (k / 6 - 1.5) * 2.6, cz: -28 + (k % 3 - 1) * 0.6, h0: R() * 6.28 };
+  const NC = MOBILE ? 18 : 26;   // V51: mehr Paare
+  for (let k = 0; k < NC; k++) {
+    const ring = k % 2, ang = k / NC * Math.PI * 2;
+    const c = { ang, rho0: ring ? 0.5 : 0.9, cx: (k / NC * 3 - 1.5) * 2.6, cz: -28 + (k % 3 - 1) * 0.6, h0: R() * 6.28 };
     c.m = C.add('tux', [1, 1, 1]); c.w = C.add(k % 6 === 5 ? 'dress' : 'gown', pick(GOWNS));
     setDance(c, k % 6 === 5 ? 'charl' : 'fox');
     dancers.push(c);
   }
   // Gäste an Tischen, an der Bar, auf den Galerien
+  // V51: Gäste sitzen auf den Stühlen an den Tischen (vorher standen sie daneben), dazu ein paar Stehende
   for (const [x, z] of tables) {
-    const n = 1 + Math.floor(R() * 3);
-    for (let k = 0; k < n; k++) { const a = R() * 6.28, r = 1.7; (R() < 0.5 ? tux : gown)(x + Math.cos(a) * r, P, z + Math.sin(a) * r, Math.atan2(-Math.cos(a), -Math.sin(a))); }
+    const n = 2 + Math.floor(R() * 3);
+    for (let k = 0; k < 4; k++) { if (k >= n) break; const a = k * Math.PI / 2 + 0.4; sitAt(x + Math.cos(a) * 1.45, P + 0.52, z + Math.sin(a) * 1.45, -a - Math.PI / 2, R() < 0.5 ? 11.4 : 7.8); }
+    if (R() < 0.3) { const a = 0.4 + Math.PI * 0.25 + Math.floor(R() * 4) * Math.PI / 2; anyone(x + Math.cos(a) * 1.9, P, z + Math.sin(a) * 1.9, Math.atan2(-Math.cos(a), -Math.sin(a)), 0.6); }
   }
-  for (let z = -38; z <= -20; z += 2.2) (R() < 0.5 ? tux : gown)(-42.4 + rand(-0.2, 0.3), P, z + rand(-0.4, 0.4), -Math.PI / 2 + rand(-0.5, 0.5));
-  for (const z of [-34, -26]) staff(-45.6, P, z, Math.PI / 2, [0.88, 0.86, 0.8]);
+  // Zuschauer am Rand der Tanzfläche: klatschen, trinken, plaudern
+  for (let x = -16; x <= 16; x += rand(1.3, 2.2)) if (Math.abs(x) > 1.6 && R() < 0.75 * dens) anyone(x, P, -18.3 + rand(-0.2, 0.3), Math.PI + rand(-0.3, 0.3), R() < 0.35 ? 9 : standAct());
+  for (const sx of [-1, 1]) for (let z = -35; z <= -21; z += rand(1.4, 2.4)) if (R() < 0.7 * dens) anyone(sx * (19.1 + rand(0, 0.3)), P, z, (sx > 0 ? -Math.PI / 2 : Math.PI / 2) + rand(-0.3, 0.3), R() < 0.35 ? 9 : standAct());
+  // Bar: Gäste auf den Barhockern (Sitz 0,89 m) und davor
+  for (let z = -38.5; z <= -19.5; z += 1.5) if (R() < 0.6) sitAt(-42.9, P + 0.88, z, -Math.PI / 2, R() < 0.6 ? 11.4 : 7.8);
+  for (let z = -37; z <= -21; z += rand(2.5, 4)) anyone(-41.4 + rand(-0.2, 0.3), P, z, -Math.PI / 2 + rand(-0.6, 0.6), standAct());
+  for (const z of [-36, -29, -22]) staff(-45.6, P, z, Math.PI / 2, [0.88, 0.86, 0.8]);
   for (const y of [G1, G2]) {
-    for (let x = -38; x <= 38; x += rand(2.2, 4.5)) if (R() < 0.7) (R() < 0.5 ? tux : gown)(x, y, -12.6 + rand(0, 1.2) * -1 + 1.2, Math.PI);
-    for (const sx of [-1, 1]) for (let z = -46; z <= -15; z += rand(2.5, 5)) if (R() < 0.6) (R() < 0.5 ? tux : gown)(sx * (41.8 + rand(0, 1.5)), y, z, sx > 0 ? -Math.PI / 2 : Math.PI / 2);
+    for (let x = -38; x <= 38; x += rand(1.8, 3.6)) if (R() < 0.75 * dens) anyone(x, y, -12.6 + rand(0, 1.2) * -1 + 1.2, Math.PI, standAct());
+    for (const sx of [-1, 1]) for (let z = -46; z <= -15; z += rand(2.0, 4)) if (R() < 0.65 * dens) anyone(sx * (41.8 + rand(0, 1.5)), y, z, sx > 0 ? -Math.PI / 2 : Math.PI / 2, standAct());
   }
   // Kellner mit Champagner, die durch den Saal gehen
   for (let k = 0; k < 6; k++) walkersIn.push({ a: staff(0, P, 0, 0, [0.9, 0.88, 0.82]), cx: k < 3 ? -24 : 24, cz: -27, rx: 3.5 + k % 3, rz: 9 + (k % 3), sp: 0.12 + 0.03 * k, ph: k * 2 });
+  // V51: Gäste und Kellner unter der Ostgalerie (an den Spiegeln vorbei)
+  for (let k = 0; k < 4; k++) walkersIn.push({ a: k % 2 ? staff(0, P, 0, 0, [0.9, 0.88, 0.82]) : anyone(0, P, 0, 0, 0), cx: 44.5, cz: -29, rx: 1.1, rz: 13, sp: (0.05 + 0.012 * k) * (k % 2 ? 1 : -1), ph: k * 1.6 });
   // Lobby: Personal, Gäste in Gruppen, Pagen
   for (const z of [16, 22, 28]) staff(-41.8, P, z, Math.PI / 2);
   for (const sx of [-1, 1]) staff(sx * 6.5, P, 46, Math.PI);
   for (const z of [12, 22, 32]) staff(46, P, z + 2.2, -Math.PI / 2);
-  for (const sx of [-1, 1]) for (const z0 of [10, 34]) for (let k = 0; k < 3; k++) (k % 2 ? tux : gown)(sx * 16 + rand(-1.5, 1.5), P + 0.1, z0 + (k - 1) * 2.4 + rand(-0.2, 0.2), k === 0 ? 0 : (k === 2 ? Math.PI : rand(0, 6)));
-  for (let k = 0; k < 4; k++) { const z = 8 + k * 9, x = rand(-20, 20); tux(x, P, z, rand(0, 6)); gown(x + 0.7, P, z + 0.3, rand(0, 6)); }
+  // V51: in den Sitzgruppen sitzen die Gäste auf Sofas und Sesseln (vorher standen sie in den Polstern)
+  for (const sx of [-1, 1]) for (const z0 of [10, 34]) {
+    const x0 = sx * 16;
+    for (const dx of [-0.85, 0.85]) { if (R() < 0.7) sitAt(x0 + dx, P + 0.6, z0 - 2.47, 0, R() < 0.4 ? 11.4 : 7.8); if (R() < 0.6) sitAt(x0 + dx, P + 0.6, z0 + 2.47, Math.PI, R() < 0.4 ? 11.4 : 7.8); }
+    for (const s of [-1, 1]) if (R() < 0.6) sitAt(x0 + s * 3.05, P + 0.56, z0, s < 0 ? Math.PI / 2 : -Math.PI / 2, 7.8);
+  }
+  // Gäste am Empfang, Gruppen zwischen den Säulen, ein Page am Gepäckwagen
+  for (const z of [14.5, 21, 27.5]) anyone(-35.9, P, z + rand(-0.3, 0.3), -Math.PI / 2 + rand(-0.15, 0.15), 0.6);
+  anyone(-35.6, P, 23.2, -Math.PI / 2 - 0.5, 0.2);
+  for (const [gx, gz] of [[-20.9, 22], [20.9, 22], [-9, 6], [10, 38], [-34, 40], [35, 8], [-33, 4]]) {
+    const n = 2 + Math.floor(R() * 3);
+    for (let k = 0; k < n; k++) { const a = k / n * 6.28 + R(); anyone(gx + Math.cos(a) * 0.75, P, gz + Math.sin(a) * 0.75, Math.atan2(-Math.cos(a), -Math.sin(a)), standAct()); }
+  }
+  staff(-6.2, P, 42.3, Math.PI - 0.2); staff(41.2, P, 5, Math.PI / 2 + Math.PI, [0.12, 0.12, 0.14]);
+  for (let k = 0; k < 6; k++) walkersIn.push({ a: anyone(0, P, 0, 0, 0), cx: k < 3 ? -23.5 : 23.5, cz: 22, rx: 1.2, rz: 12.5 + 0.5 * (k % 2), sp: (0.04 + 0.01 * k) * (k % 2 ? 1 : -1), ph: k * 2.1, lobby: true });
   for (let k = 0; k < 8; k++) walkersIn.push({ a: (k % 2 ? tux : gown)(0, P, 0, 0), cx: k < 4 ? -8 : 8, cz: 22, rx: 3 + k % 3, rz: 18 + 3 * (k % 2), sp: (0.03 + 0.008 * k) * (k % 3 ? 1 : -1), ph: k * 1.3, lobby: true });
   for (const w of walkersIn) { w.a.gait[1] = 5.2; w.a.gait[2] = 0.36; }
   C.finish();
