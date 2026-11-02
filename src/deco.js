@@ -377,6 +377,10 @@ export async function startFacadeLab(params) {
   FS.addSeg({ x: -40, z: 0, w: 14, d: 10, y0: 0.2, y1: 15.2, tint: FS.STONES[1], seed: 55, style: 1, dens: 0.4, flood: 0, rib: [0, 0, 0], ry }, false);
   decoOuterDoor(-40 + nx * 5, 0 + nz * 5, nx, nz, false, 'cafe', FS.STONES[1]);
   decoOuterDoor(40 - 7, -3, -1, 0, true, 'pub', bt);
+  // V43: Belmont-artiger Turm (Stil 1, dichte Fenster, Goldrippen) weit hinten, um Flimmern aus der Ferne zu messen (Ansichten belmont*/belmontb*)
+  FS.addSeg({ x: 0, z: -400, w: 50, d: 50, y0: 0, y1: 180, tint: [0.92, 0.84, 0.66], seed: 504, style: 1, dens: 0.66, flood: 1, rib: [1.0, 0.78, 0.4] }, false);
+  FS.addSeg({ x: -140, z: -400, w: 50, d: 50, y0: 0, y1: 180, tint: [0.92, 0.84, 0.66], seed: 504, style: 1, dens: 0.0, flood: 1, rib: [1.0, 0.78, 0.4] }, false);   // ohne Licht in den Fenstern
+  FS.addSeg({ x: 140, z: -400, w: 50, d: 50, y0: 0, y1: 180, tint: [0.3, 0.26, 0.24], seed: 505, style: 2, dens: 1, flood: 1 }, false);   // dunkle Belmont-Stufe (Bogenfenster)
   planDeco();
   DECOR.signs.push({ x: 0, z: 9 - 1.4, o: [0, 1], w: 14, h: 14 * 160 / (110 * 6 + 40), y: 48.2 + 1.4 + 1.6, word: 'AURORA', col: 'gold', H: 48.2 });
   scene.add(labFacadeMesh(FS));
@@ -386,7 +390,11 @@ export async function startFacadeLab(params) {
   const V = {
     alle: [[30, 12, 70], [0, 14, 0]], portal: [[2, 3.2, 20], [0, 4.5, 9]], portalnah: [[-3, 5.5, 13.5], [0, 5.8, 9]],
     tuer: [[20, 2.6, 2], [13, 2.8, 0]], krone: [[22, 54, 24], [0, 48.5, 0]], dach: [[0, 50, 40], [0, 50, 9]],
-    reklame: [[40, 6, 22], [40, 7.5, 5]], ring: [[-40 + nx * 14, 2.4, nz * 14 - 3], [-40 + nx * 5, 2.4, nz * 5]], pub: [[33, 2.4, -14], [33, 2.4, -3]],
+    reklame: [[40, 6, 22], [40, 7.5, 5]],
+    belmont: [[20, 90, -100], [0, 100, -400]], belmontb: [[20.25, 90.1, -100], [0.25, 100.1, -400]],   // V43: gleiche Sicht, Kamera um 25 cm versetzt (Flimmer-Maß)
+    belmontnah: [[10, 90, -230], [0, 100, -400]], belmontnahb: [[10.15, 90.08, -230], [0.15, 100.08, -400]],
+    dunkel: [[-110, 90, -310], [-140, 100, -400]], stufe2: [[170, 90, -310], [140, 100, -400]],
+    belmontdicht: [[30, 90, -310], [0, 100, -400]], belmontdichtb: [[30.1, 90.05, -310], [0.1, 100.05, -400]], belmontflug: [[40, 150, -330], [0, 60, -400]], ring: [[-40 + nx * 14, 2.4, nz * 14 - 3], [-40 + nx * 5, 2.4, nz * 5]], pub: [[33, 2.4, -14], [33, 2.4, -3]],
   };
   window.labView = name => { const v = V[name] || V.alle; camera.position.set(...v[0]); camera.lookAt(...v[1]); };
   window.labTime = t => { LABF.t = t; }; const LABF = { t: params.get('t') != null ? +params.get('t') : null };

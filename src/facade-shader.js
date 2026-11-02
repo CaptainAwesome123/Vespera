@@ -163,7 +163,11 @@ void main(){
   float ch = style < 1.5 ? 3.6 : 7.2;
   float margin = style < 1.5 ? 1.0 : 1.6;
   float usable = max(faceW - 2.0*margin, 1.0);
-  float ncell = max(1.0, floor(usable / cw));
+  // V43: FLACKER-URSACHE AM BELMONT. vScale ist ein interpoliertes Varying; bei Fassaden, deren nutzbare Breite ein ganzzahliges
+  // Vielfaches der Zellbreite ist (Belmont-Stufen 62 m, 50 m: 60/2,4 = 25, 48/2,4 = 20, 46,8/5,2 = 9), lag usable/cw je Pixel
+  // zufällig knapp unter oder über der Ganzzahl, floor() sprang zwischen 19 und 20 Zellen, und damit kippte je Pixel das ganze
+  // Fensterraster (Rauschen, das beim Bewegen flimmert). Kleiner Zuschlag, damit alle Pixel dieselbe Zellzahl sehen.
+  float ncell = max(1.0, floor(usable / cw + 0.002));
   float ux = (um - margin) / (usable / ncell);
   float vy = vWorld.y / ch;
   vec2 cell = floor(vec2(ux, vy));
@@ -194,7 +198,8 @@ void main(){
   vec3 rvW = vec3(dot(vdir, normalize(vT)), vdir.y, max(dot(vdir, -n), 0.06));
   float REC = style > 1.5 ? 0.45 : 0.3;
   vec2 cellSz = vec2(usable / ncell, ch);
-  float nearF = 1.0 - smoothstep(0.08, 0.28, px);
+  float nearF = 1.0 - smoothstep(0.05, 0.14, px);   // V43: Parallaxe/Laibung früher aus (harte 1-px-Kanten flimmerten in der Ferne)
+  float mf = 1.0 - smoothstep(0.07, 0.18, px);   // V43: Blende für Details unter Pixelgröße (Fensterbank, Schnee, Gesimsschatten, Rahmen)
   vec2 g = f + (rvW.xy / rvW.z) * REC / cellSz * nearF;
   float inXg = step(abs(g.x - 0.5), wx*0.5);
   float inWinG = inXg * step(abs(g.y - 0.5), wy*0.5);
@@ -227,7 +232,10 @@ void main(){
   vec3 winCol = mix(glass, warm*bright, lit);
   // Räume hinter dem Glas (Interior Mapping): Rückwand, Decke mit Lampe, Boden, Seitenwände, ein paar Möbel
   float aaW = smoothstep(0.08, 0.28, px);
-  if (inWin > 0.5 && aaW < 0.95 && style < 1.5) {
+  // V43: Zimmer erst, wenn eine Fensterzelle gut 7 Bildpunkte breit ist, und die Einrichtung blendet davor weich zur Raum-Mittelfarbe aus
+  // (vorher harte Möbelkanten in 4-6 px großen Fenstern: jedes Pixel traf zufällig Lampe, Buch oder Wand, und beim Bewegen flimmerte der ganze Turm)
+  float detF = 1.0 - smoothstep(0.04, 0.12, px);
+  if (inWin > 0.5 && px < 0.12 && style < 1.5) {
     float cellW = usable / ncell;
     vec3 rv = vec3(dot(vdir, normalize(vT)), vdir.y, max(dot(vdir, -n), 0.04));
     vec2 hs = vec2(cellW, ch) * 0.5;
@@ -326,11 +334,12 @@ void main(){
       rc = mix(rc, lightC*vec3(0.06, 0.045, 0.04), clamp(body, 0.0, 1.0));
     }
     rc *= 1.05 - 0.35*dz;
+    rc = mix(wallP * lightC * 0.62, rc, detF);
     vec3 dark = vec3(0.004, 0.006, 0.011) + uTeal*0.012*(1.0 - dz) + vec3(0.02, 0.012, 0.006)*exp(-vWorld.y/25.0);
     vec3 room = mix(dark, rc, lit);
     float slat = mix(0.85, 0.7 + 0.3*step(0.5, fract(g.y*18.0)), 1.0 - smoothstep(0.012, 0.035, px));
     room = mix(room, warm*(0.3 + 0.35*h)*slat*lit + glass*(1.0 - lit), bl);
-    room = mix(room, lightC*vec3(0.55, 0.32, 0.22)*(0.75 + 0.25*sin(g.x*60.0))*lit, curtain);
+    room = mix(room, lightC*vec3(0.55, 0.32, 0.22)*(0.75 + 0.25*sin(g.x*60.0)*detF)*lit, curtain);
     winCol = mix(room + glass*0.7, winCol, aaW);
   }
   // Laibung: Schatten oben und an einer Seite, die Fenster wirken eingetieft
@@ -339,7 +348,7 @@ void main(){
   float mullV = step(abs(g.x - 0.5), 0.035);
   float mullH = step(abs(g.y - (style > 0.5 && style < 1.5 ? 0.64 : 0.5)), 0.03);
   float edgeF = step(wx*0.5 - 0.055, abs(g.x - 0.5)) + step(wy*0.5 - 0.045, abs(g.y - 0.5));
-  float frame = clamp(mullV + mullH + edgeF, 0.0, 1.0) * (1.0 - smoothstep(0.06, 0.16, px));
+  float frame = clamp(mullV + mullH + edgeF, 0.0, 1.0) * (1.0 - smoothstep(0.05, 0.13, px));
   vec3 frameC = mix(vec3(0.05, 0.04, 0.035), vec3(0.16, 0.14, 0.12), step(0.5, hash(vec2(seed, 44.0)))) * (0.4 + 0.6*moon) + warm*bright*lit*0.06;
   winCol = mix(winCol, frameC, frame);
   // Laibung: der Blick trifft die Seitenwand der Öffnung. Oben der Sturz im Schatten, unten die Bank im Mondlicht, seitlich halbhell; etwas Licht aus dem Raum fällt hinein
@@ -352,7 +361,7 @@ void main(){
   float soot = inX * step(f.y, 0.5 - wy*0.5 - 0.02) * step(0.5 - wy*0.5 - 0.3, f.y) * (0.35 + 0.4*vnoise(vec2(ux*9.0, vy*4.0 + seed))) * step(0.0, ux) * step(ux, ncell) * (1.0 - ground);
   stone *= 1.0 - 0.3*soot*fineFade;
   // Fensterbank
-  float sill = inX * step(abs(f.y - (0.5 - wy*0.5) + 0.05), 0.035) * (1.0 - step(abs(f.y - 0.5), wy*0.5));
+  float sill = inX * step(abs(f.y - (0.5 - wy*0.5) + 0.05), 0.035) * (1.0 - step(abs(f.y - 0.5), wy*0.5)) * mf;
 
   vec3 wall = stone;
   wall = mix(wall, stone*1.5, sill * (1.0 - brick));
@@ -369,10 +378,10 @@ void main(){
   // Gesimsbänder alle zehn Geschosse
   float cornice = step(9.0, mod(cell.y, 10.0)) * step(0.82, f.y) * (1.0 - brick) * step(3.0, topDist);
   wall = mix(wall, stone*1.6, cornice);
-  wall = mix(wall, stone*0.5, step(9.0, mod(cell.y, 10.0)) * step(0.76, f.y) * step(f.y, 0.82) * (1.0 - brick) * step(3.0, topDist));
+  wall = mix(wall, stone*0.5, step(9.0, mod(cell.y, 10.0)) * step(0.76, f.y) * step(f.y, 0.82) * (1.0 - brick) * step(3.0, topDist) * mf);
   // V30: Schnee auf Fensterbänken und auf der Oberkante der Gesimse (dauernde leichte Decke am Nordpol)
   float snL = clamp(0.3 + 0.75*uSnowCover, 0.0, 1.0) * (sill * step(0.5 - wy*0.5 - 0.055, f.y) * step(0.0, ux) * step(ux, ncell) + cornice * step(0.95, f.y)) * (1.0 - ground);
-  wall = mix(wall, vec3(0.06, 0.07, 0.09) + vec3(0.2, 0.23, 0.3) * moon + uTeal * 0.04, snL * 0.85);
+  wall = mix(wall, vec3(0.06, 0.07, 0.09) + vec3(0.2, 0.23, 0.3) * moon + uTeal * 0.04, snL * 0.85 * mf);
   // Feuerleitern an Backsteinhäusern
   float escCol = step(abs(cell.x - floor(ncell*0.5)), 0.5) * brick * step(1.0, cell.y) * (1.0 - ground);
   float esc = escCol * clamp(step(f.y, 0.07) + step(abs(f.y - f.x), 0.05) + step(abs(f.x - 0.06), 0.02) + step(abs(f.x - 0.94), 0.02), 0.0, 1.0);
