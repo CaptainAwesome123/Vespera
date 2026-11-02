@@ -151,6 +151,17 @@ Finger weiter bis zur Faust oder streckt sie, `fgP` streckt den Zeigefinger (Zei
 tragen statt der Krawatte die glatte Hemdbrust `shirt-m` (Biesen, Onyxknöpfe) und eine Satinfliege (`bowWing`
 in `src/people-mh.js`). Mit Vorschau-Ordner schreibt `make-people.mjs` auch Bilder der Hände (entspannt, Faust, offen).
 
+**Gesichter, Hände, Augen (V44):** Die MakeHuman-Hautbilder haben 512 px; der Kopf belegt darin nur 180 × 342, eine
+Hand 99 × 95 Texel. `make-people.mjs` legt Kopf- und Handinseln der UV deshalb in eigene Kacheln (Kopf 512 px, Hand
+256 px, Reihen 7 bis 9 des Atlas, je Hautbild eine Spalte wie bei der Körperhaut; der Shader bleibt gleich), rechnet
+das Quellbild hoch, schärft nach und malt mit `skinDetail` dazu, was das Quellbild nicht hat: Poren und Hautflecken im
+Raum gerechnet (ohne Nähte), Lippenlinien, Krähenfüße mit dem Alter, Knöchel- und Beugefalten an den Fingergelenken
+aus `rig.*.hand`. Die Höhe der Details steht im Alphakanal (128 = eben); der Figuren-Shader macht daraus das Relief
+statt wie bisher Poren als Rauschen je Bildpunkt zu rechnen. Die Augen nehmen das Quellbild in voller Größe (1024 px
+statt 256). Alexanders Gesichtskachel bekommt dieselben Details, seine Hände die neue Handkachel. Der Atlas ist jetzt
+2048 × 5120 px (WebP mit `alphaQuality` 65, 1,7 MB); hält die Grafik das nicht, lädt auch der PC die halbe Fassung.
+Labor: `?lab=menschen&view=herrnah|damenah|altnah|handnah|spielernah|spielerhand`.
+
 **V23: Gebäude, Waren, Böden.**
 - *Flackern:* Bauteile eines Hauses überlappen nicht mehr mit gleichen Flächen (Ecken als Mittelstück plus
   Endkappen, Gesimse mit `bandC()` leicht vor der Wand, doppelte Teile entfernt `dedupeSegs()`); innen liegende

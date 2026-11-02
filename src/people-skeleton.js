@@ -1094,7 +1094,9 @@ export const HUM_FS_COLOR = () => `
             if (tK < 0.5) diffuseColor.rgb *= T5;
             hRough = tK > 3.5 && tK < 4.5 ? 0.06 : 0.6; hB = (vN3(vClP * 420.0) - 0.5) * 0.06 * aa2;
             // V24: Poren und feine Hautlinien (Relief), auf Stirn, Nase und Wangen dichter; Haut lässt Licht durch
-            if (tK < 3.5 || tK > 5.5) { hB += ((vN3(vClP * 1500.0) - 0.5) * 0.35 + (vN3(vClP * vec3(300.0, 2400.0, 300.0)) - 0.5) * 0.12) * clamp(1.6 - fwidth(vClP.y) * 1400.0, 0.0, 1.0); hSSS = 1.0; }
+            // V44: bei MakeHuman-Haut kommt das Relief (Poren, Lippenlinien, Knöchelfalten) aus dem Alphakanal des Atlas (128 = eben),
+            // gemalt in tools/make-people.mjs; das Rauschen je Bildpunkt bleibt nur für die gebauten Figuren ohne Atlas
+            if (tK < 3.5 || tK > 5.5) { hSSS = 1.0; if (tK > 0.5) hB += (tx.a - 0.5) * 0.55; else hB += ((vN3(vClP * 1500.0) - 0.5) * 0.35 + (vN3(vClP * vec3(300.0, 2400.0, 300.0)) - 0.5) * 0.12) * clamp(1.6 - fwidth(vClP.y) * 1400.0, 0.0, 1.0); }
             if (vFaceUV.x >= 0.0) {
               vec2 cell = vec2(mod(fid, 8.0), floor(fid / 8.0)), fuv = (cell + clamp(vFaceUV, 0.01, 0.99)) / 8.0;
               vec4 f = texture2D(uFaces, fuv); vec3 m = texture2D(uFaceMat, fuv).rgb;

@@ -11,7 +11,7 @@
    'furcoat'); der Shader der Menge ist dafür nicht gewachsen, alles kommt aus
    Netzen, Atlas und Daten.
    ===================================================================== */
-import { T, MOBILE, ANISO } from './core.js';
+import { T, MOBILE, ANISO, renderer } from './core.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { resolveAsset, assetStats } from './assets.js';
@@ -44,8 +44,10 @@ export async function loadPeople() {
     const gltf = await new Promise((ok, no) => loader.load(resolveAsset('people/people.glb'), ok, undefined, no));
     gltf.scene.updateMatrixWorld(true);
     gltf.scene.traverse(o => { if (o.isMesh) MHP.src[o.name] = flatMesh(o); });
-    const tex = await new Promise((ok, no) => new T.TextureLoader().load(resolveAsset(MOBILE ? 'people/people-atlas-m.webp' : 'people/people-atlas.webp'), ok, undefined, no));
-    tex.encoding = T.sRGBEncoding; tex.anisotropy = Math.min(4, ANISO);
+    // V44: der Atlas ist 2048 x 5120 px; wenn die Grafik so große Texturen nicht hält, nimmt auch der PC die halbe Fassung
+    const small = MOBILE || renderer.capabilities.maxTextureSize < Math.max(meta.atlas.w, meta.atlas.h);
+    const tex = await new Promise((ok, no) => new T.TextureLoader().load(resolveAsset(small ? 'people/people-atlas-m.webp' : 'people/people-atlas.webp'), ok, undefined, no));
+    tex.encoding = T.sRGBEncoding; tex.anisotropy = Math.min(MOBILE ? 4 : 8, ANISO);   // V44: 8 am PC, Gesichter und Hände bleiben schräg scharf
     if (MHP.late) throw new Error('zu spät geladen');   // Stadt ist schon mit den gebauten Figuren entstanden
     HRIG.m = meta.rig.m; HRIG.f = meta.rig.f; HRIG.tex = tex; HRIG.tile = meta.atlas.tile / meta.atlas.w;
     MHP.meta = meta; MHP.ready = true; PB.geo = mhPersonGeo;
