@@ -23,6 +23,7 @@ import './dance.js';
 import './water.js';
 import './harbour.js';
 import './serpentine.js';
+import './landscape.js';
 import './villa.js';
 import './ragdoll.js';
 import './sky.js';
