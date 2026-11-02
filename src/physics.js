@@ -293,8 +293,10 @@ export function furnInfo(e) { const I = FURN_INFO[e.type]; return { name: I.name
 export function movWorld(e) {
   if (e.w) return e.w;
   const f = e.frame; if (!f) return (e.w = { x: e.x, y: e.y, z: e.z, yaw: e.a });
-  const cs = Math.cos(f.ry), sn = Math.sin(f.ry);
-  return (e.w = { x: f.x + e.x * cs + e.z * sn, y: f.y + e.y, z: f.z - e.x * sn + e.z * cs, yaw: e.a + f.ry });
+  if (f.pf) f.x = f.pf.x, f.y = f.pf.y, f.z = f.pf.z, f.ry = f.pf.ry;   // V54: Luftschiff: das System fährt mit, nichts merken
+  const cs = Math.cos(f.ry), sn = Math.sin(f.ry), w = { x: f.x + e.x * cs + e.z * sn, y: f.y + e.y, z: f.z - e.x * sn + e.z * cs, yaw: e.a + f.ry };
+  if (!f.pf) e.w = w;
+  return w;
 }
 // Material eines zusammengefassten Netzes (einmal gesucht, dann gemerkt)
 const MAT_OF = new Map();
@@ -345,26 +347,31 @@ export function furnBody(e) {
   for (const [g, role] of parts) {
     const key = e.map[role] || e.map.up, r = e.ranges.find(q => q.key === key), mat = (r && matOfGeo(r.geo)) || propMat();
     g.translate(-c.x, -c.y, -c.z); if (!g.attributes.uv) g.setAttribute('uv', new T.BufferAttribute(new Float32Array(g.attributes.position.count * 2), 2));
+    // V54: Luftschiff-Stoffe färben je Ecke (Farbe des Teils aus e.cols), sonst wäre das Stück schwarz
+    g.userData.cc = e.cols ? (e.cols[key] || [1, 1, 1]) : null;
     (byMat.get(mat) || byMat.set(mat, []).get(mat)).push(g);
   }
   const mats = [], gg = []; for (const [mat, list] of byMat) { mats.push(mat); gg.push(mergeGeos(list)); }
   const geo = mergeGeos(gg); let off = 0; gg.forEach((g, i) => { geo.addGroup(off, g.index.count, i); off += g.index.count; });
+  if (e.cols) { const ca = new Float32Array(geo.attributes.position.count * 3); let o = 0; for (const list of byMat.values()) for (const g of list) { const n = g.attributes.position.count; for (let i = 0; i < n; i++) ca.set(g.userData.cc, (o + i) * 3); o += n; } geo.setAttribute('color', new T.BufferAttribute(ca, 3)); }
   const mesh = new T.Mesh(geo, mats);
   furnHide(e);
   e.taken = true;
   e.removed = { world: [], villa: [] };
   // Kollisionsquader des Stücks
   removeColliders(cx - he.x, cz - he.z, cx + he.x, cz + he.z, W.y, W.y + he.y * 2, e.removed.world);
-  if (f && VILLA.boxes) {
+  const LB = f && f.pf ? f.pf.boxes : f ? VILLA.boxes : null, ly = f && f.pf ? e.y : W.y;   // V54: Luftschiff: Quader der Gondel (y relativ zum Schiff)
+  if (LB) {
     const lx0 = e.x + lb.min.x, lx1 = e.x + lb.max.x, lz0 = e.z + lb.min.z, lz1 = e.z + lb.max.z;
-    for (let i = VILLA.boxes.length - 1; i >= 0; i--) {
-      const b = VILLA.boxes[i];
-      if (b.x1 - b.x0 > 6 || b.z1 - b.z0 > 6 || b.y1 - b.y0 > 2.6 || b.x0 < lx0 - 0.45 || b.x1 > lx1 + 0.45 || b.z0 < lz0 - 0.45 || b.z1 > lz1 + 0.45 || b.y0 < W.y - 0.4 || b.y0 > W.y + he.y * 2) continue;
-      e.removed.villa.push(VILLA.boxes.splice(i, 1)[0]);
+    for (let i = LB.length - 1; i >= 0; i--) {
+      const b = LB[i];
+      if (b.x1 - b.x0 > 6 || b.z1 - b.z0 > 6 || b.y1 - b.y0 > 2.6 || b.x0 < lx0 - 0.45 || b.x1 > lx1 + 0.45 || b.z0 < lz0 - 0.45 || b.z1 > lz1 + 0.45 || b.y0 < ly - 0.4 || b.y0 > ly + he.y * 2) continue;
+      e.removed.villa.push(LB.splice(i, 1)[0]);
     }
   }
   const B = makeBody({ name: I.name, key: 'furn:' + e.id, kind: 'box', he: [he.x, he.y, he.z], m: I.m, stuff: I.stuff, small: false, p: [cx, cy, cz], yaw: 0, mesh, furn: e });
   B.x0 = B.x.clone();
+  if (f && f.pf) rideOn(B, f.pf);
   return B;
 }
 // weit weg und unbewegt: das Stück kehrt an seinen Platz zurück
@@ -372,7 +379,8 @@ function furnRestore(B) {
   const e = B.furn; removeBody(B);
   furnShow(e); e.taken = false;
   for (const b of e.removed.world) addColliderBack(b);
-  if (VILLA.boxes) for (const b of e.removed.villa) VILLA.boxes.push(b);
+  const LB = e.frame && e.frame.pf ? e.frame.pf.boxes : VILLA.boxes;
+  if (LB) for (const b of e.removed.villa) LB.push(b);
   e.removed = null;
 }
 function addColliderBack(b) { const q = addCollider(b.x0, b.y0, b.z0, b.x1, b.y1, b.z1); return q; }
@@ -491,7 +499,7 @@ export function cullBodies(dt) {
   if ((cullT -= dt) > 0 || LOOSE.bodies.length < MAX_BODIES * 0.6) return; cullT = 3;
   const p = player.p; let relay = false;
   for (const B of LOOSE.bodies.slice()) {
-    if (B.awake || B === LOOSE.held || B === LOOSE.tk || (B.x.x - p.x) ** 2 + (B.x.z - p.z) ** 2 < 320 * 320) continue;
+    if (B.awake || B.pf || B === LOOSE.held || B === LOOSE.tk || (B.x.x - p.x) ** 2 + (B.x.z - p.z) ** 2 < 320 * 320) continue;   // V54: an Bord räumt das Luftschiff selbst auf
     if (B.furn) { if (B.x0 && B.x.distanceTo(B.x0) < 1.5) furnRestore(B); }
     else if (B.street) { if (B.x0 && B.x.distanceTo(B.x0) < 1.5) streetRestore(B); }
     else if (B.lamp) { if (B.x0 && B.x.distanceTo(B.x0) < 1.5) lampRestore(B); }
@@ -537,11 +545,58 @@ function takeGoods(g) {
 }
 
 /* ---------- Umgebung: wo steckt ein Punkt drin? ---------- */
-const HIT = { n: new T.Vector3(), d: 0, vx: 0, vz: 0 };
+const HIT = { n: new T.Vector3(), d: 0, vx: 0, vz: 0 }, _lp1 = new T.Vector3(), _lp2 = new T.Vector3();
+
+/* ---------- V54: Dinge an Bord fahren mit (Luftschiff) ----------
+   RIDES: Plattformen, die Dinge mitnehmen ({ pf, inside(lx, ly, lz) }); ein Körper mit B.pf wird jedes Bild um die
+   Bewegung der Plattform seit dem letzten Bild verschoben und gedreht (auch schlafend) und stößt nur an deren Quader.
+   Fliegt er aus der Gondel (über die Reling), gehört er wieder zur Stadt; fliegt etwas hinein, fährt es mit. */
+export const RIDES = [];
+export function rideOn(B, pf) { B.pf = pf; B.pl = { x: pf.x, y: pf.y, z: pf.z, ry: pf.ry }; }
+function rideLocal(pf, v) { const cs = Math.cos(pf.ry), sn = Math.sin(pf.ry), dx = v.x - pf.x, dz = v.z - pf.z; return [dx * cs - dz * sn, v.y - pf.y, dx * sn + dz * cs]; }
+function carryRides() {
+  if (!RIDES.length) return;
+  for (const B of LOOSE.bodies) {
+    if (B.pf) {
+      const f = B.pf, l = B.pl;
+      const dr = f.ry - l.ry;
+      if (dr || f.x !== l.x || f.y !== l.y || f.z !== l.z) {
+        const c0 = Math.cos(l.ry), s0 = Math.sin(l.ry), c1 = Math.cos(f.ry), s1 = Math.sin(f.ry);
+        const mv = v => { const dx = v.x - l.x, dz = v.z - l.z, lx = dx * c0 - dz * s0, lz = dx * s0 + dz * c0; v.x = f.x + lx * c1 + lz * s1; v.z = f.z - lx * s1 + lz * c1; v.y += f.y - l.y; };
+        mv(B.x); if (B.anchor) mv(B.anchor);
+        if (dr) { _q.setFromAxisAngle(_up, dr); B.q.premultiply(_q); if (B.anchorQ) B.anchorQ.premultiply(_q); B.v.applyQuaternion(_q); }
+        l.x = f.x; l.y = f.y; l.z = f.z; l.ry = f.ry;
+      }
+      const R = RIDES.find(q => q.pf === f), [lx, ly, lz] = rideLocal(f, B.x);
+      if (!R || !R.inside(lx, ly, lz)) { B.pf = null; B.pl = null; B.awake = true; }
+    } else if (B.awake || B === LOOSE.held || B === LOOSE.tk) {
+      for (const R of RIDES) { const [lx, ly, lz] = rideLocal(R.pf, B.x); if (R.inside(lx, ly, lz)) { rideOn(B, R.pf); break; } }
+    }
+  }
+}
+export function dropBody(B) { removeBody(B); }
+// Plattform weit weg: alles an Bord zurück an seinen Platz (Möbel) bzw. weg (Dinge, die das Schiff neu auslegt)
+export function rideHome(pf) {
+  let n = 0;
+  for (const B of LOOSE.bodies.slice()) {
+    if (B.pf !== pf || B === LOOSE.held || B === LOOSE.tk) continue;
+    if (B.furn) furnRestore(B); else removeBody(B);
+    n++;
+  }
+  return n;
+}
 // Vorbereitung je Bild und Körper: Quader in der Nähe, Bodenhöhe unter jedem Hüllpunkt
 function prepEnv(B) {
   const r = B.r + 0.6, x = B.x.x, z = B.x.z, y = B.x.y;
   B.boxes.length = 0;
+  if (B.pf) {
+    // V54: an Bord des Luftschiffs: nur die Quader der Gondel (lokal), kein Boden der Stadt darunter
+    const f = B.pf, cs = Math.cos(f.ry), sn = Math.sin(f.ry), dx = x - f.x, dz = z - f.z, lx = dx * cs - dz * sn, lz = dx * sn + dz * cs, ly = y - f.y;
+    B.pfb = f.boxes.filter(b => b.x1 > lx - r && b.x0 < lx + r && b.z1 > lz - r && b.z0 < lz + r && b.y1 > ly - r - 0.5 && b.y0 < ly + r);
+    B.villa = null; B.gpts.fill(-1e9); B.wet = false;
+    return;
+  }
+  B.pfb = null;
   for (const b of nearBoxes(x, z, r)) if (b.x1 > x - r && b.x0 < x + r && b.z1 > z - r && b.z0 < z + r && b.y1 > y - r - 0.5 && b.y0 < y + r) B.boxes.push(b);
   B.villa = null;
   if (VILLA.boxes && Math.abs(x - VILLA.x) < 260 && Math.abs(z - VILLA.z) < 260) {
@@ -570,6 +625,12 @@ function envHit(B, i, P, P0) {
   const gy = B.gpts[i];
   if (gy > -1e8 && P.y < gy) { d = gy - P.y; HIT.n.set(0, 1, 0); }
   for (const b of B.boxes) { const dd = inBox(P, P0, b, _v3); if (dd > d) { d = dd; HIT.n.copy(_v3); } }
+  if (B.pfb && B.pfb.length) {
+    const f = B.pf, cs = Math.cos(f.ry), sn = Math.sin(f.ry);
+    const lp = _lp1.set((P.x - f.x) * cs - (P.z - f.z) * sn, P.y - f.y, (P.x - f.x) * sn + (P.z - f.z) * cs);
+    const l0 = _lp2.set((P0.x - f.x) * cs - (P0.z - f.z) * sn, P0.y - f.y, (P0.x - f.x) * sn + (P0.z - f.z) * cs);
+    for (const b of B.pfb) { const dd = inBox(lp, l0, b, _v3); if (dd > d) { d = dd; HIT.n.set(_v3.x * cs + _v3.z * sn, _v3.y, -_v3.x * sn + _v3.z * cs); } }
+  }
   if (B.villa && B.villa.length) {
     const cs = Math.cos(VILLA.ry), sn = Math.sin(VILLA.ry);
     const lp = new T.Vector3((P.x - VILLA.x) * cs - (P.z - VILLA.z) * sn, P.y, (P.x - VILLA.x) * sn + (P.z - VILLA.z) * cs);
@@ -688,6 +749,7 @@ export function updateLoose(dt) {
   const H0 = LOOSE.held;
   if (H0 && (player.fly || DRIVE.on || BOAT.on || DINE.seat || H0.stuck > 0.45)) { if (H0.stuck > 0.45) toast(H0.name + ' bleibt hängen'); drop(false); }
   if (isTouch) { const el = $('tThrow'), want = !!LOOSE.held || !!LOOSE.tkAny; if (el.hidden === want) el.hidden = !want; }   // V33: auch für die Telekinese
+  if (!paused) carryRides();   // V54: Dinge an Bord des Luftschiffs fahren mit
   if (paused || !LOOSE.bodies.length) { drawBatches(); return; }
   const t0 = performance.now();
   dt = Math.min(dt, 1 / 30);

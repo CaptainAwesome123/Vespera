@@ -1,8 +1,10 @@
 import { T, MOBILE, R, scene, camera, mergeGeos, geoView, canvasTex, mulberry32, $ } from './core.js';
 import { stdMat, ENV, addCollider } from './people-skeleton.js';
 import { buildAirship } from './airships.js';
-import { portMats, addPlatform, bx6, wallRun, wuv, spotPeds, pfLocal, VILLA, easeIO, TEAK, MAHOG, PLATE } from './harbour.js';
-import { roundBox, lathe, tube, FURN, placeFurn, FAN_TEX } from './entrances.js';
+import { portMats, addPlatform, bx6, wallRun, wuv, spotPeds, pfLocal, VILLA, easeIO, TEAK, PLATE } from './harbour.js';
+import { roundBox, lathe, tube, FURN, placeFurn, FAN_TEX, MOV, movOn, movOff } from './entrances.js';
+import { cofferTex2, RUNNER_TEX, decoRugTex, damaskTex, veneerTex, tileTex, paintingTex } from './deco-tex.js';
+import { RIDES, rideOn, rideHome, spawnProp, dropBody, LOOSE } from './physics.js';
 import { wallpaperTex } from './serpentine.js';
 import { makeGlowPoints } from './ragdoll.js';
 import { wantTexture } from './assets.js';
@@ -93,19 +95,72 @@ export function impWinTex() {
   t.wrapS = T.RepeatWrapping; return t;
 }
 
+// V54: poliertes Mahagonifurnier ohne Bretterfugen (die Bohlen-Textur sah an Möbeln und Wänden wie Ziegel aus)
+export function impMahogTex() {
+  const t = canvasTex(512, 512, (g, W, H) => {
+    const rr = mulberry32(5402);
+    g.fillStyle = '#5a2412'; g.fillRect(0, 0, W, H);
+    for (let k = 0; k < 220; k++) {
+      const x0 = rr() * W, a = 2 + rr() * 9, ph = rr() * 6.3, dark = rr() < 0.6;
+      g.strokeStyle = dark ? `rgba(30,10,4,${0.12 + rr() * 0.25})` : `rgba(160,80,40,${0.08 + rr() * 0.18})`; g.lineWidth = 0.6 + rr() * 2.6;
+      g.beginPath(); for (let y = 0; y <= H; y += 8) { const x = x0 + Math.sin(y / H * Math.PI * 2 * 2 + ph) * a; y ? g.lineTo(x, y) : g.moveTo(x, y); } g.stroke();
+    }
+    // Flammen in der Mitte jeder Hälfte, warmer Glanzstreifen
+    for (const cx of [W * 0.25, W * 0.75]) for (let k = 0; k < 14; k++) { g.strokeStyle = `rgba(${k % 2 ? '25,8,3' : '150,70,30'},0.18)`; g.lineWidth = 2; g.beginPath(); for (let y = 0; y <= H; y += 8) { const x = cx + (k - 7) * 6 + Math.sin(y / H * Math.PI * 6 + k * 0.4) * (14 - Math.abs(k - 7)); y ? g.lineTo(x, y) : g.moveTo(x, y); } g.stroke(); }
+    const gl = g.createLinearGradient(0, 0, W, 0); gl.addColorStop(0, 'rgba(255,200,150,0)'); gl.addColorStop(0.5, 'rgba(255,200,150,0.07)'); gl.addColorStop(1, 'rgba(255,200,150,0)'); g.fillStyle = gl; g.fillRect(0, 0, W, H);
+  });
+  t.wrapS = t.wrapT = T.RepeatWrapping; return t;
+}
+// V54: Seekarte für den Kartentisch der Brücke: Pergament, Küstenlinien, Gradnetz, Kompassrose, Kurslinie
+export function impChartTex() {
+  return canvasTex(512, 384, (g, W, H) => {
+    const rr = mulberry32(5401);
+    g.fillStyle = '#e4d6b0'; g.fillRect(0, 0, W, H);
+    for (let k = 0; k < 1400; k++) { g.fillStyle = `rgba(${rr() < 0.5 ? '120,90,40' : '255,250,230'},${rr() * 0.08})`; g.fillRect(rr() * W, rr() * H, 2 + rr() * 5, 1 + rr() * 3); }
+    g.strokeStyle = 'rgba(40,80,90,0.35)'; g.lineWidth = 1; for (let x = 0; x <= W; x += 48) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, H); g.stroke(); } for (let y = 0; y <= H; y += 48) { g.beginPath(); g.moveTo(0, y); g.lineTo(W, y); g.stroke(); }
+    // Bergkessel als Ring, die Stadt in der Mitte
+    g.strokeStyle = '#6a4a22'; g.lineWidth = 2;
+    for (let r = 0; r < 4; r++) { g.beginPath(); for (let a = 0; a <= 6.3; a += 0.12) { const q = 120 + r * 18 + Math.sin(a * 5 + r) * 9 + rr() * 4; g.lineTo(W / 2 + Math.cos(a) * q * 1.3, H / 2 + Math.sin(a) * q * 0.82); } g.stroke(); }
+    g.fillStyle = 'rgba(40,110,120,0.35)'; g.beginPath(); g.ellipse(W / 2 + 40, H / 2 + 50, 60, 22, 0.3, 0, 7); g.fill();
+    g.fillStyle = '#3a2a14'; for (let k = 0; k < 60; k++) { const a = rr() * 6.3, q = rr() * 70; g.fillRect(W / 2 + Math.cos(a) * q * 1.3, H / 2 + Math.sin(a) * q * 0.8, 3, 3); }
+    g.strokeStyle = '#8a2a1a'; g.lineWidth = 2; g.setLineDash([8, 6]); g.beginPath(); g.ellipse(W / 2, H / 2, 150, 92, 0.2, 0, 6.3); g.stroke(); g.setLineDash([]);
+    g.save(); g.translate(W - 70, 70); g.fillStyle = '#a07830'; for (let k = 0; k < 16; k++) { g.rotate(Math.PI / 8); g.beginPath(); g.moveTo(0, 0); g.lineTo(k % 2 ? 4 : 7, 0); g.lineTo(0, k % 4 ? 26 : 46); g.lineTo(k % 2 ? -4 : -7, 0); g.fill(); } g.restore();
+    g.fillStyle = '#3a2a14'; g.font = 'italic 22px Georgia, serif'; g.fillText('Vespera · Kesselkarte', 24, H - 24);
+  });
+}
+// V54: Instrumententafel: dunkles Holz, Messingringe, Zifferblätter mit Zeigern, kleine Lampen
+export function impDialTex() {
+  return canvasTex(512, 128, (g, W, H) => {
+    g.fillStyle = '#1c120a'; g.fillRect(0, 0, W, H);
+    g.strokeStyle = 'rgba(214,170,90,0.7)'; g.lineWidth = 3; g.strokeRect(4, 4, W - 8, H - 8);
+    for (let k = 0; k < 5; k++) {
+      const cx = 56 + k * 100, cy = H / 2, r = 40;
+      g.fillStyle = '#c9a050'; g.beginPath(); g.arc(cx, cy, r + 5, 0, 7); g.fill();
+      g.fillStyle = '#f2ead6'; g.beginPath(); g.arc(cx, cy, r, 0, 7); g.fill();
+      g.strokeStyle = '#2a2018'; g.lineWidth = 1.5; for (let t = 0; t < 24; t++) { const a = -2.4 + t / 23 * 4.8; g.beginPath(); g.moveTo(cx + Math.sin(a) * r * 0.78, cy - Math.cos(a) * r * 0.78); g.lineTo(cx + Math.sin(a) * r * 0.92, cy - Math.cos(a) * r * 0.92); g.stroke(); }
+      g.strokeStyle = '#8a1a10'; g.lineWidth = 3; const a = -1.6 + k * 0.7; g.beginPath(); g.moveTo(cx, cy); g.lineTo(cx + Math.sin(a) * r * 0.8, cy - Math.cos(a) * r * 0.8); g.stroke();
+      g.fillStyle = '#2a2018'; g.beginPath(); g.arc(cx, cy, 4, 0, 7); g.fill();
+    }
+  });
+}
+// V54: alle Gemälde an Bord in einem Bild (eine Zeichnung statt fünf): 3 × 2 Felder aus paintingTex
+export function impArtTex() {
+  return canvasTex(1152, 960, (g) => { for (let k = 0; k < 6; k++) { const t = paintingTex(k % 5); g.drawImage(t.image, (k % 3) * 384, (k / 3 | 0) * 480); t.dispose(); } });
+}
+
 /* ---------- Materialien und Bausatz ---------- */
 export let IMP_M = null;
 export function impMats() {
   if (IMP_M) return IMP_M;
   const P = portMats(), vc = o => stdMat({ vertexColors: true, ...o });
-  const marbleT = impMarbleTex(), silk = wallpaperTex('#d6c49c', 'rgba(150,108,42,0.42)'), books = impBookTex();
+  const marbleT = impMarbleTex(), mahog = impMahogTex(), silk = wallpaperTex('#d6c49c', 'rgba(150,108,42,0.42)'), books = impBookTex();
   silk.wrapS = silk.wrapT = T.RepeatWrapping;
   IMP_M = {
     paintX: vc({ map: PLATE.map, normalMap: PLATE.normal, normalScale: new T.Vector2(0.5, 0.5), roughness: 0.4, metalness: 0.35, envI: 0.8, emissive: 0x1c140a }),
     gold: impSelfLit(vc({ color: 0xd2aa5e, metalness: 1, roughness: 0.28, envI: 1.1 }), 0.12),
     steel: impSelfLit(vc({ color: 0xc8ccd0, metalness: 0.9, roughness: 0.32, envI: 1.0 }), 0.08),
-    wood: impSelfLit(vc({ map: MAHOG.map, normalMap: MAHOG.normal, roughness: 0.22, envI: 0.9 }), 0.3),
-    panel: P.inWood,
+    wood: impSelfLit(vc({ map: mahog, roughness: 0.22, envI: 0.9 }), 0.3),
+    panel: impSelfLit(vc({ map: mahog, roughness: 0.3, envI: 0.7, color: 0xd8b8a0 }), 0.3),   // V54: Wandvertäfelung aus demselben Furnier, selbstleuchtend wie die übrigen Wände
     deck: impSelfLit(vc({ map: TEAK.map, normalMap: TEAK.normal, roughnessMap: TEAK.rough, roughness: 0.85, envI: 0.35 }), 0.12),
     silk: vc({ map: silk, roughness: 0.75, envI: 0.25, emissive: 0xffffff, emissiveMap: silk, emissiveIntensity: 0.5 }),
     marble: wantTexture(impSelfLit(vc({ map: marbleT, roughness: 0.14, envI: 1.1 }), 0.34), { map: 'marble-color', normalMap: 'marble-normal', roughnessMap: 'marble-rough', normalScale: 0.4, roughness: 0.35, color: 0xfffaf0 }),
@@ -128,7 +183,20 @@ export function impMats() {
     lit: P.lit,
     fan: new T.MeshBasicMaterial({ map: FAN_TEX, transparent: true, color: new T.Color(1.4, 1.2, 0.9), depthWrite: false, side: T.DoubleSide }),
     winF: new T.MeshBasicMaterial({ map: impWinTex(), color: new T.Color(1.15, 0.85, 0.55), side: T.DoubleSide }),
+    // V54: Kassettendecken, Treppenläufer, ganze Art-déco-Teppiche, Damast, Makassar-Furnier, Fliesen, Gemälde, Seekarte, Instrumente
+    // (gleiche Selbstleucht-Stufen wie oben, damit keine neuen Shader-Varianten entstehen)
+    coffer: impSelfLit(vc({ map: cofferTex2(), roughness: 0.6, envI: 0.3 }), 0.3),
+    runner: impSelfLit(vc({ map: RUNNER_TEX(), roughness: 1, envI: 0.1 }), 0.3),
+    rug: impSelfLit(vc({ map: decoRugTex('#0d2f33', '#c9a050', '#4a0c14', 3, 2), roughness: 1, envI: 0.1, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 }), 0.3),
+    rugC: impSelfLit(vc({ map: decoRugTex('#e2d4b8', '#a8823c', '#0d3a3c', 3, 2), roughness: 1, envI: 0.1, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 }), 0.3),
+    damask: impSelfLit(vc({ map: damaskTex('#123c3e', '#1d5356'), roughness: 0.55, metalness: 0.15, envI: 0.4 }), 0.42),
+    veneer: impSelfLit(vc({ map: veneerTex(), roughness: 0.18, metalness: 0.05, envI: 0.8 }), 0.3),
+    tileW: impSelfLit(vc({ map: tileTex(), roughness: 0.2, envI: 0.8 }), 0.3),
+    art: impSelfLit(vc({ map: impArtTex(), roughness: 0.8, envI: 0.1 }), 0.42),
+    chart: impSelfLit(vc({ map: impChartTex(), roughness: 0.9, envI: 0.1 }), 0.42),
+    dial: impSelfLit(vc({ map: impDialTex(), roughness: 0.3, envI: 0.6 }), 0.42),
   };
+  for (const k of ['damask', 'veneer', 'tileW']) IMP_M[k].map.wrapS = IMP_M[k].map.wrapT = T.RepeatWrapping;
   return IMP_M;
 }
 // wie kit() im Hafen, nur mit den Materialien des Luftschiffs (je Material ein Netz, Farbe je Teil)
@@ -137,9 +205,10 @@ export function impKit() {
   return {
     add(k, g, c = [1, 1, 1]) { (G[k] ||= []).push([g, c]); return g; },
     build(parent) {
+      // V54: userData mitnehmen (Eckenbereiche beweglicher Möbel)
       const M = impMats(), P = portMats();
       for (const k in G) {
-        const geos = G[k].map(([g]) => { g = !g.attributes.normal && g.index ? g.toNonIndexed() : geoView(g); if (!g.attributes.uv) g.setAttribute('uv', new T.BufferAttribute(new Float32Array(g.attributes.position.count * 2), 2)); if (!g.attributes.normal) g.computeVertexNormals(); return g; });
+        const geos = G[k].map(([g]) => { const ud = g.userData; g = !g.attributes.normal && g.index ? g.toNonIndexed() : geoView(g); g.userData = ud; if (!g.attributes.uv) g.setAttribute('uv', new T.BufferAttribute(new Float32Array(g.attributes.position.count * 2), 2)); if (!g.attributes.normal) g.computeVertexNormals(); return g; });
         const m = mergeGeos(geos), col = new Float32Array(m.attributes.position.count * 3); let o = 0;
         geos.forEach((g, i) => { const c = G[k][i][1]; for (let j = 0; j < g.attributes.position.count; j++) col.set(c, (o + j) * 3); o += g.attributes.position.count; });
         m.setAttribute('color', new T.BufferAttribute(col, 3));
@@ -158,7 +227,10 @@ export function buildImperial() {
   IMP.g = ship;
   // Grundriss (Schiffskoordinaten): Achterdeck XA..XT, geschlossene Gondel XT..XF, Breite 14 m
   const XA = -22, XT = -12, XF = 50, ZW = 7, ZI = 6.86;
-  const yR = -hr(XT) + 1.6, fyA = yR - 3.5, fyB = fyA - 3.9, HB = fyA - fyB, HA = yR - fyA;
+  // V54: die Gondel hängt ganz unter der Hülle (vorher lag das Dach 1,6 m über dem tiefsten Punkt am Heck der Gondel,
+  // mittschiffs steckte fast das ganze Oberdeck im Ballon). Dach knapp unter dem tiefsten Punkt der Hülle über der Gondel.
+  let hMax = 0; for (let x = XA; x <= XF; x += 0.5) hMax = Math.max(hMax, hr(x));
+  const yR = -hMax - 1.0, fyA = yR - 3.5, fyB = fyA - 3.9, HB = fyA - fyB, HA = yR - fyA;
   const XH0 = 4, XH1 = 12, XG = 24, XM = 38, XS = 24;   // Speisesalon | Halle | Küche | Messe | Brücke  /  Suite | Galerie | Bibliothek | Salon
   IMP.D = { XA, XT, XF, ZW, yR, fyA, fyB, XH0, XH1 };
   const KO = impKit(), KI = impKit(), KF = impKit(), inner = new T.Group();
@@ -171,17 +243,37 @@ export function buildImperial() {
   const glow = (x, y, z, c = GL, s = 0.45) => bulbs.push({ p: [x, y, z], c, s, ph: 0, bl: 0 });
   const FMV = { up: 'velvet', frame: 'gold', wood: 'wood', lamp: 'lit', cloth: 'linen', leaf: 'plant' };
   const FML = { ...FMV, up: 'leather' };
-  const fur = (parts, map, cols, x, y, z, a = 0) => placeFurn(parts, map, (k, g) => KI.add(k, g, cols[k] || [1, 1, 1]), x, y, z, a);
+  // V54: Möbel sind mit Telekinese greifbar (Verzeichnis MOV mit mitfahrendem Schiffssystem IMP.fr, Farben je Teil in e.cols)
+  const fur = (parts, map, cols, x, y, z, a = 0) => { const n0 = MOV.list.length; placeFurn(parts, map, (k, g) => KI.add(k, g, cols[k] || [1, 1, 1]), x, y, z, a); for (let i = n0; i < MOV.list.length; i++) MOV.list[i].cols = cols; };
+  IMP.fr = { x: 0, y: 0, z: 0, ry: 0, pf: null };
+  movOn(IMP.fr);
   const floorP = (k, x0, x1, z0, z1, y, sc = 2, c) => KI.add(k, wuv(new T.PlaneGeometry(x1 - x0, z1 - z0).rotateX(-Math.PI / 2).translate((x0 + x1) / 2, y + 0.004, (z0 + z1) / 2), sc), c);
-  const ceilP = (x0, x1, y, c = [1, 0.95, 0.85]) => {
-    KI.add('ceil', new T.PlaneGeometry(x1 - x0, 2 * ZI).rotateX(Math.PI / 2).translate((x0 + x1) / 2, y - 0.004, 0), c);
-    // Kassetten aus Goldleisten und eine umlaufende Hohlkehle
-    for (let x = x0 + 2; x < x1 - 0.5; x += 2) bx(KI, 'gold', 0.07, 0.08, 2 * ZI - 0.6, x, y - 0.045, 0);
-    for (const s of [-1, 1]) { bx(KI, 'gold', x1 - x0, 0.08, 0.07, (x0 + x1) / 2, y - 0.045, s * (ZI - 0.3)); bx(KI, 'gold', x1 - x0, 0.18, 0.18, (x0 + x1) / 2, y - 0.09, s * (ZI - 0.08), [0.9, 0.85, 0.8]); }
+  // Ebene mit Kachelung je `tile` Meter (Kassettendecke, Wandbespannung)
+  const tiled = (g, w, h, tile) => { const u = g.attributes.uv; for (let i = 0; i < u.count; i++) u.setXY(i, u.getX(i) * w / tile, u.getY(i) * h / tile); return g; };
+  const ceilP = (x0, x1, y, c = [1, 0.95, 0.85], z0 = -ZI, z1 = ZI, k = 'coffer') => {
+    // V54: Kassettendecke (Goldrahmen, Fächer in jedem Feld), umlaufende Hohlkehle mit Goldleiste
+    KI.add(k, tiled(new T.PlaneGeometry(x1 - x0, z1 - z0).rotateX(Math.PI / 2).translate((x0 + x1) / 2, y - 0.004, (z0 + z1) / 2), x1 - x0, z1 - z0, 1.7), c);
+    for (const s of [-1, 1]) { const zz = s < 0 ? z0 : z1; if (Math.abs(zz) < ZI - 0.01) continue; bx(KI, 'gold', x1 - x0, 0.06, 0.06, (x0 + x1) / 2, y - 0.2, s * (ZI - 0.2)); bx(KI, 'wood', x1 - x0, 0.18, 0.18, (x0 + x1) / 2, y - 0.09, s * (ZI - 0.08), [0.9, 0.85, 0.8]); }
   };
-  const rug = (x, z, y, w, d, a = 0) => {
-    KI.add('carpet', wuv(new T.BoxGeometry(w, 0.025, d).rotateY(a).translate(x, y + 0.013, z), 1.6));
-    for (const s of [-1, 1]) { KI.add('gold', new T.BoxGeometry(w + 0.1, 0.03, 0.08).translate(0, 0, s * d / 2).rotateY(a).translate(x, y + 0.014, z)); KI.add('gold', new T.BoxGeometry(0.08, 0.03, d).translate(s * w / 2, 0, 0).rotateY(a).translate(x, y + 0.014, z)); }
+  // ganzer Art-déco-Teppich (Muster mit Rahmen und Fächern, eine Zeichnung je Stück)
+  const rug = (x, z, y, w, d, a = 0, k = 'rug') => KI.add(k, new T.BoxGeometry(w, 0.025, d).rotateY(a).translate(x, y + 0.013, z));
+  // Wandvertäfelung unter den Fenstern: Furnierfelder mit Goldleiste oben und Goldstäben zwischen den Feldern
+  const wains = (x0, x1, y, h = 0.8, sides = [-1, 1], k = 'veneer') => {
+    for (const s of sides) {
+      KI.add(k, tiled(new T.PlaneGeometry(x1 - x0, h).rotateY(s < 0 ? 0 : Math.PI).translate((x0 + x1) / 2, y + h / 2, s * (ZI - 0.035)), x1 - x0, h, 1.2));
+      bx(KI, 'gold', x1 - x0, 0.05, 0.05, (x0 + x1) / 2, y + h, s * (ZI - 0.05)); bx(KI, 'wood', x1 - x0, 0.12, 0.05, (x0 + x1) / 2, y + 0.06, s * (ZI - 0.05), [0.35, 0.22, 0.14]);
+      for (let x = x0 + 1.2; x < x1 - 0.3; x += 1.2) bx(KI, 'gold', 0.025, h - 0.2, 0.02, x, y + h / 2 + 0.03, s * (ZI - 0.045));
+    }
+  };
+  // Gemälde mit Goldrahmen (k = Feld im Bilderatlas 0..5); n = Blickrichtung (Wandnormale) als Winkel um y
+  const painting = (k, x, y, z, w, h, ry) => {
+    const g = new T.PlaneGeometry(w, h), u = g.attributes.uv, cu = (k % 3) / 3, cv = 1 - ((k / 3 | 0) + 1) / 2;
+    for (let i = 0; i < u.count; i++) u.setXY(i, cu + u.getX(i) / 3, cv + u.getY(i) / 2);
+    KI.add('art', g.rotateY(ry).translate(x, y, z));
+    const fr = (fw, fh, dx, dy) => KI.add('gold', new T.BoxGeometry(fw, fh, 0.06).translate(dx, dy, -0.02).rotateY(ry).translate(x, y, z));
+    fr(w + 0.2, 0.1, 0, h / 2 + 0.05); fr(w + 0.2, 0.1, 0, -h / 2 - 0.05); fr(0.1, h, w / 2 + 0.05, 0); fr(0.1, h, -w / 2 - 0.05, 0);
+    glow(x + Math.sin(ry) * 0.25, y + h / 2 + 0.16, z + Math.cos(ry) * 0.25, GL, 0.3);
+    KI.add('gold', new T.CylinderGeometry(0.02, 0.03, w * 0.6, 8).rotateZ(Math.PI / 2).rotateY(ry).translate(x + Math.sin(ry) * 0.2, y + h / 2 + 0.16, z + Math.cos(ry) * 0.2));
   };
   const chand = (x, y, z, r = 0.7) => {
     KI.add('gold', new T.CylinderGeometry(0.025, 0.025, 0.6, 6).translate(x, y - 0.3, z));
@@ -195,8 +287,20 @@ export function buildImperial() {
   const palm = (x, z, y, s = 2) => {
     KI.add('gold', lathe([[0.22, 0], [0.32, 0.08], [0.34, 0.5], [0.4, 0.58], [0.3, 0.6]].map(([r, h]) => [r * s * 0.6, h * s * 0.6]), 16).translate(x, y, z));
     KI.add('wood', new T.CylinderGeometry(0.035 * s, 0.05 * s, 0.9 * s, 6).translate(x, y + 0.36 * s + 0.45 * s, z), [0.5, 0.36, 0.22]);
-    for (let k = 0; k < 9; k++) { const a = k * 2.4, l = 0.55 * s; KI.add('plant', new T.PlaneGeometry(l, 0.16 * s).translate(l / 2, 0, 0).rotateX(Math.PI / 2 + 0.3).rotateZ(-0.45 - (k % 3) * 0.18).rotateY(a).translate(x, y + 1.25 * s, z), [0.26, 0.46, 0.22]); }
+    // V54: gebogene, schmale Wedel mit Fiedern statt flacher Blätter
+    for (let k = 0; k < 11; k++) KI.add('plant', frond(0.62 * s * (0.8 + (k % 3) * 0.12), 0.5 + (k % 4) * 0.22).rotateY(k * 2.4).translate(x, y + 1.25 * s, z), k % 2 ? [0.24, 0.44, 0.2] : [0.3, 0.5, 0.24]);
   };
+  // Palmwedel: Mittelrippe nach außen und unten gebogen, Fiedern beidseits als schmale Dreiecke
+  function frond(l, lift) {
+    const P = [], N = 7;
+    for (let i = 0; i < N; i++) {
+      const t0 = i / N, t1 = (i + 1) / N, w = 0.16 * l * Math.sin(Math.PI * Math.min(0.95, t0 + 0.12)) + 0.02;
+      const at = t => [t * l, lift * l * t - 1.1 * l * t * t];
+      const [x0, y0] = at(t0), [x1, y1] = at(t1);
+      for (const sd of [-1, 1]) P.push(x0, y0, 0, x1, y1, 0, (x0 + x1) / 2 + 0.03 * l, (y0 + y1) / 2 - 0.05 * l, sd * w);
+    }
+    const g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute(P, 3)); g.computeVertexNormals(); return g;
+  }
   const wardrobe = (x, z, y, w, a) => {
     const P = [[roundBox(w, 2.3, 0.62, 0.03).translate(0, 1.15, 0), 'wood', [0.7, 0.5, 0.35]], [new T.BoxGeometry(w + 0.08, 0.1, 0.7).translate(0, 2.33, 0), 'wood', [0.7, 0.5, 0.35]]];
     for (const s of [-1, 1]) P.push([new T.BoxGeometry(0.02, 0.32, 0.03).translate(s * 0.06, 1.15, 0.33), 'gold', [1, 1, 1]], [new T.BoxGeometry(w / 2 - 0.16, 1.9, 0.012).translate(s * w / 4, 1.2, 0.315), 'wood', [0.45, 0.3, 0.2]], [new T.BoxGeometry(w / 2 - 0.08, 1.98, 0.008).translate(s * w / 4, 1.2, 0.312), 'gold', [1, 1, 1]]);
@@ -204,7 +308,7 @@ export function buildImperial() {
   };
 
   /* ================= Außenhülle der Gondel ================= */
-  KO.add('paintX', roundBox(XF - XA + 0.6, 1.5, 2 * ZW + 0.4, 0.65).translate((XA + XF) / 2, fyB - 0.72, 0), CHAMP);
+  KO.add('paintX', roundBox(XF - XA + 0.6, 1.5, 2 * ZW + 0.4, 0.65).translate((XA + XF) / 2, fyB - 0.77, 0), CHAMP);   // V54: Oberkante unter den Böden (deckte vorher alle Böden unten zu)
   bx(KO, 'gold', XF - XA + 0.2, 0.12, 0.36, (XA + XF) / 2, fyB - 1.5, 0);
   for (const s of [-1, 1]) {
     bx(KO, 'gold', XF - XA + 0.5, 0.14, 0.08, (XA + XF) / 2, fyB + 0.04, s * (ZW + 0.2));
@@ -212,18 +316,32 @@ export function buildImperial() {
     bx(KO, 'gold', XF - XT + 0.2, 0.12, 0.12, (XT + XF) / 2, yR - 0.06, s * (ZW + 0.1));
   }
   bx(KO, 'gold', 0.12, 0.3, 2 * ZW + 0.2, XF + 0.1, fyA - 0.15, 0);
-  KO.add('paintX', roundBox(XF - XT + 0.4, 0.7, 2 * ZW + 0.3, 0.3).translate((XT + XF) / 2, yR + 0.3, 0), CHAMP);
-  // Streben vom Gondeldach in den Rumpf, Goldsonne am Bug
-  for (const x of [XT + 2, XT + 20, XT + 40, XF - 2]) for (const s of [-1, 1]) KO.add('gold', new T.CylinderGeometry(0.12, 0.16, 4.5, 6).rotateX(s * 0.5).translate(x, yR + 1.8, s * (ZW - 1.2)));
+  KO.add('paintX', roundBox(XF - XT + 0.4, 0.7, 2 * ZW + 0.3, 0.3).translate((XT + XF) / 2, yR + 0.36, 0), CHAMP);   // V54: Unterkante über der Kassettendecke (sie lag vorher darunter)
+  // V54: Verkleidung zwischen Gondeldach und Hülle: unten so breit wie das Dach, oben schmaler und der Rundung der Hülle
+  // folgend (reicht ein Stück in die Hülle hinein), mit Goldleiste über dem Dach und vier Goldrippen
+  {
+    const x0 = XT + 0.4, x1 = XF - 1.4, zw = ZW - 0.6, g = new T.BoxGeometry(1, 1, 1, 36, 1, 1), p = g.attributes.position;
+    for (let i = 0; i < p.count; i++) {
+      const u = p.getX(i) + 0.5, top = p.getY(i) > 0, x = x0 + (x1 - x0) * u, end = Math.min(1, Math.min(u, 1 - u) * 9);
+      const zz = p.getZ(i) * 2 * zw * (top ? 0.62 : 0.86 + 0.14 * end);
+      p.setXYZ(i, x, top ? -hr(x) + 1.4 : yR + 0.5, zz);
+    }
+    g.computeVertexNormals(); KO.add('paintX', wuv(g, 2), CHAMP);
+    for (const s of [-1, 1]) KO.add('gold', tube([[x0 + 0.5, yR + 0.72, s * (zw * 0.86 + 0.03)], [x1 - 0.5, yR + 0.72, s * (zw * 0.86 + 0.03)]], 0.06, 4));
+    for (const x of [XT + 8, XT + 24, XT + 40, XT + 54]) for (const s of [-1, 1]) { const yb = yR + 0.7, yt = -hr(x) + 0.2; KO.add('gold', tube([[x, yb, s * zw * 0.86], [x, yt, s * zw * 0.62]], 0.07, 6)); }
+  }
 
   /* ================= Böden und Decken (Kollision) ================= */
+  // V54: Treppenschacht kürzer (SX0..SX1), oben ein 1,7 m tiefer Absatz: vorher blieb zwischen Brüstung und Wand nur ein
+  // halber Meter, man kam oben nicht zur Galerie und zur Suite weiter
+  const SX0 = XH0 + 0.3, SX1 = XH1 - 1.7, SZ0 = 2.4, SZ1 = ZI;
   col(XA, fyB - 0.6, -ZW, XF, fyB, ZW);
-  col(XT, fyA - 0.3, -ZW, XH0 + 0.5, fyA, ZW);
-  col(XH0 + 0.5, fyA - 0.3, -ZW, XH1 - 0.7, fyA, 2.3);
-  col(XH1 - 0.7, fyA - 0.3, -ZW, XF, fyA, ZW);
+  col(XT, fyA - 0.3, -ZW, SX0, fyA, ZW);
+  col(SX0, fyA - 0.3, -ZW, SX1, fyA, 2.3);
+  col(SX1, fyA - 0.3, -ZW, XF, fyA, ZW);
   col(XT, yR, -ZW, XF, yR + 0.6, ZW);
   // Zwischendecke sichtbar (Unterseite = Decke unten, Oberseite = Boden oben)
-  for (const [x0, x1, z0, z1] of [[XT, XH0 + 0.5, -ZI, ZI], [XH0 + 0.5, XH1 - 0.7, -ZI, 2.3], [XH1 - 0.7, XF, -ZI, ZI]]) bx(KI, 'iron', x1 - x0, 0.26, z1 - z0, (x0 + x1) / 2, fyA - 0.16, (z0 + z1) / 2, [0.5, 0.45, 0.4]);
+  for (const [x0, x1, z0, z1] of [[XT, SX0, -ZI, ZI], [SX0, SX1, -ZI, 2.3], [SX1, XF, -ZI, ZI]]) bx(KI, 'iron', x1 - x0, 0.26, z1 - z0, (x0 + x1) / 2, fyA - 0.16, (z0 + z1) / 2, [0.5, 0.45, 0.4]);
 
   /* ================= Wände (Außenwände mit Fenstern, Innenwände) ================= */
   const oW = { outK: 'paintX', outC: CHAMP };
@@ -234,13 +352,15 @@ export function buildImperial() {
   };
   // unten
   sides(XT, XH0, fyB, HB, sideL, 'panel');
-  sides(XH0, XH1, fyB, HB, sideL, 'marble', [0.96, 0.93, 0.86], [[6 - XH0, 8 - XH0]]);
-  sides(XH1, XG, fyB, HB, sideL, 'tile');
+  // Halle: Backbord Fenster und Eingangstür, Steuerbord (an der Treppe) geschlossene Marmorwand mit Gemälden
+  wallRun(KO, boxes, XH0, -ZW, XH1, -ZW, fyB, HB, { ...sideL, out: -1, inK: 'marble', inC: [0.96, 0.93, 0.86], doors: [[6 - XH0, 8 - XH0]] });
+  wallRun(KO, boxes, XH0, ZW, XH1, ZW, fyB, HB, { ...sideL, out: 1, inK: 'marble', inC: [0.96, 0.93, 0.86], windows: false });
+  sides(XH1, XG, fyB, HB, sideL, 'tileW');
   sides(XG, XM, fyB, HB, sideL, 'panel');
   sides(XM, XF, fyB, HB, { ...sideL, sill: 0.75, head: 3.1 }, 'panel');
   // oben
   sides(XT, XH0, fyA, HA, sideU, 'silk');
-  sides(XH0, XH1, fyA, HA, sideU, 'silk');
+  sides(XH0, XH1, fyA, HA, sideU, 'damask');   // V54: Galerie in Petrol-Damast
   sides(XH1, XS, fyA, HA, sideU, 'panel');
   sides(XS, XF, fyA, HA, { ...sideU, sill: 0.55, head: 3.15 }, 'silk');
   // Bug: Panoramafenster auf beiden Decks; Heck: Glastüren aufs Achterdeck, oben Fenster der Suite
@@ -253,8 +373,8 @@ export function buildImperial() {
   const iw = (ax, az, bx2, bz, y0, h, kA, kB, doors) => wallRun(KO, boxes, ax, az, bx2, bz, y0, h, { outK: kA, outC: [1, 1, 1], inK: kB, inC: [1, 1, 1], windows: false, doors, out: ax === bx2 ? -1 : 1 });
   // (Wand quer zum Schiff: Strecke von −z nach +z, out −1 → outK zeigt nach +x)
   iw(XH0, -ZW, XH0, ZW, fyB, HB, 'marble', 'panel', [[ZW - 1, ZW + 1]]);
-  iw(XH1, -ZW, XH1, ZW, fyB, HB, 'tile', 'marble', [[ZW - 0.8, ZW + 0.8]]);
-  iw(XG, -ZW, XG, ZW, fyB, HB, 'panel', 'tile', [[ZW - 0.8, ZW + 0.8]]);
+  iw(XH1, -ZW, XH1, ZW, fyB, HB, 'tileW', 'marble', [[ZW - 0.8, ZW + 0.8]]);
+  iw(XG, -ZW, XG, ZW, fyB, HB, 'panel', 'tileW', [[ZW - 0.8, ZW + 0.8]]);
   iw(XM, -ZW, XM, ZW, fyB, HB, 'panel', 'panel', [[ZW - 0.8, ZW + 0.8]]);
   iw(XH0, -ZW, XH0, -3, fyA, HA, 'silk', 'marble');
   iw(XH0, -3, XH0, ZW, fyA, HA, 'silk', 'silk', [[0.4, 2.4]]);
@@ -319,28 +439,49 @@ export function buildImperial() {
   chand(-6.5, fyA - 0.3, 0); chand(-1.5, fyA - 0.3, 0);
 
   // ---- Treppenhalle mit der großen Treppe ----
+  // V54: neu gebaut: Marmorstufen mit goldener Trittkante, durchgehender Läufer auf Tritt und Setzstufe, an der offenen
+  // Seite eine Mahagoni-Wange mit Goldkante (verdeckt die Stufenköpfe), darauf die Goldbaluster; an der Wand ein
+  // Handlauf, Gemälde und Wandleuchten; oben ein tiefer Absatz zur Galerie und zur Bibliothek
   floorP('marble', XH0, XH1, -ZI, ZI, fyB, 3);
-  for (let x = XH0 + 0.8; x < XH1; x += 1.6) for (let z = -ZI + 0.8; z < ZI; z += 1.6) KI.add('marble', new T.PlaneGeometry(0.42, 0.42).rotateX(-Math.PI / 2).rotateY(Math.PI / 4).translate(x, fyB + 0.008, z), [0.12, 0.12, 0.14]);
-  ceilP(XH0, XH0 + 0.5, fyA - 0.3); ceilP(XH1 - 0.7, XH1, fyA - 0.3);
-  KI.add('ceil', new T.PlaneGeometry(XH1 - XH0 - 1.2, ZI + 2.3).rotateX(Math.PI / 2).translate((XH0 + XH1 - 0.2) / 2, fyA - 0.304, (-ZI + 2.3) / 2), [1, 0.95, 0.85]);
-  const NS = 18, SX0 = XH0 + 0.5, SX1 = XH1 - 0.7, run = (SX1 - SX0) / NS, rise = HB / NS, SZ0 = 2.4, SZ1 = ZI;
+  for (let x = XH0 + 0.8; x < XH1; x += 1.6) for (let z = -ZI + 0.8; z < SZ0 - 0.3; z += 1.6) KI.add('marble', new T.PlaneGeometry(0.42, 0.42).rotateX(-Math.PI / 2).rotateY(Math.PI / 4).translate(x, fyB + 0.008, z), [0.12, 0.12, 0.14]);
+  ceilP(XH0, XH1, fyA - 0.3, [1, 0.95, 0.85], -ZI, 2.3); ceilP(SX1, XH1, fyA - 0.3, [1, 0.95, 0.85], 2.3, ZI); ceilP(XH0, SX0, fyA - 0.3, [1, 0.95, 0.85], 2.3, ZI);
+  const NS = 18, run = (SX1 - SX0) / NS, rise = HB / NS, SW = SZ1 - SZ0, SZM = (SZ0 + SZ1) / 2, RW = 2.3, stairY = x => fyB + Math.max(0, Math.min(NS, (x - SX0) / run)) * rise;
   for (let k = 0; k < NS; k++) {
     const x0 = SX0 + k * run, top = fyB + (k + 1) * rise;
-    bx(KI, 'marble', run + 0.01, top - fyB, SZ1 - SZ0, x0 + run / 2, (top + fyB) / 2, (SZ0 + SZ1) / 2, [0.97, 0.95, 0.9], 2);
-    bx(KI, 'marble', 0.05, 0.04, SZ1 - SZ0 + 0.04, x0 + 0.02, top - 0.02, (SZ0 + SZ1) / 2, [0.85, 0.82, 0.76]);
-    KI.add('carpet', wuv(new T.PlaneGeometry(run, 2.6).rotateX(-Math.PI / 2).translate(x0 + run / 2, top + 0.006, (SZ0 + SZ1) / 2), 1.6));
-    KI.add('gold', new T.CylinderGeometry(0.012, 0.012, 2.7, 5).rotateX(Math.PI / 2).translate(x0 + 0.06, top + 0.02, (SZ0 + SZ1) / 2));
+    bx(KI, 'marble', run + 0.01, top - fyB, SW, x0 + run / 2, (top + fyB) / 2, SZM, [0.97, 0.95, 0.9], 2);
+    bx(KI, 'gold', 0.05, 0.035, SW - 0.04, x0 + 0.02, top - 0.012, SZM);
+    const tr = new T.PlaneGeometry(RW, run - 0.04).rotateX(-Math.PI / 2).rotateY(Math.PI / 2); { const u = tr.attributes.uv; for (let i = 0; i < u.count; i++) u.setY(i, u.getY(i) * run / RW); }
+    KI.add('runner', tr.translate(x0 + run / 2 + 0.02, top + 0.006, SZM + 0.2));
+    const rs = new T.PlaneGeometry(RW, rise - 0.03).rotateY(-Math.PI / 2); { const u = rs.attributes.uv; for (let i = 0; i < u.count; i++) u.setY(i, u.getY(i) * rise / RW); }
+    KI.add('runner', rs.translate(x0 - 0.006, top - rise / 2 - 0.015, SZM + 0.2), [0.85, 0.85, 0.85]);
+    KI.add('gold', new T.CylinderGeometry(0.014, 0.014, RW + 0.16, 6).rotateX(Math.PI / 2).translate(x0 + 0.03, top - rise + 0.02, SZM + 0.2));
     col(x0, fyB, SZ0, x0 + run, top, ZW);
-    // Geländer an der offenen Seite, Kollision ab der Stufe
-    KI.add('gold', lathe([[0.022, 0], [0.03, 0.08], [0.016, 0.2], [0.03, 0.55], [0.016, 0.9]], 6).translate(x0 + run / 2, top, SZ0 + 0.06));
-    col(x0, top, SZ0 - 0.06, x0 + run, top + 1.0, SZ0 + 0.1);
+    // Wange und Geländer: eine Kollision je Stufe (vom Boden bis Handlaufhöhe)
+    col(x0, fyB, SZ0 - 0.16, x0 + run, top + 1.0, SZ0 + 0.06);
+    if (k % 2 === 0) KI.add('gold', lathe([[0.03, 0], [0.042, 0.08], [0.02, 0.22], [0.036, 0.5], [0.02, 0.78], [0.026, 0.86]], 8).translate(x0 + run / 2, top + 0.1, SZ0 - 0.07));
   }
-  col(SX1, fyA - 0.3, SZ0, SX1 + 0.75, fyA, ZW);   // Absatz oben
-  KI.add('gold', tube([[SX0 - 0.1, fyB + 1.05, SZ0 + 0.06], [SX1, fyA + 0.98, SZ0 + 0.06]], 0.045, 8));
-  KI.add('gold', tube([[SX0 - 0.1, fyB + 1.0, SZ1 - 0.06], [SX1, fyA + 0.95, SZ1 - 0.06]], 0.035, 8));
-  KI.add('marble', lathe([[0.22, 0], [0.22, 0.12], [0.15, 0.2], [0.13, 1.0], [0.2, 1.1], [0.001, 1.12]], 14).translate(SX0 - 0.15, fyB, SZ0 + 0.06), [0.15, 0.15, 0.17]);
-  KI.add('lit', new T.SphereGeometry(0.17, 12, 10).translate(SX0 - 0.15, fyB + 1.3, SZ0 + 0.06), [1.6, 1.25, 0.8]); glow(SX0 - 0.15, fyB + 1.3, SZ0 + 0.06, GL, 0.9);
-  col(SX0 - 0.4, fyB, SZ0 - 0.2, SX0 + 0.05, fyB + 1.2, SZ0 + 0.3);
+  {
+    const sh = new T.Shape(); sh.moveTo(SX0 - 0.2, 0); sh.lineTo(SX1, 0); sh.lineTo(SX1, HB + 0.14); sh.lineTo(SX0 - 0.2, rise + 0.1); sh.lineTo(SX0 - 0.2, 0);
+    KI.add('veneer', wuv(new T.ExtrudeGeometry(sh, { depth: 0.14, bevelEnabled: false }).translate(0, fyB, SZ0 - 0.15), 0.8));
+    KI.add('gold', tube([[SX0 - 0.2, fyB + rise + 0.12, SZ0 - 0.08], [SX1, fyA + 0.16, SZ0 - 0.08]], 0.05, 4));
+    KI.add('gold', tube([[SX0 - 0.2, fyB + 0.14, SZ0 - 0.16], [SX1, fyB + 0.14, SZ0 - 0.16]], 0.03, 4));
+    // Fächer-Relief auf der Wange
+    for (let k = 1; k < 5; k++) { const x = SX0 + (SX1 - SX0) * k / 5; KI.add('fan', new T.PlaneGeometry(0.9, 0.45).translate(x, Math.max(fyB + 0.45, stairY(x) - 0.6), SZ0 - 0.16).rotateY(0)); }
+  }
+  KI.add('gold', tube([[SX0 - 0.2, fyB + rise + 1.02, SZ0 - 0.07], [SX1, fyA + 1.0, SZ0 - 0.07]], 0.05, 8));
+  KI.add('gold', tube([[SX0 - 0.1, fyB + 0.95, SZ1 - 0.07], [SX1, fyA + 0.92, SZ1 - 0.07]], 0.035, 8));
+  for (let x = SX0 + 0.8; x < SX1; x += 1.6) KI.add('gold', new T.CylinderGeometry(0.015, 0.015, 0.08, 5).rotateX(Math.PI / 2).translate(x, stairY(x) + 0.92, SZ1 - 0.03));
+  // Antrittspfosten unten und oben: Marmorsäule mit Goldkugel und Leuchtkugel
+  for (const [nx, ny] of [[SX0 - 0.2, fyB], [SX1 + 0.05, fyA]]) {
+    KI.add('marble', lathe([[0.22, 0], [0.22, 0.12], [0.15, 0.2], [0.13, 1.0], [0.2, 1.1], [0.001, 1.12]], 14).translate(nx, ny, SZ0 - 0.07), [0.15, 0.15, 0.17]);
+    KI.add('gold', lathe([[0.16, 0], [0.1, 0.06], [0.04, 0.16]], 12).translate(nx, ny + 1.12, SZ0 - 0.07));
+    KI.add('lit', new T.SphereGeometry(0.17, 12, 10).translate(nx, ny + 1.4, SZ0 - 0.07), [1.6, 1.25, 0.8]); glow(nx, ny + 1.4, SZ0 - 0.07, GL, 0.9);
+    col(nx - 0.24, ny, SZ0 - 0.3, nx + 0.24, ny + 1.2, SZ0 + 0.16);
+  }
+  // Treppenwand: Ahnengalerie (drei Gemälde steigen mit der Treppe), Leuchter dazwischen, Vertäfelung am Fuß
+  for (const [k, x] of [[0, SX0 + 1.5], [2, SX0 + 3.3], [4, SX0 + 5.1]]) painting(k, x, stairY(x) + 2.0, ZI - 0.04, 0.95, 1.2, Math.PI);
+  for (const x of [SX0 + 2.4, SX0 + 4.2]) { KI.add('gold', lathe([[0.06, 0], [0.1, 0.12], [0.03, 0.25]], 10).rotateX(-Math.PI / 2).translate(x, stairY(x) + 2.2, ZI - 0.02)); glow(x, stairY(x) + 2.32, ZI - 0.12, GL, 0.4); }
+  floorP('marble', XH0, SX0, 2.3, ZI, fyA, 3);
   // Brüstung oben um den Treppenschacht
   const bal = (ax, az, bx2, bz) => {
     const len = Math.hypot(bx2 - ax, bz - az), n = Math.round(len / 0.22);
@@ -349,7 +490,7 @@ export function buildImperial() {
     for (let k = 0; k <= n; k++) { const t = k / n; KI.add('gold', lathe([[0.02, 0], [0.035, 0.12], [0.015, 0.35], [0.032, 0.6], [0.015, 0.95]], 6).translate(ax + (bx2 - ax) * t, fyA + 0.05, az + (bz - az) * t)); }
     col(Math.min(ax, bx2) - 0.07, fyA, Math.min(az, bz) - 0.07, Math.max(ax, bx2) + 0.07, fyA + 1.05, Math.max(az, bz) + 0.07);
   };
-  bal(SX0, 2.3, SX1, 2.3); bal(SX0, 2.3, SX0, ZI);
+  bal(SX0, 2.3, SX1 - 0.25, 2.3); bal(SX0, 2.3, SX0, ZI);
   // Halle unten: Goldsonne an der Wand, Palmen, Butler an der Tür
   KI.add('fan', new T.PlaneGeometry(4.2, 2.1).rotateY(-Math.PI / 2).translate(XH1 - 0.08, fyB + 2.3, -3.6));
   palm(XH0 + 0.9, -ZI + 0.9, fyB, 1.8); palm(XH1 - 0.9, -ZI + 0.9, fyB, 1.8);
@@ -357,7 +498,7 @@ export function buildImperial() {
   spots.push({ lx: 5.4, ly: fyB, lz: -5.6, lyaw: 0.4, kind: 'livery', col: WHITE, act: 36.2 });
 
   // ---- Bordküche ----
-  floorP('tile', XH1, XG, -ZI, ZI, fyB, 1.6); ceilP(XH1, XG, fyA - 0.3, [1, 1, 1]);
+  floorP('tileW', XH1, XG, -ZI, ZI, fyB, 1.2, [0.82, 0.8, 0.78]); ceilP(XH1, XG, fyA - 0.3, [1, 1, 1], -ZI, ZI, 'tileW');
   for (const s of [-1, 1]) {
     bx(KI, 'enamel', XG - XH1 - 1.4, 0.9, 0.66, (XH1 + XG) / 2, fyB + 0.45, s * (ZI - 0.33), [0.93, 0.92, 0.88]);
     bx(KI, 'steel', XG - XH1 - 1.3, 0.05, 0.72, (XH1 + XG) / 2, fyB + 0.92, s * (ZI - 0.36));
@@ -445,7 +586,7 @@ export function buildImperial() {
   rb(KI, 'velvet', 0.5, 0.45, 1.8, 0.06, -6.6, fyA + 0.23, 0, [0.1, 0.3, 0.31]);
   // Sitzecke am Heckfenster mit Blick aufs Achterdeck
   for (const s of [-1, 1]) fur(FURN.clubChair(), FMV, { velvet: [0.86, 0.76, 0.56] }, XT + 1.4, fyA, s * 2.4, -Math.PI / 2 + s * 0.35);
-  fur(FURN.roundTable(0.38, 0.55), FMV, { wood: [0.7, 0.5, 0.35] }, XT + 1.5, fyA, 0); KI.add('glass', lathe([[0.001, 0], [0.06, 0.02], [0.03, 0.3], [0.05, 0.36]], 8).translate(XT + 1.5, fyA + 0.55, 0.1));
+  fur(FURN.roundTable(0.38, 0.55), FMV, { wood: [0.7, 0.5, 0.35] }, XT + 1.5, fyA, 0);
   // Schreibtisch der Dame / Frisiertisch mit Spiegel am Backbordfenster
   rb(KI, 'wood', 1.6, 0.06, 0.6, 0.02, -8.2, fyA + 0.76, -ZI + 0.35, [0.7, 0.5, 0.35]); for (const dx of [-0.7, 0.7]) bx(KI, 'wood', 0.08, 0.74, 0.5, -8.2 + dx, fyA + 0.37, -ZI + 0.35, [0.7, 0.5, 0.35]);
   fur(FURN.diningChair(), FMV, { velvet: [0.86, 0.76, 0.56], wood: [0.7, 0.5, 0.35] }, -8.2, fyA, -ZI + 1.05, Math.PI);
@@ -498,7 +639,6 @@ export function buildImperial() {
   fur(FURN.sofa(2.8), FML, { leather: [0.36, 0.08, 0.07] }, 17.6, fyA, 3.2, Math.PI); col(16.1, fyA, 2.7, 19.1, fyA + 0.9, 3.75);
   for (const s of [-1, 1]) fur(FURN.clubChair(), FML, { leather: [0.36, 0.08, 0.07] }, 17.6 + s * 2.4, fyA, 1.0, s * -Math.PI / 2 + Math.PI);
   rb(KI, 'wood', 1.4, 0.06, 0.8, 0.03, 17.6, fyA + 0.45, 1.3, [0.6, 0.38, 0.24]); bx(KI, 'wood', 1.2, 0.4, 0.6, 17.6, fyA + 0.22, 1.3, [0.5, 0.3, 0.2]);
-  KI.add('glass', lathe([[0.001, 0], [0.07, 0.01], [0.07, 0.16], [0.03, 0.22], [0.04, 0.3]], 10).translate(17.3, fyA + 0.48, 1.2)); KI.add('glass', lathe([[0.001, 0], [0.04, 0.01], [0.04, 0.08]], 8).translate(17.8, fyA + 0.48, 1.4));
   fur(FURN.floorLamp(1.7), FMV, { lit: GL }, 15.2, fyA, 5.6); glow(15.2, fyA + 1.6, 5.6, GL, 0.6);
   chand(18, yR, 0, 0.75);
   spots.push({ lx: 18.6, ly: fyA, lz: -2.6, lyaw: Math.PI + 0.5, kind: 'suit', act: 28.4 });
@@ -516,8 +656,6 @@ export function buildImperial() {
   for (const x of [27, 29.2, 31.4]) glow(x, fyA + 1.4, ZI - 0.25, [1.5, 1.0, 0.5], 0.8);
   col(26.1, fyA, ZI - 0.55, 32.3, fyA + 2.5, ZW);
   for (let k = 0; k < 5; k++) fur(FURN.barStool(), FMV, { velvet: [0.1, 0.3, 0.31] }, 26.8 + k * 1.2, fyA, 3.85);
-  KI.add('gold', lathe([[0.001, 0], [0.11, 0.02], [0.13, 0.25], [0.12, 0.27]], 14).translate(28, fyA + 1.14, 4.6)); KI.add('glass', new T.CylinderGeometry(0.035, 0.035, 0.32, 8).translate(28.02, fyA + 1.4, 4.62), [0.2, 0.6, 0.25]);
-  for (const dx of [0.6, 0.9]) KI.add('glass', lathe([[0.001, 0], [0.04, 0.005], [0.006, 0.02], [0.006, 0.12], [0.05, 0.2]], 8).translate(28 + dx, fyA + 1.14, 4.55));
   // Sitzgruppen: Samtsofas in Petrol, Sessel in Champagner, Glastische
   const group = (x, z, a, n2 = 2) => {
     // Sofa hinter der Mitte, Blick zur Mitte (Möbel schauen bei Drehung a nach (sin a, cos a)); Sessel links und rechts, zur Mitte gedreht
@@ -551,6 +689,116 @@ export function buildImperial() {
     { lx: 44.2, ly: fyA, lz: 6.25, lyaw: 0, kind: 'dress', col: MAID, act: 29.0 },
   );
 
+  /* ================= V54: mehr Einrichtung, Schmuck und lose Dinge ================= */
+  const VEL = [0.1, 0.3, 0.31], RED = [0.42, 0.06, 0.08];
+  // Vorhänge: Samt-Schabracke über den Fenstern mit Goldfransen, schwere Seitenbahnen in den Raumecken
+  const drapes = (x0, x1, y, head, c = VEL) => {
+    for (const s of [-1, 1]) {
+      bx(KI, 'velvet', x1 - x0 - 0.1, 0.34, 0.07, (x0 + x1) / 2, y + head + 0.1, s * (ZI - 0.08), c);
+      bx(KI, 'gold', x1 - x0 - 0.1, 0.05, 0.075, (x0 + x1) / 2, y + head - 0.08, s * (ZI - 0.08));
+      for (const x of [x0 + 0.38, x1 - 0.38]) { rb(KI, 'velvet', 0.5, head + 0.2, 0.12, 0.05, x, y + (head + 0.2) / 2, s * (ZI - 0.1), c); bx(KI, 'gold', 0.54, 0.06, 0.15, x, y + 1.0, s * (ZI - 0.1)); }
+    }
+  };
+  // Speisesalon: Vertäfelung, Vorhänge, zwei Gemälde, gedeckte Tafel (Platzteller, Teller, Besteck, Servietten)
+  wains(XT + 0.8, XH0 - 0.1, fyB, 0.8); drapes(XT, XH0, fyB, 2.85, RED);
+  painting(1, XH0 - 0.08, fyB + 1.95, -4.3, 1.0, 1.25, -Math.PI / 2); painting(3, XH0 - 0.08, fyB + 1.95, 4.3, 1.0, 1.25, -Math.PI / 2);
+  for (let i = 0; i < 7; i++) for (const s of [-1, 1]) {
+    const x = -7.6 + i * 1.2, z = s * 0.5, y = fyB + 0.795;
+    KI.add('gold', new T.CylinderGeometry(0.16, 0.16, 0.01, 20).translate(x, y + 0.005, z));
+    KI.add('enamel', lathe([[0.001, 0], [0.1, 0], [0.13, 0.012], [0.14, 0.02]], 18).translate(x, y + 0.01, z), [0.97, 0.96, 0.92]);
+    KI.add('linen', new T.BoxGeometry(0.12, 0.03, 0.12).rotateY(0.785).translate(x, y + 0.04, z), [0.95, 0.94, 0.9]);
+    for (const dx of [-0.2, -0.24, 0.2, 0.24]) KI.add('steel', new T.BoxGeometry(0.018, 0.006, 0.2).translate(x + dx, y + 0.004, z), [1, 0.92, 0.7]);
+  }
+  // Treppenhalle: Standuhr, Konsole unter der Goldsonne
+  {
+    const cx = XH0 + 0.35, cz = -3.2;
+    rb(KI, 'veneer', 0.5, 2.3, 0.4, 0.03, cx, fyB + 1.15, cz); KI.add('enamel', new T.CircleGeometry(0.17, 24).rotateY(Math.PI / 2).translate(cx + 0.21, fyB + 1.95, cz), [0.96, 0.93, 0.85]);
+    KI.add('gold', new T.TorusGeometry(0.18, 0.02, 6, 24).rotateY(Math.PI / 2).translate(cx + 0.21, fyB + 1.95, cz)); KI.add('gold', new T.CylinderGeometry(0.06, 0.06, 0.02, 14).rotateZ(Math.PI / 2).translate(cx + 0.21, fyB + 1.0, cz));
+    KI.add('glass', new T.PlaneGeometry(0.3, 0.9).rotateY(Math.PI / 2).translate(cx + 0.21, fyB + 1.05, cz)); col(cx - 0.25, fyB, cz - 0.2, cx + 0.25, fyB + 2.3, cz + 0.2);
+    rb(KI, 'veneer', 1.6, 0.06, 0.45, 0.02, XH1 - 0.3, fyB + 0.86, -3.6); for (const dz of [-0.7, 0.7]) KI.add('gold', lathe([[0.04, 0], [0.025, 0.1], [0.02, 0.8], [0.035, 0.84]], 8).translate(XH1 - 0.3, fyB, -3.6 + dz));
+    col(XH1 - 0.55, fyB, -4.4, XH1, fyB + 0.9, -2.8);
+  }
+  // Küche: Pfannenreling über dem Herd, Regale mit Vorratsgläsern
+  bx(KI, 'gold', 4.4, 0.04, 0.04, 18, fyA - 1.2, -1.1, [1, 0.62, 0.45]); bx(KI, 'gold', 4.4, 0.04, 0.04, 18, fyA - 1.2, 1.1, [1, 0.62, 0.45]);
+  for (let k = 0; k < 6; k++) { const x = 16.2 + k * 0.72, z = k % 2 ? 1.1 : -1.1, r = 0.11 + (k % 3) * 0.03; KI.add('gold', lathe([[0.001, 0], [r, 0], [r + 0.01, r * 0.8]], 14).translate(x, fyA - 1.62, z), [1, 0.6, 0.42]); KI.add('iron', new T.CylinderGeometry(0.012, 0.012, 0.32, 4).translate(x, fyA - 1.36, z)); }
+  for (const s of [-1, 1]) for (const y of [1.45, 1.85]) {
+    bx(KI, 'wood', 0.3, 0.04, 2.4, XH1 + 0.2, fyB + y, s * 3.6, [0.6, 0.45, 0.3]);
+    for (let k = 0; k < 6; k++) KI.add('glass', new T.CylinderGeometry(0.06, 0.06, 0.2, 10).translate(XH1 + 0.2, fyB + y + 0.12, s * 3.6 - 1.0 + k * 0.4), [[0.9, 0.6, 0.2], [0.5, 0.2, 0.1], [0.8, 0.8, 0.6], [0.3, 0.5, 0.2]][(k + (y > 1.6 ? 1 : 0)) % 4]);
+  }
+  // Messe: Seekarte an der Wand, Rettungsringe, Kleiderhaken
+  KI.add('chart', new T.PlaneGeometry(1.7, 1.25).rotateY(-Math.PI / 2).translate(XM - 0.08, fyB + 1.75, -3.6)); bx(KI, 'wood', 0.05, 1.33, 1.78, XM - 0.06, fyB + 1.75, -3.6, [0.5, 0.35, 0.2]);
+  for (const [x, z, ry] of [[XG + 0.08, -2.4, Math.PI / 2], [XM - 0.08, 3.2, -Math.PI / 2]]) { KI.add('enamel', new T.TorusGeometry(0.3, 0.07, 8, 20).rotateY(ry).translate(x, fyB + 1.7, z), [0.85, 0.16, 0.12]); for (let k = 0; k < 4; k++) KI.add('enamel', new T.TorusGeometry(0.3, 0.075, 8, 3, 0.35).rotateZ(k * Math.PI / 2).rotateY(ry).translate(x, fyB + 1.7, z), [0.96, 0.95, 0.9]); }
+  // Brücke: Kartentisch mit Seekarte, Instrumententafel, Maschinentelegraf, Sprachrohre
+  KI.add('chart', new T.PlaneGeometry(1.6, 0.85).rotateX(-Math.PI / 2).translate(42, fyB + 0.89, 4.4));
+  for (const s of [-1, 1]) KI.add('dial', new T.PlaneGeometry(2.6, 0.5).rotateY(-Math.PI / 2).translate(XF - 0.56, fyB + 0.38, s * 3.8));
+  {
+    const tx = XF - 3.0, tz = 2.7;
+    KI.add('gold', lathe([[0.2, 0], [0.12, 0.08], [0.08, 0.85], [0.1, 0.9]], 12).translate(tx, fyB, tz));
+    KI.add('gold', new T.CylinderGeometry(0.24, 0.24, 0.16, 20).rotateZ(Math.PI / 2).translate(tx, fyB + 1.12, tz));
+    for (const s of [-1, 1]) KI.add('enamel', new T.CircleGeometry(0.2, 20).rotateY(s * Math.PI / 2).translate(tx + s * 0.085, fyB + 1.12, tz), [0.96, 0.93, 0.85]);
+    KI.add('gold', new T.BoxGeometry(0.04, 0.36, 0.04).rotateX(0.4).translate(tx, fyB + 1.3, tz)); col(tx - 0.25, fyB, tz - 0.25, tx + 0.25, fyB + 1.3, tz + 0.25);
+    for (const z of [-0.9, -0.6]) KI.add('gold', tube([[XF - 0.9, fyA - 0.32, z], [XF - 0.9, fyB + 1.4, z], [XF - 1.1, fyB + 1.2, z]], 0.035, 6));
+  }
+  // Achterdeck: Rettungsringe an der Reling
+  for (const z of [-ZW + 0.18, ZW - 0.18]) { KI.add('enamel', new T.TorusGeometry(0.3, 0.07, 8, 20).translate(-17, fyB + 0.75, z), [0.85, 0.16, 0.12]); for (let k = 0; k < 4; k++) KI.add('enamel', new T.TorusGeometry(0.3, 0.075, 8, 3, 0.35).rotateZ(k * Math.PI / 2).translate(-17, fyB + 0.75, z), [0.96, 0.95, 0.9]); }
+  // Suite: Vertäfelung, Vorhänge, Standspiegel
+  wains(XT + 0.8, -0.2, fyA, 0.65); drapes(XT, 0, fyA, 2.95);
+  { const mx = -1.0, mz = 2.2; KI.add('mirror', new T.PlaneGeometry(0.6, 1.5).rotateY(-Math.PI / 2 - 0.5).translate(mx, fyA + 1.0, mz)); KI.add('gold', new T.TorusGeometry(0.32, 0.03, 6, 24, Math.PI).rotateY(-Math.PI / 2 - 0.5).translate(mx, fyA + 1.75, mz)); for (const d of [-0.32, 0.32]) KI.add('gold', new T.CylinderGeometry(0.025, 0.03, 1.75, 6).translate(mx + Math.cos(0.5) * d * 0 + Math.sin(-0.5) * 0, fyA + 0.88, mz + d)); col(mx - 0.3, fyA, mz - 0.4, mx + 0.3, fyA + 1.8, mz + 0.4); }
+  // Galerie: Vertäfelung an der Fensterseite, zwei Gemälde, Lesesessel mit Beistelltisch, Vogelkäfig-Ständer
+  wains(XH0 + 0.2, XH1 - 0.2, fyA, 0.65, [-1]);
+  rug(7.6, -3.0, fyA, 5.4, 3.6, 0, 'rugC');
+  // Messe: drei Deckenlampen (Milchglas in Messing)
+  for (const x of [26.5, 30.5, 34.5]) { KI.add('lit', new T.SphereGeometry(0.2, 12, 8, 0, 6.3, 0, 1.6).translate(x, fyA - 0.32, 0), [1.4, 1.3, 1.1]); KI.add('gold', new T.CylinderGeometry(0.22, 0.22, 0.04, 14).translate(x, fyA - 0.33, 0)); glow(x, fyA - 0.5, 0, [1.4, 1.25, 1.0], 0.8); }
+  painting(0, XH0 + 0.08, fyA + 1.75, -4.9, 1.1, 1.35, Math.PI / 2); painting(5, XH1 - 0.08, fyA + 1.75, -3.6, 1.1, 1.35, -Math.PI / 2);
+  fur(FURN.clubChair(), FMV, { velvet: [0.86, 0.76, 0.56] }, 5.3, fyA, -6.0, Math.PI / 2 + 0.5); fur(FURN.roundTable(0.32, 0.55), FMV, { wood: [0.55, 0.32, 0.18] }, 6.3, fyA, -6.2);
+  // Salon: Gemälde an der Wand zur Bibliothek, Beistelltisch mit Grammophon am Flügel, Vorhänge an den Panoramafenstern
+  painting(2, XS + 0.08, fyA + 1.8, -4.4, 1.2, 1.5, Math.PI / 2); painting(4, XS + 0.08, fyA + 1.8, 3.1, 1.0, 1.25, Math.PI / 2);
+  fur(FURN.roundTable(0.36, 0.62), FMV, { wood: [0.08, 0.08, 0.09] }, 44.6, fyA, -5.4);
+  drapes(XS, XF, fyA, 3.15, VEL);
+  movOff();
+
+  // Lose Dinge an Bord: [Art, x, Oberfläche y, z, Drehung] in Schiffskoordinaten; beim Näherkommen ausgelegt (impShipSpawns)
+  const S = IMP.items = [];
+  const put = (t, x, y, z, a = 0) => S.push([t, x, y, z, a]);
+  // Achterdeck
+  for (const [x, z] of [[-18.5, 3.6], [-14.6, 4.2]]) { put('champagne', x + 0.18, fyB + 0.77, z - 0.12); put('coupe', x - 0.2, fyB + 0.77, z + 0.15); put('coupe', x + 0.05, fyB + 0.77, z + 0.25); }
+  put('icebucket', -16.2, fyB, -3.4); put('deckchair', -20.3, fyB, 1.4, 1.4); put('lifebuoy', -13.5, fyB, -1.8); put('ropecoil', -21, fyB, -2.5); put('cushion', -17.6, fyB + 0.52, -4.8, 0.3);
+  // Speisesalon: Schalen an jedem zweiten Platz, Flaschen, Kühler, Teeservice auf den Anrichten
+  for (let i = 0; i < 7; i += 1) for (const s of [-1, 1]) if ((i + (s > 0 ? 1 : 0)) % 2 === 0) put('coupe', -7.6 + i * 1.2 + 0.18, fyB + 0.795, s * 0.27);
+  put('champagne', -5.0, fyB + 0.795, 0.12); put('decanter', -3.0, fyB + 0.795, -0.12);
+  put('icebucket', XT + 0.42, fyB + 0.95, -4.4); put('champagne', XT + 0.42, fyB + 0.95, -3.7); put('teatray', XT + 0.42, fyB + 0.95, 4.4, Math.PI / 2); put('candlestick', XT + 0.42, fyB + 0.95, 3.6);
+  // Treppenhalle: Gepäck, Schirmständer, Garderobe, Vase, Uhr und Fernsprecher auf der Konsole
+  put('trunk', 10.1, fyB, -4.5, 0.2); put('suitcase', 9.0, fyB, -4.9, -0.2); put('suitcase', 9.0, fyB + 0.42, -4.9, 0.1); put('hatbox', 10.1, fyB + 0.52, -4.5);
+  put('umbrellastand', 8.6, fyB, -6.35); put('hatstand', 9.4, fyB, -6.2);
+  put('flowervase', XH1 - 0.3, fyB + 0.89, -3.6); put('clock', XH1 - 0.3, fyB + 0.89, -4.1, -Math.PI / 2); put('telephone', XH1 - 0.3, fyB + 0.89, -3.05);
+  // Küche
+  for (let k = 0; k < 4; k++) { put(k % 2 ? 'orange' : 'apple', 14.2 + k * 0.18, fyB + 0.95, -6.4); put(k % 2 ? 'apple' : 'orange', 20.4 + k * 0.18, fyB + 0.95, 6.4); }
+  put('champagne', 16.8, fyB + 0.95, 6.45); put('champagne', 17.1, fyB + 0.95, 6.45); put('decanter', 22.0, fyB + 0.95, -6.45); put('teatray', 19.0, fyB + 0.95, -6.4);
+  put('fruitcrate', 22.9, fyB, -4.8); put('sack', 23.2, fyB, 4.9); put('winecrate', 13.2, fyB, 4.9); put('winecrate', 13.2, fyB + 0.44, 4.9, 0.2); put('bucket', 14.0, fyB, -4.9); put('milkcan', 22.9, fyB, -3.9);
+  // Messe und Funkraum
+  put('tumbler', 33.6, fyB + 0.78, -3.2); put('tumbler', 35.0, fyB + 0.78, -2.8); put('whisky', 34.4, fyB + 0.78, -3.0); put('ashtray', 33.9, fyB + 0.78, -2.75); put('chessboard', 35.4, fyB + 0.78, -3.25, 0.2); put('lantern', 32.9, fyB + 0.78, -2.8);
+  put('papers', 36.5, fyB + 0.76, -6.55, 0.1); put('telephone', 37.3, fyB + 0.76, -6.55);
+  put('toolbox', 31.8, fyB, 3.6); put('ropecoil', 25.2, fyB, 3.2); put('mailsack', 31.9, fyB, -5.9); put('bottlecrate', 26.0, fyB, -0.4, 0.3); put('suitcase', 28.6, fyB, 3.3, 1.4);
+  // Brücke
+  put('book', 41.6, fyB + 0.89, 4.3, 0.2); put('lantern', 42.6, fyB + 0.89, 4.6); put('clock', 42.2, fyB + 0.89, 4.1, Math.PI); put('ropecoil', 39.0, fyB, -5.8); put('lifebuoy', 39.2, fyB, 5.6);
+  // Suite
+  put('book', -4.15, fyA + 0.6, 1.98); put('clock', -4.15, fyA + 0.6, -1.98, -Math.PI / 2); put('cushion', -4.6, fyA + 0.72, 0.4, 0.2); put('cushionC', -4.6, fyA + 0.72, -0.4, -0.3);
+  put('frame', -8.6, fyA + 0.79, -ZI + 0.3); put('flowervase', -7.7, fyA + 0.79, -ZI + 0.32); put('candlestick', -8.1, fyA + 0.79, -ZI + 0.25);
+  put('decanter', XT + 1.45, fyA + 0.55, -0.1); put('tumbler', XT + 1.65, fyA + 0.55, 0.15); put('tumbler', XT + 1.3, fyA + 0.55, 0.15);
+  put('trunk', -9.8, fyA, 5.6, 0.1); put('suitcase', -8.4, fyA, 6.1, -0.1); put('hatbox', -6.6, fyA + 0.46, 0.5);
+  // Galerie
+  put('candlestick', 7.3, fyA + 0.87, -ZI + 0.27); put('statuette', 8.7, fyA + 0.87, -ZI + 0.27); put('book', 6.3, fyA + 0.55, -6.2, 0.4); put('birdcage', 10.6, fyA, -6.3);
+  // Bibliothek und Arbeitszimmer
+  put('typewriter', 16.5, fyA + 0.8, -3.75, Math.PI); put('book', 17.5, fyA + 0.8, -3.3, 0.3); put('book', 17.55, fyA + 0.905, -3.3, 0.1); put('telephone', 16.0, fyA + 0.8, -3.95); put('ashtray', 17.9, fyA + 0.8, -3.35); put('cigarbox', 15.95, fyA + 0.8, -3.3, 0.3);
+  put('decanter', 17.3, fyA + 0.48, 1.2); put('tumbler', 17.8, fyA + 0.48, 1.4); put('tumbler', 17.0, fyA + 0.48, 1.45); put('chessboard', 18.0, fyA + 0.48, 1.15, 0.1);
+  put('book', 12.9, fyA, -2.0, 0.6); put('book', 12.9, fyA + 0.105, -2.0, 0.3); put('globe', 14.6, fyA, -5.6);
+  // Großer Salon
+  for (const [x, z] of [[31, -2.6], [39, 1.2], [45.6, 0]]) { put('coupe', x - 0.05, fyA + 0.47, z - 0.18); put('coupe', x + 0.12, fyA + 0.47, z + 0.2); put(x > 40 ? 'cigarbox' : 'ashtray', x - 0.55, fyA + 0.47, z + 0.18); }
+  put('champagne', 31.0, fyA + 0.47, -2.45); put('book', 39.55, fyA + 0.47, 1.0, 0.5);
+  put('icebucket', 28.0, fyA + 1.14, 4.6); put('champagne', 28.35, fyA + 1.14, 4.75); for (let k = 0; k < 4; k++) put('coupe', 29.3 + k * 0.3, fyA + 1.14, 4.55 + (k % 2) * 0.12);
+  put('shaker', 31.2, fyA + 1.14, 4.6); put('whisky', 26.7, fyA + 1.14, 4.7); put('tumbler', 27.15, fyA + 1.14, 4.5); put('decanter', 31.8, fyA + 1.14, 4.7);
+  put('gramophone', 44.6, fyA + 0.62, -5.4, 0.6); put('record', 39.9, fyA, -6.2); put('cushion', 31.6, fyA + 0.48, -3.85, 0.4); put('cushionC', 38.4, fyA + 0.48, 2.45, -0.2); put('flowervase', 46.9, fyA + 0.47, 0.25);
+
   /* ================= Fernsicht: Fensterbänder leuchten, solange das Innere ausgeblendet ist ================= */
   const band = (x0, x1, y0, y1, z, rot) => {
     const g = new T.PlaneGeometry(x1 - x0, y1 - y0); const u = g.attributes.uv; for (let i = 0; i < u.count; i++) u.setX(i, u.getX(i) * (x1 - x0) / 1.67);
@@ -572,6 +820,9 @@ export function buildImperial() {
   ship.add(makeGlowPoints(outBulbs));
   IMP.pf = addPlatform(ship, boxes, 58, { ylo: fyB - 2.5, yhi: yR + 1.5 });
   IMP.pf.air = true;
+  // V54: Möbel und lose Dinge fahren mit; was über die Reling fliegt, gehört wieder der Stadt
+  IMP.fr.pf = IMP.pf;
+  RIDES.push({ pf: IMP.pf, inside: (lx, ly, lz) => lx > XA - 0.6 && lx < XF + 0.6 && Math.abs(lz) < ZW + 0.4 && ly > fyB - 1.2 && ly < yR + 0.6 });
   spotPeds(IMP.pf, MOBILE ? spots.filter((s, i) => i % 3 !== 2) : spots);
   // Räume für die Einblendung beim Betreten
   IMP.rooms = [
@@ -661,6 +912,7 @@ export function updateImperial(dt, t) {
   // Inneres nur aus der Nähe; aus der Ferne leuchten die Fensterbänder
   if ((I.cullT -= dt) <= 0) {
     I.cullT = 0.4;
+    impSpawnCheck();
     const near = camera.position.distanceToSquared(I.g.position) < (MOBILE ? 190 : 300) ** 2;
     I.inner.visible = near; I.farGlow.visible = !near;
   }
@@ -673,6 +925,37 @@ export function updateImperial(dt, t) {
   } else I.room = null;
 }
 // An Bord und im geschlossenen Teil der Gondel: kein Regen, kein Bodennebel
+/* V54: lose Dinge an Bord: jeweils nur die in Alexanders Nähe (gleiches Deck, 22 m) liegen als Körper aus (ruhend, genau
+   auf ihren Flächen), damit die Telekinese in der Stadt noch Platz hat. Unberührte Dinge weiter weg verschwinden wieder,
+   bewegte bleiben, wo sie liegen. Schiff weit weg: alles zurück, beim nächsten Besuch neu ausgelegt. */
+function impSpawnItem(it) {
+  const pf = IMP.pf, c = Math.cos(pf.ry), s = Math.sin(pf.ry), [type, lx, ly, lz, a] = it;
+  const B = spawnProp(type, pf.x + lx * c + lz * s, pf.y + ly, pf.z - lx * s + lz * c, a + pf.ry);
+  if (B) { rideOn(B, pf); B.awake = false; it.B = B; it.y0 = B.x.y - pf.y; }
+  return B;
+}
+export function impShipSpawns(all) {
+  const I = IMP; if (!I.pf || !I.items) return;
+  I.spawned = true;
+  const q = impLocal(player.p), R2 = 22 * 22;
+  I.items.forEach((it, i) => {
+    if (MOBILE && i % 2) return;
+    if (it.B && !LOOSE.bodies.includes(it.B)) { it.B = null; it.gone = true; }   // zerbrochen oder über Bord
+    if (it.gone) return;
+    const near = all || (q && (it[1] - q.lx) ** 2 + (it[3] - q.lz) ** 2 < R2 && Math.abs(it[2] - q.ly) < 3.2);
+    if (near && !it.B) impSpawnItem(it);
+    else if (!near && it.B && !all) {
+      const B = it.B, l = impLocal(B.x);
+      if (!B.awake && B !== LOOSE.held && B !== LOOSE.tk && Math.abs(l.lx - it[1]) < 0.06 && Math.abs(l.lz - it[3]) < 0.06 && Math.abs(l.ly - it.y0) < 0.06) { dropBody(B); it.B = null; }
+    }
+  });
+}
+function impSpawnCheck() {
+  const I = IMP; if (!I.pf || !I.items) return;
+  const d2 = (player.p.x - I.pf.x) ** 2 + (player.p.z - I.pf.z) ** 2, aboard = player.on === I.pf;
+  if (aboard) impShipSpawns(false);
+  else if (I.spawned && d2 > 420 * 420) { rideHome(I.pf); I.spawned = false; for (const it of I.items) { it.B = null; it.gone = false; } }
+}
 export function inImperial(p) {
   const I = IMP; if (!I.pf || player.on !== I.pf) return false;
   const [lx, lz] = pfLocal(I.pf, p.x, p.z); return lx > I.D.XT && lx < I.D.XF && Math.abs(lz) < I.D.ZW;
