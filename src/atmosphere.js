@@ -24,8 +24,13 @@ export const WEATHERS = [
   { id: 'regen', name: 'Regen', fog: 1.5, cloud: 0.95, aurora: 0, rain: 1, snow: 0, frost: 0, tint: [0.028, 0.11, 0.128], w: 2 },
   { id: 'schnee', name: 'Schneefall', fog: 1.6, cloud: 0.9, aurora: 0, rain: 0, snow: 1, frost: 0, tint: [0.04, 0.12, 0.15], w: 2 },
   { id: 'frost', name: 'Eisnebel', fog: 1.3, cloud: 0.15, aurora: 0.4, rain: 0, snow: 0, frost: 1, tint: [0.036, 0.13, 0.155], w: 1 },
+  // V54: großes Polarlicht (Krone im Zenit, rosa Saum, tanzt schneller), Schneesturm (Flocken fliegen waagerecht, weißes Schneetreiben),
+  // nach dem Regen (klarer Himmel, die Straßen glänzen nass und spiegeln Laternen, Fenster und das Polarlicht)
+  { id: 'nordlicht', name: 'Großes Polarlicht', fog: 0.65, cloud: 0.0, aurora: 1.9, rain: 0, snow: 0, frost: 0.5, tint: [0.026, 0.13, 0.125], w: 2 },
+  { id: 'sturm', name: 'Schneesturm', fog: 3.3, cloud: 1.0, aurora: 0, rain: 0, snow: 1, frost: 0.2, storm: 1, tint: [0.075, 0.15, 0.17], w: 1 },
+  { id: 'nass', name: 'Nach dem Regen', fog: 1.1, cloud: 0.25, aurora: 0.7, rain: 0, snow: 0, frost: 0, wet: 1, tint: [0.03, 0.125, 0.14], w: 2 },
 ];
-const KEYS = ['fog', 'cloud', 'aurora', 'rain', 'snow', 'frost'];
+const KEYS = ['fog', 'cloud', 'aurora', 'rain', 'snow', 'frost', 'storm', 'wet'];
 export const ATMO = {
   w: null, cur: {}, tint: new T.Color(), timer: 0, pinned: false, fogMul: 1, inside: 0,
   phase0: 0, phase: 0.5, gameMin: 0, moonI: 0.45, roof: null, hudT: 0, sweepT: 2, shadowFrame: 0, shadows: false,
@@ -36,13 +41,16 @@ const SYN = 29.530588853;   // synodischer Monat in Tagen
   const w = WEATHERS.find(x => x.id === q.get('wetter'));
   ATMO.w = w || WEATHERS[2];
   ATMO.pinned = !!w;
-  for (const k of KEYS) ATMO.cur[k] = ATMO.w[k];
+  for (const k of KEYS) ATMO.cur[k] = ATMO.w[k] || 0;
   ATMO.tint.setRGB(...ATMO.w.tint);
   ATMO.timer = 200 + Math.random() * 160;
   ATMO.phase0 = q.has('mond') ? +q.get('mond') : ((Date.now() - Date.UTC(2000, 0, 6, 18, 14)) / 86400000 / SYN) % 1;
-  if (ATMO.w.rain) U.uWet.value = 0.9;
+  if (ATMO.w.rain || ATMO.w.wet) U.uWet.value = 0.9;
   U.uSnowCover.value = ATMO.w.snow ? 0.8 : SNOW_BASE;
+  U.uStorm.value = ATMO.cur.storm; U.uIce.value = iceTarget(ATMO.cur);
 }
+// V54: Eisblumen auf den Scheiben: am Nordpol immer ein Hauch in den Ecken, bei Frost, Schnee und Sturm wachsen sie weit aufs Glas
+function iceTarget(c) { return Math.min(1, 0.18 + Math.max(c.frost * 0.75, c.snow * 0.45, c.storm * 0.85) + c.aurora * 0.05 - c.rain * 0.15 - c.wet * 0.1); }
 export const MOON_NAMES = ['Neumond', 'Zunehmende Sichel', 'Erstes Viertel', 'Zunehmender Mond', 'Vollmond', 'Abnehmender Mond', 'Letztes Viertel', 'Abnehmende Sichel'];
 export function moonName(ph) { return MOON_NAMES[Math.round(ph * 8) % 8]; }
 
@@ -123,24 +131,32 @@ export function buildPrecip() {
       float a = 1.0 - abs(vQ.x) * 2.0; a *= a * smoothstep(0.0, 0.35, vQ.y) * smoothstep(1.0, 0.55, vQ.y);
       gl_FragColor = vec4(vec3(0.5, 0.66, 0.7) * a * vA * 0.5, 1.0);
     }`);
-  PRECIP.snow = precipMesh(LOW ? 2200 : 6000, `uniform float uSnow; uniform float uFrost; varying float vA; varying vec2 vQ; varying float vK;
+  // V54: Schneesturm: mehr Flocken (Anteil uSnow·0,62 + uStorm·0,38), sie fliegen fast waagerecht mit dem Wind und ziehen Striche;
+  // die Bewegung kommt aus dem aufsummierten Windweg uDrift (wind.js), damit sie beim Auffrischen nicht springt
+  PRECIP.snow = precipMesh(LOW ? 3000 : 9000, `uniform float uSnow; uniform float uFrost; uniform float uStorm; uniform vec4 uDrift; varying float vA; varying vec2 vQ; varying float vK;
     void main(){
       vec3 B = vec3(40.0, 26.0, 40.0);
-      float flake = step(aSeed.w, uSnow), spark = step(1.0 - uFrost * 0.6, aSeed.w) * (1.0 - flake);
+      float flake = step(aSeed.w, uSnow * (0.62 + 0.38 * uStorm)), spark = step(1.0 - uFrost * 0.4, aSeed.w) * (1.0 - flake);
       if (flake + spark < 0.5 || uInside > 0.5) { gl_Position = vec4(2.0, 2.0, 2.0, 1.0); return; }
-      float h = fract(aSeed.w * 17.3);
-      vec3 vel = flake > 0.5 ? vec3(uWind.x * uWind.z * 0.35, -(0.9 + h * 0.6), uWind.y * uWind.z * 0.35) : vec3(uWind.x * 0.2, -0.08, uWind.y * 0.2);
-      vec3 p = aSeed.xyz * B + mod(vel * uTime, B);
-      p.x += sin(uTime * (0.7 + h) + aSeed.w * 40.0) * 0.5 * flake; p.z += cos(uTime * (0.6 + h) + aSeed.x * 30.0) * 0.5 * flake;
+      float h = fract(aSeed.w * 17.3), hs = 0.75 + 0.5 * h;
+      vec3 vel = flake > 0.5 ? vec3(uWind.x * (uWind.z * 0.35 + uStorm * 6.0) * hs, -(0.9 + h * 0.6) * (1.0 + uStorm * 0.8), uWind.y * (uWind.z * 0.35 + uStorm * 6.0) * hs) : vec3(uWind.x * 0.2, -0.08, uWind.y * 0.2);
+      vec3 run = flake > 0.5 ? vec3(uDrift.x * hs, -(0.9 + h * 0.6) * uDrift.z, uDrift.y * hs) : vel * uTime;
+      vec3 p = aSeed.xyz * B + mod(run, B);
+      float wob = 0.5 * (1.0 + uStorm);
+      p.x += sin(uTime * (0.7 + h) * (1.0 + uStorm * 2.0) + aSeed.w * 40.0) * wob * flake; p.z += cos(uTime * (0.6 + h) + aSeed.x * 30.0) * 0.5 * flake;
+      p.y += sin(uTime * (1.3 + h) + aSeed.z * 20.0) * uStorm * flake * 0.6;   // Wirbel im Treiben
       p = wrapBox(p, B);
       if (covered(p)) { gl_Position = vec4(2.0, 2.0, 2.0, 1.0); return; }
       float dist = distance(p, uCam);
       vec3 cr = vec3(viewMatrix[0][0], viewMatrix[1][0], viewMatrix[2][0]), cu = vec3(viewMatrix[0][1], viewMatrix[1][1], viewMatrix[2][1]);
       float s = flake > 0.5 ? (0.035 + 0.035 * h) + dist * 0.0015 : 0.012 + dist * 0.001;
-      vec3 wp = p + (cr * position.x + cu * (position.y - 0.5)) * s;
+      // im Sturm wird die Flocke zum Strich entlang ihrer Flugbahn (Bewegungsunschärfe)
+      vec3 dir = normalize(vel), sd = normalize(cross(dir, uCam - p) + vec3(1e-5));
+      float stk = uStorm * flake;
+      vec3 wp = p + mix(cr * position.x * s + cu * (position.y - 0.5) * s, sd * position.x * s * 0.8 + dir * (position.y - 0.5) * s * (1.0 + 7.0 * uStorm), stk);
       vQ = vec2(position.x, position.y - 0.5); vK = flake;
       float tw = spark * pow(0.5 + 0.5 * sin(uTime * (3.0 + h * 6.0) + aSeed.z * 50.0), 6.0) * (1.0 - smoothstep(4.0, 14.0, dist)) * 2.5;
-      vA = flake * smoothstep(0.5, 2.0, dist) * (1.0 - smoothstep(14.0, 20.0, dist)) + tw;
+      vA = flake * smoothstep(0.5, 2.0, dist) * (1.0 - smoothstep(14.0, 20.0, dist)) * (1.0 + 0.4 * uStorm) + tw;
       gl_Position = projectionMatrix * viewMatrix * vec4(wp, 1.0);
     }`, `varying float vA; varying vec2 vQ; varying float vK;
     void main(){
@@ -225,11 +241,16 @@ export function updateAtmosphere(dt) {
   const A = ATMO, W = A.w, c = A.cur;
   if (!A.pinned && (A.timer -= dt) <= 0) { A.w = nextWeather(); A.timer = 180 + Math.random() * 200; }
   const k = 1 - Math.exp(-dt / 14);
-  for (const key of KEYS) c[key] += (W[key] - c[key]) * k;
+  for (const key of KEYS) c[key] += ((W[key] || 0) - c[key]) * k;
   A.tint.lerp(_c.setRGB(...W.tint), k);
+  // V54: starkes Polarlicht färbt den Dunst einen Hauch grün (bleibt türkis)
+  if (c.aurora > 1) A.tint.lerp(_c.setRGB(0.03, 0.15, 0.12), Math.min(1, c.aurora - 1) * 0.35 * (1 - c.cloud) * k);
   U.uRain.value = c.rain; U.uSnow.value = c.snow; U.uFrost.value = c.frost; U.uAurora.value = c.aurora; U.uCloud.value = c.cloud; U.uMist.value = c.fog;
+  U.uStorm.value = c.storm;
+  U.uAuroraT.value += dt * (1 + 1.3 * Math.max(0, Math.min(1, c.aurora - 1)));   // V54: das große Polarlicht tanzt schneller (eigene Uhr, kein Sprung)
+  U.uIce.value += (iceTarget(c) - U.uIce.value) * (1 - Math.exp(-dt / 40));       // Eisblumen wachsen und tauen langsam
   // Nässe kommt schnell und trocknet langsam; das Pflaster bleibt immer etwas feucht. Schnee bleibt liegen und taut langsam, im Regen schneller.
-  const wet = U.uWet, sc = U.uSnowCover, wT = Math.max(0.3, c.rain);
+  const wet = U.uWet, sc = U.uSnowCover, wT = Math.max(0.3, c.rain, c.wet);
   wet.value += (wT - wet.value) * (1 - Math.exp(-dt / (wT > wet.value ? 20 : 160)));
   // V30: Nordpol: eine leichte Schneedecke (SNOW_BASE) bleibt immer liegen, Schneefall macht sie dicker
   const sT = c.snow > 0.3 ? 1 : SNOW_BASE;
@@ -250,7 +271,7 @@ export function updateAtmosphere(dt) {
   A.fogMul = c.fog * (1 - 0.85 * A.inside);
   FOG_COLOR.copy(A.tint); scene.fog.color.copy(FOG_COLOR); if (scene.background && scene.background.isColor) scene.background.copy(FOG_COLOR);
   // Polarlicht färbt das Himmelslicht leicht grün, Schnee hellt das Licht vom Boden auf
-  hemi.color.copy(HEMI_SKY).add(_c.setRGB(0.01, 0.07, 0.035).multiplyScalar(c.aurora * (1 - c.cloud)));
+  hemi.color.copy(HEMI_SKY).add(_c.setRGB(0.012, 0.085, 0.045).multiplyScalar(c.aurora * (1 - c.cloud)));   // V54: etwas kräftiger
   hemi.groundColor.copy(HEMI_GROUND).lerp(_c.setRGB(0.3, 0.42, 0.5), sc.value * 0.5);
   updateShadow();
   // Nebelschichten, die man von der eigenen Höhe aus ohnehin nicht sieht, gar nicht erst zeichnen (spart auf dem Handy viel Füllrate)
