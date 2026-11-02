@@ -13,7 +13,7 @@ export const HOUSE_DOORS = [];   // {fx, fz, o, tint}
 export const V19_DBG = { oriel: [], balc: [], arcade: [] };
 // Fensterraster des Shaders nachrechnen (wie facadeRelief), damit Anbauten auf den Achsen sitzen
 export function winGrid(L, style) {
-  const cw = style < 0.5 ? 3.2 : 2.4, margin = 1.0, usable = Math.max(L - 2 * margin, 1), nc = Math.max(1, Math.floor(usable / cw));
+  const cw = style < 0.5 ? 3.2 : 2.4, margin = 1.0, usable = Math.max(L - 2 * margin, 1), nc = Math.max(1, Math.floor(usable / cw + 0.002));   // V43: wie im Fassaden-Shader (gleiche Zellzahl)
   return { nc, cellW: usable / nc, margin };
 }
 export const DECO = { g: 1 };   // V23: Gruppennummer zusammengehöriger Zierteile (Erker mit Konsole und Dach, Balkon mit Brüstung)

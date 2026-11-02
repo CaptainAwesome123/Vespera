@@ -808,7 +808,7 @@ export function facadeRelief(cx, cz, sw, sd, y0, y1, style, tint, seed, edges, r
   const every = rr() < 0.5 ? 2 : 3, deep = 0.35 + rr() * 0.25;
   for (const [side, ax, out] of [['n', 0, -1], ['s', 0, 1], ['w', 1, -1], ['e', 1, 1]]) {
     if (!edges[side]) continue;
-    const L = ax ? sd : sw, usable = Math.max(L - 2 * margin, 1), nc = Math.max(1, Math.floor(usable / cw)), cellW = usable / nc;
+    const L = ax ? sd : sw, usable = Math.max(L - 2 * margin, 1), nc = Math.max(1, Math.floor(usable / cw + 0.002)), cellW = usable / nc;   // V43: wie im Fassaden-Shader
     if (nc < 4) continue;
     for (let k = every; k <= nc - every; k += every) {
       const u = -L / 2 + margin + k * cellW;
