@@ -1124,11 +1124,15 @@ export function buildVillaRooms(ctx) {
     ['candlestick', -42.2, -8.2, 0, 1.0], ['candlestick', -42.2, -4.2, 0, 1.0], ['candlestick', -42.2, 0.2, 0, 1.0], ['candlestick', -42.2, 3.8, 0, 1.0], ['decanter', -42.5, -6.9, 0, 1.0], ['decanter', -41.9, 2.4, 0, 1.0],   // Tafel
     ['apple', -42.1, -6.3, 0, 1.0], ['orange', -42.35, -6.05, 0, 1.0], ['apple', -42.0, -2.35, 0, 1.0], ['orange', -42.4, -2.0, 0, 1.0], ['orange', -42.1, 1.9, 0, 1.0], ['apple', -42.35, 1.65, 0, 1.0],
     ['apple', -44, -21.7, 0, 1.2], ['apple', -44.3, -22.0, 0, 1.2], ['orange', -43.7, -22.0, 0, 1.2], ['book', -47, -21.8, 0.2, 1.2],   // Küche
+    // V53: Garderobe, Schirmständer und Vogelkäfig in der Halle, Grammophon und Schach im Salon, Rosen auf der Tafel, Sektkühler an der Bar, Teeservice in der Küche
+    ['hatstand', 4.8, -20.6, 0.3], ['umbrellastand', 1.6, -20.4, 0], ['birdcage', -3.5, -20.2, 0], ['gramophone', -21.6, -19.6, 0.6], ['chessboard', -22.2, -12.0, 0.2, 0.75],
+    ['flowervase', -42.2, -1.0, 0, 1.0], ['flowervase', -42.2, -6.0, 0, 1.0], ['icebucket', 21.4, -17.6, 0, 1.5], ['teatray', -45.5, -21.8, 0.1, 1.2], ['statuette', 27.0, -14.05, 0.3, 1.4],
   ]);
   const LO = LW([
-    ['telephone', -24.4, -15.3, 0.3, 1.1], ['book', -22.9, -14.6, -0.2, 1.1], ['paper', -23.5, -15.0, 0.1, 1.1], ['frame', -24.5, -14.6, -0.3, 1.1],   // Schreibtisch
+    ['telephone', -24.4, -15.3, 0.3, 1.1], ['book', -22.9, -14.6, -0.2, 1.1], ['papers', -23.5, -15.0, 0.1, 1.1], ['frame', -24.5, -14.6, -0.3, 1.1],   // Schreibtisch
     ['book', -22.35, -6.15, 0.3, 0.85], ['book', -22.7, -5.85, 1.2, 0.85], ['book', -26.3, -4.2, 0.5], ['book', -25.8, -4.4, 1.1],   // Bibliothek
     ['frame', -40.2, -6.25, 0.4, 0.85], ['book', -44.2, -6.3, -0.3, 0.85], ['tumbler', -32.3, -1.3, 0, 0.85], ['frame', -51.7, 4.4, 0.3, 1.25],   // Schlafzimmer
+    ['typewriter', -23.7, -14.7, 0.2, 1.1], ['globe', -26.2, -6.0, 0], ['radio', -44.8, -6.3, 0.3, 0.85], ['flowervase', -41.0, -6.25, 0, 0.85],   // V53
   ]);
   { const [sx, sz] = W(0, -8); SPAWNS.push({ x: sx, z: sz, y0: by - 30, items: LE, y: 2.2, floor: by }, { x: sx, z: sz, y0: by - 30, items: LO, y: 2.2, floor: by + Y1 }); }
 

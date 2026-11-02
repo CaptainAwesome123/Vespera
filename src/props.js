@@ -43,14 +43,15 @@ export function setupStreetLayers() {
   registerLayer({
     name: 'lamps', size: STREET_CELL, radius: cam => 400 + Math.max(0, cam.position.y) * 1.5, lods: [STREET_LOD],
     build(cx, cz, lod) {
-      const here = STREET.lamps.filter(l => inCell(l, cx, cz, STREET_CELL)); if (!here.length) return null;
+      const here = STREET.lamps.filter(l => !l.taken && inCell(l, cx, cz, STREET_CELL)); if (!here.length) return null;
+      for (const l of here) l._ims = [];   // V53: Telekinese nimmt Laternen heraus (beide Netze)
       // V27: Art-Déco-Kandelaber (src/decolamp.js), je Höhe ein Netz für Eisen und Gold und eins für das Milchglas
       const g = new T.Group(), M = decoLampMats(), byH = new Map();
       for (const l of here) { if (!byH.has(l.h)) byH.set(l.h, []); byH.get(l.h).push(l); }
       for (const [h, list] of byH) {
         const G = decoLampGeo(h, lod);
-        g.add(instanced(G.metal, M.metal, list, (l, i, im) => im.setMatrixAt(i, _pm.makeTranslation(l.x, l.y, l.z))));
-        g.add(instanced(G.glass, M.glass, list, (l, i, im) => im.setMatrixAt(i, _pm.makeTranslation(l.x, l.y, l.z))));
+        g.add(instanced(G.metal, M.metal, list, (l, i, im) => { im.setMatrixAt(i, _pm.makeTranslation(l.x, l.y, l.z)); l._ims.push([im, i]); }));
+        g.add(instanced(G.glass, M.glass, list, (l, i, im) => { im.setMatrixAt(i, _pm.makeTranslation(l.x, l.y, l.z)); l._ims.push([im, i]); }));
       }
       return g;
     },
@@ -63,14 +64,17 @@ export function setupStreetLayers() {
       if (lod > 0) return null;
       const g = new T.Group(), cc = new T.Color();
       // V52: p._im/_i merken sich die Instanz (Telekinese nimmt das Stück heraus: p.taken, Instanz auf 0)
-      const colored = (p, i, im) => { im.setMatrixAt(i, p.m); im.setColorAt(i, cc.setRGB(...p.c)); p._im = im; p._i = i; };
+      // V53: p._ims = alle Netze des Stücks (Säule: Plakate + Gestell, Uhr: Gestell + Zifferblätter)
+      const colored = (p, i, im) => { im.setMatrixAt(i, p.m); im.setColorAt(i, cc.setRGB(...p.c)); p._im = im; p._i = i; p._ims.push([im, i]); };
+      const plain = (p, i, im) => { im.setMatrixAt(i, p.m); p._ims.push([im, i]); };
       for (const k in F.out) {
         const list = F.out[k].filter(p => !p.taken && inCell(p, cx, cz, STREET_CELL)); if (!list.length) continue;
+        for (const p of list) p._ims = [];
         const bk = props.baked[k];
         if (bk) { g.add(instanced(bk.geo, bk.material || propsMat(), list, colored, true)); continue; }
-        if (k === 'column') { g.add(instanced(F.colGeo, F.posterMat, list, (p, i, im) => im.setMatrixAt(i, p.m))); g.add(instanced(F.colParts, F.mat, list, colored, true)); continue; }
+        if (k === 'column') { g.add(instanced(F.colGeo, F.posterMat, list, plain)); g.add(instanced(F.colParts, F.mat, list, colored, true)); continue; }
         g.add(instanced(F.TYPES[k], F.mat, list, colored, true));
-        if (k === 'clock') g.add(instanced(F.faces, F.faceMat, list, (p, i, im) => im.setMatrixAt(i, p.m)));
+        if (k === 'clock') g.add(instanced(F.faces, F.faceMat, list, plain));
       }
       return g.children.length ? g : null;
     },

@@ -706,6 +706,10 @@ export function buildPenthouse() {
     ['cigarbox', 12.75, -16.75, 0.3, 0.5], ['ashtray', 13.1, -16.45, 0, 0.5], ['tumbler', 12.6, -16.4, 0, 0.5],   // Rauchertisch
     ['apple', -11.6, -10.55, 0, 0.92], ['apple', -11.45, -10.4, 0, 0.92], ['orange', -11.75, -10.3, 0, 0.92], ['champagne', -14.4, -10.7, 0, 0.92],   // Kochinsel
     ['hatbox', 2.5, -14.6, 0.2], ['suitcase', -2.6, -15.0, 1.3], ['suitcase', -2.3, -14.6, 1.1, 0.22],             // Foyer, Gepäck neben dem Fahrstuhl
+    // V53: Garderobe, Schirmständer, Schreibmaschine, Globus, Sektkühler, Rosen, Schach, Bronzefigur, Teeservice
+    ['hatstand', 3.4, -15.2, 0.4], ['umbrellastand', -3.5, -14.4, 0], ['typewriter', 16.35, -3.35, -1.57, 0.78], ['globe', 15.2, -5.4, 0],
+    ['icebucket', 11.6, -8.25, 0, 1.135], ['flowervase', -0.4, 14.3, 0, 0.8], ['statuette', 1.3, 14.3, 0.4, 0.8], ['chessboard', -0.35, 9.45, 0.3, 0.42],
+    ['teatray', -4.6, 9.3, 0.2, 0.5], ['gramophone', -18.6, 9.9, 1.57, 0.9], ['radio', 13.4, -16.6, 0.5, 0.5],
   ];
   const I2 = [
     ['cushion', 11.8, -2.6, 0.2, 0.86], ['cushionC', 13.2, -2.6, -0.2, 0.86], ['cushion', 12.5, -2.0, 0.6, 0.86],  // Bett
@@ -714,6 +718,7 @@ export function buildPenthouse() {
     ['book', 0.25, -11.25, 0.4, 0.55], ['book', -0.3, -11.6, -0.2, 0.55],                                           // Bibliothekstisch
     ['candlestick', -12.95, -16.5, 0, 0.71], ['book', -12.1, -16.5, 0.1, 0.71],                                     // Wannenbrett
     ['frame', 16.5, -19.3, 0.2, 0.75], ['book', 17.4, -19.3, -0.1, 0.75],                                           // Frisiertisch
+    ['flowervase', 13.8, -0.75, 0, 0.6], ['birdcage', 4.2, -2.0, 0], ['hatstand', 7.6, -10.2, 0.2], ['radio', 0.9, -11.4, -0.4, 0.55],   // V53
   ];
   SPAWNS.push({ x: 0, z: 0, y0: F1 - 40, items: I1, y: 2.2, floor: F1, pent: true }, { x: 0, z: 0, y0: F1 - 40, items: I2, y: 2.2, floor: F2, pent: true });   // y ist relativ zu floor (updateSpawns addiert)
 
