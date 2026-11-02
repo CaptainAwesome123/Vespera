@@ -4,12 +4,13 @@ import { stdMat, MAT } from './people-skeleton.js';
 import { NEON } from './facade-shader.js';
 import { VILLA } from './harbour.js';
 import { FURN, placeFurn, lathe, FAN_TEX } from './entrances.js';
-import { worldUV, wallpaperTex, texSet } from './serpentine.js';
+import { worldUV, wallpaperTex, texSet, roundBoxGeo } from './serpentine.js';
 import { addLight } from './performance.js';
 import { INTERACT } from './music.js';
 import { toast } from './boat.js';
 import { player } from './player.js';
 import { dishModel } from './venues.js';
+import { SPAWNS } from './physics.js';   // V41: lose Gegenstände in der Villa
 
 /* =====================================================================
    V28 · DIE LUXUSVILLA: Innenräume auf drei Ebenen
@@ -52,7 +53,7 @@ export function villaFloorMarble() {
   const rr = mulberry32(3301);
   return texSet(512, (g, gr, gh, W) => {
     const n = 4, s = W / n;
-    gh.fillStyle = 'rgb(200,0,0)'; gh.fillRect(0, 0, W, W); gr.fillStyle = 'rgb(34,34,34)'; gr.fillRect(0, 0, W, W);
+    gh.fillStyle = 'rgb(200,0,0)'; gh.fillRect(0, 0, W, W); gr.fillStyle = 'rgb(84,84,84)'; gr.fillRect(0, 0, W, W);   // V41: weniger spiegelnd (vorher 0.13 Rauheit: Umgebungsreflexe hellten alles auf)
     for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
       const x = i * s, y = j * s, v = 0.96 + rr() * 0.05, gg = g.createLinearGradient(x, y, x + s, y + s);
       gg.addColorStop(0, `rgb(${242 * v | 0},${236 * v | 0},${226 * v | 0})`); gg.addColorStop(1, `rgb(${230 * v | 0},${222 * v | 0},${208 * v | 0})`);
@@ -76,7 +77,7 @@ export function villaFloorMarble() {
 export function villaWhiteMarble() {
   const rr = mulberry32(3307);
   return texSet(256, (g, gr, gh, W) => {
-    g.fillStyle = '#ece6da'; g.fillRect(0, 0, W, W); gr.fillStyle = 'rgb(40,40,40)'; gr.fillRect(0, 0, W, W); gh.fillStyle = 'rgb(128,0,0)'; gh.fillRect(0, 0, W, W);
+    g.fillStyle = '#ece6da'; g.fillRect(0, 0, W, W); gr.fillStyle = 'rgb(112,112,112)'; gr.fillRect(0, 0, W, W); gh.fillStyle = 'rgb(128,0,0)'; gh.fillRect(0, 0, W, W);
     for (let k = 0; k < 7; k++) villaVein(g, rr, W, rr() * W, rr() * W, W * (0.5 + rr() * 0.8), true);
     for (let k = 0; k < 900; k++) { g.fillStyle = `rgba(140,130,115,${rr() * 0.1})`; g.fillRect(rr() * W, rr() * W, 1, 1); }
   }, 0.6, 2);
@@ -229,33 +230,38 @@ export function villaMats(M) {
   // V33: neue Oberflächen (Marmorplatten, Versailler Parkett, Kassettendecke, Seidentapeten, weißer Marmor, Gemälde, Fotogold, Nero-Marmor)
   const FM_ = villaFloorMarble(), WM = villaWhiteMarble(), PQ = villaParquet(), CE = villaCeiling(), SP = villaSilk('#173235', 'rgba(205,165,92,0.55)', 'rgba(205,165,92,0.18)'), SC = villaSilk('#d6c7a4', 'rgba(170,128,60,0.6)', 'rgba(255,250,235,0.35)');
   const gold = wantTexture(M.gold.clone(), { map: 'gold-color', normalMap: 'gold-normal', roughnessMap: 'gold-rough', repeat: [2, 2], normalScale: 0.35, roughness: 0.85, color: 0xf2d79a });
-  return {
+  const R = {
     ...M,
     gold,
-    marble: stdMat({ map: FM_.map, roughnessMap: FM_.rough, normalMap: FM_.normal, normalScale: new T.Vector2(0.5, 0.5), roughness: 1, envI: 1.0, emissive: 0x3a362e, emissiveMap: FM_.map }),
-    parq: stdMat({ map: PQ.map, roughnessMap: PQ.rough, normalMap: PQ.normal, normalScale: new T.Vector2(0.7, 0.7), roughness: 1, envI: 0.55, emissive: 0x3a2a1c, emissiveMap: PQ.map }),
-    ceil: stdMat({ map: CE.map, roughnessMap: CE.rough, normalMap: CE.normal, roughness: 1, envI: 0.25, emissive: 0x4a4234, emissiveMap: CE.map }),
-    plaster: stdMat({ map: SP.map, roughnessMap: SP.rough, normalMap: SP.normal, normalScale: new T.Vector2(0.6, 0.6), roughness: 1, envI: 0.35, emissive: 0x8a8070, emissiveMap: SP.map }),
-    silk: stdMat({ map: SC.map, roughnessMap: SC.rough, normalMap: SC.normal, normalScale: new T.Vector2(0.6, 0.6), roughness: 1, envI: 0.35, emissive: 0x5a5244, emissiveMap: SC.map }),
-    art: (() => { const t = villaArtTex(); return stdMat({ map: t, roughness: 0.55, envI: 0.2, emissive: 0x6a645c, emissiveMap: t }); })(),
-    white: stdMat({ map: WM.map, roughnessMap: WM.rough, normalMap: WM.normal, normalScale: new T.Vector2(0.3, 0.3), roughness: 1, envI: 0.75, emissive: 0x2a2620, emissiveMap: WM.map }),
+    // V41: Eigenleuchten überall stark gesenkt (vorher leuchteten Wände und Böden zur Hälfte von selbst: innen alles überstrahlt, flach, weiß)
+    marble: stdMat({ map: FM_.map, color: 0xd8d2c8, roughnessMap: FM_.rough, normalMap: FM_.normal, normalScale: new T.Vector2(0.5, 0.5), roughness: 1, envI: 0.4, emissive: 0x100e0c, emissiveMap: FM_.map }),
+    parq: wantTexture(stdMat({ map: PQ.map, roughnessMap: PQ.rough, normalMap: PQ.normal, normalScale: new T.Vector2(0.7, 0.7), roughness: 1, envI: 0.45, emissive: 0x16100a, emissiveMap: PQ.map }), { map: 'parquet-color', normalMap: 'parquet-normal', roughnessMap: 'parquet-rough', emissiveMap: 'parquet-color', repeat: [2, 2], normalScale: 0.6, roughness: 0.9, color: 0xb9a58a }),
+    ceil: stdMat({ map: CE.map, roughnessMap: CE.rough, normalMap: CE.normal, roughness: 1, envI: 0.2, emissive: 0x18150f, emissiveMap: CE.map }),
+    plaster: stdMat({ map: SP.map, roughnessMap: SP.rough, normalMap: SP.normal, normalScale: new T.Vector2(0.6, 0.6), roughness: 1, envI: 0.3, emissive: 0x2a2620, emissiveMap: SP.map }),
+    silk: stdMat({ map: SC.map, roughnessMap: SC.rough, normalMap: SC.normal, normalScale: new T.Vector2(0.6, 0.6), roughness: 1, envI: 0.3, emissive: 0x1e1a14, emissiveMap: SC.map }),
+    art: (() => { const t = villaArtTex(); return stdMat({ map: t, roughness: 0.55, envI: 0.2, emissive: 0x2e2c28, emissiveMap: t }); })(),
+    // V41: echte Fotomarmor-, Parkett-, Fliesen- und Steintexturen (assets/manifest.json) statt nur gemalter Flächen, sobald geladen
+    white: wantTexture(stdMat({ map: WM.map, color: 0xcbc4b8, roughnessMap: WM.rough, normalMap: WM.normal, normalScale: new T.Vector2(0.3, 0.3), roughness: 1, envI: 0.3, emissive: 0x0c0b09, emissiveMap: WM.map }), { map: 'marble-color', normalMap: 'marble-normal', roughnessMap: 'marble-rough', emissiveMap: 'marble-color', repeat: [1, 1], normalScale: 0.35, roughness: 0.7, color: 0xd2cbbf }),
     black: wantTexture(stdMat({ color: 0x101014, roughness: 0.18, envI: 1.3, emissive: 0x050506 }), { map: 'marble-color', normalMap: 'marble-normal', roughnessMap: 'marble-rough', repeat: [1, 1], normalScale: 0.4, roughness: 0.5, color: 0xffffff }),
-    linen: stdMat({ color: 0xf2ecdf, roughness: 0.92, env: false, emissive: 0x2a2620 }),
-    tile: stdMat({ map: tile, roughness: 0.35, envI: 0.6, emissive: 0x332e28, emissiveMap: tile }),
+    linen: stdMat({ color: 0xd9d2c4, roughness: 0.92, env: false, emissive: 0x0e0c0a }),
+    tile: wantTexture(stdMat({ map: tile, roughness: 0.35, envI: 0.5, emissive: 0x12100d, emissiveMap: tile }), { map: 'tiles-color', normalMap: 'tiles-normal', roughnessMap: 'tiles-rough', emissiveMap: 'tiles-color', repeat: [2, 2], normalScale: 0.5, roughness: 0.6, color: 0xd8d4cc }),
     copper: stdMat({ color: 0xb87333, metalness: 0.85, roughness: 0.35, envI: 1.2 }),
     steel: stdMat({ color: 0x9aa0a4, metalness: 0.9, roughness: 0.3, envI: 1.0 }),
     mirror: stdMat({ color: 0xdfe6ea, metalness: 1.0, roughness: 0.04, envI: 2.2 }),
     glassW: stdMat({ color: 0x06090d, metalness: 0.8, roughness: 0.08, envI: 1.6, emissive: 0x0b1418, transparent: true, opacity: 0.88, side: T.DoubleSide }),
-    bluewall: stdMat({ map: blue, roughness: 0.85, env: false, emissive: 0x7a8a92, emissiveMap: blue }),
-    greenwall: stdMat({ map: green, roughness: 0.85, env: false, emissive: 0x6a7a62, emissiveMap: green }),
-    stoneF: stdMat({ color: 0x8a8378, roughness: 0.9, envI: 0.2, emissive: 0x0e0c0a }),
+    bluewall: stdMat({ map: blue, roughness: 0.85, env: false, emissive: 0x2c3438, emissiveMap: blue }),
+    greenwall: stdMat({ map: green, roughness: 0.85, env: false, emissive: 0x262e24, emissiveMap: green }),
+    stoneF: wantTexture(stdMat({ color: 0x8a8378, roughness: 0.9, envI: 0.2, emissive: 0x0e0c0a }), { map: 'stone-color', normalMap: 'stone-normal', repeat: [1, 1], normalScale: 0.7, color: 0xa39b8e }),
     brassM: MAT.brass,
     brick: stdMat({ color: 0x6a3a2a, roughness: 0.95, env: false, emissive: 0x100804 }),
-    cream: stdMat({ color: 0xe6dcc6, roughness: 0.8, env: false, emissive: 0x6a5e4c }),
-    plantD: stdMat({ color: 0x3e6a3a, roughness: 0.9, env: false, emissive: 0x0a1a0a }),
+    cream: stdMat({ color: 0xcfc4ae, roughness: 0.8, env: false, emissive: 0x241f18 }),
+    plantD: stdMat({ color: 0x3e6a3a, roughness: 0.9, env: false, emissive: 0x0a1a0a, side: T.DoubleSide }),
     trunkP: stdMat({ color: 0x5a4030, roughness: 0.9, env: false }),
     tealG: new T.MeshBasicMaterial({ color: new T.Color(0.5, 1.2, 1.15), transparent: true, opacity: 0.35, depthWrite: false }),
+    lampSoft: new T.MeshBasicMaterial({ color: new T.Color(0.62, 0.47, 0.28), side: T.DoubleSide }),   // V41: mattes Lichtglas
   };
+  for (const k in R) if (R[k] && R[k].isMaterial && !R[k].name) R[k].name = 'villa.' + k;   // V41: Namen fürs Labor (labPick)
+  return R;
 }
 
 /* ---------- Aufbau ---------- */
@@ -269,7 +275,7 @@ export function buildVillaRooms(ctx) {
   const box = (zone, mat, w, h, d, lx, y, lz, a = 0) => A(zone, mat, new T.BoxGeometry(w, h, d), lx, y + h / 2, lz, a);
   const col = (x0, y0, z0, x1, y1, z1) => colL(Math.min(x0, x1), by + y0, Math.min(z0, z1), Math.max(x0, x1), by + y1, Math.max(z0, z1));
   const glow = (lx, y, lz, c, s) => G(lx, by + y, lz, c, s);
-  const light = (lx, y, lz, c, i, d) => { const [x, z] = W(lx, lz); addLight(c, i, d, 1.5, x, by + y, z, true); };
+  const light = (lx, y, lz, c, i, d) => { const [x, z] = W(lx, lz); addLight(c, i * 0.78, d * 0.9, 1.5, x, by + y, z, true); };   // V41: Innenlichter gedämpft (Marmor überstrahlte, Nachleuchten verschleierte die Halle)
   const SV = (lx, lz, w, d, y0, y1, o) => V(lx, lz, w, d, by + y0, by + y1, o);
   const GR = [0.95, 0.72, 0.34], cream = [0.86, 0.8, 0.68];
   const FW = { style: 2, dens: 1, flood: 1, rib: GR, tint: cream, seed: 881 }, FP = { style: 3, dens: 0, flood: 1, rib: GR, tint: cream, seed: 889 };
@@ -329,26 +335,40 @@ export function buildVillaRooms(ctx) {
     if (o.posts) for (const u of [a0, a1]) { const g = new T.BoxGeometry(0.3, hh + 0.3, 0.3); if (ax === 'x') A(zone, 'white', g, u, y + hh / 2 + 0.15, c); else A(zone, 'white', g, c, y + hh / 2 + 0.15, u); }
   };
   // Treppenlauf entlang lz: von zA (Höhe yA) nach zB (Höhe yB), Breite x0..x1
+  // V41: Treppenlauf nicht mehr als Klotzsäge, sondern Trittstufen mit vorstehender, gerundeter Kante, Setzstufen und
+  // (bei o.soffit) einer dünnen schrägen Untersicht statt des massiven Blocks bis zum Podest. o.flare: unterste Stufen laufen rund aus.
   const flight = (zone, mat, x0, x1, zA, zB, yA, yB, base, o = {}) => {
-    const n = Math.max(2, Math.round(Math.abs(yB - yA) / 0.28)), rise = (yB - yA) / n, run = (zB - zA) / n, w = Math.abs(x1 - x0), xm = (x0 + x1) / 2;
+    const n = Math.max(2, Math.round(Math.abs(yB - yA) / 0.28)), rise = (yB - yA) / n, run = (zB - zA) / n, w = Math.abs(x1 - x0), xm = (x0 + x1) / 2, dz = Math.sign(run), ar = Math.abs(run);
     base = base ?? Math.min(yA, yB) - 0.3;
+    const solid = !o.soffit;
     for (let k = 0; k < n; k++) {
-      const top = yA + (k + 1) * rise, z0 = zA + k * run, z1 = zA + (k + 1) * run, hgt = Math.max(0.1, top - base);
-      box(zone, mat, w, hgt, Math.abs(run) + 0.01, xm, base, (z0 + z1) / 2);
-      if (k < n - 1) box(zone, 'gold', w, 0.03, 0.06, xm, top, z1 - run * 0.02);   // Messingkante an jeder Stufe
-      if (o.runner) box(zone, 'carpet', o.runner, 0.025, Math.abs(run) + 0.012, xm, top, (z0 + z1) / 2);   // V33: Läufer auf den Stufen
+      const top = yA + (k + 1) * rise, z0 = zA + k * run, z1 = zA + (k + 1) * run, zc = (z0 + z1) / 2;
+      if (solid) box(zone, mat, w, Math.max(0.1, top - base), ar + 0.01, xm, base, zc);
+      else { box(zone, mat, w, 0.06, ar + 0.01, xm, top - 0.06, zc); box(zone, mat, w, rise - 0.06, 0.05, xm, top - rise, z0 + dz * 0.025); }   // Tritt + Setzstufe
+      // vorstehende Trittkante mit Rundung (Wulst) und schmalem Messingband darunter
+      A(zone, mat, new T.CylinderGeometry(0.03, 0.03, w, 8).rotateZ(Math.PI / 2), xm, top - 0.03, z0 + dz * 0.0);
+      box(zone, mat, w, 0.06, 0.05, xm, top - 0.06, z0 + dz * 0.015);
+      box(zone, 'gold', w, 0.025, 0.012, xm, top - 0.09, z0 - dz * 0.006);
+      if (o.runner) { box(zone, 'carpet', o.runner, 0.02, ar + 0.012, xm, top, zc); box(zone, 'carpet', o.runner, rise - 0.08, 0.02, xm, top - rise + 0.02, z0 + dz * 0.055); }   // Läufer über Tritt und Setzstufe
+      if (o.flare && k < 2) { const r = k ? 0.42 : 0.72, hh = Math.max(0.1, top - (solid ? base : top - rise)); for (const xe of [x0, x1]) { A(zone, mat, new T.CylinderGeometry(r, r, hh, 20, 1, false, 0, Math.PI * 2), xe, (solid ? base : top - rise) + hh / 2, z0 + dz * r * 0.9); } }
     }
+    if (!solid) { const L = Math.hypot(zB - zA, yB - yA), ang = Math.atan2(yB - yA, zB - zA); A(zone, mat, new T.BoxGeometry(w + 0.1, 0.22, L).rotateX(-ang), xm, (yA + yB) / 2 - 0.26, (zA + zB) / 2); A(zone, 'gold', new T.BoxGeometry(w + 0.12, 0.03, L).rotateX(-ang), xm, (yA + yB) / 2 - 0.37, (zA + zB) / 2); }
     // V33: Kollision als feine Rampe aus flachen Stufen (je höchstens 15 cm). Mit den sichtbaren 28-cm-Stufen und
     // nur 44 cm Auftritt reichte der Spieler (Radius 45 cm) schon an die übernächste Stufe und blieb am Fuß der Treppe hängen.
     const m = Math.max(n, Math.ceil(Math.abs(yB - yA) / 0.15)), cr = (yB - yA) / m, cz = (zB - zA) / m;
     for (let k = 0; k < m; k++) { const z0 = zA + k * cz, z1 = z0 + cz, top = yA + (k + 1) * cr; col(x0, base, Math.min(z0, z1), x1, Math.max(top, base + 0.05), Math.max(z0, z1)); }
     return { n, rise, run, ang: Math.atan2(yB - yA, zB - zA), L: Math.hypot(zB - zA, yB - yA) };
   };
-  // Wangen/Brüstung schräg am Lauf entlang
+  // V41: Geländer am Lauf: flache Wange, gedrechselte Baluster, runder Goldhandlauf, Pfosten mit Goldkugel an beiden Enden (vorher ein massiver Mauerblock)
   const parapet = (zone, lx, zA, zB, yA, yB, h = 1.0, mat = 'white') => {
-    const L = Math.hypot(zB - zA, yB - yA), ang = Math.atan2(yB - yA, zB - zA);
-    A(zone, mat, new T.BoxGeometry(0.3, h, L).rotateX(-ang), lx, (yA + yB) / 2 + h / 2, (zA + zB) / 2);
-    A(zone, 'gold', new T.BoxGeometry(0.36, 0.08, L).rotateX(-ang), lx, (yA + yB) / 2 + h, (zA + zB) / 2);
+    const L = Math.hypot(zB - zA, yB - yA), ang = Math.atan2(yB - yA, zB - zA), zm = (zA + zB) / 2, ym = (yA + yB) / 2;
+    A(zone, mat, new T.BoxGeometry(0.26, 0.24, L).rotateX(-ang), lx, ym + 0.12, zm);
+    A(zone, 'gold', new T.BoxGeometry(0.28, 0.02, L).rotateX(-ang), lx, ym + 0.25, zm);
+    const bh = h - 0.3, nb = Math.max(3, Math.round(Math.abs(zB - zA) / 0.34));
+    const bg = lathe([[0.035, 0], [0.06, 0.05], [0.035, 0.1], [0.06, 0.32], [0.045, 0.55], [0.03, 0.78], [0.05, 0.9], [0.035, 1.0]], 8);
+    for (let k = 0; k < nb; k++) { const t = (k + 0.5) / nb; A(zone, mat, bg.clone().scale(1, bh, 1), lx, yA + (yB - yA) * t + 0.24, zA + (zB - zA) * t); }
+    A(zone, 'gold', new T.CylinderGeometry(0.045, 0.045, L + 0.1, 10).rotateX(Math.PI / 2).rotateX(-ang), lx, ym + h - 0.04, zm);
+    for (const [z, y] of [[zA, yA], [zB, yB]]) { box(zone, mat, 0.32, h + 0.18, 0.32, lx, y, z); box(zone, 'gold', 0.34, 0.03, 0.34, lx, y + h + 0.18, z); A(zone, 'gold', new T.SphereGeometry(0.13, 12, 8), lx, y + h + 0.34, z); }
     for (let k = 0; k < 4; k++) { const t0 = k / 4, t1 = (k + 1) / 4; col(lx - 0.15, yA + (yB - yA) * Math.min(t0, t1), zA + (zB - zA) * t0, lx + 0.15, yA + (yB - yA) * Math.max(t0, t1) + h + 0.2, zA + (zB - zA) * t1); }
   };
   // Fenster von innen: dunkles Glas in Goldrahmen mit Sprossen, n Stück zwischen a0 und a1
@@ -402,8 +422,17 @@ export function buildVillaRooms(ctx) {
   const palm = (zone, lx, lz, y, h = 3.2) => {
     A(zone, 'stone', lathe([[0.5, 0], [0.55, 0.1], [0.45, 0.8], [0.6, 0.9]], 14), lx, y, lz);
     A(zone, 'trunkP', new T.CylinderGeometry(0.07, 0.12, h, 7), lx, y + 0.9 + h / 2, lz);
-    for (let k = 0; k < 9; k++) { const a = k / 9 * Math.PI * 2 + R(), g = new T.BoxGeometry(0.28, 0.03, 1.8).translate(0, 0, 0.9).rotateX(0.5 + R() * 0.3).rotateY(a); A(zone, 'plantD', g, lx, y + 0.9 + h, lz); }
+    // V41: Wedel als gebogene, sich verjüngende Blattbänder mit Mittelrippe statt flacher Bretter
+    for (let k = 0; k < 11; k++) { const a = k / 11 * Math.PI * 2 + R(), L = 1.6 + R() * 0.6, g = frond(L, 0.34, 0.55 + R() * 0.25, 0.9 + R() * 0.4).rotateY(a); A(zone, 'plantD', g, lx, y + 0.9 + h, lz); A(zone, 'trunkP', new T.BoxGeometry(0.02, 0.02, L * 0.5).translate(0, 0.02, L * 0.25).rotateX(0.55).rotateY(a), lx, y + 0.9 + h, lz); }
+    for (let k = 0; k < 5; k++) { const a = k / 5 * Math.PI * 2 + 0.3; A(zone, 'plantD', frond(0.9, 0.22, 0.2, 1.4).rotateY(a), lx, y + 0.9 + h + 0.1, lz); }   // junge Wedel oben
     col(lx - 0.5, y, lz - 0.5, lx + 0.5, y + 1.2, lz + 0.5);
+  };
+  // Blattband: Breite nach Sinus, hängt nach außen durch (Anfangswinkel up, Durchhang droop); beidseitig sichtbar über plantD
+  const frond = (L, w, up, droop) => {
+    const n = 8, pos = [], uv = [], idx = [];
+    for (let i = 0; i <= n; i++) { const t = i / n, hw = w * 0.5 * Math.sin(Math.PI * Math.pow(t, 0.6)) + 0.01, z = t * L, yv = Math.sin(up) * z - droop * t * t * L * 0.5; pos.push(-hw, yv, z, hw, yv, z); uv.push(0, t, 1, t); }
+    for (let i = 0; i < n; i++) { const b = i * 2; idx.push(b, b + 2, b + 1, b + 1, b + 2, b + 3); }
+    const g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new T.Float32BufferAttribute(uv, 2)); g.setIndex(idx); g.computeVertexNormals(); return g.toNonIndexed();
   };
   const fern = (zone, lx, lz, y, s = 1) => furn(zone, FURN.vasePlant(s), FM, lx, y, lz);
   const bed = (zone, lx, lz, y, w, L, a = 0, o = {}) => {
@@ -554,7 +583,11 @@ export function buildVillaRooms(ctx) {
   wall(EG, 'silk', 'x', -22.3, -14.3, 14.3, 0, H1, 0.14, [[-8.9, -6.1, 5.0], [6.1, 8.9, 5.0]], { col: false, side: 1 });
   wall(EG, 'silk', 'x', -1.7, -14.3, 14.3, 0, Y1 + H2, 0.14, [[-1.8, 1.8, 4.2]], { col: false, side: -1 });
   // großes Bogenfenster über dem Treppenpodest, Sonnenfächer
-  A(EG, 'lamp', new T.PlaneGeometry(7, 3.2), 0, 7.2, -1.86); A(EG, 'gold', new T.BoxGeometry(7.4, 0.2, 0.25), 0, 5.5, -1.9); A(EG, 'gold', new T.BoxGeometry(7.4, 0.2, 0.25), 0, 8.9, -1.9);
+  // V41: Lichtfenster über dem Podest: mattes Glas statt der grellen Leuchtfläche, Goldsprossen als Sonnenfächer
+  A(EG, 'lampSoft', new T.PlaneGeometry(7, 3.2), 0, 7.2, -1.86); A(EG, 'gold', new T.BoxGeometry(7.4, 0.2, 0.25), 0, 5.5, -1.9); A(EG, 'gold', new T.BoxGeometry(7.4, 0.2, 0.25), 0, 8.9, -1.9);
+  for (const sd of [-1, 1]) A(EG, 'gold', new T.BoxGeometry(0.2, 3.6, 0.25), sd * 3.6, 7.2, -1.9);
+  for (let k = 0; k < 9; k++) { const a = Math.PI * (0.12 + 0.76 * k / 8), L = 3.4; A(EG, 'gold', new T.BoxGeometry(0.06, L, 0.08).translate(0, L / 2, 0).rotateZ(Math.PI / 2 - a), 0, 5.62, -1.84); }
+  A(EG, 'gold', new T.TorusGeometry(1.3, 0.04, 6, 32), 0, 5.62, -1.84); A(EG, 'gold', new T.TorusGeometry(2.4, 0.04, 6, 40), 0, 5.62, -1.84);
   A(OG, 'fan', new T.PlaneGeometry(9, 4.5), 0, 12.0, -1.88);
   // Trennwände Halle/Salon/Herrenzimmer (Kollision) und Treppenkammer zum Keller
   wall(EG, null, 'z', -14.5, -22.4, -1.6, 0, Y1, 0.4, [[-19, -15, 4.2]]);
@@ -568,15 +601,15 @@ export function buildVillaRooms(ctx) {
   // Säulenreihen, Imperialtreppe: Mittellauf zum Podest, zwei Seitenläufe zur Galerie
   for (const sd of [-1, 1]) for (const lz of [-20.5, -16.5]) column(EG, sd * 9.8, lz, 0, H1 - 0.05, 0.5);
   for (const sd of [-1, 1]) for (const lz of [-11, -6]) column(EG, sd * 9.8, lz, 0, Y1 + H2 - 0.05, 0.55);
-  flight(EG, 'white', -3, 3, -13, -5, 0, 5.1, undefined, { runner: 2.4 });
-  box(EG, 'white', 13, 0.35, 3.4, 0, 4.75, -3.3); col(-6.5, 4.75, -5, 6.5, 5.1, -1.6);
+  flight(EG, 'white', -3, 3, -13, -5, 0, 5.1, undefined, { runner: 2.4, flare: true });
+  box(EG, 'white', 13, 0.35, 3.4, 0, 4.75, -3.3); box(EG, 'gold', 13.04, 0.04, 3.44, 0, 4.78, -3.3); col(-6.5, 4.75, -5, 6.5, 5.1, -1.6);   // V41: Goldband am Podest
   A(EG, 'carpet', new T.BoxGeometry(2.4, 0.02, 3.4), 0, 5.11, -3.3);
-  for (const sd of [-1, 1]) { flight(EG, 'white', sd * 3.5, sd * 6.5, -5, -13, 5.1, Y1, 4.75, { runner: 2.0 }); column(EG, sd * 6.2, -3.6, 0, 4.75, 0.42); }
+  for (const sd of [-1, 1]) { flight(EG, 'white', sd * 3.5, sd * 6.5, -5, -13, 5.1, Y1, 4.75, { runner: 2.0, soffit: true }); column(EG, sd * 6.2, -3.6, 0, 4.75, 0.42); }
   for (const sd of [-1, 1]) { parapet(EG, sd * 3.15, -13.2, -5, 0, 5.1); parapet(EG, sd * 6.65, -5, -13.2, 5.1, Y1); parapet(EG, sd * 3.35, -5, -13.2, 5.1, Y1, 0.9); balu(EG, 'z', sd * 6.5, -5, -1.6, 5.1); }
   for (const sd of [-1, 1]) { A(EG, 'gold', new T.SphereGeometry(0.22, 12, 8), sd * 3.15, 1.25, -13.3); glow(sd * 3.15, 1.4, -13.3, [1.3, 0.95, 0.55], 1.4); statue(EG, sd * 4.4, -21.3, 0, 1.4); }   // V33: Statuen neben das Gemälde (rechts stand eine über dem Kellerschacht)
   for (const sd of [-1, 1]) palm(EG, sd * 12.4, -5, 0, 3.6);
   chand(EG, 0, -7.3, Y1 + H2 - 2.2, 2.6, 1.6); chand(EG, 0, -17.5, H1 - 1.6, 1.3);
-  light(0, 6, -10, 0xffd9a6, 1.1, 32); light(0, 5, -18, 0xffd9a6, 0.8, 22);
+  light(0, 6, -10, 0xffd9a6, 0.85, 28); light(0, 5, -18, 0xffd9a6, 0.65, 20);
   VR.randolf = person('tux', BLACK, 0, -16.2, 0, Math.PI);
   person('dress', MAID, -12, -8, 0, Math.PI * 0.5); person('dress', MAID, 12.5, -14.5, 0, -Math.PI * 0.4);
 
@@ -1052,14 +1085,53 @@ export function buildVillaRooms(ctx) {
   // Erdgeschoss über dem Keller, ausgespart: die beiden Treppenschächte
   for (const [x0, x1, z0, z1] of [[-51.5, 11.15, -23, -1.3], [-55, -51.5, -17.5, -1.3], [11.15, 14.3, -17.5, -1.3], [14.3, 55, -23, -1.3], [-55, -29.4, -1.3, 7], [29.4, 55, -1.3, 7]]) slab(EG, 'dark', x0, x1, z0, z1, -0.7, -0.01);
   // Obergeschoss: über dem Ballsaal erst ab dessen höherer Decke, über der Halle offen
-  for (const [x0, x1, z0, z1, y0] of [[-55, 29.4, -23, -13, H1], [-55, -14.5, -13, -1.3, H1], [14.5, 29.4, -13, -1.3, H1], [-55, -29.4, -1.3, 7, H1], [29.4, 55, -23, 7, HB]]) slab(OG, 'dark', x0, x1, z0, z1, y0 + 0.02, Y1 - 0.005);
+  // V41: Stirnseiten der dunklen Zwischendecke 30 cm hinter die Putz-Blenden der Galerie zurückgesetzt (vorher Z-Kampf: schwarzes Band quer durch die Halle)
+  for (const [x0, x1, z0, z1, y0] of [[-55, 29.4, -23, -13.3, H1], [-55, -14.8, -13.3, -1.3, H1], [14.8, 29.4, -13.3, -1.3, H1], [-55, -29.4, -1.3, 7, H1], [29.4, 55, -23, 7, HB]]) slab(OG, 'dark', x0, x1, z0, z1, y0 + 0.02, Y1 - 0.005);
   // Kellerboden, ausgespart: das Schwimmbecken
   for (const [x0, x1, z0, z1] of [[-55, 34.7, -23, 7], [50.3, 55, -23, 7], [34.7, 50.3, -23, -9.3], [34.7, 50.3, -0.7, 7]]) slab(KE, 'dark', x0, x1, z0, z1, KY - 0.4, KY - 0.01);
   // Geländer um die offenen Treppenschächte (dort fiel man bisher durch einen Boden, der nur gemalt war)
   for (const [px0, px1, sx] of [[11.15, 12.65, 12.65], [-52.9, -51.5, -52.9]]) { balu(EG, 'x', -17.55, px0, px1, 0, { posts: true }); balu(EG, 'z', sx, -22.3, -17.55, 0); }
 
   /* ================= Zusammenbau: je Zone und Material ein Netz ================= */
-  const WUV = { marble: 4.2, parq: 4.0, plaster: 2.4, silk: 2.4, panel: 2.0, tile: 2.2, bluewall: 4.2, greenwall: 4.2, hedge: 1.6, brick: 2.0, ceil: 3.6, white: 2.2, black: 2.0 };
+  /* ================= V41: mehr Einrichtung, Kleinkram und lose Gegenstände ================= */
+  // Salon: Grammophon, Getränkekonsole, Kaminschirm, Beistelltische
+  { const gx = -16.4, gz = -20.6; box(EG, 'wood', 0.7, 0.9, 0.6, gx, 0, gz); box(EG, 'gold', 0.72, 0.03, 0.62, gx, 0.9, gz); A(EG, 'gold', new T.CylinderGeometry(0.22, 0.22, 0.02, 20), gx, 0.95, gz);
+    A(EG, 'gold', lathe([[0.03, 0], [0.05, 0.3], [0.12, 0.6], [0.3, 0.85], [0.42, 0.95]], 14).rotateZ(-0.9).rotateY(0.6), gx - 0.1, 1.05, gz - 0.1); col(gx - 0.35, 0, gz - 0.3, gx + 0.35, 1.0, gz + 0.3); }
+  box(EG, 'wood', 2.2, 0.85, 0.5, -28.6, 0, -17.2); box(EG, 'gold', 2.24, 0.03, 0.54, -28.6, 0.85, -17.2); box(EG, 'gold', 1.2, 0.02, 0.4, -28.6, 0.88, -17.2); col(-29.4, 0, -17.5, -27.8, 0.9, -16.9);
+  for (const dx of [-0.6, 0, 0.6]) A(EG, 'gold', new T.BoxGeometry(0.5, 0.9, 0.02).rotateY(dx ? dx * 0.6 : 0), -22 + dx, 0.5, -21.3 + Math.abs(dx) * 0.25);   // Kaminschirm (drei Flügel)
+  for (const sx of [-1, 1]) { box(EG, 'wood', 0.6, 0.55, 0.6, -22 + sx * 7.6, 0, -9.6); lampT(EG, -22 + sx * 7.6, -9.6, 0.55); col(-22 + sx * 7.6 - 0.3, 0, -9.9, -22 + sx * 7.6 + 0.3, 0.6, -9.3); }
+  // Herrenzimmer: Humidor-Schrank mit Pokalen, Globus
+  box(EG, 'wood', 1.6, 2.2, 0.5, 28.9, 0, -20.5); for (let k = 0; k < 3; k++) box(EG, 'gold', 1.4, 0.03, 0.4, 28.9, 0.6 + k * 0.55, -20.5); col(28.1, 0, -20.8, 29.4, 2.2, -20.2);
+  for (let k = 0; k < 3; k++) A(EG, 'gold', lathe([[0.06, 0], [0.03, 0.05], [0.04, 0.12], [0.1, 0.22], [0.09, 0.3]], 10), 28.5 + k * 0.4, 1.73, -20.5);
+  A(EG, 'gold', new T.SphereGeometry(0.35, 16, 12), 26.5, 1.1, -20.3); A(EG, 'gold', new T.TorusGeometry(0.4, 0.015, 6, 32).rotateX(0.4), 26.5, 1.1, -20.3); A(EG, 'wood', lathe([[0.3, 0], [0.1, 0.1], [0.05, 0.7]], 10), 26.5, 0, -20.3); col(26.1, 0, -20.7, 26.9, 1.5, -19.9);
+  // Speisesaal: flache Goldschalen für Obst
+  for (const lz of [-6.2, -2.2, 1.8]) A(EG, 'gold', lathe([[0, 0], [0.34, 0], [0.4, 0.03], [0.36, 0.035]], 20), -42.2, 0.76, lz);
+  // Arbeitszimmer: Schreibmaschine, Tintenfass
+  box(OG, 'black', 0.42, 0.18, 0.36, -22.9, Y1 + 0.81, -15.2); box(OG, 'black', 0.36, 0.1, 0.1, -22.9, Y1 + 0.99, -15.32); for (let k = 0; k < 12; k++) A(OG, 'white', new T.CylinderGeometry(0.012, 0.012, 0.02, 6), -23.06 + (k % 4) * 0.1, Y1 + 1.0 + Math.floor(k / 4) * 0.015, -15.0 - Math.floor(k / 4) * 0.045);
+  A(OG, 'glassW', new T.CylinderGeometry(0.04, 0.05, 0.06, 8), -24.6, Y1 + 0.84, -15.5); A(OG, 'gold', new T.CylinderGeometry(0.008, 0.008, 0.2, 5).rotateZ(0.5), -24.56, Y1 + 0.95, -15.5);
+  // Schlafzimmer: Parfümflakons auf dem Frisiertisch, Pantoffeln
+  for (let k = 0; k < 4; k++) { A(OG, k % 2 ? 'glassW' : 'gold', new T.CylinderGeometry(0.03, 0.04, 0.12 + (k % 3) * 0.03, 8), -53.0 + k * 0.3, Y1 + 1.06, 4.4); A(OG, 'gold', new T.SphereGeometry(0.02, 6, 5), -53.0 + k * 0.3, Y1 + 1.15 + (k % 3) * 0.03, 4.4); }
+  for (const dx of [-0.12, 0.12]) A(OG, 'velvet', new T.BoxGeometry(0.1, 0.05, 0.26), -40.6 + dx, Y1 + 0.025, -4.0);
+  // lose Gegenstände (physics.SPAWNS): erst wenn der Spieler oben an der Villa ist; up = Tischhöhe + Spielraum (fällt auf den Kollisionsquader)
+  const LW = (list) => list.map(([t, lx, lz, yaw = 0, up]) => { const [x, z] = W(lx, lz); return up != null ? [t, x, z, yaw, up] : [t, x, z, yaw]; });
+  const LE = LW([
+    ['suitcase', 3.2, -19.8, 0.3], ['suitcase', 3.9, -19.3, 1.9], ['hatbox', 2.6, -19.0, 0],                                   // Halle: angekommenes Gepäck
+    ['book', -22.2, -12.3, 0.4, 0.75], ['cushionC', -20.4, -20.4, 0.3], ['decanter', -28.7, -17.2, 0, 1.1], ['tumbler', -28.3, -16.9, 0, 1.1], ['tumbler', -28.9, -16.8, 0, 1.1], ['candlestick', -27.9, -17.3, 0, 1.1],   // Salon
+    ['cigarbox', -17.2, -5.1, 0.3, 1.0], ['ashtray', -16.8, -4.8, 0, 1.0],
+    ['whisky', 19, -17.6, 0.2, 1.5], ['tumbler', 19.5, -17.5, 0, 1.5], ['tumbler', 20.1, -17.7, 0, 1.5], ['shaker', 24, -17.6, 0, 1.5], ['ashtray', 22.5, -17.5, 0, 1.5],   // Bar
+    ['cigarbox', 17.4, -8.3, 0.4, 0.85], ['tumbler', 17.8, -8.7, 0, 0.85], ['record', 27.3, -14, 0.3, 1.4], ['clock', 27.8, -14.05, 0, 1.4],
+    ['candlestick', -42.2, -8.2, 0, 1.0], ['candlestick', -42.2, -4.2, 0, 1.0], ['candlestick', -42.2, 0.2, 0, 1.0], ['candlestick', -42.2, 3.8, 0, 1.0], ['decanter', -42.5, -6.9, 0, 1.0], ['decanter', -41.9, 2.4, 0, 1.0],   // Tafel
+    ['apple', -42.1, -6.3, 0, 1.0], ['orange', -42.35, -6.05, 0, 1.0], ['apple', -42.0, -2.35, 0, 1.0], ['orange', -42.4, -2.0, 0, 1.0], ['orange', -42.1, 1.9, 0, 1.0], ['apple', -42.35, 1.65, 0, 1.0],
+    ['apple', -44, -21.7, 0, 1.2], ['apple', -44.3, -22.0, 0, 1.2], ['orange', -43.7, -22.0, 0, 1.2], ['book', -47, -21.8, 0.2, 1.2],   // Küche
+  ]);
+  const LO = LW([
+    ['telephone', -24.4, -15.3, 0.3, 1.1], ['book', -22.9, -14.6, -0.2, 1.1], ['paper', -23.5, -15.0, 0.1, 1.1], ['frame', -24.5, -14.6, -0.3, 1.1],   // Schreibtisch
+    ['book', -22.35, -6.15, 0.3, 0.85], ['book', -22.7, -5.85, 1.2, 0.85], ['book', -26.3, -4.2, 0.5], ['book', -25.8, -4.4, 1.1],   // Bibliothek
+    ['frame', -40.2, -6.25, 0.4, 0.85], ['book', -44.2, -6.3, -0.3, 0.85], ['tumbler', -32.3, -1.3, 0, 0.85], ['frame', -51.7, 4.4, 0.3, 1.25],   // Schlafzimmer
+  ]);
+  { const [sx, sz] = W(0, -8); SPAWNS.push({ x: sx, z: sz, y0: by - 30, items: LE, y: 2.2, floor: by }, { x: sx, z: sz, y0: by - 30, items: LO, y: 2.2, floor: by + Y1 }); }
+
+  const WUV = { marble: 4.2, parq: 4.0, plaster: 2.4, silk: 2.4, panel: 2.0, tile: 2.2, bluewall: 4.2, greenwall: 4.2, hedge: 1.6, brick: 2.0, ceil: 3.6, white: 2.2, black: 2.0, stoneF: 2.5 };
   const cs = VR.cs, sn = VR.sn;
   for (const key in B) {
     const [zone, mk] = key.split('|');
