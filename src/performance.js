@@ -29,6 +29,7 @@ import { PM, updatePlayerModel, thirdPersonCamera } from './player-model.js';
 import { ATMO, updateAtmosphere } from './atmosphere.js';
 import { updateLoose, updateSpawns } from './physics.js';
 import { updatePowers, powersCamera } from './powers.js';
+import { updateAwe } from './awe.js';
 
 /* =====================================================================
    LEISTUNG: Lichter-Pool, Sichtweiten für Details, adaptive Auflösung
@@ -219,6 +220,7 @@ export function frame(now) {
   updateInteract();
   updateAudio(dt);
   updatePedestrians(dt, t);
+  updateAwe(dt);   // V52
   updateIndustry(t);
   updateShips(t);
   updateVenues(dt);

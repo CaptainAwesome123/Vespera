@@ -19,6 +19,7 @@ export function startLab(params) {
   if (params.get('lab') === 'strassen') { import('./lab-strassen.js').then(L => L.startRoadsLab(params)); return; }   // V42: Straßen-Labor
   if (params.get('lab') === 'arbeiter') { import('./lab-arbeiter.js').then(L => L.startWorkersLab(params)); return; }   // V46: Arbeiterviertel und Brass Lantern
   if (params.get('lab') === 'belmont') { import('./lab-belmont.js').then(L => L.startBelmontLab(params)); return; }   // V51: Lobby und Ballsaal
+  if (params.get('lab') === 'kraft') { import('./lab-kraft.js').then(L => L.startKraftLab(params)); return; }   // V52: Telekinese-Möbel und staunende Leute
   if (params.get('lab') === 'landschaft') { import('./lab-landschaft.js').then(L => L.startLandscapeLab(params)); return; }   // V44: Landschafts-Labor
   buildEnv(); getMats();
   scene.fog.density = 0.0002;

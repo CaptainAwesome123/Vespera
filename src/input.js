@@ -27,14 +27,14 @@ document.addEventListener('mousemove', e => {
 });
 canvas.addEventListener('mousedown', e => {
   if (!playing) return;
-  // V33: rechte Maustaste halten = Telekinese, Klick schleudert das Gehaltene
-  if (e.button === 2) { if (!paused && (locked || isTouch)) tkGrab(); return; }
+  // V52: rechte Maustaste = Telekinese an/aus (packen, noch einmal: loslassen), Linksklick schleudert, Mausrad näher/weiter
+  if (e.button === 2) { if (!paused && (locked || isTouch)) { if (POWERS.tk) tkRelease(false); else tkGrab(); } return; }
   if (locked && POWERS.tk && !paused) { tkRelease(true); return; }
   if (locked && LOOSE.held && !paused) { drop(true); return; }   // V26: Getragenes werfen
   if (!locked && !isTouch) tryLock();
   dragging = true;
 });
-window.addEventListener('mouseup', e => { dragging = false; if (e.button === 2 && POWERS.tk && POWERS.tk.mouse !== false) tkRelease(false); });
+window.addEventListener('mouseup', () => { dragging = false; });
 canvas.addEventListener('contextmenu', e => e.preventDefault());
 export function tryLock() { try { const r = canvas.requestPointerLock(); if (r && r.catch) r.catch(() => {}); } catch {} }
 document.addEventListener('pointerlockchange', () => {
@@ -53,7 +53,7 @@ window.addEventListener('keydown', e => {
   if (paused) return;
   if (e.code === 'KeyF') toggleFlight();   // V33: Alexander fliegt
   if (e.code === 'Space' && !e.repeat && !player.fly && !player.onGround && !DRIVE.on) startFlight();   // im Sprung noch einmal: abheben
-  if (e.code === 'KeyT') { tkToggle(); if (POWERS.tk) POWERS.tk.mouse = false; }   // Telekinese
+  if (e.code === 'KeyT') tkToggle();   // Telekinese (auch rechte Maustaste)
   if (e.code === 'KeyM') toggleMusic();
   if (e.code === 'KeyE' && activeUse) activeUse.act();
   if (e.code === 'KeyB') { shared.bloomOn = !shared.bloomOn && !!composer; toast(shared.bloomOn ? 'Leuchteffekt an' : 'Leuchteffekt aus'); }
@@ -127,7 +127,7 @@ canvas.addEventListener('touchend', endTouch); canvas.addEventListener('touchcan
 $('tWx').addEventListener('click', cycleWeather);
 $('tUse').addEventListener('click', () => { if (activeUse) activeUse.act(); });
 $('tThrow').addEventListener('click', () => { if (POWERS.tk) tkRelease(true); else drop(true); });
-$('tTk').addEventListener('click', () => { tkToggle(); if (POWERS.tk) POWERS.tk.mouse = false; });
+$('tTk').addEventListener('click', () => tkToggle());
 $('tView').addEventListener('click', () => toast(toggleView() === 'third' ? 'Ansicht von hinten' : 'Ich-Ansicht'));
 window.addEventListener('wheel', e => { if (!playing) return; if (POWERS.tk) tkDistance(-e.deltaY); else if (PM.view === 'third') zoomView(e.deltaY); }, { passive: true });
 $('tFly').addEventListener('click', toggleFlight);

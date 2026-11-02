@@ -13,8 +13,15 @@
    In der Ansicht von hinten trägt die Figur es vor sich (große Dinge mit
    beiden Händen, kleine in der rechten Hand).
    ===================================================================== */
-import { T, scene, camera, MOBILE } from './core.js';
-import { nearBoxes, paintMat, mergeColored } from './people-skeleton.js';
+import { T, scene, camera, MOBILE, mergeGeos } from './core.js';
+import { nearBoxes, paintMat, mergeColored, removeColliders, addCollider } from './people-skeleton.js';
+import { MOV, FURN } from './entrances.js';
+import { STREET } from './serpentine.js';
+import { props } from './props.js';
+import { DOORS } from './entrances.js';
+import { WORK } from './workers.js';
+import { interiorCrowd } from './belmont.js';
+import { mulberry32 } from './core.js';
 import { groundAt, BODIES } from './driving.js';
 import { DRIVE } from './eating.js';
 import { VILLA } from './harbour.js';
@@ -36,7 +43,7 @@ import { DINE } from './venues.js';
 import { $ } from './core.js';
 
 export const LOOSE = { bodies: [], batches: new Map(), held: null, tk: null, tkTarget: null, aim: null, rot: 0, spawned: new Set(), mat: null, goodsIdx: null, stats: { awake: 0, bodies: 0, ms: 0 } };
-const G = 9.81, SUB = MOBILE ? 5 : 8, MAX_BODIES = MOBILE ? 48 : 96, REACH = 2.6;
+const G = 9.81, SUB = MOBILE ? 5 : 8, MAX_BODIES = MOBILE ? 56 : 128, REACH = 2.6;   // V52: mehr Platz (Möbel, Straßenmöbel, neue Gruppen); ferne Gruppen räumt cullBodies wieder ab
 const _v = new T.Vector3(), _v2 = new T.Vector3(), _v3 = new T.Vector3(), _q = new T.Quaternion(), _q2 = new T.Quaternion(), _m = new T.Matrix4(), _s = new T.Vector3(), _up = new T.Vector3(0, 1, 0);
 
 /* ---------- Formen: Hüllpunkte und Trägheit ---------- */
@@ -55,15 +62,17 @@ function makeBody(o) {
   const B = { name: o.name, key: o.key, kind: o.kind, he: new T.Vector3(hx, hy, hz), r: Math.hypot(hx, hy, hz), pts, m, invM: 1 / m, Ii: new T.Vector3(1 / I.x, 1 / I.y, 1 / I.z),
     mu: o.mu ?? st.mu, e: o.e ?? st.e, snd: st.snd, brittle: st.brittle || 0, floats: st.rho < 950, small: o.small ?? Math.max(a, b, c) < 0.45, sc: o.sc || 1,
     x: new T.Vector3(...o.p), q: new T.Quaternion().setFromAxisAngle(_up, o.yaw || 0), v: new T.Vector3(), w: new T.Vector3(), xp: new T.Vector3(), qp: new T.Quaternion(), v0: new T.Vector3(), w0: new T.Vector3(),
-    awake: true, still: 0, gpts: new Float32Array(pts.length).fill(-1e9), boxes: [], hitT: 0, src: o.src || null, held: false };
-  LOOSE.bodies.push(B); addToBatch(B);
+    awake: true, still: 0, gpts: new Float32Array(pts.length).fill(-1e9), boxes: [], hitT: 0, src: o.src || null, held: false, col: o.col || null, mesh: o.mesh || null, furn: o.furn || null };
+  LOOSE.bodies.push(B);
+  // V52: Möbel bringen ein eigenes Netz mit den Materialien des Raums mit; alles andere wird je Form gesammelt gezeichnet
+  if (B.mesh) { B.mesh.frustumCulled = false; B.mesh.castShadow = true; scene.add(B.mesh); } else addToBatch(B);
   return B;
 }
 
 /* ---------- Darstellung: je Form ein InstancedMesh, jeder Körper eine Instanz ---------- */
 function addToBatch(B) {
   let bt = LOOSE.batches.get(B.key);
-  if (!bt) { bt = { key: B.key, geo: GEOS[B.key] ? GEOS[B.key]() : null, mat: B.key.startsWith('goods:') ? goodsMaterial() : propMat(), list: [], im: null, cap: 0 }; LOOSE.batches.set(B.key, bt); }
+  if (!bt) { const gf = GEOS[B.key]; bt = { key: B.key, geo: gf ? gf() : null, mat: gf && gf.mat ? gf.mat : B.key.startsWith('goods:') ? goodsMaterial() : propMat(), list: [], im: null, cap: 0 }; LOOSE.batches.set(B.key, bt); }   // V52: gf.mat = eigener Stoff (Straßenmöbel)
   bt.list.push(B); B.batch = bt;
   if (bt.list.length > bt.cap) {
     if (bt.im) { scene.remove(bt.im); bt.im.dispose(); }
@@ -74,17 +83,21 @@ function addToBatch(B) {
   }
 }
 function removeBody(B) {
-  const bt = B.batch; bt.list.splice(bt.list.indexOf(B), 1); LOOSE.bodies.splice(LOOSE.bodies.indexOf(B), 1);
+  const bt = B.batch; if (bt) bt.list.splice(bt.list.indexOf(B), 1); LOOSE.bodies.splice(LOOSE.bodies.indexOf(B), 1);
+  if (B.mesh) { scene.remove(B.mesh); B.mesh.geometry.dispose(); B.mesh = null; }
   if (LOOSE.held === B) LOOSE.held = null;
   if (LOOSE.tk === B) LOOSE.tk = null;
 }
 function drawBatches() {
   for (const bt of LOOSE.batches.values()) {
     const im = bt.im; if (!im) continue;
-    for (let i = 0; i < bt.list.length; i++) { const B = bt.list[i]; im.setMatrixAt(i, _m.compose(B.x, B.q, _s.setScalar(B.sc))); }
-    im.count = bt.list.length; im.instanceMatrix.needsUpdate = true;
+    let colDirty = false;
+    for (let i = 0; i < bt.list.length; i++) { const B = bt.list[i]; im.setMatrixAt(i, _m.compose(B.x, B.q, _s.setScalar(B.sc))); if (B.col && B.colI !== i) { im.setColorAt(i, _cc.setRGB(B.col[0], B.col[1], B.col[2])); B.colI = i; colDirty = true; } }
+    im.count = bt.list.length; im.instanceMatrix.needsUpdate = true; if (colDirty && im.instanceColor) im.instanceColor.needsUpdate = true;
   }
+  for (const B of LOOSE.bodies) if (B.mesh) { B.mesh.position.copy(B.x); B.mesh.quaternion.copy(B.q); }
 }
+const _cc = new T.Color();
 function propMat() { return LOOSE.mat || (LOOSE.mat = paintMat({ color: 0xffffff, metalness: 0.12, roughness: 0.55, envI: 0.45, emissive: 0x080604 })); }
 
 /* ---------- Gegenstände der 20er Jahre (eigene Formen, Mitte = Schwerpunkt) ---------- */
@@ -187,6 +200,25 @@ export const GEOS = {
   // Apfel und Orange
   apple: () => mergeColored([C(new T.SphereGeometry(0.04, 12, 9).scale(1, 0.92, 1), [0.65, 0.12, 0.08]), C(cyl(0.003, 0.003, 0.02, 0.045, 5), [0.3, 0.2, 0.1])]),
   orange: () => mergeColored([C(new T.SphereGeometry(0.04, 12, 9), [0.9, 0.45, 0.08])]),
+  /* ---- V52: Dinge der Straßen, des Hafens und des Arbeiterviertels ---- */
+  // Holzfass mit Eisenreifen
+  barrel: () => { const P = [C(lathe([[0, -0.42], [0.27, -0.42], [0.31, -0.2], [0.32, 0], [0.31, 0.2], [0.27, 0.42], [0, 0.42]], 18), [0.4, 0.27, 0.15])]; for (const y of [-0.3, -0.1, 0.1, 0.3]) P.push(C(new T.TorusGeometry(0.3 + 0.02 * (1 - Math.abs(y) * 2), 0.012, 5, 22).rotateX(Math.PI / 2).translate(0, y, 0), [0.1, 0.1, 0.11])); return mergeColored(P); },
+  // Mülltonne aus Blech mit Deckel und Griffen
+  dustbin: () => mergeColored([C(cyl(0.26, 0.23, 0.78, 0, 16), [0.4, 0.42, 0.43]), C(cyl(0.28, 0.27, 0.06, 0.41, 16), [0.35, 0.36, 0.37]), C(new T.SphereGeometry(0.27, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2).scale(1, 0.35, 1).translate(0, 0.44, 0), [0.38, 0.4, 0.41]), C(new T.TorusGeometry(0.05, 0.012, 5, 10).rotateX(Math.PI / 2).translate(0, 0.52, 0), [0.3, 0.3, 0.3]), C(box(0.03, 0.04, 0.1, 0.28, 0.1, 0), [0.3, 0.3, 0.3]), C(box(0.03, 0.04, 0.1, -0.28, 0.1, 0), [0.3, 0.3, 0.3])]),
+  // Kohlensack aus Jute, zugebunden
+  coalsack: () => mergeColored([C(new T.SphereGeometry(0.26, 12, 9).scale(0.85, 1.15, 0.75), [0.32, 0.27, 0.2]), C(cyl(0.07, 0.11, 0.1, 0.3, 10), [0.3, 0.25, 0.18]), C(new T.TorusGeometry(0.09, 0.012, 5, 10).rotateX(Math.PI / 2).translate(0, 0.27, 0), [0.5, 0.42, 0.3])]),
+  // Blecheimer mit Henkel
+  bucket: () => mergeColored([C(lathe([[0, -0.14], [0.11, -0.14], [0.14, 0.14], [0.145, 0.15], [0.125, 0.15], [0.1, -0.12], [0, -0.12]], 14), [0.45, 0.47, 0.5]), C(new T.TorusGeometry(0.14, 0.008, 5, 16, Math.PI).translate(0, 0.14, 0), [0.25, 0.25, 0.27])]),
+  // Handlaterne (Sturmlaterne), Glas warm leuchtend
+  lantern: () => mergeColored([C(cyl(0.07, 0.08, 0.05, -0.13, 10), [0.2, 0.2, 0.22]), C(cyl(0.055, 0.055, 0.14, -0.03, 10), [1.3, 0.95, 0.55]), C(cyl(0.08, 0.05, 0.05, 0.07, 10), [0.2, 0.2, 0.22]), C(cyl(0.012, 0.012, 0.06, 0.12, 6), [0.2, 0.2, 0.22]), C(new T.TorusGeometry(0.06, 0.006, 5, 12, Math.PI).translate(0, 0.14, 0), [0.25, 0.25, 0.27]), C(cyl(0.006, 0.006, 0.26, -0.05, 4).translate(0.058, 0, 0), [0.2, 0.2, 0.22]), C(cyl(0.006, 0.006, 0.26, -0.05, 4).translate(-0.058, 0, 0), [0.2, 0.2, 0.22])]),
+  // Schrankkoffer, Leder mit Holzleisten und Messingbeschlägen
+  trunk: () => { const P = [C(box(0.9, 0.5, 0.5), [0.3, 0.17, 0.09])]; for (const x of [-0.3, 0, 0.3]) P.push(C(box(0.05, 0.52, 0.52, x), [0.55, 0.42, 0.25])); for (const x of [-0.43, 0.43]) for (const y of [-0.23, 0.23]) P.push(C(box(0.05, 0.05, 0.52, x, y), BRASS)); P.push(C(box(0.92, 0.03, 0.52, 0, 0.08), [0.55, 0.42, 0.25]), C(box(0.08, 0.1, 0.02, 0, 0, 0.255), BRASS), C(new T.TorusGeometry(0.06, 0.012, 5, 10, Math.PI).rotateY(Math.PI / 2).translate(0.46, 0, 0), [0.2, 0.12, 0.06]), C(new T.TorusGeometry(0.06, 0.012, 5, 10, Math.PI).rotateY(Math.PI / 2).translate(-0.46, 0, 0), [0.2, 0.12, 0.06])); return mergeColored(P); },
+  // Milchkanne aus Blech
+  milkcan: () => mergeColored([C(lathe([[0, -0.3], [0.17, -0.3], [0.18, 0.05], [0.14, 0.2], [0.09, 0.24], [0.09, 0.3], [0.1, 0.3], [0, 0.3]], 16), [0.6, 0.62, 0.64]), C(new T.TorusGeometry(0.05, 0.01, 5, 10, Math.PI).rotateZ(-Math.PI / 2).translate(0.19, 0.12, 0), [0.4, 0.4, 0.42]), C(new T.TorusGeometry(0.05, 0.01, 5, 10, Math.PI).rotateZ(Math.PI / 2).translate(-0.19, 0.12, 0), [0.4, 0.4, 0.42])]),
+  // Hinweisschild auf Ständer ("Frisch gestrichen" braucht keine Schrift: Emailleschild mit Rand)
+  signboard: () => mergeColored([C(box(0.5, 0.36, 0.02, 0, 0.42), [0.08, 0.3, 0.32]), C(box(0.44, 0.3, 0.004, 0, 0.42, 0.012), [0.9, 0.86, 0.75]), C(box(0.3, 0.03, 0.004, 0, 0.45, 0.015), [0.1, 0.1, 0.12]), C(box(0.2, 0.02, 0.004, 0, 0.39, 0.015), [0.1, 0.1, 0.12]), C(cyl(0.015, 0.015, 0.5, 0.0, 6), [0.15, 0.15, 0.16]), C(cyl(0.14, 0.16, 0.04, -0.23, 12), [0.15, 0.15, 0.16])]),
+  // Weinkiste mit Flaschen
+  winecrate: () => { const P = [C(box(0.5, 0.3, 0.34), [0.6, 0.47, 0.3]), C(box(0.46, 0.02, 0.3, 0, 0.14), [0.4, 0.3, 0.18])]; for (const x of [-0.17, -0.06, 0.06, 0.17]) for (const z of [-0.09, 0.09]) P.push(C(cyl(0.035, 0.035, 0.16, 0.2, 8).translate(x, 0, z), [0.05, 0.15, 0.08]), C(cyl(0.013, 0.013, 0.08, 0.3, 6).translate(x, 0, z), [0.05, 0.15, 0.08])); return mergeColored(P); },
 };
 // Maße, Masse, Stoff der eigenen Formen (Halbmaße wie die Hülle)
 const KINDS = {
@@ -215,10 +247,192 @@ const KINDS = {
   whisky: { name: 'Whiskyflasche', kind: 'cyl', he: [0.043, 0.14, 0.043], m: 1.2, stuff: 'glass', small: true },
   apple: { name: 'Apfel', kind: 'ball', he: [0.04, 0.04, 0.04], m: 0.18, stuff: 'food', small: true },
   orange: { name: 'Orange', kind: 'ball', he: [0.04, 0.04, 0.04], m: 0.2, stuff: 'food', small: true },
+  // V52: Straßen, Hafen, Arbeiterviertel
+  barrel: { name: 'Holzfass', kind: 'cyl', he: [0.32, 0.42, 0.32], m: 38, stuff: 'wood', small: false },
+  dustbin: { name: 'Mülltonne', kind: 'cyl', he: [0.27, 0.46, 0.27], m: 13, stuff: 'metal', small: false },
+  coalsack: { name: 'Kohlensack', kind: 'box', he: [0.22, 0.3, 0.2], m: 24, stuff: 'leather', small: false },
+  bucket: { name: 'Eimer', kind: 'cyl', he: [0.145, 0.15, 0.145], m: 2.2, stuff: 'metal', small: true },
+  lantern: { name: 'Sturmlaterne', kind: 'cyl', he: [0.08, 0.16, 0.08], m: 1.1, stuff: 'metal', small: true },
+  trunk: { name: 'Schrankkoffer', kind: 'box', he: [0.46, 0.26, 0.26], m: 28, stuff: 'leather', small: false },
+  milkcan: { name: 'Milchkanne', kind: 'cyl', he: [0.18, 0.3, 0.18], m: 9, stuff: 'metal', small: false },
+  signboard: { name: 'Hinweisschild', kind: 'box', he: [0.25, 0.3, 0.16], m: 4, stuff: 'metal', small: false },
+  winecrate: { name: 'Weinkiste', kind: 'box', he: [0.25, 0.22, 0.17], m: 11, stuff: 'wood', small: false },
 };
 export function spawnProp(type, x, y, z, yaw = 0) {
   const k = KINDS[type]; if (!k || LOOSE.bodies.length >= MAX_BODIES) return null;
   return makeBody({ ...k, key: type, p: [x, y + k.he[1] + 0.01, z], yaw });
+}
+
+/* ---------- V52: Möbel der Räume als Körper (Telekinese auf Sofas, Sessel, Stühle, Tische, Lampen) ----------
+   entrances.js (placeFurn) hat jedes Stück ins Verzeichnis MOV.list geschrieben, core.js (mergeGeos) die Eckenbereiche
+   im festen Netz. Hier: Weltlage, Hüllmaße, Gewicht; das Stück verschwindet aus dem festen Netz (Ecken fallen auf einen
+   Punkt zusammen, Kollisionsquader weg) und bekommt ein eigenes Netz mit denselben Materialien. Weit entfernt und unbewegt
+   kommt es zurück (furnRestore). */
+const FURN_INFO = {
+  sofa: { name: 'Sofa', m: a => 70 + 14 * (a[0] || 3.4), stuff: 'leather', r: a => (a[0] || 3.4) / 2 + 0.3, cy: 0.5 },
+  clubChair: { name: 'Sessel', m: () => 42, stuff: 'leather', r: () => 0.7, cy: 0.5 },
+  diningChair: { name: 'Stuhl', m: () => 9, stuff: 'wood', r: () => 0.5, cy: 0.55 },
+  bistroChair: { name: 'Bistrostuhl', m: () => 6, stuff: 'wood', r: () => 0.45, cy: 0.5 },
+  roundTable: { name: 'Tisch', m: a => 16 + (a[2] ? 4 : 0), stuff: 'wood', r: a => (a[0] || 0.45) + 0.2, cy: 0.45 },
+  barStool: { name: 'Barhocker', m: () => 8, stuff: 'wood', r: () => 0.4, cy: 0.45 },
+  floorLamp: { name: 'Stehlampe', m: () => 12, stuff: 'metal', r: () => 0.5, cy: 0.9 },
+  tableLamp: { name: 'Tischlampe', m: () => 2.5, stuff: 'metal', r: () => 0.3, cy: 0.25 },
+  vasePlant: { name: 'Pflanzkübel', m: () => 9, stuff: 'metal', r: () => 0.5, cy: 0.45 },
+};
+export function furnInfo(e) { const I = FURN_INFO[e.type]; return { name: I.name, m: I.m(e.args), r: I.r(e.args), cy: I.cy, stuff: I.stuff }; }
+// Weltlage eines Stücks (Villa: lokales System erst drehen)
+export function movWorld(e) {
+  if (e.w) return e.w;
+  const f = e.frame; if (!f) return (e.w = { x: e.x, y: e.y, z: e.z, yaw: e.a });
+  const cs = Math.cos(f.ry), sn = Math.sin(f.ry);
+  return (e.w = { x: f.x + e.x * cs + e.z * sn, y: f.y + e.y, z: f.z - e.x * sn + e.z * cs, yaw: e.a + f.ry });
+}
+// Material eines zusammengefassten Netzes (einmal gesucht, dann gemerkt)
+const MAT_OF = new Map();
+function matOfGeo(geo) {
+  if (MAT_OF.has(geo)) return MAT_OF.get(geo);
+  let mat = null; scene.traverse(o => { if (!mat && o.isMesh && o.geometry === geo) mat = o.material; });
+  MAT_OF.set(geo, mat); return mat;
+}
+// Sitzt jemand darauf oder steht jemand mitten darin? (Ballsaal, Lobby, Villa)
+function someoneOn(x0, z0, x1, z1, y) {
+  for (const pd of peds) { if (!pd.sit || !pd.a || !pd.a.on) continue; const e = pd.a.m.elements; if (e[12] > x0 - 0.3 && e[12] < x1 + 0.3 && e[14] > z0 - 0.3 && e[14] < z1 + 0.3 && Math.abs(e[13] - y) < 1.6) return true; }
+  // Gäste der Belmont-Lobby und des Ballsaals (eigene Figurenliste; sitzende Handlungen 7, 10, 11, 14, 19)
+  if (interiorCrowd) for (const a of interiorCrowd.list) { const v = Math.floor(a.gait[1]); if (!(v === 7 || v === 10 || v === 11 || v === 14 || v === 19)) continue; if (a.x > x0 - 0.3 && a.x < x1 + 0.3 && a.z > z0 - 0.3 && a.z < z1 + 0.3 && Math.abs(a.y - y) < 1.6) return true; }
+  return false;
+}
+// Ecken eines Stücks im festen Netz auf einen Punkt fallen lassen (und merken, um sie zurückzuholen)
+function furnHide(e) {
+  e.saved = [];
+  const per = new Map();
+  for (const r of e.ranges) {
+    const at = r.geo.attributes.position, a = at.array, o = r.o * 3, n = r.c * 3;
+    e.saved.push({ r, pos: a.slice(o, o + n) });
+    const x = a[o], y = a[o + 1], z = a[o + 2];
+    for (let i = 0; i < n; i += 3) { a[o + i] = x; a[o + i + 1] = y; a[o + i + 2] = z; }
+    const u = per.get(at) || { o: o, e: o + n }; u.o = Math.min(u.o, o); u.e = Math.max(u.e, o + n); per.set(at, u);
+  }
+  for (const [at, u] of per) { at.updateRange.offset = u.o; at.updateRange.count = u.e - u.o; at.needsUpdate = true; }
+}
+function furnShow(e) {
+  const per = new Map();
+  for (const { r, pos } of e.saved || []) { const at = r.geo.attributes.position; at.array.set(pos, r.o * 3); const u = per.get(at) || { o: r.o * 3, e: r.o * 3 + pos.length }; u.o = Math.min(u.o, r.o * 3); u.e = Math.max(u.e, r.o * 3 + pos.length); per.set(at, u); }
+  for (const [at, u] of per) { at.updateRange.offset = u.o; at.updateRange.count = u.e - u.o; at.needsUpdate = true; }
+  e.saved = null;
+}
+export function furnBody(e) {
+  if (!e || e.taken || LOOSE.bodies.length >= MAX_BODIES) return null;
+  const I = furnInfo(e), W = movWorld(e), f = e.frame;
+  const parts = FURN[e.type](...e.args).map(([g, role]) => [g.rotateY(e.a), role]);
+  // lokaler Grundriss (für die Villa-Quader), dann die Weltlage
+  const lb = new T.Box3(); for (const [g] of parts) { g.computeBoundingBox(); lb.union(g.boundingBox); }
+  if (f) for (const [g] of parts) g.rotateY(f.ry);
+  const bb = new T.Box3(); for (const [g] of parts) { g.computeBoundingBox(); bb.union(g.boundingBox); }
+  const c = bb.getCenter(new T.Vector3()), he = bb.getSize(new T.Vector3()).multiplyScalar(0.5);
+  const cx = W.x + c.x, cy = W.y + c.y, cz = W.z + c.z;
+  if (someoneOn(cx - he.x, cz - he.z, cx + he.x, cz + he.z, W.y)) return 'sit';
+  // Materialgruppen wie im Raum
+  const byMat = new Map();
+  for (const [g, role] of parts) {
+    const key = e.map[role] || e.map.up, r = e.ranges.find(q => q.key === key), mat = (r && matOfGeo(r.geo)) || propMat();
+    g.translate(-c.x, -c.y, -c.z); if (!g.attributes.uv) g.setAttribute('uv', new T.BufferAttribute(new Float32Array(g.attributes.position.count * 2), 2));
+    (byMat.get(mat) || byMat.set(mat, []).get(mat)).push(g);
+  }
+  const mats = [], gg = []; for (const [mat, list] of byMat) { mats.push(mat); gg.push(mergeGeos(list)); }
+  const geo = mergeGeos(gg); let off = 0; gg.forEach((g, i) => { geo.addGroup(off, g.index.count, i); off += g.index.count; });
+  const mesh = new T.Mesh(geo, mats);
+  furnHide(e);
+  e.taken = true;
+  e.removed = { world: [], villa: [] };
+  // Kollisionsquader des Stücks
+  removeColliders(cx - he.x, cz - he.z, cx + he.x, cz + he.z, W.y, W.y + he.y * 2, e.removed.world);
+  if (f && VILLA.boxes) {
+    const lx0 = e.x + lb.min.x, lx1 = e.x + lb.max.x, lz0 = e.z + lb.min.z, lz1 = e.z + lb.max.z;
+    for (let i = VILLA.boxes.length - 1; i >= 0; i--) {
+      const b = VILLA.boxes[i];
+      if (b.x1 - b.x0 > 6 || b.z1 - b.z0 > 6 || b.y1 - b.y0 > 2.6 || b.x0 < lx0 - 0.45 || b.x1 > lx1 + 0.45 || b.z0 < lz0 - 0.45 || b.z1 > lz1 + 0.45 || b.y0 < W.y - 0.4 || b.y0 > W.y + he.y * 2) continue;
+      e.removed.villa.push(VILLA.boxes.splice(i, 1)[0]);
+    }
+  }
+  const B = makeBody({ name: I.name, key: 'furn:' + e.id, kind: 'box', he: [he.x, he.y, he.z], m: I.m, stuff: I.stuff, small: false, p: [cx, cy, cz], yaw: 0, mesh, furn: e });
+  B.x0 = B.x.clone();
+  return B;
+}
+// weit weg und unbewegt: das Stück kehrt an seinen Platz zurück
+function furnRestore(B) {
+  const e = B.furn; removeBody(B);
+  furnShow(e); e.taken = false;
+  for (const b of e.removed.world) addColliderBack(b);
+  if (VILLA.boxes) for (const b of e.removed.villa) VILLA.boxes.push(b);
+  e.removed = null;
+}
+function addColliderBack(b) { const q = addCollider(b.x0, b.y0, b.z0, b.x1, b.y1, b.z1); return q; }
+
+/* ---------- V52: Straßenmöbel (Bänke, Papierkörbe, Hydranten, Briefkästen, Pflanzkübel) als Körper ----------
+   Sie stehen als Instanzen in der Chunk-Schicht 'furniture' (props.js). Gepackt: Instanz auf Größe 0, p.taken, und ein
+   Körper aus derselben Form; Bank und Papierkorb sind gebackene Modelle, der Rest Formen aus serpentine.js. */
+const STREET_INFO = {
+  bench: { name: 'Parkbank', m: 55, stuff: 'wood', kind: 'box', he: [0.9, 0.45, 0.25], cy: 0.45 },
+  bin: { name: 'Papierkorb', m: 14, stuff: 'metal', kind: 'cyl', he: [0.24, 0.4, 0.24], cy: 0.4 },
+  hydrant: { name: 'Hydrant', m: 85, stuff: 'metal', kind: 'cyl', he: [0.16, 0.37, 0.16], cy: 0.37 },
+  mailbox: { name: 'Briefkasten', m: 60, stuff: 'metal', kind: 'box', he: [0.2, 0.7, 0.16], cy: 0.7 },
+  planter: { name: 'Blumenkübel', m: 160, stuff: 'metal', kind: 'box', he: [0.85, 0.45, 0.35], cy: 0.45 },
+};
+export const STREET_KINDS = Object.keys(STREET_INFO);
+export function streetBody(p, k) {
+  const I = STREET_INFO[k], F = STREET.furniture; if (!I || !F || p.taken || LOOSE.bodies.length >= MAX_BODIES) return null;
+  const key = 'street:' + k;
+  if (!GEOS[key]) {
+    const bk = props.baked && props.baked[k], src = bk ? bk.geo : F.TYPES[k]; if (!src) return null;
+    const bb = src.boundingBox || (src.computeBoundingBox(), src.boundingBox), cy = (bb.min.y + bb.max.y) / 2;
+    const g = src.clone().translate(0, -cy, 0);
+    GEOS[key] = () => g; GEOS[key].mat = bk ? (bk.material || F.mat) : F.mat; GEOS[key].cy = cy;
+    if (!bk) I.he = [Math.max(0.1, (bb.max.x - bb.min.x) / 2), (bb.max.y - bb.min.y) / 2, Math.max(0.1, (bb.max.z - bb.min.z) / 2)];
+  }
+  p.taken = true;
+  if (p._im && p._im.parent) { p._im.setMatrixAt(p._i, _m.makeScale(0, 0, 0)); p._im.instanceMatrix.needsUpdate = true; }
+  const e = p.m.elements, yaw = Math.atan2(e[8], e[10]), y = e[13];
+  removeColliders(p.x - I.he[0], p.z - I.he[2], p.x + I.he[0], p.z + I.he[2], y, y + I.he[1] * 2, []);
+  const B = makeBody({ name: I.name, key, kind: I.kind, he: I.he, m: I.m, stuff: I.stuff, small: false, p: [p.x, y + GEOS[key].cy, p.z], yaw, col: p.c, src: p });
+  B.street = p; B.x0 = B.x.clone();
+  return B;
+}
+// weit weg und unbewegt: die Instanz kommt zurück (Kollision der Bank bleibt weg, sie sperrt nur den Gehweg)
+function streetRestore(B) {
+  const p = B.street; removeBody(B); p.taken = false;
+  if (p._im && p._im.parent) { p._im.setMatrixAt(p._i, p.m); p._im.instanceMatrix.needsUpdate = true; }
+}
+// Nahes Straßenmöbel (für Telekinese und Aufheben): [p, art, Mittelpunkt]
+export function streetNear(x, z, r) {
+  const F = STREET.furniture, out = []; if (!F) return out;
+  for (const k of STREET_KINDS) for (const p of F.out[k]) if (!p.taken && (p.x - x) ** 2 + (p.z - z) ** 2 < r * r) out.push([p, k]);
+  return out;
+}
+// Nahe Möbel des Verzeichnisses
+export function movNear(x, z, r) {
+  const out = [];
+  for (const e of MOV.list) { if (e.taken) continue; const W = movWorld(e); if ((W.x - x) ** 2 + (W.z - z) ** 2 < r * r) out.push(e); }
+  return out;
+}
+// V52: Platz schaffen: ferne, schlafende Körper abräumen. Gruppen (SPAWNS) merken sich, wo ihre Dinge liegen blieben,
+// Möbel und Straßenmöbel kehren an ihren Platz zurück
+let cullT = 0;
+export function cullBodies(dt) {
+  if ((cullT -= dt) > 0 || LOOSE.bodies.length < MAX_BODIES * 0.6) return; cullT = 3;
+  const p = player.p;
+  for (const B of LOOSE.bodies.slice()) {
+    if (B.awake || B === LOOSE.held || B === LOOSE.tk || (B.x.x - p.x) ** 2 + (B.x.z - p.z) ** 2 < 320 * 320) continue;
+    if (B.furn) { if (B.x0 && B.x.distanceTo(B.x0) < 1.5) furnRestore(B); }
+    else if (B.street) { if (B.x0 && B.x.distanceTo(B.x0) < 1.5) streetRestore(B); }
+    else if (B.spawn) {
+      const S = B.spawn.S, it = B.spawn.it;
+      // bleibt liegen, wo es ist: beim Wiederkommen entsteht es dort (die Gruppe erst, wenn keines ihrer Dinge mehr da ist)
+      const e = B.q, yaw = Math.atan2(2 * (e.w * e.y + e.x * e.z), 1 - 2 * (e.y * e.y + e.z * e.z)), up = B.x.y - B.he.y * B.sc - (S.floor || 0);
+      it[1] = B.x.x; it[2] = B.x.z; it[3] = yaw; it[4] = up > 0.3 ? up : 0;
+      removeBody(B);
+      if (!LOOSE.bodies.some(b => b.spawn && b.spawn.S === S)) S.done = false;
+    }
+  }
 }
 
 /* ---------- Waren aus den Läden (Kenney Food Kit) als Körper ---------- */
@@ -404,6 +618,7 @@ export function updateLoose(dt) {
   if (paused || !LOOSE.bodies.length) { drawBatches(); return; }
   const t0 = performance.now();
   dt = Math.min(dt, 1 / 30);
+  cullBodies(dt);
   const cp = camera.position, H = LOOSE.held;
   const act = LOOSE.bodies.filter(B => { const far = (B.x.x - cp.x) ** 2 + (B.x.z - cp.z) ** 2 > 160 * 160; return !far && (B.awake || B === H || B === LOOSE.tk); });
   // Wecken: der Spieler, Wagen und Fußgänger in der Nähe schlafender Dinge
@@ -645,6 +860,21 @@ function aim() {
     if (B.x.distanceToSquared(_ro) > (REACH + B.r * B.sc) ** 2) continue;
     const t = rayOBB(B, _ro, _rd); if (t >= 0 && t < bt) { bt = t; best = { body: B }; }
   }
+  // V52: leichte Möbel (Stühle, Hocker, Lampen) und Papierkörbe lassen sich auch von Hand aufheben
+  for (const e of movNear(_ro.x, _ro.z, REACH + 1)) {
+    const I = furnInfo(e); if (I.m > 20) continue;
+    const W = movWorld(e); _v.set(W.x - _ro.x, W.y + I.cy - _ro.y, W.z - _ro.z);
+    const t = _v.dot(_rd); if (t < 0 || t > bt) continue;
+    if (_v.lengthSq() - t * t > I.r * I.r) continue;
+    bt = t; best = { furn: e, name: I.name };
+  }
+  for (const [p, k] of streetNear(_ro.x, _ro.z, REACH + 1)) {
+    if (k !== 'bin') continue;
+    _v.set(p.x - _ro.x, p.m.elements[13] + 0.4 - _ro.y, p.z - _ro.z);
+    const t = _v.dot(_rd); if (t < 0 || t > bt) continue;
+    if (_v.lengthSq() - t * t > 0.16) continue;
+    bt = t; best = { street: p, kind: k, name: 'Papierkorb' };
+  }
   for (const g of goodsNear(_ro.x, _ro.z, REACH)) {
     const r = Math.max(0.07, g.h * 0.5), cy = g.y + g.h * 0.45;
     _v.set(g.x - _ro.x, cy - _ro.y, g.z - _ro.z);
@@ -658,11 +888,33 @@ export function setupLoose() {
   // Zuerst prüfen: beim Tragen geht E an das Ablegen, nicht an Türen oder Sitze
   INTERACT.unshift({ test: () => !!LOOSE.held, label: 'Ablegen · Klick: werfen · R: drehen', act: () => drop(false) });
   INTERACT.push({
-    test: p => { if (LOOSE.held || p.y > 1500) return false; LOOSE.aim = aim(); if (!LOOSE.aim) return false; const a = LOOSE.aim; aimLabel.label = 'Aufheben: ' + (a.body ? a.body.name : GOODS_NAME[a.goods.m] || 'Ware'); return true; },
+    test: p => { if (LOOSE.held || p.y > 1500) return false; LOOSE.aim = aim(); if (!LOOSE.aim) return false; const a = LOOSE.aim; aimLabel.label = 'Aufheben: ' + (a.body ? a.body.name : a.name || GOODS_NAME[a.goods.m] || 'Ware'); return true; },
     get label() { return aimLabel.label; },
-    act: () => { const a = LOOSE.aim; if (!a) return; pickUp(a.body || takeGoods(a.goods)); },
+    act: () => { const a = LOOSE.aim; if (!a) return; if (a.furn) { const B = furnBody(a.furn); if (B === 'sit') { toast('Da sitzt jemand'); return; } pickUp(B); return; } if (a.street) { pickUp(streetBody(a.street, a.kind)); return; } pickUp(a.body || takeGoods(a.goods)); },
   });
   for (const V of VENUES) SPAWNS.push(...venueSpawns(V));
+  citySpawns();
+}
+// V52: Dinge, die in der ganzen Stadt herumstehen: vor Läden, bei den Cafés, an den Feuertonnen und auf dem Kneipenplatz
+function citySpawns() {
+  const rs = mulberry32(5252);
+  let n = 0;
+  for (const d of DOORS) {
+    if (Math.hypot(d.x, d.z) > 820 || rs() > 0.3 || n > 60) continue;
+    const tx = -d.nz, tz = d.nx, sd = rs() < 0.5 ? -1 : 1, x = d.x + d.nx * 1.3 + tx * sd * 1.7, z = d.z + d.nz * 1.3 + tz * sd * 1.7, yaw = Math.atan2(d.nx, d.nz) + (rs() - 0.5);
+    let items;
+    if (d.kind === 'shop') items = rs() < 0.5 ? [['winecrate', x, z, yaw], ['winecrate', x + tx * sd * 0.6, z + tz * sd * 0.6, yaw + 0.2], ['signboard', x - tx * sd * 0.8, z - tz * sd * 0.8, yaw]] : [['crate', x, z, yaw], ['papers', x + tx * sd * 0.7, z + tz * sd * 0.7, yaw + 1], ['dustbin', x + d.nx * 0.4 + tx * sd * 1.4, z + d.nz * 0.4 + tz * sd * 1.4, yaw]];
+    else if (d.kind === 'cafe' || d.kind === 'restaurant') items = [['signboard', x, z, yaw], ['milkcan', x + tx * sd * 0.6, z + tz * sd * 0.6, 0]];
+    else if (d.kind === 'bar' || d.kind === 'pub') items = [['barrel', x, z, 0], ['dustbin', x + tx * sd * 0.8, z + tz * sd * 0.8, 0], ['bucket', x + d.nx * 0.5, z + d.nz * 0.5, 0]];
+    else if (d.kind === 'workshop') items = [['barrel', x, z, 0], ['coalsack', x + tx * sd * 0.7, z + tz * sd * 0.7, 0], ['bucket', x + tx * sd * 1.2, z + tz * sd * 1.2, 0], ['lantern', x - tx * sd * 0.5, z - tz * sd * 0.5, 0]];
+    else if (d.kind === 'hotel') items = [['trunk', x, z, yaw], ['suitcase', x + tx * sd * 0.8, z + tz * sd * 0.8, yaw + 0.3], ['hatbox', x + tx * sd * 0.5, z + tz * sd * 0.5 + 0.3, 0]];
+    else continue;
+    SPAWNS.push({ x, z, items, y: 3 }); n++;
+  }
+  for (const b of WORK.braziers) SPAWNS.push({ x: b.x, z: b.z, items: [['coalsack', b.x + 1.5, b.z + 0.4, 0], ['coalsack', b.x + 1.9, b.z + 0.9, 0.7], ['bucket', b.x - 1.4, b.z + 0.8, 0], ['barrel', b.x + 0.5, b.z - 1.7, 0]], y: 3 });
+  const S = WORK.square;
+  if (S) { const P = S.pub, x = P.x - P.w / 2 - 1.6, z = P.z + P.d / 2 + 1.2;
+    SPAWNS.push({ x, z, items: [['barrel', x, z, 0], ['barrel', x + 0.75, z + 0.1, 0.4], ['barrel', x + 0.37, z + 0.05, 0.2, 0.86], ['coalsack', x + 1.8, z + 0.6, 0], ['coalsack', x + 2.2, z + 0.2, 0.5], ['bucket', x - 0.9, z + 0.5, 0], ['lantern', x - 0.6, z - 0.4, 0], ['milkcan', x + 2.9, z + 0.3, 0], ['milkcan', x + 3.3, z + 0.5, 0], ['dustbin', x - 1.8, z + 0.2, 0], ['trunk', P.x + P.w / 2 + 1.5, z, 0.2], ['crate', P.x + P.w / 2 + 2.4, z + 0.3, 0.1]], y: 3 }); }
 }
 const aimLabel = { label: 'Aufheben' };
 
@@ -672,7 +924,11 @@ export const SPAWNS = [
   // vor dem Belmont, gleich am Startpunkt: Gepäck eines ankommenden Gastes, Zeitungen, ein Palmentopf
   { x: -5, z: 116, items: [['suitcase', -5, 116, 0.3], ['suitcase', -4.3, 116.6, 1.8], ['hatbox', -5.6, 116.9, 0], ['papers', 5.5, 117, 0.6], ['papers', 5.9, 116.5, 2.1], ['crate', 6.8, 118.2, 0.2], ['vase', -7.5, 114, 0], ['chair', 4.2, 115.2, 2.4]], y: 3 },
   // Hafen: Kisten gestapelt, Koffer an der Mole
-  { x: 60, z: 512, items: [['crate', 58, 512, 0.1], ['crate', 58.7, 512.1, 0.15], ['crate', 58.35, 512, 0.05, 0.55], ['crate', 62, 510.5, 0.9], ['suitcase', 61, 514, 0.4], ['suitcase', 61.3, 514.4, 0.2, 0.25]], y: 3 },
+  { x: 60, z: 512, items: [['crate', 58, 512, 0.1], ['crate', 58.7, 512.1, 0.15], ['crate', 58.35, 512, 0.05, 0.55], ['crate', 62, 510.5, 0.9], ['suitcase', 61, 514, 0.4], ['suitcase', 61.3, 514.4, 0.2, 0.25],
+    // V52: Fässer, Milchkannen, ein Schrankkoffer, Laternen und Eimer an der Mole
+    ['barrel', 64.5, 512.2, 0], ['barrel', 65.2, 512.0, 0.5], ['barrel', 64.85, 512.1, 0.2, 0.86], ['milkcan', 56.2, 514.8, 0], ['milkcan', 56.6, 515.1, 0.3], ['trunk', 63.5, 515.5, 0.4], ['lantern', 57.5, 510.6, 0], ['bucket', 63, 509, 0], ['coalsack', 66.5, 514, 0.3], ['coalsack', 66.9, 514.4, 0.9]], y: 3 },
+  // V52: vor dem Belmont auch ein Schrankkoffer und Hinweisschilder des Portiers
+  { x: 8, z: 116, items: [['trunk', 8.2, 116.8, 0.4], ['signboard', -8.6, 118.5, 0.1], ['lantern', 7.4, 115.6, 0]], y: 3 },
 ];
 function venueSpawns(V) {
   const out = [], F = V.F || 0, items = [];
@@ -696,11 +952,12 @@ export function updateSpawns() {
   for (const S of SPAWNS) {
     if (S.done || (S.x - p.x) ** 2 + (S.z - p.z) ** 2 > 110 * 110 || (S.y0 != null && p.y < S.y0)) continue;   // V41: y0 = erst ab dieser Höhe (Penthouse über der Lobby)
     S.done = true;
-    for (const [type, x, z, yaw, up] of S.items) {
+    for (const it of S.items) {
+      const [type, x, z, yaw, up] = it;
       const yTop = (S.floor ?? 0) + (typeof up === 'number' && up > 0.3 ? up + 0.3 : S.y);
       const y = floorBelow(x, z, yTop);
       const B = spawnProp(type, x, (y > -1e8 ? y : 0) + (typeof up === 'number' && up <= 0.3 ? up : 0), z, yaw);
-      if (B) { B.awake = true; }
+      if (B) { B.awake = true; B.spawn = { S, it }; }
     }
   }
 }

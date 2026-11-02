@@ -2,7 +2,7 @@ import { T, scene, camera, MOBILE, mergeGeos } from './core.js';
 import { wantTexture } from './assets.js';
 import { addCollider, stdMat, MAT } from './people-skeleton.js';
 import { addSeg, addNeon, addGlow, NEON } from './facade-shader.js';
-import { FURN, placeFurn, roundBox, lathe, tube } from './entrances.js';
+import { FURN, placeFurn, roundBox, lathe, tube, movOn, movOff } from './entrances.js';
 import { poolWaterMat } from './water.js';
 import { player } from './player.js';
 import { addLight } from './performance.js';
@@ -256,6 +256,7 @@ export function buildPenthouse() {
   /* ================= Möbel ================= */
   const MAP = (up, extra = {}) => ({ up, frame: 'gold', wood: 'veneer', lamp: 'lamp', cloth: 'linen', leaf: 'leaf', ...extra });
   const furn = (parts, mp, x, y, z, ry = 0, where = 'inner') => placeFurn(parts, mp, (k, g) => put(k, g, where), x, y, z, ry);
+  movOn();   // V52: die Möbel der Suite sind mit Telekinese greifbar
   const palm = (x, y, z, h = 3.0, s = 1, where = 'inner') => {
     put('gold', CYL(0.5 * s, 0.36 * s, 0.85 * s, x, y + 0.425 * s, z), where);
     put('trunk', CYL(0.07 * s, 0.13 * s, h, x, y + 0.85 * s + h / 2, z, 6), where);
@@ -717,6 +718,7 @@ export function buildPenthouse() {
   SPAWNS.push({ x: 0, z: 0, y0: F1 - 40, items: I1, y: 2.2, floor: F1, pent: true }, { x: 0, z: 0, y0: F1 - 40, items: I2, y: 2.2, floor: F2, pent: true });   // y ist relativ zu floor (updateSpawns addiert)
 
   /* ================= Netze bauen ================= */
+  movOff();
   for (const where in B) {
     const parent = where === 'inner' ? inner : where === 'terr' ? terr : shell;
     for (const k in B[where]) {

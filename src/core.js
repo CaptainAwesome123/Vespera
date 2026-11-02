@@ -221,8 +221,10 @@ export function mergeGeos(geos) {
   for (const g of geos) { const c = g.attributes.position.count; n += c; ni += g.index ? g.index.count : c; }
   const pos = new Float32Array(n * 3), nor = new Float32Array(n * 3), uv = new Float32Array(n * 2), idx = n > 65535 ? new Uint32Array(ni) : new Uint16Array(ni);
   let o = 0, oi = 0;
+  const movs = [];
   for (const g of geos) {
     const c = g.attributes.position.count;
+    if (g.userData && g.userData.mov) movs.push([g.userData.mov, o, c]);   // V52: bewegliche Möbel merken sich ihren Eckenbereich
     putAttr(pos, g.attributes.position, o, 3);
     putAttr(nor, g.attributes.normal, o, 3);
     if (g.attributes.uv) putAttr(uv, g.attributes.uv, o, 2);
@@ -231,6 +233,7 @@ export function mergeGeos(geos) {
     o += c;
   }
   const m = new T.BufferGeometry();
+  for (const [mv, o2, c2] of movs) mv.e.ranges.push({ geo: m, role: mv.role, key: mv.key, o: o2, c: c2 });
   m.setAttribute('position', new T.BufferAttribute(pos, 3));
   m.setAttribute('normal', new T.BufferAttribute(nor, 3));
   m.setAttribute('uv', new T.BufferAttribute(uv, 2));

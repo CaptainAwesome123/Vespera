@@ -45,6 +45,7 @@ import './main.js';
 import './performance.js';
 import './physics.js';
 import './powers.js';
+import './awe.js';
 import './audio.js';
 
 import { shared, $, renderer, scene, camera } from './core.js';

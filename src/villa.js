@@ -3,7 +3,7 @@ import { wantTexture } from './assets.js';
 import { stdMat, MAT } from './people-skeleton.js';
 import { NEON } from './facade-shader.js';
 import { VILLA } from './harbour.js';
-import { FURN, placeFurn, lathe, FAN_TEX } from './entrances.js';
+import { movOn, movOff, FURN, placeFurn, lathe, FAN_TEX } from './entrances.js';
 import { worldUV, wallpaperTex, texSet, roundBoxGeo } from './serpentine.js';
 import { addLight } from './performance.js';
 import { INTERACT } from './music.js';
@@ -418,6 +418,7 @@ export function buildVillaRooms(ctx) {
   const lampT = (zone, lx, lz, y) => { placeFurn(FURN.tableLamp(), FM, (k, g) => A(zone, k, g), lx, y, lz); glow(lx, y + 0.42, lz, [1.3, 0.9, 0.5], 0.9); };
   const FM = { up: 'sofa', frame: 'gold', wood: 'wood', lamp: 'lamp', leaf: 'hedge', cloth: 'velvet' }, FL = { ...FM, up: 'leather' }, FC = { ...FM, up: 'linen' };
   const furn = (zone, parts, map, lx, y, lz, a = 0) => placeFurn(parts, map, (k, g) => A(zone, k, g), lx, y, lz, a);
+  movOn({ x: VILLA.x, y: by, z: VILLA.z, ry });   // V52: Möbel der Villa sind mit Telekinese greifbar (lokales System, siehe entrances.js)
   // Palme im Kübel: Stamm aus Zylindern, Wedel aus flachen Kästen
   const palm = (zone, lx, lz, y, h = 3.2) => {
     A(zone, 'stone', lathe([[0.5, 0], [0.55, 0.1], [0.45, 0.8], [0.6, 0.9]], 14), lx, y, lz);
@@ -1132,6 +1133,7 @@ export function buildVillaRooms(ctx) {
   { const [sx, sz] = W(0, -8); SPAWNS.push({ x: sx, z: sz, y0: by - 30, items: LE, y: 2.2, floor: by }, { x: sx, z: sz, y0: by - 30, items: LO, y: 2.2, floor: by + Y1 }); }
 
   const WUV = { marble: 4.2, parq: 4.0, plaster: 2.4, silk: 2.4, panel: 2.0, tile: 2.2, bluewall: 4.2, greenwall: 4.2, hedge: 1.6, brick: 2.0, ceil: 3.6, white: 2.2, black: 2.0, stoneF: 2.5 };
+  movOff();
   const cs = VR.cs, sn = VR.sn;
   for (const key in B) {
     const [zone, mk] = key.split('|');

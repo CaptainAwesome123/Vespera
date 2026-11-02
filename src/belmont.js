@@ -4,7 +4,7 @@ import { RUNNER_TEX, decoRugTex, friezeTex, muralTex, damaskTex } from './deco-t
 import { addCollider, stdMat, MAT } from './people-skeleton.js';
 import { addSeg, addNeon, addGlow, NEON, shafts, spires, lamps, trees, FL } from './facade-shader.js';
 import { PLAZA, MEDIAN } from './island.js';
-import { crownFins, neonFrame, FAN_TEX, makeSignTex, lathe, DOORS, placeFurn, FURN } from './entrances.js';
+import { crownFins, neonFrame, FAN_TEX, makeSignTex, lathe, DOORS, placeFurn, FURN, movOn, movOff } from './entrances.js';
 import { fanAtSingle, addNeonArc, setDance } from './dance.js';
 import { kit, Bx } from './harbour.js';
 import { Crowd, GOWNS } from './serpentine.js';
@@ -314,6 +314,7 @@ export function buildBelmontInterior() {
   // V34: Lobby und Ballsaal in einer eigenen Gruppe, die nur in der Nähe des Belmont gezeichnet wird (vorher immer, aus der ganzen Stadt,
   // im Hauptbild und im Spiegelbild des Pflasters). Die zusammengefassten Netze werden außerdem wieder nach Sichtfeld aussortiert.
   const IG = new T.Group(); BEL_IN.g = IG; scene.add(IG);
+  movOn();   // V52: Sofas, Sessel und Stühle der Lobby und des Ballsaals sind mit Telekinese greifbar
   const col = addCollider;
   const glow = (x, y, z, c, s) => addGlow(x, y, z, c, s);
 
@@ -659,6 +660,7 @@ export function buildBelmontInterior() {
     addLight(0xffc27a, i * 0.72, d, 1.6, x, y, z, true);
   }
 
+  movOff();
   for (const k in batch) IG.add(new T.Mesh(mergeGeos(batch[k]), M[k]));
 
   // ---------- Menschen ----------
