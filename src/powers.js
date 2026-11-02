@@ -23,7 +23,7 @@
    ===================================================================== */
 import { T, camera, scene, canvasTex } from './core.js';
 import { player } from './player.js';
-import { LOOSE, bumpSound, movNear, movWorld, furnInfo, furnBody, streetNear, streetBody } from './physics.js';
+import { LOOSE, bumpSound, movNear, movWorld, furnInfo, furnBody, streetNear, streetBody, streetCenter } from './physics.js';
 import { aweBurst, AWE } from './awe.js';
 import { BODIES, looseFromTraffic, looseFromParked, impulse, crashDamage } from './driving.js';
 import { TRF } from './traffic.js';
@@ -209,7 +209,7 @@ function tkAim() {
   for (const pd of peds) if (pd.a && pd.a.on && !pd.rag && !pd.sit && !pd.back) { const e = pd.a.m.elements; test(e[12], e[13] + 1.0, e[14], 0.5, () => ({ kind: 'ped', pd })); }
   // V52: Möbel der Räume und das Straßenmobiliar
   for (const e of movNear(o.x, o.z, TK_RANGE)) { const W = movWorld(e), I = furnInfo(e); if (Math.abs(W.y - o.y) < 60) test(W.x, W.y + I.cy, W.z, I.r, () => ({ kind: 'furn', e })); }
-  for (const [p, k] of streetNear(o.x, o.z, TK_RANGE)) test(p.x, p.m.elements[13] + 0.5, p.z, k === 'bench' || k === 'planter' ? 1.0 : 0.5, () => ({ kind: 'street', p, k }));
+  for (const [p, k] of streetNear(o.x, o.z, TK_RANGE)) { const c = streetCenter(p, k); if (Math.abs(c.y - o.y) < 80) test(p.x, c.y, p.z, c.r, () => ({ kind: 'street', p, k })); }   // V53: auch Laternen, Kioske, Säulen, Uhren und alle Dinge
   return best;
 }
 export function tkGrab() {

@@ -161,23 +161,9 @@ export function buildTerraces() {
       const x = d.x + d.nx * 1.0 + tx * u, z = d.z + d.nz * 1.0 + tz * u;
       TERRACE.push({ x, z, a: Math.atan2(tx, tz) });
       addGlow(x, 1.02, z, [1.3, 0.75, 0.35], 0.45, Math.random(), 0);
-      addCollider(x - 0.4, 0, z - 0.4, x + 0.4, 0.8, z + 0.4);
     }
   }
-  if (!TERRACE.length) return;
-  // ein Tisch mit zwei Stühlen, die sich gegenübersitzen, plus Kerze
-  const wood = [], metal = [];
-  const add = (k, g) => (k === 'frame' ? metal : wood).push(g);
-  const FM = { frame: 'frame', wood: 'wood', up: 'wood', cloth: 'wood' };
-  placeFurn(FURN.roundTable(0.36, 0.74), FM, add, 0, 0, 0);
-  for (const sg of [-1, 1]) placeFurn(FURN.bistroChair(), FM, add, sg * 0.7, 0, 0, sg > 0 ? -Math.PI / 2 : Math.PI / 2);
-  wood.push(new T.CylinderGeometry(0.03, 0.03, 0.12, 8).translate(0, 0.8, 0));
-  const mats = [stdMat({ color: 0x2a1a10, roughness: 0.5, envI: 0.4, emissive: 0x060302 }), MAT.brass];
-  [wood, metal].forEach((list, i) => {
-    const im = new T.InstancedMesh(mergeGeos(list), mats[i], TERRACE.length);
-    TERRACE.forEach((t, k) => im.setMatrixAt(k, _m.compose(_p.set(t.x, 0.22, t.z), _q.setFromAxisAngle(_up, t.a), _s.set(1, 1, 1))));
-    im.frustumCulled = false; scene.add(im);
-  });
+  // V53: Tische und Stühle stehen jetzt als bewegliche Dinge in src/clutter.js (planClutter), mit Kollision und Telekinese
 }
 export const caps = [];   // Kupfer- und Golddächer {x,z,y,w,d,h,gold}
 export const domes = [];  // Kuppeln {x,z,y,r}

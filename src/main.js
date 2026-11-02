@@ -1,6 +1,7 @@
 import { primeChunks } from './chunks.js';
 import { setupStreetLayers } from './props.js';
 import { setupDecoLayers } from './deco.js';
+import { planClutter, setupClutterLayer, indexLamps } from './clutter.js';
 import { initDriveState } from './driving.js';
 import { R } from './core.js';
 import { buildEnv, getMats } from './people-skeleton.js';
@@ -173,6 +174,8 @@ export async function build() {
   await step('setupStreetLayers');
   setupDecoLayers();     // V38: Fassadenschmuck (Fächer, Friese, Zinnen, Vordächer, Dachreklame) als Chunk-Schichten
   await step('setupDecoLayers');
+  planClutter(); indexLamps(); setupClutterLayer();   // V53: lose Dinge überall in der Stadt, alle greifbar
+  await step('planClutter');
   setupWorkerLayer();    // V46: Wäsche, Rohre und Kram in den Gassen der Arbeiterblöcke
   await step('setupWorkerLayer');
   primeChunks();

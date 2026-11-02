@@ -41,6 +41,11 @@ import { paused, isTouch } from './input.js';
 import { BOAT } from './boat.js';
 import { DINE } from './venues.js';
 import { $ } from './core.js';
+import { clutterGeos, clutterKinds } from './clutter-geos.js';
+import { CLUT, clutterNear, clutterMatrix, clutterMoved } from './clutter.js';
+import { decoLampGeo, decoLampMats } from './decolamp.js';
+import { lampFx } from './serpentine.js';
+import { invalidateLayer } from './chunks.js';
 
 export const LOOSE = { bodies: [], batches: new Map(), held: null, tk: null, tkTarget: null, aim: null, rot: 0, spawned: new Set(), mat: null, goodsIdx: null, stats: { awake: 0, bodies: 0, ms: 0 } };
 const G = 9.81, SUB = MOBILE ? 5 : 8, MAX_BODIES = MOBILE ? 56 : 128, REACH = 2.6;   // V52: mehr Platz (Möbel, Straßenmöbel, neue Gruppen); ferne Gruppen räumt cullBodies wieder ab
@@ -53,7 +58,7 @@ function cylPts(r, hy, n = 8) { const p = []; for (let i = 0; i < n; i++) { cons
 function ballPts(r) { const p = [new T.Vector3(0, r, 0), new T.Vector3(0, -r, 0)]; for (const y of [-0.5, 0, 0.5]) { const rr = Math.sqrt(1 - y * y) * r; for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2 + y; p.push(new T.Vector3(Math.cos(a) * rr, y * r, Math.sin(a) * rr)); } } return p; }
 // Körper anlegen: shape { kind: 'box'|'cyl'|'ball', he: [hx, hy, hz] }, Masse, Stoff (Reibung, Rückprall, Klang)
 const STUFF = { wood: { mu: 0.55, e: 0.25, snd: 'wood', rho: 500 }, glass: { mu: 0.35, e: 0.35, snd: 'glass', rho: 2500, brittle: 6.5 }, leather: { mu: 0.6, e: 0.15, snd: 'soft', rho: 300 },
-  paper: { mu: 0.7, e: 0.05, snd: 'soft', rho: 400 }, food: { mu: 0.6, e: 0.1, snd: 'soft', rho: 700 }, metal: { mu: 0.4, e: 0.3, snd: 'metal', rho: 2000 } };
+  paper: { mu: 0.7, e: 0.05, snd: 'soft', rho: 400 }, food: { mu: 0.6, e: 0.1, snd: 'soft', rho: 700 }, metal: { mu: 0.4, e: 0.3, snd: 'metal', rho: 2000 }, clay: { mu: 0.6, e: 0.1, snd: 'glass', rho: 1800, brittle: 7.5 } };   // V53: Terrakotta zerspringt
 function makeBody(o) {
   const [hx, hy, hz] = o.he, st = STUFF[o.stuff] || STUFF.wood;
   const pts = o.kind === 'cyl' ? cylPts(Math.min(hx, hz), hy, hx > 0.12 ? 10 : 8) : o.kind === 'ball' ? ballPts(hx) : boxPts(hx, hy, hz);
@@ -258,6 +263,10 @@ const KINDS = {
   signboard: { name: 'Hinweisschild', kind: 'box', he: [0.25, 0.3, 0.16], m: 4, stuff: 'metal', small: false },
   winecrate: { name: 'Weinkiste', kind: 'box', he: [0.25, 0.22, 0.17], m: 11, stuff: 'wood', small: false },
 };
+// V53: die neuen Dinge (src/clutter-geos.js)
+Object.assign(GEOS, clutterGeos()); Object.assign(KINDS, clutterKinds());
+export function KINDS_OF() { return KINDS; }
+export function propMaterial() { return propMat(); }
 export function spawnProp(type, x, y, z, yaw = 0) {
   const k = KINDS[type]; if (!k || LOOSE.bodies.length >= MAX_BODIES) return null;
   return makeBody({ ...k, key: type, p: [x, y + k.he[1] + 0.01, z], yaw });
@@ -377,35 +386,96 @@ const STREET_INFO = {
   hydrant: { name: 'Hydrant', m: 85, stuff: 'metal', kind: 'cyl', he: [0.16, 0.37, 0.16], cy: 0.37 },
   mailbox: { name: 'Briefkasten', m: 60, stuff: 'metal', kind: 'box', he: [0.2, 0.7, 0.16], cy: 0.7 },
   planter: { name: 'Blumenkübel', m: 160, stuff: 'metal', kind: 'box', he: [0.85, 0.45, 0.35], cy: 0.45 },
+  // V53: auch Kioske, Litfaßsäulen und Straßenuhren
+  kiosk: { name: 'Kiosk', m: 600, stuff: 'wood', kind: 'box', he: [1.3, 1.2, 1.0], cy: 1.2 },
+  column: { name: 'Litfaßsäule', m: 900, stuff: 'metal', kind: 'cyl', he: [0.72, 1.7, 0.72], cy: 1.7 },
+  clock: { name: 'Straßenuhr', m: 240, stuff: 'metal', kind: 'cyl', he: [0.42, 2.15, 0.42], cy: 2.15 },
 };
 export const STREET_KINDS = Object.keys(STREET_INFO);
 export function streetBody(p, k) {
+  if (k === 'lamp') return lampBody(p);
+  if (k && k.startsWith('c:')) return clutterBody(p);
   const I = STREET_INFO[k], F = STREET.furniture; if (!I || !F || p.taken || LOOSE.bodies.length >= MAX_BODIES) return null;
   const key = 'street:' + k;
   if (!GEOS[key]) {
-    const bk = props.baked && props.baked[k], src = bk ? bk.geo : F.TYPES[k]; if (!src) return null;
-    const bb = src.boundingBox || (src.computeBoundingBox(), src.boundingBox), cy = (bb.min.y + bb.max.y) / 2;
+    const bk = props.baked && props.baked[k], src = bk ? bk.geo : k === 'column' ? F.colParts : F.TYPES[k]; if (!src) return null;
+    const bb0 = (k === 'column' ? F.colGeo : src), bb = bb0.boundingBox || (bb0.computeBoundingBox(), bb0.boundingBox);
+    const b2 = src.boundingBox || (src.computeBoundingBox(), src.boundingBox), y0 = Math.min(bb.min.y, b2.min.y), y1 = Math.max(bb.max.y, b2.max.y), cy = (y0 + y1) / 2;
     const g = src.clone().translate(0, -cy, 0);
     GEOS[key] = () => g; GEOS[key].mat = bk ? (bk.material || F.mat) : F.mat; GEOS[key].cy = cy;
-    if (!bk) I.he = [Math.max(0.1, (bb.max.x - bb.min.x) / 2), (bb.max.y - bb.min.y) / 2, Math.max(0.1, (bb.max.z - bb.min.z) / 2)];
+    if (!bk) I.he = [Math.max(0.1, (b2.max.x - b2.min.x) / 2), (y1 - y0) / 2, Math.max(0.1, (b2.max.z - b2.min.z) / 2)];
   }
   p.taken = true;
-  if (p._im && p._im.parent) { p._im.setMatrixAt(p._i, _m.makeScale(0, 0, 0)); p._im.instanceMatrix.needsUpdate = true; }
+  hideInst(p);
   const e = p.m.elements, yaw = Math.atan2(e[8], e[10]), y = e[13];
-  removeColliders(p.x - I.he[0], p.z - I.he[2], p.x + I.he[0], p.z + I.he[2], y, y + I.he[1] * 2, []);
-  const B = makeBody({ name: I.name, key, kind: I.kind, he: I.he, m: I.m, stuff: I.stuff, small: false, p: [p.x, y + GEOS[key].cy, p.z], yaw, col: p.c, src: p });
+  removeColliders(p.x - I.he[0] - 0.2, p.z - I.he[2] - 0.2, p.x + I.he[0] + 0.2, p.z + I.he[2] + 0.2, y, y + I.he[1] * 2, []);
+  // Litfaßsäule (Plakate) und Uhr (Zifferblätter) haben zwei Netze: eigenes Netz mit Kind
+  let mesh = null;
+  if (k === 'column' || k === 'clock') {
+    const cy = GEOS[key].cy;
+    mesh = new T.Mesh(GEOS[key]().clone(), F.mat);
+    mesh.add(new T.Mesh((k === 'column' ? F.colGeo : F.faces).clone().translate(0, -cy, 0), k === 'column' ? F.posterMat : F.faceMat));
+  }
+  const B = makeBody({ name: I.name, key, kind: I.kind, he: I.he, m: I.m, stuff: I.stuff, small: false, p: [p.x, y + GEOS[key].cy, p.z], yaw, col: p.c, src: p, mesh });
   B.street = p; B.x0 = B.x.clone();
   return B;
+}
+// V53: Instanz(en) eines Stücks verstecken oder zurückholen (p._ims: alle Netze der Zelle, in denen es steht)
+function hideInst(p) {
+  for (const [im, i] of p._ims || (p._im ? [[p._im, p._i]] : [])) if (im && im.parent) { im.setMatrixAt(i, _m.makeScale(0, 0, 0)); im.instanceMatrix.needsUpdate = true; }
+}
+function showInst(p, m) {
+  for (const [im, i] of p._ims || (p._im ? [[p._im, p._i]] : [])) if (im && im.parent) { im.setMatrixAt(i, m); im.instanceMatrix.needsUpdate = true; }
+}
+
+/* ---------- V53: Laternen als Körper (Lichtkegel, Spiegelung und Leuchtpunkt gehen mit aus) ---------- */
+function lampBody(l) {
+  if (l.taken || LOOSE.bodies.length >= MAX_BODIES) return null;
+  const G = decoLampGeo(l.h, 0), M = decoLampMats(), cy = l.h / 2;
+  const mesh = new T.Mesh(G.metal.clone().translate(0, -cy, 0), M.metal);
+  mesh.add(new T.Mesh(G.glass.clone().translate(0, -cy, 0), M.glass));
+  l.taken = true; hideInst(l); lampFx(l, false);
+  removeColliders(l.x - 0.45, l.z - 0.45, l.x + 0.45, l.z + 0.45, l.y, l.y + l.h, []);
+  const B = makeBody({ name: 'Laterne', key: 'lamp', kind: 'box', he: [0.3, cy, 0.3], m: 150, stuff: 'metal', small: false, p: [l.x, l.y + cy, l.z], yaw: 0, mesh });
+  B.lamp = l; B.x0 = B.x.clone();
+  return B;
+}
+function lampRestore(B) { const l = B.lamp; removeBody(B); l.taken = false; lampFx(l, true); showInst(l, _m.makeTranslation(l.x, l.y, l.z)); }
+
+/* ---------- V53: die vielen Dinge aus src/clutter.js ---------- */
+function clutterBody(p) {
+  const I = KINDS[p.k]; if (!I || p.taken || LOOSE.bodies.length >= MAX_BODIES) return null;
+  p.taken = true; hideInst(p);
+  if (p.col) { removeColliders(p.col[0] - 0.05, p.col[1] - 0.05, p.col[2] + 0.05, p.col[3] + 0.05, p.y - I.he[1] - 0.1, p.y + I.he[1], []); p.col = null; }
+  const B = makeBody({ ...I, key: p.k, p: [p.x, p.y, p.z], yaw: p.yaw, col: p.c, src: p });
+  clutterMatrix(p, _m); _m.decompose(_v, B.q, _s);
+  B.clut = p; B.x0 = B.x.clone();
+  return B;
+}
+function clutterRestore(B) {
+  const p = B.clut, moved = B.x.distanceTo(B.x0) > 1.5;
+  if (moved || B.x.distanceTo(B.x0) > 0.05) { p.x = B.x.x; p.y = B.x.y; p.z = B.x.z; p.q = B.q.clone(); }
+  removeBody(B); p.taken = false;
+  if (moved) { clutterMoved(p); return true; }
+  showInst(p, clutterMatrix(p, _m));
+  return false;
+}
+// Mittelpunkt, Greifradius und Gewicht eines Straßenstücks, einer Laterne oder eines Dings (für Telekinese und E)
+export function streetCenter(p, k) {
+  if (k === 'lamp') return { y: p.y + p.h * 0.5, r: 0.6, m: 150, name: 'Laterne' };
+  if (k.startsWith('c:')) { const I = KINDS[p.k]; return { y: p.y, r: Math.max(0.25, Math.min(1.1, Math.max(I.he[0], I.he[1], I.he[2]) + 0.1)), m: I.m, name: I.name }; }
+  const I = STREET_INFO[k]; return { y: p.m.elements[13] + I.cy, r: k === 'bench' || k === 'planter' || k === 'kiosk' || k === 'column' ? 1.0 : 0.5, m: I.m, name: I.name };
 }
 // weit weg und unbewegt: die Instanz kommt zurück (Kollision der Bank bleibt weg, sie sperrt nur den Gehweg)
 function streetRestore(B) {
   const p = B.street; removeBody(B); p.taken = false;
-  if (p._im && p._im.parent) { p._im.setMatrixAt(p._i, p.m); p._im.instanceMatrix.needsUpdate = true; }
+  showInst(p, p.m);
 }
 // Nahes Straßenmöbel (für Telekinese und Aufheben): [p, art, Mittelpunkt]
 export function streetNear(x, z, r) {
   const F = STREET.furniture, out = []; if (!F) return out;
-  for (const k of STREET_KINDS) for (const p of F.out[k]) if (!p.taken && (p.x - x) ** 2 + (p.z - z) ** 2 < r * r) out.push([p, k]);
+  for (const k of STREET_KINDS) for (const p of F.out[k] || []) if (!p.taken && (p.x - x) ** 2 + (p.z - z) ** 2 < r * r) out.push([p, k]);
+  if (CLUT.grid.size) out.push(...clutterNear(x, z, r));   // V53: Dinge und Laternen
   return out;
 }
 // Nahe Möbel des Verzeichnisses
@@ -419,11 +489,13 @@ export function movNear(x, z, r) {
 let cullT = 0;
 export function cullBodies(dt) {
   if ((cullT -= dt) > 0 || LOOSE.bodies.length < MAX_BODIES * 0.6) return; cullT = 3;
-  const p = player.p;
+  const p = player.p; let relay = false;
   for (const B of LOOSE.bodies.slice()) {
     if (B.awake || B === LOOSE.held || B === LOOSE.tk || (B.x.x - p.x) ** 2 + (B.x.z - p.z) ** 2 < 320 * 320) continue;
     if (B.furn) { if (B.x0 && B.x.distanceTo(B.x0) < 1.5) furnRestore(B); }
     else if (B.street) { if (B.x0 && B.x.distanceTo(B.x0) < 1.5) streetRestore(B); }
+    else if (B.lamp) { if (B.x0 && B.x.distanceTo(B.x0) < 1.5) lampRestore(B); }
+    else if (B.clut) { if (clutterRestore(B)) relay = true; }
     else if (B.spawn) {
       const S = B.spawn.S, it = B.spawn.it;
       // bleibt liegen, wo es ist: beim Wiederkommen entsteht es dort (die Gruppe erst, wenn keines ihrer Dinge mehr da ist)
@@ -433,6 +505,7 @@ export function cullBodies(dt) {
       if (!LOOSE.bodies.some(b => b.spawn && b.spawn.S === S)) S.done = false;
     }
   }
+  if (relay) invalidateLayer('clutter');   // V53: verschobene Dinge stehen in einer anderen Zelle
 }
 
 /* ---------- Waren aus den Läden (Kenney Food Kit) als Körper ---------- */
@@ -868,12 +941,14 @@ function aim() {
     if (_v.lengthSq() - t * t > I.r * I.r) continue;
     bt = t; best = { furn: e, name: I.name };
   }
+  // V53: Papierkörbe und alle leichten Dinge (bis 30 kg) von Hand
   for (const [p, k] of streetNear(_ro.x, _ro.z, REACH + 1)) {
-    if (k !== 'bin') continue;
-    _v.set(p.x - _ro.x, p.m.elements[13] + 0.4 - _ro.y, p.z - _ro.z);
+    if (k !== 'bin' && !k.startsWith('c:')) continue;
+    const c = streetCenter(p, k); if (c.m > 30) continue;
+    _v.set(p.x - _ro.x, c.y - _ro.y, p.z - _ro.z);
     const t = _v.dot(_rd); if (t < 0 || t > bt) continue;
-    if (_v.lengthSq() - t * t > 0.16) continue;
-    bt = t; best = { street: p, kind: k, name: 'Papierkorb' };
+    if (_v.lengthSq() - t * t > Math.min(0.5, c.r) ** 2) continue;
+    bt = t; best = { street: p, kind: k, name: c.name };
   }
   for (const g of goodsNear(_ro.x, _ro.z, REACH)) {
     const r = Math.max(0.07, g.h * 0.5), cy = g.y + g.h * 0.45;
@@ -928,7 +1003,7 @@ export const SPAWNS = [
     // V52: Fässer, Milchkannen, ein Schrankkoffer, Laternen und Eimer an der Mole
     ['barrel', 64.5, 512.2, 0], ['barrel', 65.2, 512.0, 0.5], ['barrel', 64.85, 512.1, 0.2, 0.86], ['milkcan', 56.2, 514.8, 0], ['milkcan', 56.6, 515.1, 0.3], ['trunk', 63.5, 515.5, 0.4], ['lantern', 57.5, 510.6, 0], ['bucket', 63, 509, 0], ['coalsack', 66.5, 514, 0.3], ['coalsack', 66.9, 514.4, 0.9]], y: 3 },
   // V52: vor dem Belmont auch ein Schrankkoffer und Hinweisschilder des Portiers
-  { x: 8, z: 116, items: [['trunk', 8.2, 116.8, 0.4], ['signboard', -8.6, 118.5, 0.1], ['lantern', 7.4, 115.6, 0]], y: 3 },
+  { x: 8, z: 116, items: [['trunk', 8.2, 116.8, 0.4], ['signboard', -8.6, 118.5, 0.1], ['lantern', 7.4, 115.6, 0], ['luggagecart', 10.5, 117.6, 0.3], ['umbrellastand', -9.8, 115.4, 0]], y: 3 },
 ];
 function venueSpawns(V) {
   const out = [], F = V.F || 0, items = [];
@@ -938,6 +1013,9 @@ function venueSpawns(V) {
     items.push([pub ? 'tumbler' : 'coupe', t.x - 0.12, t.z + 0.1, 0, F + 0.78 - F], [pub ? 'ashtray' : 'coupe', t.x + 0.15, t.z + 0.16, 0, F + 0.78 - F]);
   });
   for (let k = 0; k < 3; k++) items.push(['chair', V.x0 + 2.5 + k * 1.6, V.z1 - 1.4, Math.PI + k * 0.3]);
+  // V53: in der Kneipe Bierkästen am Eingang, im Restaurant Rosen und Sektkühler
+  if (pub) items.push(['bottlecrate', V.x0 + 1.0, V.z1 - 1.0, 0.2], ['bottlecrate', V.x0 + 1.0, V.z1 - 1.0, 0.25, 0.3], ['radio', V.x1 - 1.2, V.z0 + 1.0, 0]);
+  else V.tables.slice(0, 4).forEach((t, i) => items.push([i % 2 ? 'flowervase' : 'icebucket', t.x - 0.1, t.z - 0.15, 0, 0.78]));
   out.push({ x: (V.x0 + V.x1) / 2, z: (V.z0 + V.z1) / 2, items: items.map(([a, x, z, y, up]) => [a, x, z, y, up]), y: F + 2.2, floor: F });
   return out;
 }

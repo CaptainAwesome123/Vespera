@@ -23,6 +23,7 @@ import { impulse, crashDamage } from './driving.js';
 import { windPatch } from './wind.js';
 import { addLight } from './performance.js';
 import { buildVillaRooms, updateVillaRooms } from './villa.js';
+import { wantTexture } from './assets.js';
 
 /* =====================================================================
    V16 · SERPENTINE ZUR VILLA: vom Viadukt zweigt eine gepflasterte Bergstraße ab
@@ -1727,7 +1728,7 @@ const _lampD = new Float32Array(16), _lampL = [];
 function updateStreetLamps(cp) {
   let n = 0;
   for (const l of STREET.lamps) {
-    const d = (l.x - cp.x) ** 2 + (l.z - cp.z) ** 2; if (d > 3600) continue;
+    const d = (l.x - cp.x) ** 2 + (l.z - cp.z) ** 2; if (d > 3600 || l.taken) continue;   // V53: gegriffene Laterne leuchtet nicht mehr auf die Straße
     let i; if (n < LAMP_N) i = n++; else if (d < _lampD[LAMP_N - 1]) i = LAMP_N - 1; else continue;
     while (i > 0 && _lampD[i - 1] > d) { _lampD[i] = _lampD[i - 1]; _lampL[i] = _lampL[i - 1]; i--; }
     _lampD[i] = d; _lampL[i] = l;
@@ -1804,6 +1805,14 @@ export function buildLampFx(heads) {
       }`,
   }));
   cones.frustumCulled = false; cones.renderOrder = 3; scene.add(cones);
+  STREET.fxAttrs = [sg.attributes.aL, cg.attributes.aL];
+}
+// V53: Licht einer Laterne aus/an (Telekinese): Lichtkegel und Spiegelstreifen, Lichtfleck am Boden, Leuchtpunkt
+export function lampFx(l, on) {
+  const i = STREET.lamps.indexOf(l); if (i < 0) return;
+  for (const a of STREET.fxAttrs || []) { if (!on) { l._fx = l._fx ?? a.array[i * 4 + 3]; a.array[i * 4 + 3] = 0; } else if (l._fx != null) a.array[i * 4 + 3] = l._fx; a.needsUpdate = true; }
+  const P = STREET.pools; if (P) { if (l._pool == null) l._pool = lamps.findIndex(q => Math.abs(q.x - l.x) < 0.01 && Math.abs(q.z - l.z) < 0.01); if (l._pool >= 0) { const m = new T.Matrix4(); if (on) { const ps = l.h * 2.2; m.makeScale(ps, 1, ps).setPosition(l.x, l.y + 0.03, l.z); } else m.makeScale(0, 0, 0); P.setMatrixAt(l._pool, m); P.instanceMatrix.needsUpdate = true; } }
+  const G = STREET.glow; if (G) { if (l._glow == null) l._glow = glowPts.findIndex(g => Math.abs(g.p[0] - l.x) < 0.01 && Math.abs(g.p[2] - l.z) < 0.01 && Math.abs(g.p[1] - (l.y + l.h - 0.38)) < 0.2); if (l._glow >= 0) { const s = G.geometry.attributes.size; s.array[l._glow] = on ? glowPts[l._glow].s : 0; s.needsUpdate = true; } }
 }
 
 /* ---------- Instanzen erzeugen ---------- */
@@ -1923,7 +1932,7 @@ export function flushInstances() {
     if (!l.wall) addGlow(l.x, y0 + l.h - 0.38, l.z, [1.25, 0.85, 0.48], 1.3);
   });
   pools.frustumCulled = false; pools.renderOrder = 1;
-  scene.add(pools);
+  scene.add(pools); STREET.pools = pools;
   buildLampFx(heads);
 
   buildEntrances();
@@ -1937,7 +1946,7 @@ export function flushInstances() {
   buildParkedCars();
   buildStreetFurniture();
   buildPedestrians();
-  scene.add(makeGlowPoints(glowPts));
+  STREET.glow = makeGlowPoints(glowPts); scene.add(STREET.glow);
 }
 
 /* ---------- Dachaufbauten: Wassertürme, Schornsteine, Antennen ---------- */
@@ -1966,9 +1975,42 @@ export function buildRoofs() {
     }
   }
   const mk = (geo, list, mat) => { if (!list.length) return; const im = new T.InstancedMesh(geo, mat, list.length); list.forEach((mm, i) => im.setMatrixAt(i, mm)); im.frustumCulled = false; scene.add(im); };
-  mk(tank, tanks, new T.MeshStandardMaterial({ color: 0x3a2e24, roughness: 0.9 }));
-  mk(chim, chims, new T.MeshStandardMaterial({ color: 0x2a211d, roughness: 0.95 }));
+  // V53: Wassertanks aus Holzdauben mit Eisenreifen, Schornsteine aus Backstein mit Kappe (vorher glatte Farbe)
+  mk(tank, tanks, new T.MeshStandardMaterial({ color: 0x8a7462, map: tankTex(), roughness: 0.9 }));
+  mk(chim, chims, wantTexture(new T.MeshStandardMaterial({ color: 0x4a3a32, map: chimTex(), roughness: 0.95 }), { map: 'brick-color', bumpMap: 'brick-bump', bumpScale: 0.03, color: 0x8a6c60 }));
   mk(mast, masts, new T.MeshStandardMaterial({ color: 0x55504a, metalness: 0.7, roughness: 0.4 }));
+}
+
+/* ---------- V53: Stofftexturen für Markisen, Holzdauben für Wassertanks, Backstein für Schornsteine ---------- */
+let AWNING_T = null, TANK_T = null, CHIM_T = null;
+export function awningTex() {
+  return AWNING_T || (AWNING_T = canvasTex(256, 64, (g, W, H) => {
+    const rr = mulberry32(5301);
+    for (let i = 0; i < 12; i++) { g.fillStyle = i % 2 ? '#8c8270' : '#ffffff'; g.fillRect(i * W / 12, 0, W / 12 + 1, H); }
+    for (let k = 0; k < 900; k++) { g.fillStyle = `rgba(${rr() < 0.5 ? '0,0,0' : '255,250,235'},${0.04 + rr() * 0.05})`; g.fillRect(rr() * W, rr() * H, 1 + rr() * 3, 1); }   // Gewebe
+    g.fillStyle = 'rgba(0,0,0,0.22)'; for (let y = 0; y < H; y += 3) g.fillRect(0, y, W, 1);
+    g.fillStyle = 'rgba(40,30,20,0.25)'; g.fillRect(0, H - 6, W, 6);   // Saum
+  }));
+}
+export function tankTex() {
+  if (TANK_T) return TANK_T;
+  TANK_T = canvasTex(256, 128, (g, W, H) => {
+    const rr = mulberry32(5302);
+    for (let i = 0; i < 24; i++) { const v = 150 + rr() * 50; g.fillStyle = `rgb(${v},${v * 0.82},${v * 0.66})`; g.fillRect(i * W / 24, 0, W / 24, H); g.fillStyle = 'rgba(0,0,0,0.45)'; g.fillRect(i * W / 24, 0, 1.5, H); }
+    for (let k = 0; k < 500; k++) { g.fillStyle = `rgba(60,40,25,${rr() * 0.18})`; g.fillRect(rr() * W, rr() * H, 1, 4 + rr() * 14); }   // Maserung
+    g.fillStyle = 'rgba(30,25,20,0.5)'; for (let y = H * 0.75; y < H; y++) g.fillRect(0, y, W, 1 * rr());   // Wasserflecken unten
+    g.fillStyle = '#2a2a2c'; for (const y of [0.18, 0.5, 0.82]) g.fillRect(0, y * H - 3, W, 6);   // Eisenreifen
+    g.fillStyle = 'rgba(160,90,50,0.35)'; for (const y of [0.18, 0.5, 0.82]) for (let k = 0; k < 20; k++) g.fillRect(rr() * W, y * H + 2, 3, 2 + rr() * 6);   // Rost
+  });
+  TANK_T.wrapS = T.RepeatWrapping; return TANK_T;
+}
+export function chimTex() {
+  return CHIM_T || (CHIM_T = canvasTex(128, 128, (g, W, H) => {
+    const rr = mulberry32(5303);
+    g.fillStyle = '#6a6460'; g.fillRect(0, 0, W, H);
+    for (let r = 0; r < 16; r++) for (let c = -1; c < 5; c++) { const v = 120 + rr() * 60; g.fillStyle = `rgb(${v},${v * 0.55},${v * 0.42})`; g.fillRect(c * 32 + (r % 2) * 16 + 1, r * 8 + 1, 30, 6); }
+    g.fillStyle = 'rgba(10,8,8,0.55)'; g.fillRect(0, 0, W, 10);   // Ruß oben
+  }));
 }
 
 /* ---------- Markisen über den Schaufenstern ---------- */
@@ -2000,7 +2042,7 @@ export function buildAwnings() {
   }
   if (!list.length) return;
   const geo = new T.BoxGeometry(1, 1, 1); geo.rotateX(0.35);
-  const im = new T.InstancedMesh(geo, new T.MeshStandardMaterial({ color: 0xffffff, roughness: 0.95 }), list.length);
+  const im = new T.InstancedMesh(geo, new T.MeshStandardMaterial({ color: 0xffffff, map: awningTex(), roughness: 0.95 }), list.length);   // V53: Streifen aus Segeltuch
   const col = new T.Color();
   list.forEach((mm, i) => { im.setMatrixAt(i, mm); im.setColorAt(i, col.setRGB(cols[i][0], cols[i][1], cols[i][2])); });
   im.frustumCulled = false; scene.add(im);
