@@ -41,6 +41,7 @@ src/                der Spielcode als ES-Module, ein Abschnitt pro Datei
   water.js            Wellen (Gerstner, acht Wellenzüge), Spiegelung, Gischt am Kai
   harbour.js          Kai, Jachthafen, Fähre, Luftschiffhafen
   serpentine.js       Bergstraße zur Villa, Villa außen, Garten, Fest, Berge
+  landscape.js        Landschaft um den Krater (V44): feines Netz für die Felswand am See, Wasserfälle mit Bachbett, Gischt und Eiszapfen, zwei Gletscher, Eissaum, Eisschollen, Schären; Labor ?lab=landschaft, Vergleich ?ohnelandschaft
   villa.js            Innenräume der Villa auf drei Ebenen: Halle, Ballsaal, Salon, Speisesaal, Küche, OG, Keller, Schwimmhalle (V28)
   ragdoll.js          Gliederpuppen-Physik
   sky.js              Himmel der Polarnacht: drehender Sternhimmel, Mond mit Phase, Polarlicht (V25)
@@ -151,6 +152,17 @@ Endgelenk, je 0…31), weil der Figuren-Shader schon 15 der 16 Attributplätze b
 Finger weiter bis zur Faust oder streckt sie, `fgP` streckt den Zeigefinger (Zeigen). Smoking, Kellner und Spieler
 tragen statt der Krawatte die glatte Hemdbrust `shirt-m` (Biesen, Onyxknöpfe) und eine Satinfliege (`bowWing`
 in `src/people-mh.js`). Mit Vorschau-Ordner schreibt `make-people.mjs` auch Bilder der Hände (entspannt, Faust, offen).
+
+**Gesichter, Hände, Augen (V44):** Die MakeHuman-Hautbilder haben 512 px; der Kopf belegt darin nur 180 × 342, eine
+Hand 99 × 95 Texel. `make-people.mjs` legt Kopf- und Handinseln der UV deshalb in eigene Kacheln (Kopf 512 px, Hand
+256 px, Reihen 7 bis 9 des Atlas, je Hautbild eine Spalte wie bei der Körperhaut; der Shader bleibt gleich), rechnet
+das Quellbild hoch, schärft nach und malt mit `skinDetail` dazu, was das Quellbild nicht hat: Poren und Hautflecken im
+Raum gerechnet (ohne Nähte), Lippenlinien, Krähenfüße mit dem Alter, Knöchel- und Beugefalten an den Fingergelenken
+aus `rig.*.hand`. Die Höhe der Details steht im Alphakanal (128 = eben); der Figuren-Shader macht daraus das Relief
+statt wie bisher Poren als Rauschen je Bildpunkt zu rechnen. Die Augen nehmen das Quellbild in voller Größe (1024 px
+statt 256). Alexanders Gesichtskachel bekommt dieselben Details, seine Hände die neue Handkachel. Der Atlas ist jetzt
+2048 × 5120 px (WebP mit `alphaQuality` 65, 1,7 MB); hält die Grafik das nicht, lädt auch der PC die halbe Fassung.
+Labor: `?lab=menschen&view=herrnah|damenah|altnah|handnah|spielernah|spielerhand`.
 
 **V23: Gebäude, Waren, Böden.**
 - *Flackern:* Bauteile eines Hauses überlappen nicht mehr mit gleichen Flächen (Ecken als Mittelstück plus

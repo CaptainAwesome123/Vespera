@@ -28,6 +28,7 @@ import { setupLoose } from './physics.js';
 import { buildImperial, IMP } from './imperial.js';
 import { buildCarLights } from './carlight.js';
 import { buildSquareGround, setupWorkerLayer } from './workers.js';
+import { planLandscape, buildLandscape } from './landscape.js';   // V44: Klippenring, Wasserfälle, Gletscher, Eis
 
 /* =====================================================================
    AUFBAU UND SPIELSCHLEIFE
@@ -96,6 +97,9 @@ export async function build() {
   await step('buildVilla');
   planSerpentine();
   await step('planSerpentine');
+  const noLand = new URLSearchParams(location.search).has('ohnelandschaft');   // V44: ?ohnelandschaft = Vergleich ohne die neue Landschaft
+  if (!noLand) planLandscape();   // V44: Uferlinie, Gletschertäler, Wasserfälle mit Bachbetten (gräbt ins Gelände, deshalb vor Viadukt und Bergen)
+  await step('planLandscape');
   // V33: kein Feuerwerk mehr über der Villa (dort wird nicht mehr gefeiert)
   buildAccessRoad();
   await step('buildAccessRoad');
@@ -113,6 +117,8 @@ export async function build() {
   await step('flushInstances');
   buildMountains();
   await step('buildMountains');
+  if (!noLand) buildLandscape();   // V44: feines Klippennetz, Wasserfälle, Eissaum, Schollen, Schären
+  await step('buildLandscape');
   // V42: keine Lichtsäulen mehr aus den Kronen (Kanon 2026-11-01); buildShafts bleibt für den Fall, dass sie zurückkommen sollen
   buildGroundFog();
   await step('buildGroundFog');

@@ -74,7 +74,7 @@ const PARTS = {
 };
 const FAB = { skin: 1, hair: 2, wool: 3, silk: 4, cotton: 5, leather: 6, fur: 7, felt: 8, straw: 9, sequin: 10, knit: 11, metal: 12, satin: 13, stock: 14 };
 // Atlas: 4 x 6 Kacheln zu 512 px. Haut: Kachel je Geschlecht und Alter/Herkunft (Auswahl im Shader); Reihe 5: Spieler
-const TILE = 512, AW = 4 * TILE, AH = 7 * TILE;   // V39: eine Reihe mehr
+const TILE = 512, AW = 4 * TILE, AH = 10 * TILE;   // V39: eine Reihe mehr; V44: drei Reihen für Köpfe und Hände
 const SKIN = {
   m: ['young_caucasian_male/textures/young_lightskinned_male_diffuse.png', 'middleage_caucasian_male/textures/middleage_lightskinned_male_diffuse.png', 'old_caucasian_male/textures/old_lightskinned_male_diffuse.png', 'young_african_male/textures/young_darkskinned_male_diffuse.png'],
   f: ['young_caucasian_female/textures/young_lightskinned_female_diffuse.png', 'middleage_caucasian_female/textures/middleage_lightskinned_female_diffuse.png', 'old_caucasian_female/textures/old_lightskinned_female_diffuse.png', 'young_african_female/textures/young_darkskinned_female_diffuse.png'],
@@ -84,7 +84,7 @@ const RECT = {
   skin_m: [0, 0, 1, 1], skin_f: [0, 1, 1, 1],                       // erste Kachel je Reihe; Reihe = Geschlecht, Spalte = Hautbild
   suit: [0, 2, 1, 1], tux: [1, 2, 1, 1], uniform: [2, 2, 1, 1], waiter: [3, 2, 1, 1],
   work: [0, 3, 1, 1], lady: [1, 3, 1, 1],
-  shoes: [2, 3, 0.5, 0.5], boots: [2.5, 3, 0.5, 0.5], eyes: [2, 3.5, 0.5, 0.5], brows_m: [2.5, 3.5, 0.25, 0.25], brows_f: [2.75, 3.5, 0.25, 0.25], lashes: [2.5, 3.75, 0.5, 0.25],
+  shoes: [2, 3, 0.5, 0.5], boots: [2.5, 3, 0.5, 0.5], brows_m: [2.5, 3.5, 0.25, 0.25], brows_f: [2.75, 3.5, 0.25, 0.25], lashes: [2.5, 3.75, 0.5, 0.25],
   heels: [3, 3, 0.25, 0.25],
   hairA_m: [0, 4, 0.5, 0.5], hairB_m: [0.5, 4, 0.5, 0.5], hairC_m: [0, 4.5, 0.5, 0.5],
   hairA_f: [1, 4, 1, 1], hairB_f: [2, 4, 1, 1], hairC_f: [3, 4, 1, 1],
@@ -92,6 +92,11 @@ const RECT = {
   // V39
   hairD_m: [0.5, 4.5, 0.5, 0.5], hairD_f: [2, 5, 1, 1], hairE_f: [3, 5, 1, 1],
   furcoat: [0, 6, 1, 1], fedora: [1, 6, 0.5, 0.5], shoes2: [1.5, 6, 0.5, 0.5], hairE_m: [1, 6.5, 0.5, 0.5],
+  // V44: Augen in voller Auflösung des Quellbilds (1024 px, vorher auf 256 verkleinert); Köpfe und Hände der Stadtleute in eigenen
+  // Kacheln (erste Kachel je Reihe, die Spalte wählt der Shader wie bei der Haut nach Alter und Herkunft), mit gemalten Poren,
+  // Lippenlinien und Knöchelfalten; das Relief steckt im Alphakanal. Hände: rechte Hand links, linke Hand rechts in der halben Kachel
+  eyes: [2, 6, 2, 1],
+  face_m: [0, 7, 1, 1], face_f: [0, 8, 1, 1], hands_m: [0, 9, 1, 0.5], hands_f: [0, 9.5, 1, 0.5],
 };
 
 /* ---------------- Grunddaten ---------------- */
@@ -334,16 +339,112 @@ function paintMask(buf, isPaint) {
 }
 const sat = (b, i) => { const mx = Math.max(b[i], b[i + 1], b[i + 2]), mn = Math.min(b[i], b[i + 1], b[i + 2]); return mx ? (mx - mn) / mx : 0; };
 
+/* ---------------- V44 · gemalte Hautdetails ---------------- */
+// Die MakeHuman-Hautbilder haben 512 px; der Kopf belegt darin 180 x 342, eine Hand 99 x 95 Texel. Köpfe und Hände bekommen
+// eigene Kacheln (512 bzw. 256 px), das Quellbild wird hochgerechnet und nachgeschärft, und darauf kommen Details, die das
+// Quellbild nicht hat: Poren und Hautflecken (im Raum gerechnet, also ohne Nähte), Lippenlinien, Krähenfüße mit dem Alter,
+// Knöchelfalten und Beugefalten der Finger (an den Gelenken des Skeletts). Die Höhe der Details steht im Alphakanal
+// (128 = eben), der Shader macht daraus das Relief; vorher rechnete er Poren als Rauschen je Bildpunkt
+const hash3 = (x, y, z) => { const s = Math.sin(x * 12.9898 + y * 78.233 + z * 37.719) * 43758.5453; return s - Math.floor(s); };
+function vN3(x, y, z) {
+  const ix = Math.floor(x), iy = Math.floor(y), iz = Math.floor(z);
+  let fx = x - ix, fy = y - iy, fz = z - iz; fx = fx * fx * (3 - 2 * fx); fy = fy * fy * (3 - 2 * fy); fz = fz * fz * (3 - 2 * fz);
+  const l = (a, b, t) => a + (b - a) * t;
+  return l(l(l(hash3(ix, iy, iz), hash3(ix + 1, iy, iz), fx), l(hash3(ix, iy + 1, iz), hash3(ix + 1, iy + 1, iz), fx), fy),
+    l(l(hash3(ix, iy, iz + 1), hash3(ix + 1, iy, iz + 1), fx), l(hash3(ix, iy + 1, iz + 1), hash3(ix + 1, iy + 1, iz + 1), fx), fy), fz);
+}
+const sst = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+// Quellausschnitt eines Inselkastens hochrechnen und nachschärfen (Alpha wird in skinDetail gesetzt)
+async function upscaleBox(file, box, w, h, sigma) {
+  const skin = await readRGBA(file, TILE, TILE);
+  return sharp(skin, { raw: { width: TILE, height: TILE, channels: 4 } }).extract({ left: box[0], top: box[1], width: box[2], height: box[3] })
+    .resize(w, h, { fit: 'fill', kernel: 'lanczos3' }).sharpen({ sigma, m1: 0.5, m2: 1.3 }).raw().toBuffer();
+}
+// buf: Kachel (RGBA, size x size); R: Rasterung (rasterRect) mit Lage und Normale je Texel; o: { face, age (0 jung … 1 alt),
+// dark, hand (Gelenke der rechten Hand), mirror (linke Hand: Lage und Normale an x spiegeln) }
+function skinDetail(buf, size, R, o) {
+  const face = o.face, dark = o.dark ? 0.7 : 1, age = o.age || 0;
+  // Fingergelenke: Lage, Richtung zum nächsten Gelenk, Handflächenseite (dahin krümmt sich der Finger: Achse x Richtung)
+  const joints = [];
+  if (o.hand) for (const fg of o.hand) for (let j = 0; j < 3; j++) {
+    const J = fg[j].slice(0, 3), A = fg[j].slice(3), N = fg[Math.min(j + 1, 2)], P2 = fg[Math.min(j, 1)], D = F.nrm(F.sub(N.slice(0, 3), P2.slice(0, 3)));
+    joints.push({ J, D, P: F.nrm(F.cross(A, D)), first: j === 0 });
+  }
+  for (let t = 0; t < size * size; t++) {
+    const k = t * 4;
+    if (!(R[t * 7 + 6] > 0)) { buf[k + 3] = 128; continue; }
+    let x = R[t * 7], y = R[t * 7 + 1], z = R[t * 7 + 2], nx = R[t * 7 + 3], ny = R[t * 7 + 4], nz = R[t * 7 + 5];
+    if (o.mirror) { x = -x; nx = -nx; }
+    let r = buf[k], g = buf[k + 1], b = buf[k + 2], h = 0;
+    // Poren (zwei Körnungen) und Hautflecken (leicht rötlich)
+    // Poren: etwa 1,5 mm (ein bis zwei Texel); feiner wäre im Bild nur Körnung. Farbe nur schwach, Relief aus der gleichen Körnung
+    const pore = (vN3(x * 650, y * 650, z * 650) - 0.5) * 0.7 + (vN3(x * 1300 + 7, y * 1300, z * 1300) - 0.5) * 0.3;
+    const mott = vN3(x * 220 + 3, y * 220, z * 220) - 0.5;
+    let rw = 0.6, mw = 0.5, lip = 0, cf = 0;
+    if (face) {
+      const ax = Math.abs(x);
+      const nose = sst(0.026, 0.014, ax) * sst(face.noseY - 0.02, face.noseY - 0.008, y) * sst(face.noseY + 0.045, face.noseY + 0.03, y) * sst(face.noseZ - 0.045, face.noseZ - 0.025, z);
+      const cheek = sst(0.016, 0.026, ax) * sst(0.075, 0.06, ax) * sst(face.mouthY - 0.012, face.mouthY, y) * sst(face.eyeY, face.eyeY - 0.012, y) * sst(face.mouthZ - 0.09, face.mouthZ - 0.06, z);
+      const lid = sst(0.028, 0.018, Math.abs(ax - face.eyeX)) * sst(0.016, 0.009, Math.abs(y - face.eyeY)) * sst(face.noseZ - 0.08, face.noseZ - 0.05, z);
+      const fore = sst(face.browY + 0.002, face.browY + 0.014, y) * sst(face.noseZ - 0.12, face.noseZ - 0.08, z) * sst(face.browY + 0.1, face.browY + 0.075, y);
+      rw = (0.6 + 0.5 * nose + 0.4 * cheek + 0.25 * fore) * (1 - 0.7 * lid);
+      mw = 0.4 + 0.6 * Math.max(nose, cheek);
+      // Lippen: dichter, Längsfältchen quer zur Mundspalte, etwas gesättigter
+      lip = sst(0.013, 0.007, Math.abs(y - face.mouthY)) * sst(face.mouthW + 0.005, face.mouthW - 0.001, ax) * sst(face.mouthZ - 0.03, face.mouthZ - 0.015, z);
+      if (lip > 0.002) {
+        const f = 0.5 + 0.5 * Math.cos(x * 6.2832 / 0.0016 + (vN3(x * 500, y * 500, z * 500) - 0.5) * 4);
+        const a = lip * (0.75 + 0.6 * age);
+        r *= 1 + 0.05 * lip - 0.1 * f * a; g *= 1 - 0.03 * lip - 0.12 * f * a; b *= 1 - 0.05 * lip - 0.12 * f * a; h += (f - 0.5) * 0.9 * lip;
+      }
+      // Krähenfüße: mit dem Alter feine Linien vom äußeren Augenwinkel nach außen
+      cf = age * sst(face.eyeX + 0.016, face.eyeX + 0.024, ax) * sst(face.eyeX + 0.046, face.eyeX + 0.034, ax) * sst(0.014, 0.006, Math.abs(y - face.eyeY + 0.003)) * sst(face.noseZ - 0.12, face.noseZ - 0.09, z);
+      if (cf > 0.002) { const f = Math.pow(0.5 + 0.5 * Math.cos((y - face.eyeY) * 6.2832 / 0.0048 + (ax - face.eyeX) * 90 + (vN3(x * 250, y * 250, z * 250) - 0.5) * 7), 3.0); r *= 1 - 0.1 * f * cf; g *= 1 - 0.12 * f * cf; b *= 1 - 0.12 * f * cf; h -= f * 1.0 * cf; }
+    }
+    const pa = (1 - 0.7 * lip) * rw * (1 + 0.35 * age);
+    const pc = 1 + pore * 0.06 * pa * dark; r *= pc; g *= pc; b *= pc; h += pore * 0.5 * pa;
+    r *= 1 + mott * 0.09 * mw * dark; g *= 1 - mott * 0.03 * mw; b *= 1 - mott * 0.05 * mw;
+    // Hände: Knöchelfalten auf dem Rücken, Beugefalten in der Fläche, Knöchel leicht gerötet
+    for (const q of joints) {
+      const dx = x - q.J[0], dy = y - q.J[1], dz = z - q.J[2], t1 = dx * q.D[0] + dy * q.D[1] + dz * q.D[2];
+      const rx = dx - t1 * q.D[0], ry = dy - t1 * q.D[1], rz = dz - t1 * q.D[2], rad = Math.sqrt(rx * rx + ry * ry + rz * rz);
+      if (rad > (q.first ? 0.02 : 0.014) || Math.abs(t1) > 0.008) continue;
+      const band = Math.exp(-(t1 * t1) / (0.0022 * 0.0022)), side = nx * q.P[0] + ny * q.P[1] + nz * q.P[2];
+      const bw = sst(-0.15, -0.6, side), pw = sst(0.15, 0.6, side);
+      if (bw > 0.002) { const w = 0.5 + 0.5 * Math.cos(t1 * 6.2832 / 0.0011 + (vN3(x * 900, y * 900, z * 900) - 0.5) * 3); const a = band * bw; r *= 1 - 0.06 * w * a + 0.03 * a; g *= 1 - 0.08 * w * a; b *= 1 - 0.08 * w * a; h += (w - 0.5) * 0.9 * a; }
+      if (pw > 0.002) { const c = Math.exp(-(t1 * t1) / (0.0012 * 0.0012)) * pw; r *= 1 - 0.09 * c; g *= 1 - 0.11 * c; b *= 1 - 0.11 * c; h -= 0.7 * c; }
+    }
+    buf[k] = Math.max(0, Math.min(255, Math.round(r))); buf[k + 1] = Math.max(0, Math.min(255, Math.round(g))); buf[k + 2] = Math.max(0, Math.min(255, Math.round(b)));
+    buf[k + 3] = Math.max(1, Math.min(255, Math.round(128 + h * 110)));
+  }
+  return buf;
+}
+// Körperhaut: nur ein leichtes Relief (Alpha), die Farbe bleibt das Quellbild
+function bodyRelief(buf, w, h, seed) {
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const i = (y * w + x) * 4; buf[i + 3] = Math.round(128 + (vN3(x / 5, y / 5, seed) - 0.5) * 40); }
+  return buf;
+}
+// Köpfe und Hände der Stadtleute: je Geschlecht und Hautbild eine Kopfkachel und zwei halbe Handkacheln
+async function detailTiles() {
+  const rastAt = (gk, code, size) => rasterRect({ ...SKINRAST[gk], inHead: Uint8Array.from(SKINRAST[gk].where, w => w === code ? 1 : 0) }, size);
+  for (const gk of ['m', 'f']) {
+    const rh = rastAt(gk, 1, TILE), rR = rastAt(gk, 2, TILE / 2), rL = rastAt(gk, 3, TILE / 2), fr = RECT['face_' + gk], hr = RECT['hands_' + gk];
+    for (let k = 0; k < 4; k++) {
+      const file = sk(SKIN[gk][k]), age = k === 1 ? 0.45 : k === 2 ? 1 : 0, dark = k === 3;
+      blit(skinDetail(await upscaleBox(file, HEADBOX.head, TILE, TILE, 0.8), TILE, rh, { face: RIG[gk].face, age, dark }), [fr[0] + k, fr[1], 1, 1]);
+      blit(skinDetail(await upscaleBox(file, HEADBOX.handR, TILE / 2, TILE / 2, 1.2), TILE / 2, rR, { hand: RIG[gk].hand, age, dark }), [hr[0] + k, hr[1], 0.5, 0.5]);
+      blit(skinDetail(await upscaleBox(file, HEADBOX.handL, TILE / 2, TILE / 2, 1.2), TILE / 2, rL, { hand: RIG[gk].hand, mirror: true, age, dark }), [hr[0] + k + 0.5, hr[1], 0.5, 0.5]);
+    }
+  }
+}
+
 // V24 · Spielerkacheln: Körperhaut (junger hellhäutiger Herr) und Kopf in dreifacher Auflösung. Ins Gesicht kommt aus dem
 // Referenzbild nur die Zeichnung (Brauen, Lidfalten, Nase, Lippen, Lachfalten): Bild geteilt durch seine weichgezeichnete
 // Fassung, also ohne Licht und Schatten der Aufnahme, auf die Haut gelegt. Die Lage im Bild kommt über die Merkmale (PLAYER_REF)
 async function playerTiles() {
   const skinFile = sk(SKIN.m[0]);
-  blit(await readRGBA(skinFile, TILE, TILE), RECT.skin_p);
-  const [bx, by, bw, bh] = HEADP.box;
-  const skin512 = await readRGBA(skinFile, TILE, TILE);
-  const head = await sharp(skin512, { raw: { width: TILE, height: TILE, channels: 4 } }).extract({ left: bx, top: by, width: bw, height: bh })
-    .resize(TILE, TILE, { fit: 'fill', kernel: 'lanczos3' }).raw().toBuffer();
+  blit(bodyRelief(await readRGBA(skinFile, TILE, TILE), TILE, TILE, 9), RECT.skin_p);
+  const [bx, by, bw, bh] = HEADBOX.head;
+  const head = await upscaleBox(skinFile, HEADBOX.head, TILE, TILE, 0.8);   // V44: nachgeschärft, unten Poren und Lippen wie bei allen
   for (let i = 3; i < head.length; i += 4) head[i] = 255;
   if (fs.existsSync(PLAYER_REF.file)) {
     const meta = await sharp(PLAYER_REF.file).metadata(), RW = meta.width, RH = meta.height;
@@ -368,7 +469,7 @@ async function playerTiles() {
       for (let d = 0; d < 3; d++) { const det = Math.min(1.22, Math.max(0.4, (c[d] + 4) / (b[d] + 4))); head[k + d] = Math.min(255, head[k + d] * (1 + (Math.pow(det, 1.15) - 1) * w * 0.95)); }
     }
   } else console.warn('Referenzbild fehlt:', PLAYER_REF.file);
-  blit(head, RECT.face_p);
+  blit(skinDetail(head, TILE, rasterRect(HEADP, TILE), { face: RIG.p.face, age: 0 }), RECT.face_p);
 }
 // Rasterung des Kopfes in seiner Kachel: je Texel Lage (x, y, z) und Normale (x, y, z), Deckung
 function rasterRect(H, size) {
@@ -401,8 +502,7 @@ async function buildAtlas() {
   // Haut
   for (const [gk, list] of Object.entries(SKIN)) for (let k = 0; k < 4; k++) {
     const r = RECT['skin_' + gk]; const buf = await readRGBA(sk(list[k]), TILE, TILE);
-    for (let i = 3; i < buf.length; i += 4) buf[i] = 255;
-    blit(buf, [r[0] + k, r[1], 1, 1]);
+    blit(bodyRelief(buf, TILE, TILE, k + (gk === 'f' ? 4 : 0)), [r[0] + k, r[1], 1, 1]);   // V44: leichtes Relief im Alphakanal
   }
   // Anzug und Varianten: dunkler Stoff = Farbe der Figur; Hemd, Krawatte, Knöpfe bleiben
   const suit = parts['suit-m'];
@@ -475,10 +575,12 @@ async function buildAtlas() {
   { const r = rectPx(RECT.shoes2); const b = await readRGBA(parts['shoes2-m'].tex, r[2], r[3]); for (let i = 3; i < b.length; i += 4) b[i] = 255; blit(b, RECT.shoes2); }
   { const b = await readRGBA(parts['coat-f'].tex, TILE, TILE); blit(paintMask(b, (bb, i) => bb[i + 3] > 10 && bb[i + 2] > bb[i] + 8), RECT.furcoat); }
   await playerTiles();
+  await detailTiles();   // V44
   // Ränder auffüllen: leere Texel bekommen die Farbe des nächsten Nachbarn (keine Säume beim Mipmapping)
   dilate(atlas, AW, AH, 4);
-  await sharp(atlas, { raw: { width: AW, height: AH, channels: 4 } }).webp({ quality: 86, alphaQuality: 90, effort: 5 }).toFile(path.join(OUT, 'people-atlas.webp'));
-  await sharp(atlas, { raw: { width: AW, height: AH, channels: 4 } }).resize(AW / 2, AH / 2, { kernel: 'lanczos3' }).webp({ quality: 82, alphaQuality: 85, effort: 5 }).toFile(path.join(OUT, 'people-atlas-m.webp'));
+  // V44: Alpha trägt jetzt das Hautrelief (Rauschen); mit alphaQuality 90 wäre die Datei 3,4 MB, mit 65 etwa 1,5 MB bei gleichem Bild
+  await sharp(atlas, { raw: { width: AW, height: AH, channels: 4 } }).webp({ quality: 86, alphaQuality: 65, effort: 5 }).toFile(path.join(OUT, 'people-atlas.webp'));
+  await sharp(atlas, { raw: { width: AW, height: AH, channels: 4 } }).resize(AW / 2, AH / 2, { kernel: 'lanczos3' }).webp({ quality: 82, alphaQuality: 60, effort: 5 }).toFile(path.join(OUT, 'people-atlas-m.webp'));
 }
 function dilate(buf, w, h, n) {
   // nur Farbe auffüllen, wo das Bild ganz leer ist (Alpha 0 und schwarz)
@@ -493,7 +595,7 @@ function dilate(buf, w, h, n) {
 
 /* ---------------- Netze zusammenstellen ---------------- */
 // Ein Netz fürs Spiel: Lage, Normale, Atlas-UV, Glied, Mischung, Stoff, Variante, Bereich, Verdeckung
-const meshes = {}, HEADP = {};
+const meshes = {}, HEADP = {}, HEADBOX = {}, SKINRAST = {};   // V44: Inselkästen im Hautbild und Rasterdaten je Geschlecht
 function addMesh(name, m) { meshes[name] = m; }
 // Körper: Verdeckung je Kleidungsstück als Bitmaske über die Grundnetz-Ecken
 const HIDEBIT = { 'suit-m': 1, 'work-m': 2, 'shoes-m': 4, 'boots-m': 8, 'lady-f': 16, 'heels-f': 32, 'coat-f': 128, 'shoes2-m': 256 };   // 64: Krawatte im Anzug (eigenes Netz)
@@ -508,26 +610,35 @@ for (const [gk, B] of Object.entries(bodies)) {
     for (let i = 0; i < n; i++) { const r = la.reg[i], y = pos[i * 3 + 1]; if ((r === 3 || r === 4 || r === 5 || r === 7 || r === 8) && y > hem + 0.03 && y < RIG.f.top + 0.03) hide[i] |= HIDEBIT['coat-f']; }
     console.log('Pelzmantel: Saum bei', hem.toFixed(3)); }
   const nrm = normals(pos, U.idx, U.vid);
-  let uv, tex;
-  if (gk === 'p') {
-    // Spieler: Kopfinseln der UV (Gesicht, Ohren) in eine eigene Kachel in dreifacher Auflösung, der Rest in seine Hautkachel.
-    // Art 6 = feste Haut (der Shader wählt keine Hautkachel nach Alter und Herkunft)
-    const isl = uvIslands(U.idx, n), head = new Set();
-    const cnt = new Map(), hi = new Map(); for (let i = 0; i < n; i++) { cnt.set(isl[i], (cnt.get(isl[i]) || 0) + 1); if (pos[i * 3 + 1] > RIG.m.neck - 0.02) hi.set(isl[i], (hi.get(isl[i]) || 0) + 1); }
-    // die größte Kopfinsel (Gesicht, Schädel, Ohren); Mundinneres und Augenwinkel bleiben in der Hautkachel
-    let best = -1, bc = 0; for (const [k, c] of cnt) if ((hi.get(k) || 0) > c * 0.8 && c > bc) { bc = c; best = k; } head.add(best);
-    let u0 = 1, v0 = 1, u1 = 0, v1 = 0; for (let i = 0; i < n; i++) if (head.has(isl[i])) { u0 = Math.min(u0, U.uv[i * 2]); u1 = Math.max(u1, U.uv[i * 2]); v0 = Math.min(v0, U.uv[i * 2 + 1]); v1 = Math.max(v1, U.uv[i * 2 + 1]); }
-    // auf ganze Pixel des 512er-Hautbilds runden (dann passt der Ausschnitt genau)
+  // V24/V44: Kopfinsel der UV (Gesicht, Schädel, Ohren) und die beiden Handinseln bekommen eigene, größere Kacheln; der Rest
+  // bleibt in der Hautkachel. Spieler: Art 6 = feste Haut (keine Wahl nach Alter und Herkunft), Kopf in face_p, Hände in der
+  // ersten Herren-Handkachel (junge helle Haut, wie seine Körperhaut). Stadtleute: Art 2, der Shader schiebt die Spalte
+  const isl = uvIslands(U.idx, n);
+  const cnt = new Map(), hi = new Map(), hd = new Map(), sx = new Map();
+  for (let i = 0; i < n; i++) { const k = isl[i]; cnt.set(k, (cnt.get(k) || 0) + 1); if (pos[i * 3 + 1] > RIG[gk === 'p' ? 'm' : gk].neck - 0.02) hi.set(k, (hi.get(k) || 0) + 1); if (la.hand[i * 4]) hd.set(k, (hd.get(k) || 0) + 1); sx.set(k, (sx.get(k) || 0) + pos[i * 3]); }
+  // die größte Kopfinsel (Mundinneres und Augenwinkel bleiben in der Hautkachel); Hände: Inseln, die vor allem aus Fingern bestehen
+  let best = -1, bc = 0; for (const [k, c] of cnt) if ((hi.get(k) || 0) > c * 0.8 && c > bc) { bc = c; best = k; }
+  const handR = [], handL = []; for (const [k, c] of cnt) if ((hd.get(k) || 0) > c * 0.5 && c > 500) (sx.get(k) < 0 ? handR : handL).push(k);
+  if (handR.length !== 1 || handL.length !== 1) console.warn(gk, 'Handinseln:', handR.length, handL.length);
+  // Ausschnitt einer Inselgruppe im 512er-Hautbild, auf ganze Pixel gerundet (dann passt der Ausschnitt genau); lokale UV 0…1 darin
+  const skinU = gk === 'p' ? RECT.skin_p : RECT['skin_' + gk], HB = HEADBOX;
+  const local = new Float32Array(U.uv), where = new Uint8Array(n);   // 0 Haut, 1 Kopf, 2 rechte Hand, 3 linke Hand
+  const remap = (keys, code, name) => {
+    const set = new Set(keys); let u0 = 1, v0 = 1, u1 = 0, v1 = 0;
+    for (let i = 0; i < n; i++) if (set.has(isl[i])) { u0 = Math.min(u0, U.uv[i * 2]); u1 = Math.max(u1, U.uv[i * 2]); v0 = Math.min(v0, U.uv[i * 2 + 1]); v1 = Math.max(v1, U.uv[i * 2 + 1]); }
     const px0 = Math.max(0, Math.floor(u0 * TILE) - 2), px1 = Math.min(TILE, Math.ceil(u1 * TILE) + 2), py0 = Math.max(0, Math.floor((1 - v1) * TILE) - 2), py1 = Math.min(TILE, Math.ceil((1 - v0) * TILE) + 2);
-    HEADP.box = [px0, py0, px1 - px0, py1 - py0];
+    HB[name] = [px0, py0, px1 - px0, py1 - py0];   // gleich für alle Körper (dieselbe UV-Anordnung des Grundnetzes)
     const bu0 = px0 / TILE, bu1 = px1 / TILE, bv1 = 1 - py0 / TILE, bv0 = 1 - py1 / TILE;
-    const local = new Float32Array(U.uv.length), inHead = new Uint8Array(n);
-    for (let i = 0; i < n; i++) { if (head.has(isl[i])) { inHead[i] = 1; local[i * 2] = (U.uv[i * 2] - bu0) / (bu1 - bu0); local[i * 2 + 1] = (U.uv[i * 2 + 1] - bv0) / (bv1 - bv0); } else { local[i * 2] = U.uv[i * 2]; local[i * 2 + 1] = U.uv[i * 2 + 1]; } }
-    const a = toAtlasUV(local, RECT.face_p), b = toAtlasUV(local, RECT.skin_p);
-    uv = new Float32Array(n * 2); for (let i = 0; i < n; i++) { const s2 = inHead[i] ? a : b; uv[i * 2] = s2[i * 2]; uv[i * 2 + 1] = s2[i * 2 + 1]; }
-    tex = new Float32Array(n).fill(6);
-    Object.assign(HEADP, { pos, nrm, uv: local, inHead, idx: U.idx });
-  } else { uv = toAtlasUV(U.uv, RECT['skin_' + gk]); tex = new Float32Array(n).fill(2); }   // Haut: erste Kachel; Shader verschiebt je Figur
+    for (let i = 0; i < n; i++) if (set.has(isl[i])) { where[i] = code; local[i * 2] = (U.uv[i * 2] - bu0) / (bu1 - bu0); local[i * 2 + 1] = (U.uv[i * 2 + 1] - bv0) / (bv1 - bv0); }
+  };
+  remap([best], 1, 'head'); remap(handR, 2, 'handR'); remap(handL, 3, 'handL');
+  const hr = gk === 'f' ? RECT.hands_f : RECT.hands_m, half = r => [r[0], r[1], r[2] / 2, r[3]];
+  const dest = [toAtlasUV(local, skinU), toAtlasUV(local, gk === 'p' ? RECT.face_p : RECT['face_' + gk]), toAtlasUV(local, half(hr)), toAtlasUV(local, [hr[0] + hr[2] / 2, hr[1], hr[2] / 2, hr[3]])];
+  const uv = new Float32Array(n * 2); for (let i = 0; i < n; i++) { const s2 = dest[where[i]]; uv[i * 2] = s2[i * 2]; uv[i * 2 + 1] = s2[i * 2 + 1]; }
+  const tex = new Float32Array(n).fill(gk === 'p' ? 6 : 2);
+  // Rasterdaten für die gemalten Details (Lage und Normale je Texel): Spieler wie bisher (HEADP), Stadtleute je Geschlecht
+  const rast = { pos, nrm, uv: local, where, idx: U.idx, hand: la.hand };
+  if (gk === 'p') Object.assign(HEADP, rast, { inHead: Uint8Array.from(where, w => w === 1 ? 1 : 0) }); else SKINRAST[gk] = rast;
   const soft = new Float32Array(n * 3); for (let i = 0; i < n; i++) soft[i * 3] = FAB.skin;
   // V32: Finger und Gelenkanteile stecken (negativ) in der Variante: -(Finger·32768 + Grund·1024 + Mittel·32 + End), Anteile 0…31
   const opt = new Float32Array(n);

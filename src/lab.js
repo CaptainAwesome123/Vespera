@@ -18,6 +18,7 @@ export function startLab(params) {
   if (params.get('lab') === 'villa') { import('./lab-villa.js').then(L => L.startVillaLab(params)); return; }   // V41: Villa-Labor
   if (params.get('lab') === 'strassen') { import('./lab-strassen.js').then(L => L.startRoadsLab(params)); return; }   // V42: Straßen-Labor
   if (params.get('lab') === 'arbeiter') { import('./lab-arbeiter.js').then(L => L.startWorkersLab(params)); return; }   // V46: Arbeiterviertel und Brass Lantern
+  if (params.get('lab') === 'landschaft') { import('./lab-landschaft.js').then(L => L.startLandscapeLab(params)); return; }   // V44: Landschafts-Labor
   buildEnv(); getMats();
   scene.fog.density = 0.0002;
   const lamp = new T.PointLight(0xffc27a, 2.2, 14, 1.6); lamp.position.set(1.6, 3.6, 2.4); scene.add(lamp);
@@ -74,6 +75,9 @@ export function startLab(params) {
     // V39: neue Figuren rechts und links der vorderen Reihe
     neu: [[0.4, 1.5, 6.2], [0.4, 1.0, 0]], neurechts: [[3.0, 1.45, 2.6], [3.0, 1.1, 0]], neulinks: [[-2.7, 1.45, 2.6], [-2.7, 1.1, 0]],
     neuhut: [[-2.4, 1.78, 1.5], [-2.4, 1.62, 0]], neupelz: [[2.4, 1.3, 1.6], [2.4, 1.1, 0]], neuzopf: [[3.9, 1.6, -1.4], [3.3, 1.45, 0]],
+    // V44: ganz nah an Gesicht und Hand (Poren, Lippen, Knöchel), auch beim Spieler
+    herrnah: [[-0.86, 1.67, 0.62], [-0.9, 1.65, 0]], damenah: [[-0.27, 1.57, 0.6], [-0.3, 1.55, 0]], altnah: [[2.07, 1.6, 0.62], [2.1, 1.58, 0]],
+    handnah: [[-1.0, 0.98, 0.7], [-0.75, 0.85, 0.0]], spielerhand: [[-0.4, 0.98, 2.9], [-0.2, 0.85, 2.2]], spielernah: [[0, 1.68, 2.82], [0, 1.67, 2.2]],
   };
   // V35: Alexanders Bewegungen als Standbild (?pose=... oder window.labPose(name)); u: [Platz im uPl, x, y, z, w]
   LAB.poses = {
