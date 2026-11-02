@@ -984,25 +984,34 @@ export function terrainHeightRaw(wx, wz) {
 }
 /* ---------- Die einzige Zufahrt: ein durchgehender Viadukt bis an den Berg, dann der Tunnel ---------- */
 export const ROAD_W = 14, ROAD_Z0 = -985;
-export const VIA = { grade: 0.045, portalZ: 0, tunnelLen: 280, end: 0 };
-export const deckY = z => 0.3 + Math.max(0, ROAD_Z0 - z) * VIA.grade;
+export const VIA = { grade: 0.045, portalZ: 0, tunnelLen: 280, end: 0, cav: 0, R: 36 };   // V42: cav/R = Wendehalle (Zollhof) hinter dem Tunnelende
+// V42: hinter dem Tunnelende bleibt die Fahrbahn eben (Wendehalle)
+export const deckY = z => 0.3 + Math.max(0, ROAD_Z0 - Math.max(z, VIA.end || -1e9)) * VIA.grade;
 export function planAccess() {
   VIA.portalZ = -1700;
   for (let z = -1260; z > -2600; z -= 2) if (terrainHeightRaw(0, z) > deckY(z) + 34) { VIA.portalZ = z; break; }
   VIA.end = VIA.portalZ - VIA.tunnelLen;
+  VIA.cav = VIA.end - VIA.R - 6;
 }
 // Gelände entlang der Trasse: Felseinschnitt vor dem Portal, genug Fels über dem Tunnel
 export function accessCarve(wx, wz, h) {
   if (!VIA.portalZ) return h;
   const ax = Math.abs(wx);
-  if (ax > 120 || wz > VIA.portalZ + 300 || wz < VIA.end - 80) return h;
+  if (ax > 120 || wz > VIA.portalZ + 300 || wz < VIA.end - 170) return h;   // V42: Fels auch über der Wendehalle
   const d = deckY(Math.max(wz, VIA.end));
   if (wz > VIA.portalZ) return Math.min(h, d - 5 + Math.max(0, ax - 11) * 1.5);
   if (ax < 30) return Math.max(h, d + 22 - ax * 0.3);
   return h;
 }
 export function roadHeightAt(x, z, y) {
-  if (Math.abs(x) > ROAD_W / 2 + 0.4 || z > ROAD_Z0 || z < VIA.end) return { y: -1e9 };
+  if (z > ROAD_Z0) return { y: -1e9 };
+  if (z < VIA.end + 0.5) {
+    // V42: Wendehalle hinter dem Tunnel: ebener Boden in der Rundhalle (Mittelpfeiler und Wände sind Kollisionsquader)
+    const d = deckY(VIA.end);
+    if (x * x + (z - VIA.cav) ** 2 < (VIA.R - 1) ** 2 || (z > VIA.cav && Math.abs(x) <= ROAD_W / 2 + 0.4)) return y < d + 12 ? { y: d, tunnel: true } : { y: -1e9 };
+    return { y: -1e9 };
+  }
+  if (Math.abs(x) > ROAD_W / 2 + 0.4) return { y: -1e9 };
   const d = deckY(z);
   if (z < VIA.portalZ + 2 && y < d + 9) return { y: d, tunnel: true };
   return y > d - 3 ? { y: d } : { y: -1e9 };

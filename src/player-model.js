@@ -16,6 +16,7 @@ import { MHP } from './people-mh.js';
 import { player } from './player.js';
 import { nearBoxes } from './people-skeleton.js';
 import { LOOSE } from './physics.js';
+import { DRIVE } from './eating.js';
 
 // Aussehen in einer Zahl (wie personLook): Gesicht 5 (haselnussbraune Augen), heller Hautton, blondes Haar, ohne Hut
 const PLAYER_LOOK = 5 + 64 * 0 + 320 * 2 + 7680 * 2;
@@ -120,6 +121,19 @@ PM.handWorld = out => {
 // Jedes Bild: Figur bewegen. on: zu Fuß und sichtbar (nicht im Wagen, Boot, am Tisch)
 export function updatePlayerModel(dt, on) {
   if (!PM.mesh) { if (MHP.ready) buildPlayerModel(); if (!PM.mesh) return; }
+  // V42: am Steuer sitzt in der Außenansicht Alexanders eigene Figur (Sitzhaltung mit Lenkrad, Pose 32 wie bei den Fahrern), nicht mehr eine Platzhalterfigur
+  const B = DRIVE.body, drive = !on && DRIVE.on && B && DRIVE.mesh && !DRIVE.model && PM.view === 'third';
+  DRIVE.selfModel = drive;
+  if (drive) {
+    PM.show = true; PM.mesh.visible = true;
+    AN.airW = AN.fallW = AN.prepW = AN.tkW = AN.brace = AN.brake = 0; AN.fade = 0; PM.air = 0;
+    const by = (B.gy !== undefined && !B.air ? B.gy : B.y) + 0.22, c = Math.cos(B.h), s = Math.sin(B.h), lx = -0.42, lz = 0.38;
+    const steer = Math.max(-1.6, Math.min(1.6, (DRIVE.delta || 0) * 3.2)), act = Math.min(32.999, 32 + Math.round((0.5 + steer / 3.4) * 48) / 48);
+    PM.yawB = B.h + Math.PI / 2;
+    baseState(act, 0, 'drive', dt);
+    PM.place(B.x + c * lx + s * lz, by + 1.1 - 0.87 * PM.sc, B.z - s * lx + c * lz, PM.yawB, { act, smile: 0.4 });
+    writeU(dt); return;
+  }
   PM.show = on && PM.view === 'third';
   PM.mesh.visible = PM.show;
   if (!PM.show) { PM.heroW = heroWeight(); return; }

@@ -1,7 +1,7 @@
 import { shared, rand, MOBILE, T, pick, scene, camera, U, mergeGeos, R, FOGVIS } from './core.js';
 import { MAT, mergeColored, paintMat, addCollider, PAINT, stdMat } from './people-skeleton.js';
 import { addSeg, addNeon, NEON, addGlow, steamPts } from './facade-shader.js';
-import { offsetPoly, resample, NET, bez, ELEVATED, AV, ST, blockAt, inRect, PLAZA } from './island.js';
+import { offsetPoly, resample, NET, bez, AV, ST, blockAt, inRect, PLAZA } from './island.js';
 import { IB, DEPOTS } from './shops.js';
 import { DOORS, makeSignTex } from './entrances.js';
 import { ROAD_Z0, VIA, deckY } from './harbour.js';
@@ -24,6 +24,8 @@ export function lanePts(e, dir) {
   const P = dir > 0 ? e.pts : e.pts.slice().reverse();
   return offsetPoly(resample(P, 4), e.off);
 }
+// V42: Fahrbahnhöhe auf einer Spur (Rampen steigen weich an); im Abbiegebogen die Höhe des Zielknotens
+export function laneY(L, s) { if (!L.y0 && !L.y1) return 0; const t = Math.max(0, Math.min(1, s / L.len)); return L.y0 + (L.y1 - L.y0) * t * t * (3 - 2 * t); }
 export function cumLen(P) { const c = [0]; for (let k = 1; k < P.length; k++) c.push(c[k - 1] + Math.hypot(P[k][0] - P[k - 1][0], P[k][1] - P[k - 1][1])); return c; }
 export function trimPoly(P, s0, s1) {
   const c = cumLen(P), L = c[c.length - 1], out = [];
@@ -33,13 +35,14 @@ export function trimPoly(P, s0, s1) {
 }
 export function buildLanes() {
   // Abstand der Haltelinie vom Knoten: halbe Breite der Querstraße plus Zebrastreifen
-  const sb = (n, e) => { if (n.e.length <= 2 && n.kind === 'ring') return 0; let m = 0; for (const id of n.e) if (id !== e.id) m = Math.max(m, NET.edges[id].w / 2); return m + (n.e.length > 2 ? 2.5 : 0.5); };
+  const sb = (n, e) => { if (n.e.length <= 2 && (n.kind === 'ring' || n.kind === 'elev')) return 0; let m = 0; for (const id of n.e) if (id !== e.id) m = Math.max(m, NET.edges[id].w / 2); return m + (n.e.length > 2 ? 2.5 : 0.5); };
   for (const e of NET.edges) for (const dir of [1, -1]) {
+    if (e.dead) continue;   // V42: Bodenstraße unter einem Rampenende
     const from = NET.nodes[dir > 0 ? e.a : e.b], to = NET.nodes[dir > 0 ? e.b : e.a];
     const raw = lanePts(e, dir), pts = trimPoly(raw, sb(from, e), sb(to, e));
     if (cumLen(pts).pop() < 3) continue;
     const c = cumLen(pts);
-    const L = { id: TRF.lanes.length, e, dir, from: from.id, to: to.id, pts, cum: c, len: c[c.length - 1], cars: [], out: [], vmax: e.kind === 'ring' ? 15 : e.w > 20 ? 14 : 11 };
+    const L = { id: TRF.lanes.length, e, dir, from: from.id, to: to.id, pts, cum: c, len: c[c.length - 1], cars: [], out: [], vmax: e.kind === 'elev' ? 17 : e.kind === 'ramp' ? 9 : e.kind === 'ring' ? 15 : e.w > 20 ? 14 : 11, y0: from.y || 0, y1: to.y || 0 };   // V42: Höhen der Enden (Hochstraße, Rampe)
     const a = pts[pts.length - 2], b = pts[pts.length - 1], d = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
     L.endDir = [(b[0] - a[0]) / d, (b[1] - a[1]) / d];
     const a0 = pts[0], b0 = pts[1], d0 = Math.hypot(b0[0] - a0[0], b0[1] - a0[1]) || 1;
@@ -154,7 +157,7 @@ export function updateTraffic(dt, t) {
     }
     const Lc = car.lane;
     const p = car.s <= Lc.len ? polyAt(Lc.pts, Lc.cum, car.s) : polyAt(car.turn.pts, car.turn.cum, car.s - Lc.len);
-    car.wx = p[0]; car.wz = p[1]; car.wy = 0;
+    car.wx = p[0]; car.wz = p[1];
     const ty = Math.atan2(-p[3], p[2]);
     let dy = ty - car.yaw; dy = Math.atan2(Math.sin(dy), Math.cos(dy));
     car.yaw += dy * Math.min(1, dt * 8);
@@ -170,15 +173,9 @@ export const CAR_LAMPS = { p: [2.62, 0.12, 0.62, -2.35, 0, 0.7], m: [2.62, 0.12,
 export function carLampsFromModel() { const D = CARM.dim; CAR_LAMPS.m = [D.lamp[0] + 0.12, D.lamp[1] + 0.22 - 0.95, D.lamp[2], D.tail[0], D.tail[1] + 0.22 - 0.95, D.tail[2]]; }
 export function buildCars() {
   buildLanes();
+  // V42: auch die Hochstraßen fahren jetzt im Netz (Kanten 'elev'/'ramp' mit Höhe) statt als Schienenwagen, die am Ende zurücksprangen
   const lanes = [];
-  for (const e of ELEVATED) {
-    const ax = e.axis === 'x', len = e.to - e.from;
-    lanes.push({ dx: ax ? 1 : 0, dz: ax ? 0 : 1, len, y: e.y, start: [ax ? e.from : e.at - 3.5, ax ? e.at + 3.5 : e.from] });
-    lanes.push({ dx: ax ? -1 : 0, dz: ax ? 0 : -1, len, y: e.y, start: [ax ? e.to : e.at + 3.5, ax ? e.at - 3.5 : e.to] });
-  }
-  const vl = ROAD_Z0 - VIA.end - 8;
-  lanes.push({ dx: 0, dz: 1, len: vl, yf: deckY, start: [-3.5, VIA.end + 4], n: 7 });
-  lanes.push({ dx: 0, dz: -1, len: vl, yf: deckY, start: [3.5, ROAD_Z0 - 4], n: 7 });
+  // V42: keine Schienenwagen mehr auf dem Viadukt (sie sprangen am Ende zurück, „verschwanden“): der Viadukt ist eine Kante im Netz, der Verkehr fährt bis in die Wendehalle hinter dem Tunnel und zurück in die Stadt
   for (const l of lanes) for (let k = 0; k < (l.n || 4); k++) cars.push({ l, s: rand(0, l.len), v: rand(9, 15), yaw: Math.atan2(-l.dz, l.dx) });
   spawnTraffic(MOBILE ? 150 : 260);
   cars.push(...TRF.cars);
@@ -250,7 +247,7 @@ export function updateDrivers(dt) {
   }
   // der eigene Wagen: Fahrer dreht das Lenkrad mit dem Einschlag der Vorderräder
   const B = DRIVE.body, P = DRV.player;
-  if (B && DRIVE.on && DRIVE.mesh && !DRIVE.model) { const by = (B.gy !== undefined && !B.air ? B.gy : B.y); seatPerson(P, B.x, by + 0.22, B.z, B.h, -0.42, 0.38, (DRIVE.delta || 0) * 3.2); }
+  if (B && DRIVE.on && DRIVE.mesh && !DRIVE.model && !DRIVE.selfModel) { const by = (B.gy !== undefined && !B.air ? B.gy : B.y); seatPerson(P, B.x, by + 0.22, B.z, B.h, -0.42, 0.38, (DRIVE.delta || 0) * 3.2); }   // V42: in der Außenansicht sitzt Alexanders eigene Figur am Steuer (player-model.js), nicht die Platzhalterfigur
   else P.a.on = false;
   DRV.crowd.flag();
 }
@@ -262,7 +259,13 @@ export function updateCars(dt) {
     let x, z, ly, yaw, hidden = false, pitch = 0, roll = 0;
     if (car.graph) {
       if (car.dyn) { const b = car.dyn; x = b.x; z = b.z; ly = b.y; yaw = b.h; pitch = b.pitch; roll = b.roll; }
-      else { x = car.wx; z = car.wz; ly = car.lane && car.lane.e.kind === 'via' ? Math.max(0, deckY(z) - 0.22) : 0; yaw = car.yaw; pitch = Math.max(-0.03, Math.min(0.03, -(car.acc || 0) * 0.006)); }
+      else {
+        const L = car.lane; x = car.wx; z = car.wz; yaw = car.yaw; pitch = Math.max(-0.03, Math.min(0.03, -(car.acc || 0) * 0.006));
+        if (L && L.e.kind === 'via') ly = Math.max(0, deckY(z) - 0.22);
+        else if (L && (L.y0 || L.y1)) { ly = laneY(L, car.s); const t = Math.max(0, Math.min(1, car.s / L.len)); pitch += Math.atan((L.y1 - L.y0) * 6 * t * (1 - t) / L.len); }   // V42: Rampe: Höhe und Nicken
+        else ly = 0;
+        car.wy = ly;
+      }
       if (car.gone) hidden = true;
     } else if (car.l.path) {
       if (!paused) serpCarStep(car, dt);
