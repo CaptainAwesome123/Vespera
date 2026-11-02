@@ -1065,7 +1065,7 @@ export const HUM_FS_COLOR = () => `
         {
           float plF = step(7679.5, vFaceId), idv = mod(floor(vFaceId + 0.5), 7680.0), fid = mod(idv, 64.0), tone = mod(floor(idv / 64.0), 5.0), hairI = mod(floor(idv / 320.0), 6.0);
           vec3 T5 = tone < 0.5 ? vec3(1.06, 1.03, 1.02) : tone < 1.5 ? vec3(0.97, 0.9, 0.84) : tone < 2.5 ? vec3(0.88, 0.8, 0.66) : tone < 3.5 ? vec3(0.62, 0.48, 0.38) : vec3(0.42, 0.31, 0.25);
-          vec3 HC = hairI < 0.5 ? vec3(0.05, 0.035, 0.03) : hairI < 1.5 ? vec3(0.2, 0.12, 0.06) : hairI < 2.5 ? vec3(0.62, 0.48, 0.26) : hairI < 3.5 ? vec3(0.42, 0.14, 0.06) : hairI < 4.5 ? vec3(0.55, 0.5, 0.43) : vec3(0.11, 0.07, 0.04);
+          vec3 HC = hairI < 0.5 ? vec3(0.05, 0.035, 0.03) : hairI < 1.5 ? vec3(0.2, 0.12, 0.06) : hairI < 2.5 ? vec3(0.56, 0.41, 0.2) : hairI < 3.5 ? vec3(0.42, 0.14, 0.06) : hairI < 4.5 ? vec3(0.55, 0.5, 0.43) : vec3(0.11, 0.07, 0.04);
           // V26: Spieler wie im Foto: goldbraunes Haar, an den Spitzen heller
           if (plF > 0.5) HC = vec3(0.47, 0.32, 0.15);
           float fab = floor(vSoft.x + 0.5);

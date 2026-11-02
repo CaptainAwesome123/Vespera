@@ -78,6 +78,8 @@ export function startLab(params) {
     // V44: ganz nah an Gesicht und Hand (Poren, Lippen, Knöchel), auch beim Spieler
     herrnah: [[-0.86, 1.67, 0.62], [-0.9, 1.65, 0]], damenah: [[-0.27, 1.57, 0.6], [-0.3, 1.55, 0]], altnah: [[2.07, 1.6, 0.62], [2.1, 1.58, 0]],
     handnah: [[-1.0, 0.98, 0.7], [-0.75, 0.85, 0.0]], spielerhand: [[-0.4, 0.98, 2.9], [-0.2, 0.85, 2.2]], spielernah: [[0, 1.68, 2.82], [0, 1.67, 2.2]],
+    // V48: Alexander im Dreiviertelprofil (wie auf den Referenzbildern)
+    spielerportraet: [[0.42, 1.7, 2.85], [0, 1.66, 2.2]], spielerprofil: [[0.72, 1.7, 2.25], [0, 1.66, 2.2]],
   };
   // V35: Alexanders Bewegungen als Standbild (?pose=... oder window.labPose(name)); u: [Platz im uPl, x, y, z, w]
   LAB.poses = {
