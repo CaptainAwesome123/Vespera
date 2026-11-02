@@ -3,7 +3,7 @@
    Der Spieler als eigene Figur (MakeHuman-Herrenkörper mit eigenem Gesicht nach
    den Referenzbildern, blondes Haar mit Seitenscheitel, Frack, Fliege, weiße Rose).
    Sie läuft mit demselben Skelett im Shader wie alle Menschen der Stadt: Gehen,
-   Laufen, Springen, Stehen mit kleinen Gesten, Tanzen (Taste G).
+   Laufen, Springen, Stehen (V47: ruhig und mächtig, Hände auf dem Rücken), Tanzen (Taste G).
    Taste V wechselt zwischen Ich-Ansicht und Ansicht von hinten über die Schulter;
    das Mausrad ändert den Abstand. Im Wagen, am Ruder, im Flug und am Tisch
    bleibt alles wie bisher.
@@ -192,7 +192,7 @@ export function updatePlayerModel(dt, on) {
 }
 
 // V33/V35: Flugpose. Schwebend aufrecht; je schneller, desto mehr legt er sich in die Flugrichtung (waagrecht im Geradeausflug,
-// aufrecht beim Steigen, kopfüber im Sturzflug), rechte Faust voraus. Scharfes Bremsen richtet ihn auf, die Beine schwingen nach vorn
+// aufrecht beim Steigen, kopfüber im Sturzflug), V47: beide Arme gestreckt nach hinten. Scharfes Bremsen richtet ihn auf, die Beine schwingen nach vorn
 PM.tilt = 0; PM.roll = 0;
 function flyPose(dt) {
   PM.dance = 0;

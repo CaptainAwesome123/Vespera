@@ -79,14 +79,15 @@ export const MH_KIND = {
   dress:     { g: 'f', parts: ['heels-f'], keep: ['body', 'hat', 'props'], cover: { from: 0.42, to: 1.366, mg: 0.01 } , hair: ['B', 'A', 'C'] },
   // V39: Dame im langen Pelzmantel (Wintermantel mit Pelzkragen, -manschetten und -saum; Stoff in der Farbe der Figur), Hüte und Taschen wie das Kostüm
   furcoat:   { g: 'f', parts: ['coat-f', 'heels-f'], tile: 'furcoat', keep: ['hat', 'carry', 'props'], build: 'lady', hair: ['A', 'B', 'C'] },
-  // V24: der Spieler (nach den Referenzbildern): eigenes Gesicht, blondes Haar, weiße Rose am Revers, Einstecktuch
+  // V24: der Spieler (nach den Referenzbildern): eigenes Gesicht, blondes Haar, weiße Rose am Revers (V47: ohne Einstecktuch)
   // V32: im Smoking (Hemdbrust mit Biesen und Onyxknöpfen) mit schwarzer Fliege; Haar glatt zurückgekämmt
   player:    { g: 'm', body: 'p', parts: ['suit-m', 'shoes-m'], tile: 'tux', color: [0.025, 0.025, 0.03], keep: ['props'], player: true, shirt: true, bow: true },
 };
 // V24: Brillen (3D, rund, Goldrand) für diese Arten; welche Figur eine trägt, entscheidet das Gesicht (FACE_SPECS, auch im Shader)
 const SPECS_KINDS = { suit: 1, coat: 1, worker: 1, chauffeur: 1, waiter: 1 };
 // Einstecktuch für Anzug und Frack am MakeHuman-Sakko
-const POCKET_KINDS = { suit: 1, tux: 1, player: 1, coat: 0 };
+// V47: Alexander trägt keins mehr, nur die weiße Rose
+const POCKET_KINDS = { suit: 1, tux: 1, player: 0, coat: 0 };
 const NOPAINT = [0.98, 0.98, 0.98];      // nicht ganz weiß: bekommt nicht die Farbe der Figur
 
 // Höhen der gebauten Figur -> Höhen am MakeHuman-Körper (stückweise linear)

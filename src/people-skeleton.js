@@ -392,14 +392,12 @@ void humanPose(float fem, float gs, float elder) {
     thP = vec2(0.03, 0.2 + 0.04 * bob); knF = vec2(0.1, 0.42 + 0.05 * bob); thA = vec2(-0.025); thY = vec2(0.02); anF = vec2(-0.6, -0.7);
     uaP = vec2(-0.1 + 0.03 * br2); uaA = vec2(0.36); elF = vec2(0.3); uaT = vec2(0.4); fgC = vec2(1.22); wrF = vec2(0.12);
     spP = -0.1 - 0.015 * br2; nkP = -0.08 + 0.02 * bob; nkY = 0.22 * sin(uTime * 0.19); pvO.y = 0.012 * bob; pvR = 0.015 * sin(uTime * 0.7);
-    // schneller Flug: rechte Faust voraus über dem Kopf, linker Arm eng am Körper, Beine geschlossen und gestreckt, Kopf gehoben in Flugrichtung;
-    // im Schnellflug (Shift) alles noch straffer, der Fahrtwind zerrt an den Gliedern
+    // V47: schneller Flug: beide Arme gestreckt nach hinten, eng am Körper vorbei, die Hände offen und flach (keine Faust mehr voraus);
+    // Beine geschlossen und gestreckt, Kopf gehoben in Flugrichtung; im Schnellflug (Shift) alles noch straffer, der Fahrtwind zerrt an den Gliedern
     if (k > 0.001) {
-      vec3 Hf = vec3(-0.1, rTop + 0.5, 0.2 - 0.08 * bo);
-      float ap, aa, e, at; armIK(-1.0, Hf, 0.3, ap, aa, e, at);
       float fl = 0.03 * k * sin(uTime * 21.0) * (0.4 + bo);
-      uaP.x = mix(uaP.x, ap, k); uaA.x = mix(uaA.x, aa, k); elF.x = mix(elF.x, e, k); uaT.x = mix(uaT.x, at, k); fgC.x = mix(fgC.x, 1.3, k);
-      uaP.y = mix(uaP.y, -0.3 - 0.12 * bo + fl, k); uaA.y = mix(uaA.y, 0.1 - 0.05 * bo, k); elF.y = mix(elF.y, 0.15, k); uaT.y = mix(uaT.y, 0.6, k);
+      uaP = mix(uaP, vec2(-0.32 - 0.12 * bo + fl, -0.32 - 0.12 * bo - fl), k); uaA = mix(uaA, vec2(0.16 - 0.05 * bo), k); elF = mix(elF, vec2(0.08), k);
+      uaT = mix(uaT, vec2(0.9), k); fgC = mix(fgC, vec2(0.3), k); wrF = mix(wrF, vec2(-0.12), k);
       thP = mix(thP, vec2(-0.05 + fl, 0.05 + 0.12 * (1.0 - bo) - fl), k); knF = mix(knF, vec2(0.04, 0.24 * (1.0 - bo)), k); thA = mix(thA, vec2(-0.03), k); anF = mix(anF, vec2(-0.85), k);
       spP = mix(spP, -0.12, k); nkP = mix(nkP, -1.0, k); nkY *= 1.0 - k; pvO.y *= 1.0 - k;
     }
@@ -421,9 +419,8 @@ void humanPose(float fem, float gs, float elder) {
       uaP = vec2(-0.45); uaA = vec2(0.22); elF = vec2(0.5); uaT = vec2(0.3); fgC = vec2(1.3); wrF = vec2(0.0);
       poseOver(b, cr);
       if (up > 0.001) {
-        vec3 Hu = vec3(-0.12, rTop + 0.55, 0.06); float ap, aa, e, at; armIK(-1.0, Hu, 0.3, ap, aa, e, at);
-        uaP.x = mix(uaP.x, ap, up); uaA.x = mix(uaA.x, aa, up); elF.x = mix(elF.x, e, up); uaT.x = mix(uaT.x, at, up); fgC.x = mix(fgC.x, 1.3, up);
-        uaP.y = mix(uaP.y, -0.25, up); uaA.y = mix(uaA.y, 0.18, up); elF.y = mix(elF.y, 0.2, up);
+        // V47: beim Hochschießen gehen beide Arme gestreckt nach hinten (keine Faust voraus)
+        uaP = mix(uaP, vec2(-0.5), up); uaA = mix(uaA, vec2(0.18), up); elF = mix(elF, vec2(0.1), up); uaT = mix(uaT, vec2(0.9), up); fgC = mix(fgC, vec2(0.3), up);
         thP = mix(thP, vec2(-0.08, 0.1), up); knF = mix(knF, vec2(0.05, 0.25), up); anF = mix(anF, vec2(-0.9), up); spP = mix(spP, -0.1, up); nkP = mix(nkP, -0.35, up);
       }
     }
@@ -531,14 +528,18 @@ void humanPose(float fem, float gs, float elder) {
     poseStand(fem, gs);
     // V26: Stehen und Warten aus der Aufnahme (Gewicht verlagern, umsehen, Hände); Gesten und Reden legen sich darüber
     if (uMocapOn > 0.5 && act < 1.5) {
+#ifdef HUM_PLAYER
+      plStand();   // V47: Alexander steht ruhig und mächtig, kein Gewichtwechseln und Umsehen aus der Aufnahme
+#else
       mcSample(MC_IDLE, uTime / MC_IDLE.z + hh(aGait.x * 5.9), step(0.5, hh(aGait.x * 2.9)));
+#endif
       mcApply(1.0, fem, 0.0); nkY *= 0.8; fgC = vec2(0.45);
       // Kopf nicht hängen lassen (die Aufnahme schaut oft zu Boden); der Spieler schaut geradeaus
       spP = min(spP, 0.1); nkP = min(nkP, mix(0.14, 0.0, gPlayer) - spP - pvP);
     }
     float talk = act < 0.5 ? actI : (act > 6.5 && act < 7.5 ? step(0.5, actI) * 0.8 : 0.0);
     if (act < 1.5) {
-      poseIdle(act < 0.5 ? 1.0 - smoothstep(0.02, 0.25, actI) : 0.55, fem);
+      poseIdle((act < 0.5 ? 1.0 - smoothstep(0.02, 0.25, actI) : 0.55) * (1.0 - gPlayer), fem);   // V47: Alexander ohne Zappeln (Uhr, Kragen, Gähnen)
       if (act > 0.5) nkP += 0.17 * pow(max(0.0, sin(tt * 1.6)), 3.0);
       poseTalk(talk);
       elF += 0.04;
@@ -891,8 +892,11 @@ export const HUM_VS_RIG = `
       float pRun = step(0.7, pAmp), pc = fract(uPl[0].w / 6.2832), pm = step(0.5, hh(aGait.x * 6.1));
       mcPrev(pRun > 0.5 ? MC_RUN : (hFemV > 0.5 ? MC_WALKF : MC_WALKM), pm > 0.5 ? pc + 0.5 : pc, pm, pRun > 0.5 ? mix(2.3, 2.0, hFemV) : mix(1.366, 1.164, hFemV));
       pW = uPl[0].z;
-    } else if (pAct < 1.5 || (pAct > 40.5 && pAct < 41.9)) {
-      mcPrev(MC_IDLE, uTime / MC_IDLE.z + hh(aGait.x * 5.9), pAct < 1.5 ? step(0.5, hh(aGait.x * 2.9)) : 0.0, -1.0);
+    } else if (pAct < 1.5) {
+      plPrevStand();   // V47: voriger Stand ist Alexanders ruhiger Stand
+      pW = uPl[0].z;
+    } else if (pAct > 40.5 && pAct < 41.9) {
+      mcPrev(MC_IDLE, uTime / MC_IDLE.z + hh(aGait.x * 5.9), 0.0, -1.0);
       pW = uPl[0].z;
     }
   }
