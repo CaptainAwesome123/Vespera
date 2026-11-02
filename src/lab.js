@@ -14,6 +14,7 @@ import { PL_U } from './people-skeleton.js';
 export const LAB = { crowd: null, t: null, views: {} };
 export function startLab(params) {
   if (params.get('lab') === 'fassade') { import('./deco.js').then(D => D.startFacadeLab(params)); return; }   // V38: Fassaden-Labor
+  if (params.get('lab') === 'penthouse') { import('./lab-penthouse.js').then(L => L.startPenthouseLab(params)); return; }   // V41: Penthouse-Labor
   buildEnv(); getMats();
   scene.fog.density = 0.0002;
   const lamp = new T.PointLight(0xffc27a, 2.2, 14, 1.6); lamp.position.set(1.6, 3.6, 2.4); scene.add(lamp);

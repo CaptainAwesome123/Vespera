@@ -26,6 +26,7 @@ const [,, url = 'http://localhost:8765/', out = 'lab', views = 'alle', time = '1
     await p.waitForFunction(() => window.labFrames > 1, null, { timeout: 120000, polling: 200 });
     await p.screenshot({ path: `${out}-${name}${pose ? '-' + pose : ''}${tt ? '-' + tt : ''}.png`, timeout: 120000 });
     console.log(name, Date.now() - t0, 'ms');
+    if (process.env.STATS) console.log('  ', JSON.stringify(await p.evaluate(() => window.labStats ? window.labStats() : null)));   // V41: Zahlen aus dem Labor
   }
   console.log(logs.join('\n') || 'keine Fehler');
   await b.close();

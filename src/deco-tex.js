@@ -225,3 +225,43 @@ export function glowRoomTex() {
     for (let k = 0; k < 6; k++) { const x = 40 + k * 85; g.fillStyle = 'rgba(255,240,200,0.8)'; g.beginPath(); g.arc(x, H * 0.18, 6, 0, 7); g.fill(); }
   });
 }
+// V41: Gemälde für das Penthouse (Art Deco): 0 Sonnenaufgang über der Stadt, 1 Dame mit Glockenhut, 2 Luftschiff über Bergen, 3 Zickzack, 4 Meteorit im Krater
+export function paintingTex(kind = 0) {
+  return canvasTex(384, 480, (g, W, H) => {
+    const rr = mulberry32(900 + kind);
+    if (kind === 0) {
+      const sky = g.createLinearGradient(0, 0, 0, H); sky.addColorStop(0, '#0b2a30'); sky.addColorStop(0.55, '#1f6a6c'); sky.addColorStop(1, '#d9a24a'); g.fillStyle = sky; g.fillRect(0, 0, W, H);
+      g.strokeStyle = 'rgba(240,200,110,0.55)'; g.lineWidth = 6; for (let k = -7; k <= 7; k++) { g.beginPath(); g.moveTo(W / 2, H * 0.72); g.lineTo(W / 2 + k * 90, -40); g.stroke(); }
+      g.fillStyle = '#f2d08a'; g.beginPath(); g.arc(W / 2, H * 0.72, 70, Math.PI, 0); g.fill();
+      g.fillStyle = '#0a1c20'; for (let x = 0; x < W; x += 28) { const h = 60 + rr() * 200; g.fillRect(x, H * 0.72 - h, 22, h + 200); for (let y = H * 0.72 - h + 12; y < H * 0.72; y += 16) if (rr() < 0.6) { g.fillStyle = '#f0c060'; g.fillRect(x + 6, y, 4, 6); g.fillRect(x + 13, y, 4, 6); g.fillStyle = '#0a1c20'; } }
+    } else if (kind === 1) {
+      g.fillStyle = '#e8dcc2'; g.fillRect(0, 0, W, H);
+      g.fillStyle = '#c9a050'; for (let k = 0; k < 9; k++) g.fillRect(0, k * 60, W, 4);
+      g.fillStyle = '#1a1416'; g.beginPath(); g.ellipse(W / 2, H * 0.36, 78, 92, 0, 0, 7); g.fill();   // Glockenhut
+      g.fillStyle = '#e4b89a'; g.beginPath(); g.ellipse(W / 2, H * 0.47, 56, 66, 0, 0, 7); g.fill();   // Gesicht
+      g.fillStyle = '#1a1416'; g.fillRect(W / 2 - 84, H * 0.3, 168, 40); g.beginPath(); g.ellipse(W / 2, H * 0.3, 92, 30, 0, 0, 7); g.fill();
+      g.fillStyle = '#9a1828'; g.beginPath(); g.ellipse(W / 2, H * 0.53, 14, 7, 0, 0, 7); g.fill();
+      g.fillStyle = '#123c3e'; g.beginPath(); g.moveTo(W / 2 - 150, H); g.quadraticCurveTo(W / 2 - 90, H * 0.6, W / 2 - 20, H * 0.62); g.lineTo(W / 2 + 20, H * 0.62); g.quadraticCurveTo(W / 2 + 90, H * 0.6, W / 2 + 150, H); g.fill();
+      g.fillStyle = '#f0e6d2'; for (let k = 0; k < 7; k++) { g.beginPath(); g.arc(W / 2 - 60 + k * 20, H * 0.66 + Math.abs(k - 3) * 6, 7, 0, 7); g.fill(); }
+    } else if (kind === 2) {
+      const sky = g.createLinearGradient(0, 0, 0, H); sky.addColorStop(0, '#061418'); sky.addColorStop(0.5, '#0d3238'); sky.addColorStop(1, '#2a8a86'); g.fillStyle = sky; g.fillRect(0, 0, W, H);
+      g.fillStyle = 'rgba(120,240,200,0.25)'; for (let k = 0; k < 5; k++) { g.beginPath(); g.moveTo(0, 40 + k * 50); g.bezierCurveTo(W / 3, k * 30, 2 * W / 3, 120 + k * 40, W, 60 + k * 50); g.lineTo(W, 90 + k * 50); g.bezierCurveTo(2 * W / 3, 150 + k * 40, W / 3, 30 + k * 30, 0, 70 + k * 50); g.fill(); }
+      g.fillStyle = '#e8eef0'; for (let k = 0; k < 6; k++) { const x = k * 80 - 20; g.beginPath(); g.moveTo(x, H); g.lineTo(x + 60, H * 0.55 + rr() * 60); g.lineTo(x + 130, H); g.fill(); }
+      g.fillStyle = '#c9a050'; g.beginPath(); g.ellipse(W / 2, H * 0.38, 120, 34, -0.1, 0, 7); g.fill(); g.fillStyle = '#5a1220'; g.fillRect(W / 2 - 40, H * 0.38 + 30, 80, 14);
+      g.fillStyle = '#f2d08a'; for (let k = 0; k < 8; k++) g.fillRect(W / 2 - 36 + k * 10, H * 0.38 + 34, 4, 5);
+    } else if (kind === 3) {
+      g.fillStyle = '#4a0c14'; g.fillRect(0, 0, W, H);
+      for (let y = -40; y < H; y += 80) { g.fillStyle = y % 160 ? '#c9a050' : '#0d2f33'; g.beginPath(); for (let x = 0; x <= W; x += 48) g.lineTo(x, y + (x / 48 % 2 ? 0 : 40)); for (let x = W; x >= 0; x -= 48) g.lineTo(x, y + 28 + (x / 48 % 2 ? 0 : 40)); g.fill(); }
+      g.fillStyle = '#f2d08a'; g.beginPath(); g.arc(W / 2, H / 2, 70, 0, 7); g.fill(); g.fillStyle = '#4a0c14'; g.beginPath(); g.arc(W / 2, H / 2, 52, 0, 7); g.fill();
+    } else {
+      const sky = g.createLinearGradient(0, 0, 0, H); sky.addColorStop(0, '#04100f'); sky.addColorStop(1, '#0d2a2c'); g.fillStyle = sky; g.fillRect(0, 0, W, H);
+      g.fillStyle = '#ffffff'; for (let k = 0; k < 60; k++) g.fillRect(rr() * W, rr() * H * 0.5, 2, 2);
+      g.fillStyle = '#dfe6e8'; g.beginPath(); g.moveTo(0, H * 0.62); for (let x = 0; x <= W; x += 32) g.lineTo(x, H * 0.5 + rr() * 60); g.lineTo(W, H); g.lineTo(0, H); g.fill();
+      g.fillStyle = '#1b3a3c'; g.beginPath(); g.ellipse(W / 2, H * 0.78, 150, 50, 0, 0, 7); g.fill();
+      const gl = g.createRadialGradient(W / 2, H * 0.78, 4, W / 2, H / 2, 160); gl.addColorStop(0, 'rgba(120,255,235,0.95)'); gl.addColorStop(1, 'rgba(60,200,190,0)'); g.fillStyle = gl; g.fillRect(0, 0, W, H);
+      g.fillStyle = '#9ff6ea'; g.beginPath(); g.moveTo(W / 2, H * 0.6); g.lineTo(W / 2 + 22, H * 0.78); g.lineTo(W / 2, H * 0.86); g.lineTo(W / 2 - 22, H * 0.78); g.fill();
+    }
+    // Passepartout-Rand
+    g.strokeStyle = 'rgba(20,16,12,0.6)'; g.lineWidth = 10; g.strokeRect(5, 5, W - 10, H - 10);
+  });
+}
