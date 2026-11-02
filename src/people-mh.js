@@ -300,7 +300,7 @@ export function mhPersonGeo(kind, q) {
   const face = fm ? i => { const g = bodySrc._reg[i], y = bodySrc.position[i * 3 + 1]; return (g === 1 || g === 2) && y > chin ? fm(bodySrc.position[i * 3], y, bodySrc.position[i * 3 + 2]) : null; } : null;
   add(bodySrc, { isBody: true, face, drop: i => (bodySrc._hide[i] & mask) !== 0 || (inCover(bodySrc, i) && bodySrc._reg[i] !== 4 && bodySrc._reg[i] !== 5 && bodySrc._reg[i] !== 6 && bodySrc._reg[i] !== 1) });
   add(S('eyes-' + gk));
-  if (K.player) add(S(`hairB-${gk}`), { opt0: true });       // V32: glatt zurückgekämmt mit Seitenscheitel (MakeHuman short04), immer
+  if (K.player) add(S('hairP-m') || S(`hairB-${gk}`), { opt0: true });       // V32: glatt zurückgekämmt mit Seitenscheitel (MakeHuman short04), immer; V48: mit mehr Fülle (hairP-m)
   else (K.hair || ['A', 'B', 'C']).forEach((h, i) => add(S(`hair${h}-${gk}`) || S(`hair${'ABC'[i]}-${gk}`), { opt: 11 + i }));   // V39: Frisur-Set der Art, Variante 11..13
   // V39: Hüte aus MakeHuman (Filz in fester Farbe), sichtbar wie die gebauten über die Hutvariante der Figur
   if (K.mhHat) for (const [v, [pn, col]] of Object.entries(K.mhHat)) add(S(pn), { opt: +v, color: col });

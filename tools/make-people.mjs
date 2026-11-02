@@ -8,7 +8,7 @@
 // assets/people/people.json (Gelenkpunkte, Netze je Art, Atlas-Einteilung).
 //
 // Aufruf: node tools/make-people.mjs <makehuman/data> <makehuman-data/public/data> [vorschau-ordner]
-//   (makehuman/data braucht 3dobjs, rigs, eyes, targets/macrodetails und für den Spieler targets/chin, mouth, cheek, nose)
+//   (makehuman/data braucht 3dobjs, rigs, eyes, targets/macrodetails und für den Spieler targets/chin, mouth, cheek, nose, head)
 //   <makehuman/data>: github.com/makehumancommunity/makehuman, Ordner makehuman/data (CC0 seit 2020)
 //   <makehuman-data>: npm-Paket makehuman-data 0.0.2, Ordner public/data (Kleidung, Haare, Hautbilder
 //                     aus der MakeHuman-Grundausstattung, laut MakeHuman-Lizenz CC0)
@@ -36,10 +36,14 @@ const BODIES = {
   // Spieler: derselbe Herrenkörper (gleiche Gelenke, gleiche Kleidung), nur das Gesicht nach dem Referenzbild:
   // kräftiges, breites Kinn, breiter lächelnder Mund, hohe Wangenknochen, gerade Nase. Schädel bleibt (Haare passen)
   p: { female: false, ethnic: { caucasian: 0.7, african: 0.15, asian: 0.15 }, abd: 0.075, heel: 0, footX: 0.9, player: true,
-    extra: [['chin/chin-prominent-incr.target', 0.35], ['chin/chin-width-incr.target', 0.45], ['chin/chin-height-incr.target', 0.15],
-      ['mouth/mouth-scale-horiz-incr.target', 0.3], ['mouth/mouth-angles-up.target', 0.35], ['mouth/mouth-lowerlip-volume-incr.target', 0.2],
-      ['cheek/l-cheek-bones-incr.target', 0.35], ['cheek/r-cheek-bones-incr.target', 0.35], ['cheek/l-cheek-volume-decr.target', 0.2], ['cheek/r-cheek-volume-decr.target', 0.2],
-      ['nose/nose-point-width-decr.target', 0.25], ['nose/nose-scale-vert-incr.target', 0.15], ['nose/nose-hump-decr.target', 0.3]] },
+    // V48: näher an die Referenzbilder (Party, Luftschiff): schmaleres, jüngeres Gesicht mit klar gezeichnetem Kiefer statt breitem Kinn,
+    // schmalere Wangen und Nase, volle Oberlippe, freundliches Lächeln. Nur Ziele, die Brauen und Wimpern nicht verschieben (die sitzen
+    // als Herren-Proxies auf dem Herrenkörper) und den Schädel lassen (Haar passt)
+    extra: [['chin/chin-prominent-incr.target', 0.3], ['chin/chin-width-incr.target', 0.15], ['chin/chin-height-incr.target', 0.15], ['chin/chin-bones-incr.target', 0.35],
+      ['mouth/mouth-scale-horiz-incr.target', 0.2], ['mouth/mouth-angles-up.target', 0.35], ['mouth/mouth-lowerlip-volume-incr.target', 0.2], ['mouth/mouth-upperlip-volume-incr.target', 0.2],
+      ['cheek/l-cheek-bones-incr.target', 0.35], ['cheek/r-cheek-bones-incr.target', 0.35], ['cheek/l-cheek-volume-decr.target', 0.35], ['cheek/r-cheek-volume-decr.target', 0.35],
+      ['nose/nose-point-width-decr.target', 0.25], ['nose/nose-scale-vert-incr.target', 0.15], ['nose/nose-hump-decr.target', 0.3], ['nose/nose-scale-horiz-decr.target', 0.15],
+      ['head/head-fat-decr.target', 0.35], ['head/head-age-decr.target', 0.25]] },
 };
 // Referenzbild für das Gesicht des Spielers und die Lage seiner Merkmale im Bild (Pixel): Augen (rechtes, linkes
 // Auge der Figur = links, rechts im Bild), Mundwinkel, Kinnspitze. Nur das Gesicht wird übernommen, ohne Licht und Schatten.
@@ -363,7 +367,7 @@ async function upscaleBox(file, box, w, h, sigma) {
 // buf: Kachel (RGBA, size x size); R: Rasterung (rasterRect) mit Lage und Normale je Texel; o: { face, age (0 jung … 1 alt),
 // dark, hand (Gelenke der rechten Hand), mirror (linke Hand: Lage und Normale an x spiegeln) }
 function skinDetail(buf, size, R, o) {
-  const face = o.face, dark = o.dark ? 0.7 : 1, age = o.age || 0;
+  const face = o.face, dark = o.dark ? 0.7 : 1, age = o.age || 0, smooth = o.smooth || 1;   // V48: smooth < 1 dämpft Poren und Flecken
   // Fingergelenke: Lage, Richtung zum nächsten Gelenk, Handflächenseite (dahin krümmt sich der Finger: Achse x Richtung)
   const joints = [];
   if (o.hand) for (const fg of o.hand) for (let j = 0; j < 3; j++) {
@@ -401,8 +405,8 @@ function skinDetail(buf, size, R, o) {
       if (cf > 0.002) { const f = Math.pow(0.5 + 0.5 * Math.cos((y - face.eyeY) * 6.2832 / 0.0048 + (ax - face.eyeX) * 90 + (vN3(x * 250, y * 250, z * 250) - 0.5) * 7), 3.0); r *= 1 - 0.1 * f * cf; g *= 1 - 0.12 * f * cf; b *= 1 - 0.12 * f * cf; h -= f * 1.0 * cf; }
     }
     const pa = (1 - 0.7 * lip) * rw * (1 + 0.35 * age);
-    const pc = 1 + pore * 0.06 * pa * dark; r *= pc; g *= pc; b *= pc; h += pore * 0.5 * pa;
-    r *= 1 + mott * 0.09 * mw * dark; g *= 1 - mott * 0.03 * mw; b *= 1 - mott * 0.05 * mw;
+    const pc = 1 + pore * 0.06 * pa * dark * smooth; r *= pc; g *= pc; b *= pc; h += pore * 0.5 * pa * smooth;
+    r *= 1 + mott * 0.09 * mw * dark * smooth; g *= 1 - mott * 0.03 * mw * smooth; b *= 1 - mott * 0.05 * mw * smooth;
     // Hände: Knöchelfalten auf dem Rücken, Beugefalten in der Fläche, Knöchel leicht gerötet
     for (const q of joints) {
       const dx = x - q.J[0], dy = y - q.J[1], dz = z - q.J[2], t1 = dx * q.D[0] + dy * q.D[1] + dz * q.D[2];
@@ -442,7 +446,7 @@ async function detailTiles() {
 // Fassung, also ohne Licht und Schatten der Aufnahme, auf die Haut gelegt. Die Lage im Bild kommt über die Merkmale (PLAYER_REF)
 async function playerTiles() {
   const skinFile = sk(SKIN.m[0]);
-  blit(bodyRelief(await readRGBA(skinFile, TILE, TILE), TILE, TILE, 9), RECT.skin_p);
+  const bodyTile = bodyRelief(await readRGBA(skinFile, TILE, TILE), TILE, TILE, 9);
   // V44: nachgeschärft, unten Poren und Lippen wie bei allen. V47: die Kopfinsel ist um das Gesicht gedehnt (siehe Netze): die Kachel
   // wird je Texel über die ursprüngliche UV (dreiecksweise wie auf der Grafikkarte) aus einem doppelt so großen Ausschnitt abgetastet
   const SB = TILE * 2, big = await upscaleBox(skinFile, HEADBOX.head, SB, SB, 0.8), S0 = rasterSrc(HEADP, TILE);
@@ -477,7 +481,41 @@ async function playerTiles() {
       for (let d = 0; d < 3; d++) { const det = Math.min(1.22, Math.max(0.4, (c[d] + 4) / (b[d] + 4))); head[k + d] = Math.min(255, head[k + d] * (1 + (Math.pow(det, 1.15) - 1) * w * 0.95)); }
     }
   } else console.warn('Referenzbild fehlt:', PLAYER_REF.file);
-  blit(skinDetail(head, TILE, rasterRect(HEADP, TILE), { face: RIG.p.face, age: 0 }), RECT.face_p);
+  // V48: wärmer und gleichmäßiger wie auf den Referenzbildern (leicht gebräunt statt rosig, weniger Flecken und Poren)
+  warmSkin(head); warmSkin(bodyTile);
+  const HR = rasterRect(HEADP, TILE);
+  blit(paintScalp(skinDetail(head, TILE, HR, { face: RIG.p.face, age: 0, smooth: 0.5 }), HR, RIG.p), RECT.face_p);
+  blit(bodyTile, RECT.skin_p);
+}
+// V48: unter Alexanders Frisur ist die Kopfhaut honigblond gemalt (zurückgekämmte Strähnen): so liegt der Haaransatz vorn gut 4 cm
+// über den Brauen wie auf den Referenzbildern statt einer hohen, kahlen Stirn, und an Schläfen und Hinterkopf scheint keine Haut durch
+function paintScalp(buf, R, rig) {
+  const f = rig.face, col = [168, 142, 72];
+  for (let t = 0; t < TILE * TILE; t++) {
+    if (!(R[t * 7 + 6] > 0)) continue;
+    const x = R[t * 7], y = R[t * 7 + 1], z = R[t * 7 + 2], ax = Math.abs(x), k = t * 4;
+    // Haaransatz: vorn über der Stirn, zu den Schläfen hin etwas tiefer (leichte Geheimratsecken), hinter den Ohren bis in den Nacken
+    const front = sst(f.noseZ - 0.11, f.noseZ - 0.06, z), side = sst(0.045, 0.07, ax);
+    let hl = f.browY + 0.044 + 0.01 * sst(0.02, 0.055, ax) * front;
+    hl = hl * front + (1 - front) * (rig.headC + 0.005 - 0.075 * sst(rig.headZ - 0.03, rig.headZ - 0.08, z));
+    hl = Math.min(hl, f.browY + 0.054 + 0.03 * side);
+    const m = sst(hl - 0.002, hl + 0.008, y);
+    if (m < 0.002) continue;
+    // Strähnen laufen von vorn nach hinten: Muster quer dazu (x), leicht gewellt
+    const st = vN3(x * 900, y * 120 + z * 60, 0.5), st2 = vN3(x * 2600 + 3, y * 300, z * 300);
+    const g = 0.78 + 0.32 * st + 0.12 * st2;
+    for (let d = 0; d < 3; d++) buf[k + d] = Math.round(buf[k + d] * (1 - m) + Math.min(255, col[d] * g) * m);
+    buf[k + 3] = Math.round(buf[k + 3] * (1 - m) + (128 + (st2 - 0.5) * 120) * m);
+  }
+  return buf;
+}
+// V48: Hautton des Spielers: etwas wärmer und weniger rosa, Unterschiede zur mittleren Farbe gedämpft (ebenmäßiger Teint)
+function warmSkin(buf) {
+  let n = 0; const m = [0, 0, 0];
+  for (let i = 0; i < buf.length; i += 4) if (buf[i] + buf[i + 1] + buf[i + 2] > 60) { for (let d = 0; d < 3; d++) m[d] += buf[i + d]; n++; }
+  for (let d = 0; d < 3; d++) m[d] /= Math.max(1, n);
+  const tint = [1.0, 0.975, 0.93];
+  for (let i = 0; i < buf.length; i += 4) for (let d = 0; d < 3; d++) buf[i + d] = Math.max(0, Math.min(255, Math.round((m[d] + (buf[i + d] - m[d]) * 0.8) * tint[d])));
 }
 // Rasterung des Kopfes in seiner Kachel: je Texel Lage (x, y, z) und Normale (x, y, z), Deckung
 function rasterRect(H, size) {
@@ -783,6 +821,20 @@ for (const [name, P] of Object.entries(parts)) {
   addMesh('heels-f', { pos: Float32Array.from(P), nrm: Float32Array.from(N), uv, tex: new Float32Array(m).fill(1), idx: Uint32Array.from(ids), limb: Float32Array.from(L), blend, reg, soft, opt: new Float32Array(m), paint: true });
 }
 
+// V48: Alexanders eigene Frisur nach den Referenzbildern: die glatt zurückgekämmte short04 mit mehr Fülle. Oben und vorn hebt sich das
+// Haar rundum etwas vom Kopf (oben 1 cm, vorn bis 1,5 cm, wie eine zurückgekämmte Tolle), nach unten (Schläfen, Ohren, Nacken) läuft es weich auf die alte
+// Lage aus, damit keine Lücke zur Kopfhaut entsteht (die Haarkarten haben zu viele Ränder, um nach dem Rand zu gehen)
+{
+  const src = meshes['hairB-m'], R = RIG.m, n = src.pos.length / 3, pos = Float32Array.from(src.pos);
+  for (let i = 0; i < n; i++) {
+    const x = src.pos[i * 3], y = src.pos[i * 3 + 1], z = src.pos[i * 3 + 2];
+    const w = sst(R.headC - 0.05, R.headC + 0.02, y), dx = x, dy = y - R.headC, dz = z - R.headZ, l = Math.hypot(dx, dy, dz) || 1;
+    const top = sst(R.headC + 0.04, R.headC + 0.11, y), front = sst(R.headZ - 0.01, R.headZ + 0.07, z) * sst(R.headC + 0.03, R.headC + 0.09, y);
+    const a = w * (0.005 + 0.004 * top + 0.007 * front);
+    pos[i * 3] = x + dx / l * a; pos[i * 3 + 1] = y + dy / l * a + w * front * 0.003; pos[i * 3 + 2] = z + dz / l * a;
+  }
+  addMesh('hairP-m', { ...src, pos });
+}
 // V39: Höhen von Hüten und Frisuren über der Kopfmitte (Haar unter dem Hut wird im Shader nur um 10 % gestaucht)
 for (const k of ['fedora-m', 'fedora2-m', 'hairA-m', 'hairB-m', 'hairC-m', 'hairD-m', 'hairE-m', 'hairA-f', 'hairB-f', 'hairD-f', 'hairE-f']) { const m = meshes[k]; if (!m) continue; let y = -1e9, r = 0; const hc = RIG[k.endsWith('-f') ? 'f' : 'm'].headC; for (let i = 0; i < m.pos.length; i += 3) { y = Math.max(y, m.pos[i + 1]); if (m.pos[i + 1] > hc + 0.02) r = Math.max(r, Math.hypot(m.pos[i], m.pos[i + 2] - RIG.m.headZ)); } console.log(k, 'oben', (y - hc).toFixed(3), 'Radius', r.toFixed(3)); }
 /* ---------------- Detailstufe 1: vereinfacht ---------------- */
@@ -794,7 +846,7 @@ function simplify(m, ratio, err = 0.02) {
 // Ziel: höchstens etwa 6000 Dreiecke je Figur in der mittleren Stufe (bis 45 m stehen oft hunderte Figuren);
 // Haare dürfen gröber werden (Fehler 0.05), in dem Abstand sieht man nur noch die Form
 const LOD1 = { 'shirt-m': 0.5, 'body-m': 0.15, 'body-f': 0.15, 'body-p': 0.3, 'suit-m': 0.18, 'work-m': 0.25, 'lady-f': 0.3, 'shoes-m': 0.15, 'boots-m': 0.2, 'heels-f': 0.25, 'eyes-m': 1, 'eyes-f': 1,
-  'hairA-m': 0.3, 'hairB-m': 0.4, 'hairC-m': 0.25, 'hairA-f': 0.3, 'hairB-f': 0.15, 'hairC-f': 0.2,
+  'hairA-m': 0.3, 'hairB-m': 0.4, 'hairP-m': 0.4, 'hairC-m': 0.25, 'hairA-f': 0.3, 'hairB-f': 0.15, 'hairC-f': 0.2,
   'hairD-m': 0.3, 'hairE-m': 0.2, 'hairD-f': 0.2, 'hairE-f': 0.15, 'fedora-m': 0.3, 'fedora2-m': 0.3, 'coat-f': 0.18, 'shoes2-m': 0.15 };
 for (const [k, r] of Object.entries(LOD1)) if (meshes[k]) meshes[k + '@1'] = r < 1 ? simplify(meshes[k], r, /^hair/.test(k) ? 0.05 : 0.02) : meshes[k];
 

@@ -394,13 +394,13 @@
     "eyeX": 0.0293,
     "eyeY": 1.6667,
     "browY": 1.6838,
-    "noseY": 1.6262,
-    "noseZ": 0.1722,
-    "mouthY": 1.5977,
-    "mouthZ": 0.1624,
-    "mouthW": 0.0229,
-    "chinY": 1.5557,
-    "chinZ": 0.1561
+    "noseY": 1.6247,
+    "noseZ": 0.1718,
+    "mouthY": 1.5982,
+    "mouthZ": 0.1627,
+    "mouthW": 0.0225,
+    "chinY": 1.5578,
+    "chinZ": 0.1557
    },
    "hand": [
     [
@@ -879,6 +879,10 @@
    "verts": 2454,
    "tris": 4290
   },
+  "hairP-m": {
+   "verts": 991,
+   "tris": 2100
+  },
   "shirt-m@1": {
    "verts": 321,
    "tris": 519
@@ -934,6 +938,10 @@
   "hairB-m@1": {
    "verts": 453,
    "tris": 836
+  },
+  "hairP-m@1": {
+   "verts": 441,
+   "tris": 810
   },
   "hairC-m@1": {
    "verts": 685,
