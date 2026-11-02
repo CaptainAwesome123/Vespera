@@ -16,6 +16,7 @@ export function startLab(params) {
   if (params.get('lab') === 'fassade') { import('./deco.js').then(D => D.startFacadeLab(params)); return; }   // V38: Fassaden-Labor
   if (params.get('lab') === 'penthouse') { import('./lab-penthouse.js').then(L => L.startPenthouseLab(params)); return; }   // V41: Penthouse-Labor
   if (params.get('lab') === 'villa') { import('./lab-villa.js').then(L => L.startVillaLab(params)); return; }   // V41: Villa-Labor
+  if (params.get('lab') === 'strassen') { import('./lab-strassen.js').then(L => L.startRoadsLab(params)); return; }   // V42: Straßen-Labor
   buildEnv(); getMats();
   scene.fog.density = 0.0002;
   const lamp = new T.PointLight(0xffc27a, 2.2, 14, 1.6); lamp.position.set(1.6, 3.6, 2.4); scene.add(lamp);
@@ -80,12 +81,13 @@ export function startLab(params) {
     wurf: { act: 0, u: [[3, 1, 0, 0.25, 1], [4, 0.2, 0.1, 0.97, 0.1], [5, 0, 0, 0, 1]] }, sturz: { act: 0, u: [[1, 1, -1, 1, 0]] }, aufprallvor: { act: 0, u: [[1, 1, -1, 1, 1]] },
     sprung: { act: 0, u: [[1, 1, 0.8, 0, 0]] }, abheben: { act: 43, u: [[5, 0.25, 0, 0, 0]] }, start: { act: 43, u: [[5, 0.55, 0, 0, 0]] },
     schweben: { act: 43 }, flug: { act: 43.99, pitch: 1.5 }, bremsen: { act: 43.5, u: [[5, 0, 1, 0, 0]] },
+    fahren: { act: 32.5, y: 1.1 - 0.87 }, fahrenlinks: { act: 32.02, y: 1.1 - 0.87 }, fahrenrechts: { act: 32.98, y: 1.1 - 0.87 },   // V42: Alexander am Steuer (Sitz wie seatPerson: y = Wagen + 1,1 − 0,87·sc)
   };
   window.labPose = name => {
     const P = LAB.poses[name] || LAB.poses.stand;
     for (const v of PL_U.value) v.set(0, 0, 0, 0);
     for (const [i, x, y, z, w] of P.u || []) PL_U.value[i].set(x, y, z, w);
-    if (PM.mesh) PM.place(0, P.act >= 43 && P.pitch ? 0.6 : P.act >= 43 ? 0.3 : 0, 2.2, 0, { act: P.act, pitch: P.pitch || 0 });
+    if (PM.mesh) PM.place(0, P.y != null ? P.y * PM.sc : P.act >= 43 && P.pitch ? 0.6 : P.act >= 43 ? 0.3 : 0, 2.2, 0, { act: P.act, pitch: P.pitch || 0 });
   };
   if (params.get('pose')) window.labPose(params.get('pose'));
   Object.assign(LAB.views, { spielerseite: [[3.4, 1.0, 2.2], [0, 0.8, 2.2]], spielerschraeg: [[2.6, 1.4, 4.6], [0, 0.8, 2.2]] });

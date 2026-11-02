@@ -111,12 +111,10 @@ export async function build() {
   await step('flushInstances');
   buildMountains();
   await step('buildMountains');
-  buildShafts();
-  await step('buildShafts');
+  // V42: keine Lichtsäulen mehr aus den Kronen (Kanon 2026-11-01); buildShafts bleibt für den Fall, dass sie zurückkommen sollen
   buildGroundFog();
   await step('buildGroundFog');
-  buildSearchlights();
-  await step('buildSearchlights');
+  // V42: auch die vier Suchscheinwerfer des Belmont (Lichtstrahlen vom Gebäude) sind aus
   buildParticles();
   await step('buildParticles');
   buildMap();

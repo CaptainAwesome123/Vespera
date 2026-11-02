@@ -500,7 +500,7 @@ export function buildSerpTraffic() {
   for (let i = 1; i < n; i++) v[i] = Math.min(v[i], Math.sqrt(v[i - 1] ** 2 + 2 * 1.4 * (cum[i] - cum[i - 1])));
   const L = { path: true, pts, cum, len: cum[n - 1] + 7, v };
   SERP.lane = L;
-  const N = MOBILE ? 4 : 7;
+  const N = 0;   // V42: die Serpentine ist Alexanders Privatstraße, kein Verkehr mehr (vorher 7 Wagen); die Spur bleibt für den eigenen Wagen
   for (let k = 0; k < N; k++) { const car = { l: L, s: (k + Math.random() * 0.4) / N * L.len, v: 6, yaw: 0, k: 0.88 + Math.random() * 0.16, serpCar: true }; cars.push(car); SERP.cars.push(car); }
 }
 export function serpLaneAt(L, s) {
@@ -624,11 +624,46 @@ export function buildAccessRoad() {
     for (const sd of [-1, 1]) addGlow(sd * 7.4, deckY(mz) + 6.2, mz, [1.3, 0.95, 0.55], 1.6);
     addNeon(0, deckY(mz) + 12.35, mz, 0.5, 0.12, L * 0.8, [1.1, 0.85, 0.5]);
   }
-  addCollider(-9, deckY(VIA.end) - 2, VIA.end - 4, 9, deckY(VIA.end) + 14, VIA.end + 0.5);
-  const exitGlow = new T.Mesh(new T.PlaneGeometry(16, 12.5), new T.MeshBasicMaterial({ color: new T.Color(0.9, 0.85, 0.7) }));
-  exitGlow.position.set(0, deckY(VIA.end) + 6, VIA.end + 0.6); scene.add(exitGlow);
-  addGlow(0, deckY(VIA.end) + 6, VIA.end + 2, [1.2, 1.1, 0.9], 30);
+  // V42: der Tunnel ist offen: keine Leuchtwand und kein Sperrquader mehr am Ende. Dahinter die Wendehalle (Zollhof): eine
+  // Rundhalle im Fels mit Mittelpfeiler, um den der Verkehr kehrt, Laternen, Goldring, und am Ende das verschlossene Tor zur Außenwelt
+  {
+    const cz = VIA.cav, Rr = VIA.R, fy = deckY(VIA.end), hall = [], gold = [];
+    hall.push(new T.CylinderGeometry(Rr + 0.5, Rr + 0.5, 0.3, 48).translate(0, fy - 0.17, cz));                                   // Boden
+    const gap = Math.asin(9.8 / Rr); hall.push(new T.CylinderGeometry(Rr, Rr, 13, 48, 1, true, gap, Math.PI * 2 - 2 * gap).translate(0, fy + 6.5, cz));   // Wand mit Öffnung zum Tunnel (+z; innen sichtbar: DoubleSide-Material)
+    hall.push(new T.SphereGeometry(Rr, 48, 16, 0, Math.PI * 2, 0, Math.PI / 2).scale(1, 0.45, 1).translate(0, fy + 13, cz));     // Kuppel
+    hall.push(new T.CylinderGeometry(7.5, 8.5, 13.2, 24).translate(0, fy + 6.6, cz));                                              // Mittelpfeiler
+    hall.push(new T.CylinderGeometry(9.5, 10, 0.8, 24).translate(0, fy + 0.4, cz));                                                // Pfeilersockel
+    gold.push(new T.TorusGeometry(9.3, 0.12, 6, 48).rotateX(Math.PI / 2).translate(0, fy + 0.85, cz));
+    gold.push(new T.TorusGeometry(8.2, 0.1, 6, 40).rotateX(Math.PI / 2).translate(0, fy + 11.5, cz));
+    for (let k = 0; k < 12; k++) { const a = (k + 0.5) / 12 * Math.PI * 2; hall.push(new T.BoxGeometry(1.6, 12, 1.6).rotateY(-a).translate(Math.cos(a) * (Rr - 0.9), fy + 6, cz + Math.sin(a) * (Rr - 0.9))); gold.push(new T.CylinderGeometry(1.1, 0.9, 0.5, 8).rotateY(-a).translate(Math.cos(a) * (Rr - 0.9), fy + 12.2, cz + Math.sin(a) * (Rr - 0.9))); }   // Wandpfeiler mit Goldkapitell
+    // Tor zur Außenwelt (Südwand): Goldportal, verschlossene Eisenflügel, Laternen
+    const gz = cz - Rr + 1.2;
+    gold.push(new T.BoxGeometry(14, 0.8, 1.2).translate(0, fy + 9.4, gz), new T.BoxGeometry(0.9, 9.4, 1.2).translate(-6.6, fy + 4.7, gz), new T.BoxGeometry(0.9, 9.4, 1.2).translate(6.6, fy + 4.7, gz));
+    for (let k = 0; k < 9; k++) { const a = Math.PI * (0.1 + 0.8 * k / 8); gold.push(new T.BoxGeometry(0.08, 4.6, 0.1).translate(0, 2.3, 0).rotateZ(Math.PI / 2 - a).translate(0, fy + 9.0, gz + 0.1)); }   // Sonnenfächer über dem Tor
+    const iron = [new T.BoxGeometry(12.2, 8.8, 0.3).translate(0, fy + 4.4, gz + 0.2)];
+    for (let k = 0; k < 11; k++) gold.push(new T.BoxGeometry(0.12, 8.6, 0.5).translate(-5.5 + k * 1.1, fy + 4.3, gz + 0.3));
+    const hallM = stdMat({ map: st, color: 0x7a7570, roughness: 0.9, metalness: 0, envI: 0.2, emissive: 0x0a0806, side: T.DoubleSide });
+    for (const [list, mat] of [[hall, hallM], [gold, MAT.gold], [iron, stdMat({ color: 0x15161a, metalness: 0.6, roughness: 0.5, envI: 0.4 })]]) { const m = new T.Mesh(mergeGeos(list), mat); m.frustumCulled = false; scene.add(m); }
+    // Kollision: Wandring aus 16 Quadern, Pfeiler, Tor; Licht
+    for (let k = 0; k < 16; k++) { const a = (k + 0.5) / 16 * Math.PI * 2, x = Math.cos(a) * (Rr + 1.2), z = cz + Math.sin(a) * (Rr + 1.2); if (Math.abs(x) < 12 && z > cz) continue; addCollider(x - 7.5, fy - 1, z - 7.5, x + 7.5, fy + 14, z + 7.5); }
+    addCollider(-9.5, fy - 1, cz - 9.5, 9.5, fy + 14, cz + 9.5);
+    for (const sd of [-1, 1]) addCollider(sd * 13 - 3.5, fy - 1, cz + Rr - 3, sd * 13 + 3.5, fy + 14, cz + Rr + 3);   // Wandstücke neben der Tunnelöffnung
+    addCollider(-7, fy - 1, gz - 1, 7, fy + 10, gz + 0.6);
+    for (let k = 0; k < 12; k++) { const a = (k + 0.5) / 12 * Math.PI * 2; addGlow(Math.cos(a) * (Rr - 2.2), fy + 5.5, cz + Math.sin(a) * (Rr - 2.2), [1.3, 0.95, 0.55], 1.8); }
+    for (const sd of [-1, 1]) addGlow(sd * 7.8, fy + 3.2, gz + 1.2, [1.4, 0.8, 0.4], 1.6);
+    addGlow(0, fy + 12, cz, [1.2, 0.9, 0.5], 6);
+    addLight(0xffd0a0, 0.9, 60, 1.4, 0, fy + 10, cz);
+    addNeon(0, fy + 10.1, gz + 0.7, 13.6, 0.15, 0.15, NEON.gold);
+    // Schild über dem Tor
+    const sign = makeSignTex('ZOLL · AUSSENWELT', '#f6c76a', false);
+    const sm = new T.Mesh(new T.PlaneGeometry(9, 9 * sign.H / sign.W), new T.MeshBasicMaterial({ map: sign.t, color: new T.Color(1.3, 1.25, 1.15), polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -4 }));
+    sm.position.set(0, fy + 10.9, gz + 0.75); scene.add(sm);
+  }
   const tm = new T.Mesh(mergeGeos(tunnelParts), tileM); tm.frustumCulled = false; scene.add(tm);
+  // V42: Viaduktstraße: Mittellinie und Laternen auf beiden Brüstungen (vorher nur die nackte Platte)
+  { const lines = []; for (let z = z0 - 6; z > pz + 6; z -= 12) { const L = 5; lines.push(new T.BoxGeometry(0.2, 0.02, L).rotateX(slope).translate(0, deckY(z - L / 2) + 0.03, z - L / 2)); }
+    const lm = new T.Mesh(mergeGeos(lines), new T.MeshStandardMaterial({ color: 0xd8d2b8, roughness: 0.8, emissive: 0x2a2820 })); lm.frustumCulled = false; scene.add(lm);
+    for (let z = z0 - 18; z > pz + 10; z -= 36) for (const sd of [-1, 1]) lamps.push({ x: sd * (ROAD_W / 2 + 0.55), z, h: 5.0, y: deckY(z) + 1.1 }); }
 
   const via = new T.Mesh(mergeGeos(parts), stoneM); via.frustumCulled = false; scene.add(via);
   for (const [zc, base, top, pw] of piers) if (top - base > 4) addCollider(-ROAD_W / 2 - 1, base, zc - pw / 2, ROAD_W / 2 + 1, top - 1.5, zc + pw / 2);

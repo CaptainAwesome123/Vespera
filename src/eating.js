@@ -159,12 +159,12 @@ export function updateGuestFlow(V, dt) {
 // Einsteigen und Aussteigen an geparkten Wagen in der Nähe der Kamera
 export const CARSCENE = { peds: [], cars: [], t: 4 };
 export function carScenePeds() {
-  for (let k = 0; k < 6; k++) { const pd = { st: 6, x: 0, y: 0.22, z: 0, yaw: 0, sc: 0.94 + R() * 0.12, v: 0, act: 1.2, kind: pick(['coat', 'suit', 'lady', 'dress', 'coat', 'tux', 'gown', 'chauffeur']), carActor: true }; CARSCENE.peds.push(pd); }
+  for (let k = 0; k < 8; k++) { const pd = { st: 6, x: 0, y: 0.22, z: 0, yaw: 0, sc: 0.94 + R() * 0.12, v: 0, act: 1.2, kind: pick(['coat', 'suit', 'lady', 'dress', 'coat', 'tux', 'gown', 'chauffeur']), carActor: true }; CARSCENE.peds.push(pd); }
   return CARSCENE.peds;
 }
 export function carActor() {
   let c = CARSCENE.cars.find(c => !c.busy);
-  if (!c && CARSCENE.cars.length < 3) { const im = new T.InstancedMesh(carGeoHi(), MAT.carPaint, 1); im.frustumCulled = false; im.visible = false; scene.add(im); c = { im }; CARSCENE.cars.push(c); }
+  if (!c && CARSCENE.cars.length < 4) { const im = new T.InstancedMesh(carGeoHi(), MAT.carPaint, 1); im.frustumCulled = false; im.visible = false; scene.add(im); c = { im }; CARSCENE.cars.push(c); }
   return c;
 }
 export function placeActor(c, x, y, z, h) { _q.setFromAxisAngle(_up, h); _p.set(x, y, z); c.im.setMatrixAt(0, _m.compose(_p, _q, _s.setScalar(1))); c.im.instanceMatrix.needsUpdate = true; }
@@ -191,7 +191,7 @@ export function startCarScene() {
 }
 export function updateCarScenes(dt) {
   if (!playing || DRIVE.on) return;
-  if ((CARSCENE.t -= dt) <= 0) { CARSCENE.t = 9 + Math.random() * 10; startCarScene(); }
+  if ((CARSCENE.t -= dt) <= 0) { CARSCENE.t = 5 + Math.random() * 7; startCarScene(); }   // V42: öfter (vorher 9–19 s)
   for (const car of CARSCENE.cars) {
     const S = car.busy; if (!S) continue;
     const { pc, ped, h, fx, fz } = S, ox = pc.ox, oz = pc.oz;

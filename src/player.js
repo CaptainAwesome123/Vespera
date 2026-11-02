@@ -1,6 +1,6 @@
 import { T } from './core.js';
 import { nearBoxes } from './people-skeleton.js';
-import { onIsland, QUAY, ISL } from './island.js';
+import { onIsland, QUAY, ISL, elevatedHeightAt } from './island.js';
 import { WATER_Y } from './dance.js';
 import { PLATFORMS, VILLA, roadHeightAt, terrainHeight } from './harbour.js';
 import { villaRoadAt } from './serpentine.js';
@@ -56,6 +56,7 @@ export function collide(p, flying) {
   // hob die Vorfahrt (gleiche Höhe wie das Erdgeschoss) den Spieler durch die Decke nach oben, sobald er über dem Becken stand
   else if (!onLand) { const sr = villaRoadAt(p.x, p.z, p.y); ground = inVillaCellar(p) ? -1e9 : Math.max(ground, terrainHeight(p.x, p.z) + 0.3, rd.y, sr ? sr.y : -1e9); }
   else ground = Math.max(ground, rd.y);
+  { const ev = elevatedHeightAt(p.x, p.z, p.y); if (ev) ground = Math.max(ground, ev.y); }   // V42: zu Fuß auf Hochstraße und Rampen
   const gr = Math.max(ground, g0, vg);
   if (pg < gr - 0.001) collideOn = null;
   return Math.max(gr, pg);

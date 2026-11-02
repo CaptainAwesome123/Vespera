@@ -176,13 +176,39 @@ export function buildNetwork() {
     edge(prev, E0, line(prev, E0), 14, 3.5, 'north');
     if (NET.viaHead) {
       // der Viadukt bis kurz vor das Tunnelende (Fahrbahnhöhe deckY, siehe traffic.js)
-      const vt = node(0, VIA.end + 8, 'via'), h = NET.viaHead;
-      const pts = []; for (let z = h.z; z > vt.z; z -= 25) pts.push([0, z]); pts.push([0, vt.z]);
-      edge(h, vt, pts, ROAD_W, 3.5, 'via');
+      // V42: bis in die Wendehalle hinter dem Tunnel; dort ein Rundkurs um den Mittelpfeiler (zwei Halbkreise), zurück auf den Viadukt
+      const rl = 17, T1 = node(0, VIA.cav + rl, 'via'), T2 = node(0, VIA.cav - rl, 'via'), h = NET.viaHead;
+      const pts = []; for (let z = h.z; z > T1.z; z -= 25) pts.push([0, z]); pts.push([0, T1.z]);
+      edge(h, T1, pts, ROAD_W, 3.5, 'via');
+      for (const sg of [-1, 1]) { const arc = []; for (let k = 0; k <= 12; k++) { const a = k / 12 * Math.PI; arc.push([sg * Math.sin(a) * rl, VIA.cav + Math.cos(a) * rl]); } edge(T1, T2, arc, 12, 3.2, 'via'); }
     }
   }
-  // Spatialer Index der Straßenstücke: Abstand eines Punktes zur nächsten Fahrbahn
+  // V42: Hochstraßen ins Netz. Jede Hochstraße bekommt an beiden Enden eine Rampe im eigenen Straßenzug hinunter auf die äußerste
+  // Rasterkreuzung (Knoten 'elev' oben, Kante 'ramp' schräg, Hauptkante 'elev' auf Höhe). Verkehr fährt hinauf, oben entlang und
+  // wieder hinunter; die Bodenstraße direkt unter dem flachen Rampenende (Durchfahrt unter 5,5 m) wird stillgelegt (e.dead).
+  for (const E of ELEVATED) {
+    const ax = E.axis === 'x', U = n => ax ? n.x : n.z, spacing = ax ? 110 : 70, Lr = Math.ceil(E.y / 0.13 / spacing) * spacing;
+    const onLine = [...grid.values()].filter(n => Math.abs((ax ? n.z : n.x) - E.at) < 1);
+    E.r = {}; const A = {};
+    for (const sgn of [-1, 1]) {
+      const endU = sgn < 0 ? E.from : E.to;
+      let G = null; for (const n of onLine) if (sgn * U(n) <= sgn * endU - 6 && sgn * U(n) >= sgn * endU - 400 && (!G || sgn * U(n) > sgn * U(G))) G = n;
+      if (!G) { A[sgn] = node(ax ? endU : E.at, ax ? E.at : endU, 'elev', { y: E.y }); continue; }
+      const uA = U(G) - sgn * Lr, a = node(ax ? uA : E.at, ax ? E.at : uA, 'elev', { y: E.y });
+      A[sgn] = a; E.r[sgn] = { G, A: a, uG: U(G), uA, Lr };
+      edge(G, a, [[G.x, G.z], [a.x, a.z]], 14, 3.5, 'ramp');
+      for (const e of NET.edges) {
+        if (e.kind !== 'grid') continue;
+        const p = NET.nodes[e.a], q = NET.nodes[e.b]; if (Math.abs((ax ? p.z : p.x) - E.at) > 1 || Math.abs((ax ? q.z : q.x) - E.at) > 1) continue;
+        const um = (U(p) + U(q)) / 2; if (um < Math.min(uA, U(G)) - 1 || um > Math.max(uA, U(G)) + 1) continue;
+        if (E.y * Math.abs(um - U(G)) / Lr < 5.5) e.dead = true;
+      }
+    }
+    edge(A[-1], A[1], [[A[-1].x, A[-1].z], [A[1].x, A[1].z]], 16, 3.5, 'elev');
+  }
+  // Spatialer Index der Straßenstücke: Abstand eines Punktes zur nächsten Fahrbahn (ohne Hochstraßen und Rampen: sie liegen über der Straße)
   for (const e of NET.edges) for (let k = 1; k < e.pts.length; k++) {
+    if (e.kind === 'elev' || e.kind === 'ramp') break;
     const a = e.pts[k - 1], b = e.pts[k], s = { a, b, e };
     for (let ix = Math.floor((Math.min(a[0], b[0]) - 20) / 30); ix <= Math.floor((Math.max(a[0], b[0]) + 20) / 30); ix++)
       for (let iz = Math.floor((Math.min(a[1], b[1]) - 20) / 30); iz <= Math.floor((Math.max(a[1], b[1]) + 20) / 30); iz++) {
@@ -296,7 +322,7 @@ export function buildOuter() {
       const free = sd => !blockAt(mx + n[0] * sd * (e.w / 2 + 14), mz + n[1] * sd * (e.w / 2 + 14), 0) && onIsland(mx + n[0] * sd * (e.w / 2 + 14), mz + n[1] * sd * (e.w / 2 + 14), 10);
       e.sides = [-1, 1].filter(free);
       if (!e.sides.length || mz > ST[ST.length - 1].z - 1 || mz < ST[0].z + 1) continue;
-    } else if (e.kind === 'via') { e.sides = []; e.walkSides = []; continue; }
+    } else if (e.kind === 'via' || e.kind === 'elev' || e.kind === 'ramp') { e.sides = []; e.walkSides = []; continue; }
     else e.sides = [-1, 1];
     const P = resample(e.pts, 2), s0 = setback(e, e.a), s1 = setback(e, e.b);
     e.walkSides = [];
@@ -615,20 +641,54 @@ export function buildCity() {
 export const ELEVATED = [{ axis: 'x', at: -350, y: 16, from: -900, to: 900 }, { axis: 'z', at: -440, y: 22, from: -973, to: 480 }];
 export function buildElevated() {
   const gray = [0.3, 0.3, 0.33], rail = [0.42, 0.32, 0.18];
+  // V42: Rampen an beiden Enden (schräge Platten mit Geländer, Pfeilern und Laternen), Hauptdeck nur noch zwischen den Rampenköpfen
+  const deckM = stdMat({ color: 0x4b4b52, roughness: 0.85, envI: 0.15 }), railM = stdMat({ color: 0x8a6a3a, roughness: 0.5, emissive: 0x6a4a1c, envI: 0.3 });
+  const slabs = [], rails = [];
   for (const e of ELEVATED) {
-    const len = e.to - e.from, mid = (e.from + e.to) / 2, ax = e.axis === 'x';
+    const ax = e.axis === 'x', R = e.r || {}, a0 = R[-1] ? R[-1].uA : e.from, a1 = R[1] ? R[1].uA : e.to;
+    const len = a1 - a0, mid = (a0 + a1) / 2;
     addSeg({ x: ax ? mid : e.at, z: ax ? e.at : mid, w: ax ? len : 16, d: ax ? 16 : len, y0: e.y - 1.4, y1: e.y, tint: gray, seed: 820, style: 0, dens: 0, flood: 0, rib: [0, 0, 0] });
     for (const sd of [-1, 1]) {
       addNeon(ax ? mid : e.at + sd * 7.6, e.y + 0.9, ax ? e.at + sd * 7.6 : mid, ax ? len : 0.25, 0.12, ax ? 0.25 : len, rail);
-      addCollider(ax ? e.from : e.at + sd * 7.6 - 0.3, e.y, ax ? e.at + sd * 7.6 - 0.3 : e.from, ax ? e.to : e.at + sd * 7.6 + 0.3, e.y + 1.1, ax ? e.at + sd * 7.6 + 0.3 : e.to);
+      addCollider(ax ? a0 : e.at + sd * 7.6 - 0.3, e.y, ax ? e.at + sd * 7.6 - 0.3 : a0, ax ? a1 : e.at + sd * 7.6 + 0.3, e.y + 1.1, ax ? e.at + sd * 7.6 + 0.3 : a1);
     }
-    for (let t = e.from + 17; t < e.to; t += 34) {
+    for (let t = a0 + 17; t < a1; t += 34) {
       const px = ax ? t : e.at, pz = ax ? e.at : t;
       if (inRect(px, pz, PLAZA, 10)) continue;
       addSeg({ x: px, z: pz, w: 2.6, d: 2.6, y0: 0, y1: e.y - 1.4, tint: gray, seed: 821, style: 0, dens: 0, flood: 0, rib: [0, 0, 0] });
       for (const sd of [-1, 1]) addGlow(ax ? t : e.at + sd * 7.4, e.y + 4.6, ax ? e.at + sd * 7.4 : t, [1.25, 0.85, 0.48], 1.3);
     }
+    for (const sgn of [-1, 1]) {
+      const r = R[sgn]; if (!r) continue;
+      const n = 12, L = r.Lr, slope = Math.atan(e.y / L), segL = L / n + 0.4;
+      for (let k = 0; k < n; k++) {
+        const t0 = k / n, t1 = (k + 1) / n, u0 = r.uA + sgn * L * t0, u1 = r.uA + sgn * L * t1, um = (u0 + u1) / 2, h0 = e.y * (1 - t0), h1 = e.y * (1 - t1), hm = (h0 + h1) / 2;
+        const tilt = g => ax ? g.rotateZ(-sgn * slope) : g.rotateX(sgn * slope);
+        slabs.push(tilt(new T.BoxGeometry(ax ? segL : 16, 1.4, ax ? 16 : segL)).translate(ax ? um : e.at, hm - 0.7, ax ? e.at : um));
+        for (const sd of [-1, 1]) {
+          slabs.push(tilt(new T.BoxGeometry(ax ? segL : 0.3, 0.6, ax ? 0.3 : segL)).translate(ax ? um : e.at + sd * 7.6, hm + 0.3, ax ? e.at + sd * 7.6 : um));   // Brüstung
+          rails.push(tilt(new T.BoxGeometry(ax ? segL : 0.25, 0.12, ax ? 0.25 : segL)).translate(ax ? um : e.at + sd * 7.6, hm + 0.66, ax ? e.at + sd * 7.6 : um));   // Goldstreifen wie auf dem Hauptdeck
+          addCollider(ax ? Math.min(u0, u1) : e.at + sd * 7.6 - 0.3, Math.min(h0, h1), ax ? e.at + sd * 7.6 - 0.3 : Math.min(u0, u1), ax ? Math.max(u0, u1) : e.at + sd * 7.6 + 0.3, Math.max(h0, h1) + 1.1, ax ? e.at + sd * 7.6 + 0.3 : Math.max(u0, u1));
+        }
+        if (k % 2 === 1 && hm > 3.5) {
+          addSeg({ x: ax ? um : e.at, z: ax ? e.at : um, w: 2.6, d: 2.6, y0: 0, y1: hm - 1.4, tint: gray, seed: 821, style: 0, dens: 0, flood: 0, rib: [0, 0, 0] });
+          for (const sd of [-1, 1]) addGlow(ax ? um : e.at + sd * 7.4, hm + 4.6, ax ? e.at + sd * 7.4 : um, [1.25, 0.85, 0.48], 1.3);
+        }
+      }
+    }
   }
+  for (const [list, mat] of [[slabs, deckM], [rails, railM]]) if (list.length) { const m = new T.Mesh(mergeGeos(list), mat); m.frustumCulled = false; scene.add(m); }
+}
+// V42: Deckhöhe der Hochstraße oder Rampe unter einem Punkt (null, wenn keine; nur wenn y nahe am Deck, sonst gilt die Straße darunter)
+export function elevatedHeightAt(x, z, y) {
+  for (const e of ELEVATED) {
+    const ax = e.axis === 'x', u = ax ? x : z, lat = ax ? z : x; if (Math.abs(lat - e.at) > 7.9) continue;
+    const R = e.r || {}, a0 = R[-1] ? R[-1].uA : e.from, a1 = R[1] ? R[1].uA : e.to; let d = null;
+    if (u >= a0 && u <= a1) d = e.y;
+    else for (const sgn of [-1, 1]) { const r = R[sgn]; if (!r) continue; const lo = Math.min(r.uA, r.uG), hi = Math.max(r.uA, r.uG); if (u >= lo && u <= hi) d = e.y * (1 - Math.abs(u - r.uA) / r.Lr); }
+    if (d !== null && y > d - 3 && y < d + 4.5) return { y: d, ax, at: e.at };
+  }
+  return null;
 }
 
 // Verglaste Fußgängergalerien zwischen benachbarten Häusern; Passanten gehen hindurch und verschwinden in den Gebäuden
