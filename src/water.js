@@ -208,14 +208,14 @@ export function renderReflection() {
   e[2] = V.clip.x; e[6] = V.clip.y; e[10] = V.clip.z + 1 - 0.003; e[14] = V.clip.w;
   if (REVZ.on) toReverse(vc.projectionMatrix);
   vc.projectionMatrixInverse.copy(vc.projectionMatrix).invert();
-  harborWater.visible = false; if (street && STREET.ground) STREET.ground.visible = false;
+  if (harborWater) harborWater.visible = false; if (street && STREET.ground) STREET.ground.visible = false;   // V54: im Wetter-Labor gibt es kein Hafenbecken
   const prev = renderer.getRenderTarget();
   // das Spiegelbild darf sich beim Zeichnen nicht selbst lesen (Gehwege und Pfützen tasten uRefl ab)
   U.uRefl.value = REFL.dummy;
   renderer.setRenderTarget(REFL.rt); renderer.clear(); renderer.render(scene, vc);
   renderer.setRenderTarget(prev);
   U.uRefl.value = REFL.rt.texture;
-  harborWater.visible = true; if (STREET.ground) STREET.ground.visible = true;
+  if (harborWater) harborWater.visible = true; if (STREET.ground) STREET.ground.visible = true;
 }
 export let harborWater = null;
 export function buildHarborWaterMat() {
