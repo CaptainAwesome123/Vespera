@@ -487,7 +487,9 @@ async function playerTiles() {
   blit(paintScalp(skinDetail(head, TILE, HR, { face: RIG.p.face, age: 0, smooth: 0.5 }), HR, RIG.p), RECT.face_p);
   blit(bodyTile, RECT.skin_p);
 }
-// V48: unter Alexanders Frisur ist die Kopfhaut honigblond gemalt (zurückgekämmte Strähnen): so liegt der Haaransatz vorn gut 4 cm
+// V49: Haaransatz vorn in der Mitte (Höhe in m), gemeinsam für die heruntergezogene Frisur und die gemalte Kopfhaut
+const HAIRLINE = 1.731;
+// V48: unter Alexanders Frisur ist die Kopfhaut honigblond gemalt (zurückgekämmte Strähnen): so liegt der Haaransatz vorn knapp 5 cm
 // über den Brauen wie auf den Referenzbildern statt einer hohen, kahlen Stirn, und an Schläfen und Hinterkopf scheint keine Haut durch
 function paintScalp(buf, R, rig) {
   const f = rig.face, col = [168, 142, 72];
@@ -496,16 +498,15 @@ function paintScalp(buf, R, rig) {
     const x = R[t * 7], y = R[t * 7 + 1], z = R[t * 7 + 2], ax = Math.abs(x), k = t * 4;
     // Haaransatz: vorn über der Stirn, zu den Schläfen hin etwas tiefer (leichte Geheimratsecken), hinter den Ohren bis in den Nacken
     const front = sst(f.noseZ - 0.11, f.noseZ - 0.06, z), side = sst(0.045, 0.07, ax);
-    let hl = f.browY + 0.044 + 0.01 * sst(0.02, 0.055, ax) * front;
+    let hl = HAIRLINE + 0.004 + 0.01 * sst(0.02, 0.055, ax) * front;
     hl = hl * front + (1 - front) * (rig.headC + 0.005 - 0.075 * sst(rig.headZ - 0.03, rig.headZ - 0.08, z));
     hl = Math.min(hl, f.browY + 0.054 + 0.03 * side);
-    const m = sst(hl - 0.002, hl + 0.008, y);
+    // V49: weicher Ansatz über knapp 1 cm (feine Härchen, leicht ausgefranst), ohne Körnung und Relief: vorher wirkte der Streifen wie Stoppeln
+    const m = sst(hl - 0.006, hl + 0.004, y + (vN3(x * 260, z * 260, 1.7) - 0.5) * 0.004);
     if (m < 0.002) continue;
-    // Strähnen laufen von vorn nach hinten: Muster quer dazu (x), leicht gewellt
-    const st = vN3(x * 900, y * 120 + z * 60, 0.5), st2 = vN3(x * 2600 + 3, y * 300, z * 300);
-    const g = 0.78 + 0.32 * st + 0.12 * st2;
+    const g = 0.94 + 0.12 * vN3(x * 300, y * 60 + z * 40, 0.5);
     for (let d = 0; d < 3; d++) buf[k + d] = Math.round(buf[k + d] * (1 - m) + Math.min(255, col[d] * g) * m);
-    buf[k + 3] = Math.round(buf[k + 3] * (1 - m) + (128 + (st2 - 0.5) * 120) * m);
+    buf[k + 3] = Math.round(buf[k + 3] * (1 - m) + 128 * m);
   }
   return buf;
 }
@@ -826,12 +827,29 @@ for (const [name, P] of Object.entries(parts)) {
 // Lage aus, damit keine Lücke zur Kopfhaut entsteht (die Haarkarten haben zu viele Ränder, um nach dem Rand zu gehen)
 {
   const src = meshes['hairB-m'], R = RIG.m, n = src.pos.length / 3, pos = Float32Array.from(src.pos);
+  // vorderster Rand der Frisur in der Mitte (Höhe) vor dem Verformen
+  let y0 = 9; for (let i = 0; i < n; i++) if (Math.abs(src.pos[i * 3]) < 0.03 && src.pos[i * 3 + 2] > R.headZ + 0.05) y0 = Math.min(y0, src.pos[i * 3 + 1]);
   for (let i = 0; i < n; i++) {
     const x = src.pos[i * 3], y = src.pos[i * 3 + 1], z = src.pos[i * 3 + 2];
     const w = sst(R.headC - 0.05, R.headC + 0.02, y), dx = x, dy = y - R.headC, dz = z - R.headZ, l = Math.hypot(dx, dy, dz) || 1;
     const top = sst(R.headC + 0.04, R.headC + 0.11, y), front = sst(R.headZ - 0.01, R.headZ + 0.07, z) * sst(R.headC + 0.03, R.headC + 0.09, y);
-    const a = w * (0.005 + 0.004 * top + 0.007 * front);
-    pos[i * 3] = x + dx / l * a; pos[i * 3 + 1] = y + dy / l * a + w * front * 0.003; pos[i * 3 + 2] = z + dz / l * a;
+    // V49: die vorderste Reihe liegt flach auf der Stirn (kein Hutrand), die Fülle setzt erst 2-3 cm dahinter ein
+    const lie = 1 - sst(R.headZ + 0.07, R.headZ + 0.1, z) * sst(0.06, 0.03, Math.abs(x)) * (1 - sst(y0 + 0.012, y0 + 0.035, y));
+    const a = w * (0.005 + 0.004 * top + 0.007 * front) * lie;
+    pos[i * 3] = x + dx / l * a; pos[i * 3 + 1] = y + dy / l * a + w * front * 0.003 * lie; pos[i * 3 + 2] = z + dz / l * a;
+  }
+  // V49: Haaransatz vorn: die Frisur endete gut 1 cm über dem gemalten Ansatz (dazwischen sah man einen Stoppelstreifen). Die vorderen
+  // Strähnen werden bis zum Ansatz heruntergezogen und folgen dabei der Stirn (Profil des Spielerkopfs in der Mitte)
+  const B = meshes['body-p'].pos, prof = [];
+  for (let i = 0; i < B.length; i += 3) if (Math.abs(B[i]) < 0.008 && B[i + 1] > 1.66 && B[i + 1] < 1.8 && B[i + 2] > 0.05) prof.push([B[i + 1], B[i + 2]]);
+  prof.sort((p, q) => p[0] - q[0]);
+  const fz = y => { let k = 0; while (k < prof.length - 2 && prof[k + 1][0] < y) k++; const [ya, za] = prof[k], [yb, zb] = prof[k + 1]; return za + (zb - za) * Math.min(1, Math.max(0, (y - ya) / Math.max(1e-5, yb - ya))); };
+  const drop = Math.max(0, y0 - HAIRLINE);
+  for (let i = 0; i < n; i++) {
+    const x = pos[i * 3], y = pos[i * 3 + 1], z = pos[i * 3 + 2];
+    const k = sst(R.headZ + 0.03, R.headZ + 0.07, z) * sst(0.075, 0.045, Math.abs(x)) * (1 - sst(y0, y0 + 0.03, y));
+    if (k < 0.001) continue;
+    const yn = y - drop * k; pos[i * 3 + 1] = yn; pos[i * 3 + 2] = z + (fz(yn) - fz(y)) * Math.min(1, k * 1.5);
   }
   addMesh('hairP-m', { ...src, pos });
 }
