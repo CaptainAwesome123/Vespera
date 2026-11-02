@@ -27,14 +27,14 @@ document.addEventListener('mousemove', e => {
 });
 canvas.addEventListener('mousedown', e => {
   if (!playing) return;
-  // V52: rechte Maustaste = Telekinese an/aus (packen, noch einmal: loslassen), Linksklick schleudert, Mausrad näher/weiter
-  if (e.button === 2) { if (!paused && (locked || isTouch)) { if (POWERS.tk) tkRelease(false); else tkGrab(); } return; }
+  // V54: rechte Maustaste gedrückt halten = Telekinese (packen beim Drücken, fallen lassen beim Loslassen), Linksklick schleudert, Mausrad näher/weiter
+  if (e.button === 2) { if (!paused && (locked || isTouch) && !POWERS.tk) tkGrab(); return; }
   if (locked && POWERS.tk && !paused) { tkRelease(true); return; }
   if (locked && LOOSE.held && !paused) { drop(true); return; }   // V26: Getragenes werfen
   if (!locked && !isTouch) tryLock();
   dragging = true;
 });
-window.addEventListener('mouseup', () => { dragging = false; });
+window.addEventListener('mouseup', e => { dragging = false; if (e.button === 2 && POWERS.tk && !isTouch) tkRelease(false); });   // V54: loslassen = fallen lassen
 canvas.addEventListener('contextmenu', e => e.preventDefault());
 export function tryLock() { try { const r = canvas.requestPointerLock(); if (r && r.catch) r.catch(() => {}); } catch {} }
 document.addEventListener('pointerlockchange', () => {

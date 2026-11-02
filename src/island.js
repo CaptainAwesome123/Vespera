@@ -423,9 +423,9 @@ export function groundGrass(mat) {
   const prev = mat.onBeforeCompile;
   mat.onBeforeCompile = sh => {
     if (prev) prev(sh);
-    sh.uniforms.uMask = { value: MASK.tex }; sh.uniforms.uGrass = { value: GRASS.map }; sh.uniforms.uTime = U.uTime; sh.uniforms.uWind = U.uWind;
+    sh.uniforms.uMask = { value: MASK.tex }; sh.uniforms.uGrass = { value: GRASS.map }; sh.uniforms.uTime = U.uTime; sh.uniforms.uWind = U.uWind; sh.uniforms.uDrift = U.uDrift;
     sh.vertexShader = 'varying vec3 vGW;\n' + sh.vertexShader.replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\n vGW = (modelMatrix * vec4(transformed, 1.0)).xyz;');
-    sh.fragmentShader = `uniform sampler2D uMask, uGrass; uniform float uTime; uniform vec4 uWind; varying vec3 vGW;
+    sh.fragmentShader = `uniform sampler2D uMask, uGrass; uniform float uTime; uniform vec4 uWind; uniform vec4 uDrift; varying vec3 vGW;
       float ggH(vec2 p){ return fract(sin(dot(p, vec2(41.3, 289.1))) * 43758.5453); }
       float ggN(vec2 p){ vec2 i = floor(p), f = fract(p); f = f*f*(3.0-2.0*f); return mix(mix(ggH(i), ggH(i+vec2(1,0)), f.x), mix(ggH(i+vec2(0,1)), ggH(i+vec2(1,1)), f.x), f.y); }
       ` + sh.fragmentShader
@@ -439,7 +439,7 @@ export function groundGrass(mat) {
           vec3 g1 = texture2D(uGrass, gq / 2.3).rgb, g2 = texture2D(uGrass, mat2(0.8, -0.6, 0.6, 0.8) * gq / 3.7).rgb;
           float gpatch = ggN(gq * 0.05) * 0.6 + ggN(gq * 0.17 + 3.0) * 0.4;
           vec3 gc = mix(g1, g2, 0.5) * mix(vec3(0.62, 0.78, 0.52), vec3(0.95, 1.05, 0.7), gpatch) * 0.95;
-          vec2 wd = uWind.xy; float wave = sin(dot(gq, wd) * 0.35 - uTime * (1.2 + uWind.z * 0.25)) * 0.5 + 0.5;
+          vec2 wd = uWind.xy; float wave = sin(dot(gq, wd) * 0.35 - uTime * 1.2 - uDrift.w * 0.25) * 0.5 + 0.5;
           gc *= 0.9 + 0.22 * wave * uWind.z * 0.12;
           vec2 fc = floor(gq * 2.2), fo = fract(gq * 2.2) - 0.5; float fh = ggH(fc);
           float flower = step(0.93, fh) * step(length(fo - (vec2(ggH(fc + 1.7), ggH(fc + 4.1)) - 0.5) * 0.6), 0.09);

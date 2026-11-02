@@ -11,7 +11,7 @@ export function buildSky() {
     uniforms: U, side: T.BackSide, depthWrite: false, fog: false,
     defines: LOW ? { SKY_LITE: 1 } : {},
     vertexShader: `uniform float uRevZ; varying vec3 vD; void main(){ vD = normalize(position); vec4 p = projectionMatrix*modelViewMatrix*vec4(position,1.0); gl_Position = vec4(p.xy, p.w * (1.0 - uRevZ), p.w); }`,   // V40: ganz hinten, bei Reverse-Z ist das z = 0
-    fragmentShader: `uniform vec3 uMoonDir; uniform vec3 uFogColor; uniform float uTime; uniform float uAurora; uniform float uCloud; uniform float uMoonPhase; uniform float uMoonLit; uniform float uMist; uniform float uRain; uniform float uSnow;
+    fragmentShader: `uniform vec3 uMoonDir; uniform vec3 uFogColor; uniform float uTime; uniform float uAurora; uniform float uCloud; uniform float uMoonPhase; uniform float uMoonLit; uniform float uMist; uniform float uRain; uniform float uSnow; uniform float uAuroraT;
       varying vec3 vD;
       float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7)))*43758.5453); }
       float hash3(vec3 p){ p = fract(p*0.3183099 + 0.1); p *= 17.0; return fract(p.x*p.y*p.z*(p.x + p.y + p.z)); }
@@ -26,7 +26,11 @@ export function buildSky() {
         float fold = smoothstep(0.25, 0.75, vnoise(ring * 2.6 + vec2(t * 0.02, k * 3.0)));
         vec3 c = mix(vec3(0.12, 1.0, 0.45), vec3(0.08, 0.75, 0.85), smoothstep(0.1, 0.5, s));
         c = mix(c, vec3(0.5, 0.2, 0.75), smoothstep(0.55, 1.0, s) * 0.7);
-        return c * body * rays * fold;
+        // V54: im großen Polarlicht ein rosa Saum an der Unterkante und rötliche Spitzen oben
+        float big = clamp(uAurora - 1.0, 0.0, 1.0);
+        c += vec3(0.9, 0.12, 0.5) * smoothstep(0.1, 0.0, s) * big * 1.6;
+        c = mix(c, vec3(0.75, 0.15, 0.3), smoothstep(0.6, 1.1, s) * big * 0.6);
+        return c * body * rays * fold * (1.0 + big * smoothstep(0.55, 1.1, s) * 2.0);
       }
       void main(){
         vec3 d = normalize(vD); float y = d.y;
@@ -59,16 +63,23 @@ export function buildSky() {
         col += stars * clear * clear * (1.0 - 0.6 * min(uMist, 1.0)) * (1.0 - 0.5 * uMoonLit * pow(max(dot(d, uMoonDir), 0.0), 8.0));
         // Polarlicht
         if (uAurora > 0.01 && y > 0.02) {
-          float elev = asin(clamp(y, 0.0, 1.0)), t = uTime;
+          float elev = asin(clamp(y, 0.0, 1.0)), t = uAuroraT, big = clamp(uAurora - 1.0, 0.0, 1.0);
           vec2 ring = vec2(cos(ang), sin(ang));
           vec3 au = curtain(ring, elev, 0.0, t);
           #ifndef SKY_LITE
           au += curtain(ring * 1.3 + 4.0, elev - 0.1, 1.0, t) * 0.7;
+          if (big > 0.01) au += curtain(ring * 0.8 - 2.0, elev - 0.22, 2.0, t * 1.3) * 0.8 * big;   // V54: dritter, höherer Vorhang
           #endif
+          // V54: Polarlicht-Krone: im großen Polarlicht laufen die Strahlen im Zenit zusammen
+          vec2 zq = d.xz / (y + 0.05);
+          vec2 zn = normalize(zq + 1e-4);
+          float crown = pow(vnoise(zn * 7.0 + vec2(t * 0.05, -t * 0.03)), 3.0) * smoothstep(0.62, 0.9, y) * smoothstep(0.1, 0.6, length(zq));
+          crown *= smoothstep(0.3, 0.8, vnoise(zn * 1.8 + zq * 0.8 + vec2(t * 0.03, 0.0)));   // nur einzelne Strahlenbündel, kein gleichmäßiger Stern
+          au += mix(vec3(0.1, 0.95, 0.5), vec3(0.6, 0.25, 0.8), smoothstep(0.2, 0.9, length(zq))) * crown * big;
           // V38: Helligkeitswellen laufen langsam durch den Vorhang (das Polarlicht atmet)
           au *= 0.7 + 0.3 * sin(ang * 3.0 + t * 0.09) * sin(elev * 7.0 - t * 0.05) + 0.15 * sin(t * 0.21);
-          col += au * uAurora * clear * 0.42 * (1.0 - 0.7 * min(uMist, 1.0) * smoothstep(0.5, 0.1, y));
-          col += vec3(0.02, 0.09, 0.06) * uAurora * clear * exp(-y * 3.0) * 0.4;   // grüner Widerschein am Horizont
+          col += au * uAurora * clear * 0.55 * (1.0 - 0.7 * min(uMist, 1.0) * smoothstep(0.5, 0.1, y));   // V54: kräftiger (vorher 0,42)
+          col += vec3(0.02, 0.09, 0.06) * uAurora * clear * exp(-y * 3.0) * 0.5;   // grüner Widerschein am Horizont
         }
         // Wolken: bei Regen und Schnee eine geschlossene Decke, die das Stadtlicht von unten anstrahlt
         vec2 cp = d.xz / (abs(y) + 0.15) * 2.2 + vec2(uTime*0.004, 0.0);

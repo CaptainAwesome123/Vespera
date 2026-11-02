@@ -6,6 +6,7 @@ import { COL } from './serpentine.js';
 import { _m, _p, _q, _s } from './traffic.js';
 import { DRIVE } from './eating.js';
 import { paused } from './input.js';
+import { tearInst } from './tear.js';
 import { audioCtx, audioBus } from './audio.js';
 
 /* =====================================================================
@@ -23,8 +24,15 @@ export function updateWind(dt) {
   if ((W.gT -= dt) <= 0) { W.gT = 5 + Math.random() * 12; W.gA = 0.35 + Math.random() * 0.65; W.gDur = 2 + Math.random() * 3; W.g0 = W.t; }
   const k = W.g0 !== undefined ? (W.t - W.g0) / W.gDur : 2;
   W.gust = k < 1 ? Math.sin(Math.PI * k) ** 2 * W.gA : 0;
+  // V54: im Schneesturm (U.uStorm aus atmosphere.js) bläst es kräftig und die Böen kommen dichter
+  const st = U.uStorm.value;
+  W.s += st * 7; W.gust *= 1 + st * 0.8; if (st > 0.3 && W.gT > 4) W.gT = 2 + Math.random() * 3;
   W.dx = Math.cos(W.a); W.dz = Math.sin(W.a);
   U.uWind.value.set(W.dx, W.dz, W.s, W.gust);
+  // V54: Windweg aufsummieren: Schneeflocken, Fahnen und Gras rechnen damit statt mit Zeit × Windstärke (das sprang beim Auffrischen)
+  const D = U.uDrift.value, sp = W.s * 0.35 + st * 6;
+  D.x += W.dx * sp * dt; D.y += W.dz * sp * dt; D.z += (1 + st * 0.8) * dt; D.w += W.s * dt;
+  U.uGustRun.value += W.gust * dt;
 }
 // Wind an einem Ort (m/s, Vektor): Böenwelle zieht mit dem Wind, oben weht es stärker
 export function windAt(x, z, y = 0) {
@@ -105,16 +113,16 @@ export function buildFlags() {
   const tex = flagTex();
   const mat = stdMat({ map: tex, side: T.DoubleSide, roughness: 0.85, metalness: 0, envI: 0.25, emissive: 0x070707 });
   mat.onBeforeCompile = sh => {
-    sh.uniforms.uTime = U.uTime; sh.uniforms.uWind = U.uWind;
-    sh.vertexShader = 'uniform float uTime; uniform vec4 uWind;\n' + sh.vertexShader
+    sh.uniforms.uTime = U.uTime; sh.uniforms.uWind = U.uWind; sh.uniforms.uDrift = U.uDrift; sh.uniforms.uGustRun = U.uGustRun;
+    sh.vertexShader = 'uniform float uTime; uniform vec4 uWind; uniform vec4 uDrift; uniform float uGustRun;\n' + sh.vertexShader
       .replace('#include <beginnormal_vertex>', `#include <beginnormal_vertex>
         vec2 ip = instanceMatrix[3].xz;
         float fph = dot(ip, vec2(0.37, 0.21));
         float fstr = clamp(uWind.z / 7.0 + uWind.w * 0.8, 0.12, 1.4);
         float fx = position.x / 2.6;
-        float fsp = 5.0 + uWind.z * 0.9 + uWind.w * 4.0;
-        float fw = sin(position.x * 2.4 - uTime * fsp + fph) * (0.06 + 0.32 * fx) * (0.5 + fstr * 0.6) + sin(position.x * 4.7 - uTime * fsp * 1.6 + position.y * 2.0 + fph) * 0.05 * fx;
-        float fdw = cos(position.x * 2.4 - uTime * fsp + fph) * 2.4 * (0.06 + 0.32 * fx);
+        float fsp = uTime * 5.0 + uDrift.w * 0.9 + uGustRun * 4.0;   // V54: Phase aus dem aufsummierten Windweg
+        float fw = sin(position.x * 2.4 - fsp + fph) * (0.06 + 0.32 * fx) * (0.5 + fstr * 0.6) + sin(position.x * 4.7 - fsp * 1.6 + position.y * 2.0 + fph) * 0.05 * fx;
+        float fdw = cos(position.x * 2.4 - fsp + fph) * 2.4 * (0.06 + 0.32 * fx);
         vec2 fwd = normalize(uWind.xy + 1e-5); vec2 fpd = vec2(-fwd.y, fwd.x);
         objectNormal = normalize(vec3(fpd.x - fwd.x * fdw * 0.4, 0.0, fpd.y - fwd.y * fdw * 0.4));`)
       .replace('#include <begin_vertex>', `#include <begin_vertex>
@@ -129,11 +137,21 @@ export function buildFlags() {
   const im = new T.InstancedMesh(cloth, mat, n), c = new T.Color();
   const poleG = mergeColored([[new T.CylinderGeometry(0.05, 0.08, 1, 8).translate(0, 0.5, 0), [0.75, 0.7, 0.62]], [new T.SphereGeometry(0.11, 10, 8).translate(0, 1.0, 0), COL.gold]]);
   const pm = new T.InstancedMesh(poleG, paintMat({ color: 0xffffff, metalness: 0.6, roughness: 0.35, envI: 0.8 }), n);
+  const poleMat = pm.material;
   FLAGS.forEach((f, i) => {
     im.setMatrixAt(i, _m.compose(_p.set(f.x, f.y + f.pole - 0.15, f.z), _q.identity(), _s.setScalar(f.s)));
     im.setColorAt(i, c.setRGB(...f.c));
-    pm.setMatrixAt(i, _m.compose(_p.set(f.x, f.y, f.z), _q.identity(), _s.set(1, f.pole, 1)));
-    if (f.y < 1) addCollider(f.x - 0.1, f.y, f.z - 0.1, f.x + 0.1, f.y + f.pole, f.z + 0.1);
+    const m0 = _m.compose(_p.set(f.x, f.y, f.z), _q.identity(), _s.set(1, f.pole, 1)).clone(); pm.setMatrixAt(i, m0);
+    if (f.y < 1) {
+      addCollider(f.x - 0.1, f.y, f.z - 0.1, f.x + 0.1, f.y + f.pole, f.z + 0.1);
+      // V54: Fahnenmasten am Boden ausreißbar: Mast und Tuch werden zu einem Körper (das Tuch weht weiter, als Instanz mit Farbe)
+      const H = f.pole, cy = H / 2, col = new T.Color(...f.c);
+      tearInst('fahne:' + f.x.toFixed(0) + ',' + f.z.toFixed(0), { name: 'Fahnenmast', m: 30 + 6 * H, stuff: 'metal', kind: 'cyl' }, { x: f.x, y: f.y, z: f.z, he: [0.12, cy, 0.12], cy, ims: [[im, i], [pm, i]], m0, mesh: () => {
+        const mesh = new T.Mesh(poleG.clone().scale(1, H, 1).translate(0, -cy, 0), poleMat);
+        const fl = new T.InstancedMesh(cloth, mat, 1); fl.setMatrixAt(0, new T.Matrix4().compose(new T.Vector3(0, H - 0.15 - cy, 0), new T.Quaternion(), new T.Vector3(f.s, f.s, f.s))); fl.setColorAt(0, col); fl.frustumCulled = false; mesh.add(fl);
+        return mesh;
+      } });
+    }
   });
   im.frustumCulled = pm.frustumCulled = false; scene.add(im, pm);
 }

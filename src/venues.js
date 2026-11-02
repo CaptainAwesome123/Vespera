@@ -12,6 +12,8 @@ import { addLight } from './performance.js';
 import { ware } from './shops.js';
 import { buildWorkersQuarter, workMats } from './workers.js';
 import { SHIRTS, WORKWEAR, COATS } from './serpentine.js';
+import { tearBegin, tearEnd, tearWrap } from './tear.js';
+const vid = V => V.x0.toFixed(0) + ',' + V.z0.toFixed(0);   // V54: Schlüssel eines Lokals für die ausreißbaren Stücke
 
 /* =====================================================================
    LOKALE ZUM HINEINGEHEN: Bar „The Brass Lantern“ und „Restaurant Aurora“ an der Seepromenade.
@@ -151,7 +153,7 @@ export function venue(o) {
   // auf der Theke: Gläser, Flaschen, im Restaurant Brotkorb und Obstschale
   for (let u = cz0 + 0.5; u < cz1 - 0.4; u += 0.7 + R() * 0.6) ware(pick(bar ? ['bottle', 'bottle-large', 'soda-bottle', 'bottle'] : ['glass-wine', 'wine-white', 'cake', 'pie']), cx - 0.12 + R() * 0.2, F + 1.125, u, R);
   if (!bar) for (let i = 0; i < 5; i++) ware(pick(['apple', 'orange', 'pear']), cx + (R() - 0.5) * 0.18, F + 1.125, cz1 - 0.6 + (R() - 0.5) * 0.18, R);
-  for (let u = cz0 + 0.6; u < cz1 - 0.3; u += 1.1) { placeFurn(FURN.barStool(), FMk, fadd, cx + 1.05, F, u); if (bar && R() < 0.5) V.seats.push({ x: cx + 1.05, z: u, y: F + 0.89, yaw: -Math.PI / 2, tx: cx + 0.3, tz: u, ty: F + 1.12, stool: true }); }
+  for (let u = cz0 + 0.6; u < cz1 - 0.3; u += 1.1) { tearWrap('hocker:' + vid(V) + ':' + u.toFixed(1), { name: 'Barhocker', m: 8, stuff: 'wood', seat: true }, () => placeFurn(FURN.barStool(), FMk, fadd, cx + 1.05, F, u)); if (bar && R() < 0.5) V.seats.push({ x: cx + 1.05, z: u, y: F + 0.89, yaw: -Math.PI / 2, tx: cx + 0.3, tz: u, ty: F + 1.12, stool: true }); }
   V.station = { x: cx + 1.4, z: cz1 + 0.9 };
   // Barkeeper hinter der Theke
   V.staff.push({ st: 4, x: cx - 0.95, y: F, z: (cz0 + cz1) / 2, yaw: Math.PI / 2, sc: 1, v: 0, kind: 'waiter', col: bar ? [0.82, 0.8, 0.74] : [0.92, 0.9, 0.85], act: 13.3, bartender: true, z0: cz0 + 0.6, z1: cz1 - 0.6 });
@@ -162,12 +164,16 @@ export function venue(o) {
   for (const rz of rows) for (let tx = tx0 + 0.8; tx < tx1; tx += stepX) {
     if (bar && rz === rows[2] && tx > x1 - 7) continue;
     const tr = bar ? 0.42 : 0.55;
+    // V54: Tisch samt Kerze und Vase ausreißbar (nicht, wenn jemand daran sitzt)
+    tearBegin('tisch:' + vid(V) + ':' + tx.toFixed(1) + ',' + rz.toFixed(1), { name: 'Tisch', m: bar ? 16 : 22, stuff: 'wood', seat: true });
     placeFurn(FURN.roundTable(tr, 0.74, !bar), FMk, fadd, tx, F, rz);
     addCollider(tx - 0.3, F, rz - 0.3, tx + 0.3, F + 0.76, rz + 0.3);
     // Kerze mit Lichtpunkt
     K.add('cloth', new T.CylinderGeometry(0.018, 0.018, 0.1, 8).translate(tx, F + 0.82, rz), [0.95, 0.92, 0.85]);
     K.add('lit', new T.SphereGeometry(0.012, 6, 4).scale(1, 1.8, 1).translate(tx, F + 0.89, rz), [1.8, 1.2, 0.5]); addGlow(tx, F + 0.9, rz, [1.3, 0.75, 0.35], 0.35, Math.random(), 0);
-    if (!bar) { K.add('gold', lathe([[0.03, 0], [0.012, 0.03], [0.008, 0.16], [0.02, 0.2]], 8).translate(tx + 0.18, F + 0.76, rz + 0.1)); ware(pick(['wine-red', 'wine-white']), tx - 0.16, F + 0.76, rz - 0.12, R); if (R() < 0.6) ware(pick(['bread', 'loaf']), tx + 0.05, F + 0.76, rz - 0.22, R, 0); }
+    if (!bar) K.add('gold', lathe([[0.03, 0], [0.012, 0.03], [0.008, 0.16], [0.02, 0.2]], 8).translate(tx + 0.18, F + 0.76, rz + 0.1));
+    tearEnd();
+    if (!bar) { ware(pick(['wine-red', 'wine-white']), tx - 0.16, F + 0.76, rz - 0.12, R); if (R() < 0.6) ware(pick(['bread', 'loaf']), tx + 0.05, F + 0.76, rz - 0.22, R, 0); }
     else if (R() < 0.45) ware('bottle', tx - 0.14, F + 0.76, rz + 0.1, R);
     const n = bar ? 3 : 4, seatsHere = [];
     for (let k = 0; k < n; k++) {
@@ -199,7 +205,7 @@ export function venue(o) {
   // Außen am See: Terrasse mit Brüstung (nur Restaurant), dazu Tische
   if (!bar) {
     K.add('stone', Bx(w, 0.25, 5, x, 0.125, z0 - 2.5, 3), [0.82, 0.8, 0.76]); addCollider(x0, 0, z0 - 5, x1, 0.25, z0);
-    for (let tx = x0 + 2.5; tx < x1 - 1; tx += 4.2) { placeFurn(FURN.roundTable(0.42, 0.74, true), FMk, fadd, tx, 0.25, z0 - 2.4); for (const s of [-1, 1]) placeFurn(FURN.bistroChair(), FMk, fadd, tx + s * 0.75, 0.25, z0 - 2.4, s > 0 ? -Math.PI / 2 : Math.PI / 2); addCollider(tx - 0.3, 0, z0 - 2.7, tx + 0.3, 1.0, z0 - 2.1); addGlow(tx, 0.98, z0 - 2.4, [1.3, 0.75, 0.35], 0.4, Math.random(), 0);
+    for (let tx = x0 + 2.5; tx < x1 - 1; tx += 4.2) { tearWrap('terrasse:' + vid(V) + ':' + tx.toFixed(1), { name: 'Tisch', m: 18, stuff: 'wood' }, () => placeFurn(FURN.roundTable(0.42, 0.74, true), FMk, fadd, tx, 0.25, z0 - 2.4)); for (const s of [-1, 1]) tearWrap('terrstuhl:' + vid(V) + ':' + tx.toFixed(1) + s, { name: 'Bistrostuhl', m: 6, stuff: 'wood', seat: true }, () => placeFurn(FURN.bistroChair(), FMk, fadd, tx + s * 0.75, 0.25, z0 - 2.4, s > 0 ? -Math.PI / 2 : Math.PI / 2)); addCollider(tx - 0.3, 0, z0 - 2.7, tx + 0.3, 1.0, z0 - 2.1); addGlow(tx, 0.98, z0 - 2.4, [1.3, 0.75, 0.35], 0.4, Math.random(), 0);
       for (const s of [-1, 1]) if (R() < 0.6) VENUE_PEDS.push({ st: 4, x: tx + s * 0.75, y: 0.75, z: z0 - 2.4, yaw: s > 0 ? -Math.PI / 2 : Math.PI / 2, sc: 0.94 + R() * 0.12, v: 0, sit: true, act: pick([10.4, 11.4, 7.8]) }); }
   }
   K.build(scene);
@@ -319,8 +325,9 @@ export function pubBar(K, V, cx, cz0, cz1) {
   }
   K.add('gold', Bx(0.18, 0.02, 4.4, cx + 0.05, F + 1.135, zm, 1));   // Tropfrinne
   // Fässer hinter der Theke (stehend) und eins liegend auf dem Bock
-  for (const [bx, bz] of [[x0 + 0.55, z0 + 0.6], [x0 + 1.25, z0 + 0.6]]) { K.add('plank', lathe([[0.27, 0], [0.32, 0.25], [0.34, 0.45], [0.32, 0.65], [0.27, 0.9], [0, 0.9]], 14).translate(bx, F, bz), [0.55, 0.38, 0.24]); for (const h of [0.12, 0.78]) K.add('iron', new T.CylinderGeometry(0.31, 0.31, 0.05, 14, 1, true).translate(bx, F + h, bz)); }
-  K.add('plank', lathe([[0.22, 0], [0.26, 0.2], [0.27, 0.35], [0.26, 0.5], [0.22, 0.7], [0, 0.7]], 14).rotateZ(Math.PI / 2).translate(x0 + 1.25, F + 1.2, z0 + 0.6), [0.55, 0.38, 0.24]);
+  for (const [bx, bz] of [[x0 + 0.55, z0 + 0.6], [x0 + 1.25, z0 + 0.6]]) { tearBegin('thekenfass:' + vid(V) + ':' + bx.toFixed(1), { name: 'Fass', m: 70, stuff: 'wood', kind: 'cyl' }); K.add('plank', lathe([[0.27, 0], [0.32, 0.25], [0.34, 0.45], [0.32, 0.65], [0.27, 0.9], [0, 0.9]], 14).translate(bx, F, bz), [0.55, 0.38, 0.24]); for (const h of [0.12, 0.78]) K.add('iron', new T.CylinderGeometry(0.31, 0.31, 0.05, 14, 1, true).translate(bx, F + h, bz)); }
+  tearEnd();
+  tearWrap('bockfass:' + vid(V), { name: 'Fass', m: 40, stuff: 'wood', kind: 'cyl' }, () => K.add('plank', lathe([[0.22, 0], [0.26, 0.2], [0.27, 0.35], [0.26, 0.5], [0.22, 0.7], [0, 0.7]], 14).rotateZ(Math.PI / 2).translate(x0 + 1.25, F + 1.2, z0 + 0.6), [0.55, 0.38, 0.24]));   // V54
   addCollider(x0 + 0.2, F, z0 + 0.2, x0 + 1.6, F + 1.5, z0 + 1.0);
   // Gäste stehen an der Theke mit Bier (zwischen den Hockern), zwei am Dartbrett
   for (const [k, dz] of [[0, -2.45], [1, -0.25], [2, 1.95]]) VENUE_PEDS.push({ st: 4, x: cx + 1.3, y: F, z: zm + dz, yaw: -Math.PI / 2, sc: 0.96 + k * 0.04, v: 0, kind: k === 1 ? 'coat' : 'worker', col: k === 1 ? COATS[2] : pick(SHIRTS), act: 15.3 + k * 0.2 });
@@ -330,12 +337,14 @@ export function pubBar(K, V, cx, cz0, cz1) {
 // Klavier an der Ostwand (aufrecht, mit Kerzenleuchtern), Pianist, Messing-Hängelampen über den Tischen
 export function pubStage(K, V, FMk, fadd) {
   const { x1, z1, F } = V, px = x1 - 0.45, pz = z1 - 3.0, H = 5.2;
+  tearBegin('klavier:' + vid(V), { name: 'Klavier', m: 230, stuff: 'wood' });   // V54: das Klavier lässt sich herausreißen (bis addCollider)
   K.add('varnish', Bx(0.6, 1.32, 1.55, px, F + 0.66, pz, 1), [0.14, 0.08, 0.05]);
   K.add('varnish', Bx(0.36, 0.08, 1.45, px - 0.45, F + 0.74, pz, 1), [0.14, 0.08, 0.05]);
   K.add('cloth', Bx(0.16, 0.02, 1.3, px - 0.52, F + 0.79, pz, 1), [0.95, 0.93, 0.86]);
   for (let k = 0; k < 18; k++) K.add('varnish', Bx(0.09, 0.025, 0.035, px - 0.49, F + 0.805, pz - 0.6 + k * 0.071, 1), [0.03, 0.03, 0.03]);
   K.add('cloth', Bx(0.02, 0.3, 0.5, px - 0.31, F + 1.05, pz, 1), [0.9, 0.86, 0.74]);   // Notenblatt
   for (const s of [-1, 1]) { K.add('gold', lathe([[0.04, 0], [0.015, 0.04], [0.01, 0.16], [0.03, 0.18]], 8).translate(px - 0.1, F + 1.32, pz + s * 0.6)); K.add('cloth', new T.CylinderGeometry(0.012, 0.012, 0.08, 6).translate(px - 0.1, F + 1.54, pz + s * 0.6), [0.95, 0.92, 0.85]); K.add('lit', new T.SphereGeometry(0.01, 6, 4).scale(1, 1.8, 1).translate(px - 0.1, F + 1.6, pz + s * 0.6), [1.8, 1.2, 0.5]); addGlow(px - 0.1, F + 1.61, pz + s * 0.6, [1.3, 0.75, 0.35], 0.3, Math.random(), 0); }
+  tearEnd();
   addCollider(px - 0.6, F, pz - 0.8, px + 0.35, F + 1.35, pz + 0.8);
   placeFurn(FURN.barStool(), FMk, fadd, px - 1.05, F - 0.05, pz);
   V.staff.push({ st: 4, x: px - 1.05, y: F + 0.82, z: pz, yaw: Math.PI / 2, sc: 1, v: 0, kind: 'suit', col: [0.22, 0.2, 0.18], sit: true, act: 14.5 });

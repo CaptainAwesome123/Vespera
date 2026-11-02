@@ -188,6 +188,12 @@ Labor: `?lab=menschen&view=herrnah|damenah|altnah|handnah|spielernah|spielerhand
   Spieltagen weiter; Polarlicht in Vorhängen; ein ganz schwacher Dämmerschimmer im Süden.
 - *Wetter (`atmosphere.js`):* klar, Polarlicht, türkiser Dunst, dichter Nebel, Regen, Schnee, Eisnebel; wechselt alle
   3–6 Minuten von selbst, `N` (am Handy WETTER) legt eine Lage fest. URL: `?wetter=regen`, `?mond=0.5`, `?ohneSchatten`.
+- *V54 Wetter:* drei neue Lagen: `nordlicht` (großes Polarlicht mit Krone im Zenit, rosa Saum, drittem Vorhang, tanzt
+  schneller über die eigene Uhr `uAuroraT`), `sturm` (Schneesturm: Sturmwind, waagerecht fliegende Flocken als Striche,
+  weißes Treiben, Heulen), `nass` (nach dem Regen: klarer Himmel, mehr Pfützen, kräftigere Spiegelung). Eisblumen auf allen
+  Fenstern (`uIce`, Fassadenshader; nah mit Struktur, fern als Schleier). Lichtsäulen der Laternen auf nassem Pflaster.
+  Wind wird aufsummiert (`uDrift`, `uGustRun`), damit Flocken, Fahnen und Gras beim Auffrischen nicht springen.
+  Labor: `?lab=wetter&wetter=sturm&view=strasse|pfuetze|fenster|fensternah|himmel|zenit|turm|uebersicht`.
 - *Nebel:* Zum Dunst kommt ein Bodennebel, der unten dicht ist und nach oben dünner wird; gilt über gepatchte
   Fog-Chunks für alle eingebauten Materialien und über `vespFog()` (`FOG_GLSL` in `core.js`) für die eigenen Shader.
   Leuchtende Flächen bekommen `FOG_ADD` und verblassen im Nebel. Unter Dächern (Dachkarte `ROOF`) fast kein Nebel.

@@ -26,7 +26,7 @@ void main(){
 }`;
 export const facadeFS = `
 #define BRICK_MEAN vec3(0.519, 0.287, 0.184)
-uniform float uTime; uniform vec3 uFogColor; uniform float uFogDensity; uniform vec3 uMoonDir; uniform vec3 uTeal; uniform vec3 uCam; uniform sampler2D uBrick; uniform float uBrickOn; uniform sampler2D uStone; uniform float uStoneOn; uniform float uWet; uniform float uSnowCover;
+uniform float uTime; uniform vec3 uFogColor; uniform float uFogDensity; uniform vec3 uMoonDir; uniform vec3 uTeal; uniform vec3 uCam; uniform sampler2D uBrick; uniform float uBrickOn; uniform sampler2D uStone; uniform float uStoneOn; uniform float uWet; uniform float uSnowCover; uniform float uIce;
 varying vec3 vWorld; varying vec3 vN; varying vec3 vLN; varying vec3 vT; varying vec3 vTint; varying vec4 vParams; varying vec3 vRib; varying vec3 vLocal; varying vec3 vScale; varying float vFogDepth; varying vec4 vEdge;
 ${FOG_GLSL}
 float hash(vec2 p){ p = fract(p*vec2(123.34, 456.21)); p += dot(p, p+45.32); return fract(p.x*p.y); }
@@ -65,7 +65,7 @@ void main(){
   vec3 photoBrick = vTint * mix(vec3(1.0), ph, 0.3 + 0.7*midFade) * (0.92 + 0.16*hash(vec2(floor(uW/1.6 + seed*0.23), floor(vWorld.y/1.6)) + seed));
   brickWall = mix(brickWall, photoBrick, uBrickOn * (0.25 + 0.75*midFade));
   // Jedes Haus bekommt sein eigenes Material: Quader, Kalkstein mit Rustika, glasierte Fliesen, Terrakotta-Relief, polierter Granit
-  float matT = floor(hash(vec2(seed, 5.3)) * 8.0), gloss = 0.0;
+  float matT = style > 2.5 ? 2.0 : floor(hash(vec2(seed, 5.3)) * 8.0), gloss = 0.0;   // V54: Zierteile (Pilaster, Bänder, Gesimse) immer aus demselben Kalkstein
   vec2 wq = vec2(uW, vWorld.y);
   vec3 surf = masonry;
   // V27: Fugenmaske (jm) und erhabenes Relief (rl) je Material, daraus unten ein echtes Relief im Mondlicht
@@ -73,7 +73,7 @@ void main(){
   if (matT > 1.5 && matT < 2.5) {
     float ly = vWorld.y / 0.9, lj = fract(ly), lx = fract(uW / 1.5 + 0.5*mod(floor(ly), 2.0));
     float jj = 1.0 - smoothstep(0.004, 0.016, min(min(lj, 1.0 - lj)*0.9, min(lx, 1.0 - lx)*1.5));
-    float groove = step(hy, 10.0) * (1.0 - smoothstep(0.015, 0.05, min(lj, 1.0 - lj)*0.9));
+    float groove = step(hy, 10.0) * step(style, 2.5) * (1.0 - smoothstep(0.015, 0.05, min(lj, 1.0 - lj)*0.9));
     float speck = hash(floor(wq*70.0)), cloud = vnoise(wq*2.5 + seed) * 0.6 + vnoise(wq*9.0) * 0.4;
     surf = vTint * vec3(1.04, 1.0, 0.92) * (0.9 + 0.14*cloud + 0.08*(speck - 0.5)*fineFade) * (0.94 + 0.12*hash(vec2(floor(uW/1.5 + 0.5*mod(floor(ly), 2.0)), floor(ly)) + seed));
     surf = mix(surf, vTint*0.55, clamp(jj*0.5*fineFade + groove*0.85*midFade, 0.0, 1.0));
@@ -342,6 +342,17 @@ void main(){
     room = mix(room, lightC*vec3(0.55, 0.32, 0.22)*(0.75 + 0.25*sin(g.x*60.0)*detF)*lit, curtain);
     winCol = mix(room + glass*0.7, winCol, aaW);
   }
+  // V54: Eisblumen: Kristalle wachsen vom Rahmen und von unten her aufs Glas (uIce aus atmosphere.js), erleuchtete Fenster glimmen warm hindurch.
+  // Nah mit Struktur, ab etwa 25 Bildpunkten je Fenster nur noch ein gleichmäßiger Schleier (keine harten Kanten, kein Flimmern)
+  vec3 iceTint = vec3(0.17, 0.21, 0.26)*(0.4 + 0.9*moon) + uTeal*0.05;
+  if (uIce > 0.02) {
+    vec2 eg = abs(g - 0.5) / vec2(wx, wy) * 2.0;
+    float ed = min(1.0 - max(eg.x, eg.y), (g.y - 0.5 + wy*0.5) / wy * 1.6);
+    float fn = vnoise(g * cellSz * 7.0 + seed)*0.6 + vnoise(g * cellSz * 21.0 - seed)*0.4*(1.0 - smoothstep(0.012, 0.03, px));
+    float ice = (1.0 - smoothstep(0.0, 0.1 + 0.55*uIce, ed + (fn - 0.5)*0.4)) * smoothstep(0.0, 0.25, uIce);
+    ice = mix(uIce*0.4, ice, 1.0 - smoothstep(0.025, 0.07, px));
+    winCol = mix(winCol, iceTint + warm*bright*lit*0.65, ice*0.85);
+  }
   // Laibung: Schatten oben und an einer Seite, die Fenster wirken eingetieft
   float ex = (f.x - (0.5 - wx*0.5)) / wx, ey = (f.y - (0.5 - wy*0.5)) / wy;
   // Sprossen und Rahmen (auf der Glasebene)
@@ -468,6 +479,7 @@ void main(){
   float aa = smoothstep(0.08, 0.28, px) * (1.0 - ground);
   vec3 avgWin = mix(glass, vec3(1.0, 0.62, 0.3)*0.75, dens);
   if (style > 1.5) avgWin = mix(glass, vec3(1.0, 0.8, 0.5)*1.2, dens) * 0.8;   // V33: hohe Bogenfenster leuchten heller (gleicher Eindruck nah und fern)
+  avgWin = mix(avgWin, iceTint + avgWin*0.6, uIce*0.34);   // V54: Eisblumen in der Ferne als Schleier (wie nah gemittelt)
   vec3 avg = mix(wall, avgWin, wx*wy*(1.0 - pier*0.25));
   avg = mix(avg, vRib*0.45, ribOn*(1.0 - ground)*0.14);   // V33: Rippen verschwinden in der Ferne nicht, sie gehen in die Mittelfarbe über
   vec3 col = mix(det, avg, aa);

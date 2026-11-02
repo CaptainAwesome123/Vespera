@@ -12,8 +12,11 @@
      120 m weit: lose Dinge jeden Gewichts, Wagen, Menschen und seit V52 auch
      die Möbel der Räume (Sofas, Sessel, Stühle, Tische, Lampen) und das
      Straßenmobiliar (Bänke, Papierkörbe, Hydranten, Briefkästen, Kübel).
-     Mausrad näher und weiter, Linksklick schleudert, rechte Maustaste
-     (oder T) noch einmal lässt fallen.
+     Mausrad näher und weiter, Linksklick schleudert. V54: die rechte
+     Maustaste bleibt gedrückt, solange etwas schwebt; loslassen lässt es
+     fallen (T bleibt ein Schalter). Und alles, was bisher fest saß, lässt
+     sich herausreißen: Bäume, Laternen, Poller, Masten, Fahnen, Tische,
+     Hocker, das Klavier, Fässer, Kisten, Bänke (src/tear.js).
    - V52: die Leute reagieren (awe.js): sie bleiben stehen, schauen, staunen,
      ziehen den Hut, klatschen, verbeugen sich.
    - Unverwundbar: Wagen prallen an ihm ab und verbeulen, ein Sturz aus
@@ -23,7 +26,9 @@
    ===================================================================== */
 import { T, camera, scene, canvasTex } from './core.js';
 import { player } from './player.js';
-import { LOOSE, bumpSound, movNear, movWorld, furnInfo, furnBody, streetNear, streetBody, streetCenter } from './physics.js';
+import { LOOSE, bumpSound, movNear, movWorld, furnInfo, furnBody, streetNear, streetBody, streetCenter, tearBody, treeBody, treeCenter } from './physics.js';
+import { tearNear, tearInfo } from './tear.js';
+import { treeNear } from './serpentine.js';
 import { aweBurst, AWE } from './awe.js';
 import { BODIES, looseFromTraffic, looseFromParked, impulse, crashDamage } from './driving.js';
 import { TRF } from './traffic.js';
@@ -210,6 +215,9 @@ function tkAim() {
   // V52: Möbel der Räume und das Straßenmobiliar
   for (const e of movNear(o.x, o.z, TK_RANGE)) { const W = movWorld(e), I = furnInfo(e); if (Math.abs(W.y - o.y) < 60) test(W.x, W.y + I.cy, W.z, I.r, () => ({ kind: 'furn', e })); }
   for (const [p, k] of streetNear(o.x, o.z, TK_RANGE)) { const c = streetCenter(p, k); if (Math.abs(c.y - o.y) < 80) test(p.x, c.y, p.z, c.r, () => ({ kind: 'street', p, k })); }   // V53: auch Laternen, Kioske, Säulen, Uhren und alle Dinge
+  // V54: alles, was bisher fest saß: Poller, Masten, Fahnen, Tische, Hocker, Klavier, Fässer, Kisten, Bänke, Pumpe (tear.js) und die Bäume
+  for (const e of tearNear(o.x, o.z, TK_RANGE)) { const I = tearInfo(e); if (Math.abs(I.c.y - o.y) < 80) test(I.c.x, I.c.y, I.c.z, Math.max(0.4, Math.min(1.3, Math.max(I.he.x, I.he.z) + 0.15)), () => ({ kind: 'tear', e })); }
+  for (const [st, p] of treeNear(o.x, o.z, TK_RANGE)) { const c = treeCenter(st, p); if (Math.abs(c.y - o.y) < 80) test(c.x, c.y, c.z, c.r, () => ({ kind: 'tree', st, p })); }
   return best;
 }
 export function tkGrab() {
@@ -221,21 +229,26 @@ export function tkGrab() {
     if (!S) { toast('Telekinese: gerade nicht'); return false; }
     const minP = (PM.view === 'third' && PM.mesh ? PM.dist : 0) + 2.2;
     POWERS.tk = { kind: 'ped', S, pd: a.pd, dist: Math.max(minP, Math.min(30, a.t)), t: 0 };
-    toast('Ein Passant schwebt (er nimmt es mit Humor) · Mausrad näher/weiter · Linksklick sanft werfen · rechte Maustaste absetzen');
+    toast('Ein Passant schwebt (er nimmt es mit Humor) · rechte Maustaste halten · Mausrad näher/weiter · Linksklick sanft werfen · loslassen = absetzen');
     aweBurst('tk', 28); POWERS.aweT = 2.5;   // V52
     return true;
   }
-  let B = a.B, kind = a.kind === 'loose' || a.kind === 'furn' || a.kind === 'street' ? 'loose' : 'car';
+  let B = a.B, kind = a.kind === 'loose' || a.kind === 'furn' || a.kind === 'street' || a.kind === 'tear' || a.kind === 'tree' ? 'loose' : 'car';
   if (a.kind === 'traffic') B = looseFromTraffic(a.c);
   else if (a.kind === 'parked') B = looseFromParked(a.c);
   else if (a.kind === 'furn') { B = furnBody(a.e); if (B === 'sit') { toast('Telekinese: da sitzt noch jemand'); return false; } if (!B) { toast('Telekinese: zu viel in Bewegung'); return false; } }
   else if (a.kind === 'street') { B = streetBody(a.p, a.k); if (!B) { toast('Telekinese: zu viel in Bewegung'); return false; } }
+  else if (a.kind === 'tear') { B = tearBody(a.e); if (B === 'sit') { toast('Telekinese: da sitzt noch jemand'); return false; } if (!B) { toast('Telekinese: zu viel in Bewegung'); return false; } }
+  else if (a.kind === 'tree') { B = treeBody(a.st, a.p); if (!B) { toast('Telekinese: zu viel in Bewegung'); return false; } }
   const minD = (PM.view === 'third' && PM.mesh ? PM.dist : 0) + (kind === 'car' ? 7 : Math.max(2.2, B.r * B.sc * 1.3 + 1));
   POWERS.tk = { kind, B, dist: Math.max(minD, Math.min(40, a.t)), t: 0 };
   if (kind === 'loose') { LOOSE.tk = B; B.awake = true; B.still = 0; LOOSE.tkTarget = new T.Vector3().copy(B.x); }
   else { B.tk = true; B.air = true; B.still = 0; }
   const name = kind === 'loose' ? B.name : 'Wagen';
-  toast(name + ' schwebt · Mausrad näher/weiter · Linksklick schleudern · rechte Maustaste loslassen');
+  // V54: etwas Festes herausgerissen (Laterne, Baum, Poller, Möbel ...): Staub und Schnee am Fuß, ein Ruck, ein Knacken
+  const torn = a.kind === 'furn' || a.kind === 'street' || a.kind === 'tear' || a.kind === 'tree';
+  if (torn) tearFx(B, a.kind === 'tree' ? 2.2 : Math.min(1.6, 0.5 + B.m / 400));
+  toast(name + (torn ? ' herausgerissen' : ' schwebt') + ' · rechte Maustaste halten · Mausrad näher/weiter · Linksklick schleudern · loslassen = fallen lassen');
   aweBurst('tk', 28);   // V52: die Leute staunen
   POWERS.aweT = 2.5;
   return true;
@@ -244,7 +257,18 @@ export function tkGrab() {
 export function tkRelease(throwIt) {
   const H = POWERS.tk; if (!H) return;
   if (throwIt) { if (POWERS.tkWind <= 0) { POWERS.tkWind = 0.19; POWERS.tkThrowT = 0; } return; }
+  if (POWERS.tkWind > 0) return;   // V54: Wurf ist schon ausgeholt, Loslassen der Taste bricht ihn nicht ab
   tkLetGo(false);
+}
+// V54: Ausreißen: Staub und Schnee am Fuß des Stücks, ein Ruck, ein Knacken; der Körper bekommt einen kleinen Schubs nach oben
+function tearFx(B, k) {
+  const x = B.x.x, y = B.x.y - B.he.y * B.sc, z = B.x.z, n = Math.round(8 + 10 * k);
+  fxEmit('dust', x, y + 0.2, z, 0, 1.2, 0, n, 1.2 * k, 0.9);
+  for (let i = 0; i < n; i++) { const a = i / n * Math.PI * 2, s = 2 + 3 * k; fxEmit('snowburst', x + Math.cos(a) * 0.4 * k, y + 0.1, z + Math.sin(a) * 0.4 * k, Math.cos(a) * s, 1 + Math.random() * 2, Math.sin(a) * s, 1, 0.25, 0.7); }
+  fxEmit('crystal', x, y + B.he.y * B.sc, z, 0, 2, 0, 8 + Math.round(8 * k), 0.8);
+  bumpSound(B.snd === 'metal' ? 'metal' : 'wood', Math.min(1, 0.35 + 0.3 * k), 90 + 60 * k);
+  POWERS.shake = Math.min(1, POWERS.shake + 0.08 + 0.1 * k);
+  B.v.y += 1.5; B.w.set((Math.random() - 0.5) * 0.4, (Math.random() - 0.5) * 0.4, (Math.random() - 0.5) * 0.4);
 }
 function tkLetGo(throwIt) {
   const H = POWERS.tk; if (!H) return;

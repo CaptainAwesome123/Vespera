@@ -9,6 +9,7 @@ import { blocks } from './island.js';
 import { WORKWEAR, SHIRTS, COATS, STREET } from './serpentine.js';
 import { addLight } from './performance.js';
 import { VENUE_PEDS, signBoard } from './venues.js';
+import { tearWrap } from './tear.js';
 
 /* =====================================================================
    V46 · ARBEITERVIERTEL: Leben in den Backsteinvierteln am Rand des Kraters
@@ -200,7 +201,7 @@ export function buildWorkersQuarter() {
   // Fässer als Stehtische vor der Kneipe, zwei Trinker
   for (const [ox, oz] of [[-7.5, 1.6], [7.5, 1.6]]) {
     const tx = P.x + ox, tz = Z + 15.5 + oz;
-    barrel(K, tx, tz, y0); K.add('plank', new T.CylinderGeometry(0.42, 0.42, 0.05, 14).translate(tx, y0 + 0.93, tz), [0.42, 0.28, 0.18]);
+    tearWrap('stehfass:' + ox, { name: 'Stehtisch-Fass', m: 65, stuff: 'wood', kind: 'cyl' }, () => { barrel(K, tx, tz, y0); K.add('plank', new T.CylinderGeometry(0.42, 0.42, 0.05, 14).translate(tx, y0 + 0.93, tz), [0.42, 0.28, 0.18]); });   // V54: ausreißbar
     addCollider(tx - 0.4, y0, tz - 0.4, tx + 0.4, y0 + 0.95, tz + 0.4);
     VENUE_PEDS.push({ st: 4, x: tx + 0.62, y: y0, z: tz + 0.1, yaw: -Math.PI / 2, sc: 1, v: 0, kind: 'worker', col: SHIRTS[Math.floor(rr() * 5)], act: 15.4 + rr() * 0.4 });
     if (rr() < 0.7) VENUE_PEDS.push({ st: 4, x: tx - 0.6, y: y0, z: tz + 0.2, yaw: Math.PI / 2, sc: 0.98, v: 0, kind: rr() < 0.5 ? 'coat' : 'chauffeur', col: COATS[Math.floor(rr() * 4)], act: 0.3 + rr() * 0.4 });
@@ -209,9 +210,10 @@ export function buildWorkersQuarter() {
   VENUE_PEDS.push({ st: 4, x: P.x - 5.2, y: y0, z: Z + 15.95, yaw: 0, sc: 1, v: 0, kind: 'worker', col: WORKWEAR[2], act: 36.2 });
   // Schwengelpumpe mit Trog
   { const px = X + 45, pz = Z + 30;
+    tearWrap('pumpe', { name: 'Schwengelpumpe', m: 140, stuff: 'metal', kind: 'cyl' }, () => {   // V54: ausreißbar (der Trog bleibt)
     K.add('iron', lathe([[0.12, 0], [0.1, 0.1], [0.08, 1.2], [0.11, 1.3], [0.06, 1.42], [0, 1.45]], 10).translate(px, y0, pz), [0.25, 0.4, 0.34]);
     K.add('iron', new T.CylinderGeometry(0.035, 0.03, 0.4, 6).rotateZ(Math.PI / 2).translate(px + 0.25, y0 + 1.0, pz), [0.25, 0.4, 0.34]);
-    K.add('iron', new T.BoxGeometry(0.7, 0.04, 0.04).rotateZ(-0.35).translate(px - 0.3, y0 + 1.42, pz), [0.25, 0.4, 0.34]);
+    K.add('iron', new T.BoxGeometry(0.7, 0.04, 0.04).rotateZ(-0.35).translate(px - 0.3, y0 + 1.42, pz), [0.25, 0.4, 0.34]); });
     K.add('stone', Bx(1.6, 0.5, 0.7, px + 0.9, y0 + 0.25, pz, 1), [0.55, 0.53, 0.5]);
     K.add('glass', new T.PlaneGeometry(1.4, 0.5).rotateX(-Math.PI / 2).translate(px + 0.9, y0 + 0.42, pz));
     addCollider(px - 0.15, y0, pz - 0.35, px + 1.7, y0 + 0.5, pz + 0.35); addCollider(px - 0.13, y0, pz - 0.13, px + 0.13, y0 + 1.45, pz + 0.13);
@@ -232,18 +234,19 @@ export function buildWorkersQuarter() {
     VENUE_PEDS.push({ st: 4, x: kx - 0.2, y: y0, z: kz + 2.0, yaw: Math.PI, sc: 1.0, v: 0, kind: 'suit', col: COATS[4], act: 31.2 });
   }
   // Kisten und Handkarren vor der Werkstatt, zwei Packer
-  crateStack(K, W.x1 - 1.2, W.z1 + 2.4, 0.2, 3, y0); crateStack(K, W.x1 - 2.4, W.z1 + 3.4, 0.9, 2, y0);
+  tearWrap('kisten:a', { name: 'Kistenstapel', m: 48, stuff: 'wood' }, () => crateStack(K, W.x1 - 1.2, W.z1 + 2.4, 0.2, 3, y0)); tearWrap('kisten:b', { name: 'Kistenstapel', m: 32, stuff: 'wood' }, () => crateStack(K, W.x1 - 2.4, W.z1 + 3.4, 0.9, 2, y0));   // V54: ausreißbar
   addCollider(W.x1 - 3, y0, W.z1 + 1.8, W.x1 - 0.6, y0 + 1.3, W.z1 + 4);
   { const hx = W.x0 + 1.5, hz = W.z1 + 3;
+    tearWrap('handkarren', { name: 'Handkarren', m: 45, stuff: 'wood' }, () => {   // V54: ausreißbar
     K.add('plank', Bx(1.0, 0.35, 1.6, hx, y0 + 0.75, hz, 1), [0.5, 0.38, 0.26]);
     for (const s of [-1, 1]) { K.add('plank', new T.TorusGeometry(0.42, 0.04, 5, 14).rotateY(Math.PI / 2).translate(hx + s * 0.56, y0 + 0.42, hz), [0.3, 0.2, 0.12]); K.add('plank', Bx(0.06, 0.06, 1.3, hx + s * 0.4, y0 + 0.62, hz - 1.3, 1).rotateX(0), [0.4, 0.3, 0.2]); }
-    crateStack(K, hx, hz + 0.3, 0.1, 1, y0 + 0.92);
+    crateStack(K, hx, hz + 0.3, 0.1, 1, y0 + 0.92); });
     addCollider(hx - 0.6, y0, hz - 0.8, hx + 0.6, y0 + 1.3, hz + 0.8);
   }
   VENUE_PEDS.push({ st: 4, x: W.x1 - 1.8, y: y0, z: W.z1 + 1.5, yaw: Math.PI, sc: 1, v: 0, kind: 'worker', col: WORKWEAR[1], act: 27.3 });
   VENUE_PEDS.push({ st: 4, x: W.x0 + 2.6, y: y0, z: W.z1 + 4.4, yaw: -0.6, sc: 1, v: 0, kind: 'worker', col: SHIRTS[0], act: 24.4 });
   // Bänke unter zwei Laternen, ein Paar im Gespräch an der Haustür
-  benchGeo(K, 1.9, X + 13, y0, Z1 - 1.2, Math.PI, 'plank'); benchGeo(K, 1.9, X + 33, y0, Z1 - 1.2, Math.PI, 'plank');
+  for (const bx of [X + 13, X + 33]) tearWrap('platzbank:' + bx, { name: 'Bank', m: 50, stuff: 'wood', seat: true }, () => benchGeo(K, 1.9, bx, y0, Z1 - 1.2, Math.PI, 'plank'));   // V54: ausreißbar
   lamps.push({ x: X + 9, z: Z1 - 1.6, h: 4.8 }, { x: X + 37, z: Z1 - 1.6, h: 4.8 }, { x: X + 62, z: Z + 20, h: 4.8 });
   VENUE_PEDS.push({ st: 4, x: tB.x - tB.w / 2 - 1.4, y: y0, z: tB.z + 6.0, yaw: Math.PI / 2 + 0.6, sc: 0.96, v: 0, kind: 'lady', col: [0.32, 0.26, 0.22], act: 0.4 });
   VENUE_PEDS.push({ st: 4, x: tB.x - tB.w / 2 - 2.3, y: y0, z: tB.z + 6.6, yaw: -Math.PI / 2 - 0.5, sc: 1, v: 0, kind: 'worker', col: WORKWEAR[0], act: 0.7 });
@@ -362,11 +365,15 @@ function buildAlleyParts(A, K) {
       K.add('iron', new T.CylinderGeometry(0.11, 0.11, P.y - 0.2, 10).translate(P.x, 0.2 + (P.y - 0.2) / 2, P.zb), [0.42, 0.32, 0.26]);
     }
   }
+  // V54: Kisten, Fässer, Tonnen und Kohle der Gassen sind ausreißbar; die Zelle baut gerade herausgerissene Stücke nicht mit
   for (const p of A.props || []) {
-    if (p.kind === 'crates') crateStack(K, p.x, p.z, p.a, p.n);
-    else if (p.kind === 'barrel') { barrel(K, p.x, p.z); if (p.n > 1) barrel(K, p.x, p.z + 0.68 * Math.sign(p.a - 3)); }
-    else if (p.kind === 'bin') { bin(K, p.x, p.z); if (p.n > 2) bin(K, p.x, p.z + 0.62); }
-    else coal(K, p.x, p.z, p.a, p.n);
+    const key = 'gasse:' + p.x.toFixed(1) + ',' + p.z.toFixed(1), info = p.kind === 'crates' ? { name: 'Kisten', m: 14 * p.n, stuff: 'wood' } : p.kind === 'barrel' ? { name: 'Fass', m: 45, stuff: 'wood', kind: 'cyl' } : p.kind === 'bin' ? { name: 'Mülltonne', m: 18, stuff: 'metal', kind: 'cyl' } : { name: 'Kohlenhaufen', m: 60, stuff: 'wood' };
+    tearWrap(key, { ...info, layer: 'arbeiter' }, () => {
+      if (p.kind === 'crates') crateStack(K, p.x, p.z, p.a, p.n);
+      else if (p.kind === 'barrel') { barrel(K, p.x, p.z); if (p.n > 1) barrel(K, p.x, p.z + 0.68 * Math.sign(p.a - 3)); }
+      else if (p.kind === 'bin') { bin(K, p.x, p.z); if (p.n > 2) bin(K, p.x, p.z + 0.62); }
+      else coal(K, p.x, p.z, p.a, p.n);
+    });
   }
 }
 export function setupWorkerLayer() {

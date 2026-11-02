@@ -46,6 +46,8 @@ import { CLUT, clutterNear, clutterMatrix, clutterMoved } from './clutter.js';
 import { decoLampGeo, decoLampMats } from './decolamp.js';
 import { lampFx } from './serpentine.js';
 import { invalidateLayer } from './chunks.js';
+import { TEAR, tearInfo, tearNear } from './tear.js';
+import { TREE_SETS, treeNear, treeDirty } from './serpentine.js';
 
 export const LOOSE = { bodies: [], batches: new Map(), held: null, tk: null, tkTarget: null, aim: null, rot: 0, spawned: new Set(), mat: null, goodsIdx: null, stats: { awake: 0, bodies: 0, ms: 0 } };
 const G = 9.81, SUB = MOBILE ? 5 : 8, MAX_BODIES = MOBILE ? 56 : 128, REACH = 2.6;   // V52: mehr Platz (Möbel, Straßenmöbel, neue Gruppen); ferne Gruppen räumt cullBodies wieder ab
@@ -89,7 +91,7 @@ function addToBatch(B) {
 }
 function removeBody(B) {
   const bt = B.batch; if (bt) bt.list.splice(bt.list.indexOf(B), 1); LOOSE.bodies.splice(LOOSE.bodies.indexOf(B), 1);
-  if (B.mesh) { scene.remove(B.mesh); B.mesh.geometry.dispose(); B.mesh = null; }
+  if (B.mesh) { scene.remove(B.mesh); B.mesh.traverse(o => { if (o.geometry) o.geometry.dispose(); }); B.mesh = null; }   // V54: auch Kinder (Laterne, Baum)
   if (LOOSE.held === B) LOOSE.held = null;
   if (LOOSE.tk === B) LOOSE.tk = null;
 }
@@ -385,6 +387,102 @@ function furnRestore(B) {
 }
 function addColliderBack(b) { const q = addCollider(b.x0, b.y0, b.z0, b.x1, b.y1, b.z1); return q; }
 
+/* ---------- V54: Ausreißen fester Stücke (src/tear.js): Poller, Masten, Fahnen, Tische, Hocker, Klavier, Fässer, Kisten, Bänke, Pumpe ----------
+   Zusammengefasste Netze: die Ecken des Stücks werden mit Farben kopiert (Material des Netzes), im festen Netz fallen sie zusammen.
+   Instanzen: Instanz auf 0, eigenes Netz aus der Vorlage. */
+function sliceRanges(e, c) {
+  // je Netz (= Material) ein Stück Geometrie mit position/normal/uv/color und umgerechnetem Index
+  const by = new Map();
+  for (const r of e.ranges) { if (!by.has(r.geo)) by.set(r.geo, []); by.get(r.geo).push(r); }
+  const parts = [];
+  for (const [geo, rs] of by) {
+    const A = geo.attributes, hasC = !!A.color, hasUv = !!A.uv;
+    let n = 0, ni = 0; for (const r of rs) { n += r.c; ni += r.ic || 0; }
+    const pos = new Float32Array(n * 3), nor = new Float32Array(n * 3), uv = new Float32Array(n * 2), col = hasC ? new Float32Array(n * 3) : null, idx = new Uint32Array(ni);
+    let o = 0, oi = 0;
+    for (const r of rs) {
+      const P = A.position.array, N = A.normal.array;
+      for (let i = 0; i < r.c; i++) { const s = (r.o + i) * 3, d = (o + i) * 3; pos[d] = P[s] - c.x; pos[d + 1] = P[s + 1] - c.y; pos[d + 2] = P[s + 2] - c.z; nor[d] = N[s]; nor[d + 1] = N[s + 1]; nor[d + 2] = N[s + 2]; if (hasC) { col[d] = A.color.array[s]; col[d + 1] = A.color.array[s + 1]; col[d + 2] = A.color.array[s + 2]; } }
+      if (hasUv) uv.set(A.uv.array.subarray(r.o * 2, (r.o + r.c) * 2), o * 2);
+      if (geo.index && r.ic) { const I = geo.index.array; for (let k = 0; k < r.ic; k++) idx[oi + k] = I[r.io + k] - r.o + o; oi += r.ic; }
+      o += r.c;
+    }
+    const g = new T.BufferGeometry();
+    g.setAttribute('position', new T.BufferAttribute(pos, 3)); g.setAttribute('normal', new T.BufferAttribute(nor, 3)); g.setAttribute('uv', new T.BufferAttribute(uv, 2));
+    if (hasC) g.setAttribute('color', new T.BufferAttribute(col, 3));
+    if (ni) g.setIndex(new T.BufferAttribute(idx, 1));
+    parts.push([g, matOfGeo(geo) || propMat()]);
+  }
+  // ein Netz mit Gruppen je Material
+  let n = 0, ni = 0; for (const [g] of parts) { n += g.attributes.position.count; ni += g.index ? g.index.count : g.attributes.position.count; }
+  const pos = new Float32Array(n * 3), nor = new Float32Array(n * 3), uv = new Float32Array(n * 2), col = new Float32Array(n * 3).fill(1), idx = new Uint32Array(ni), mats = [];
+  const out = new T.BufferGeometry(); let o = 0, oi = 0;
+  parts.forEach(([g, mat], gi) => {
+    const c2 = g.attributes.position.count; pos.set(g.attributes.position.array, o * 3); nor.set(g.attributes.normal.array, o * 3); uv.set(g.attributes.uv.array, o * 2); if (g.attributes.color) col.set(g.attributes.color.array, o * 3);
+    const ic = g.index ? g.index.count : c2; if (g.index) { const I = g.index.array; for (let k = 0; k < ic; k++) idx[oi + k] = I[k] + o; } else for (let k = 0; k < ic; k++) idx[oi + k] = o + k;
+    out.addGroup(oi, ic, gi); mats.push(mat); o += c2; oi += ic;
+  });
+  out.setAttribute('position', new T.BufferAttribute(pos, 3)); out.setAttribute('normal', new T.BufferAttribute(nor, 3)); out.setAttribute('uv', new T.BufferAttribute(uv, 2)); out.setAttribute('color', new T.BufferAttribute(col, 3)); out.setIndex(new T.BufferAttribute(idx, 1));
+  return new T.Mesh(out, mats);
+}
+export function tearBody(e) {
+  if (!e || e.taken || LOOSE.bodies.length >= MAX_BODIES) return null;
+  const I = tearInfo(e); if (!I) return null;
+  const c = I.c, he = I.he;
+  if (e.seat && someoneOn(c.x - he.x, c.z - he.z, c.x + he.x, c.z + he.z, c.y - he.y)) return 'sit';
+  let mesh;
+  if (e.inst) { mesh = e.mesh(); hideInst(e); }
+  else { mesh = sliceRanges(e, c); furnHide(e); }
+  e.taken = true; e.removed = [];
+  removeColliders(c.x - he.x, c.z - he.z, c.x + he.x, c.z + he.z, c.y - he.y, c.y + he.y, e.removed);
+  const B = makeBody({ name: e.name, key: 'tear:' + e.id, kind: e.kind || 'box', he: [he.x, he.y, he.z], m: e.m || Math.max(5, Math.round(he.x * he.y * he.z * 8 * 220)), stuff: e.stuff || 'wood', small: false, p: [c.x, c.y, c.z], yaw: 0, mesh });
+  B.tear = e; B.x0 = B.x.clone();
+  return B;
+}
+function tearRestore(B) {
+  const e = B.tear; removeBody(B); e.taken = false;
+  if (e.inst) showInst(e, e.m0); else { furnShow(e); if (e.layer) invalidateLayer(e.layer); }
+  for (const b of e.removed || []) addColliderBack(b);
+  e.removed = null;
+}
+
+/* ---------- V54: Bäume ausreißen (serpentine.js TREE_SETS: Instanzen je Art, Nah- und Fernform) ----------
+   Der Körper ist ein Quader um Stamm und Krone; sein Netz sind drei InstancedMeshes mit je einer Instanz (so bleiben die
+   Shader-Varianten der Baum-Materialien gleich, Wind und Schnee inbegriffen, und die Kronenfarbe kommt als Instanzfarbe mit). */
+const _tq = new T.Quaternion(), _tp = new T.Vector3(), _ts = new T.Vector3();
+export function treeBody(st, p) {
+  if (!st || !p || p.taken || LOOSE.bodies.length >= MAX_BODIES) return null;
+  p.m.decompose(_tp, _tq, _ts);
+  const bb = st.bb, sx = _ts.x, sy = _ts.y, sz = _ts.z;
+  // Mitte und Halbmaße in Baumkoordinaten (vor der Drehung), dann gedreht an den Platz
+  const cl = new T.Vector3((bb.min.x + bb.max.x) / 2 * sx, (bb.min.y + bb.max.y) / 2 * sy, (bb.min.z + bb.max.z) / 2 * sz);
+  const he = [Math.max(0.6, (bb.max.x - bb.min.x) / 2 * sx * 0.8), Math.max(1, (bb.max.y - bb.min.y) / 2 * sy), Math.max(0.6, (bb.max.z - bb.min.z) / 2 * sz * 0.8)];
+  const cw = cl.clone().applyQuaternion(_tq).add(_tp);
+  const bake = new T.Matrix4().compose(cl.clone().negate(), new T.Quaternion(), new T.Vector3(1, 1, 1)).multiply(new T.Matrix4().makeScale(sx, sy, sz));
+  const one = (geo, mat, tint) => { const im = new T.InstancedMesh(geo.clone().applyMatrix4(bake), mat, 1); im.setMatrixAt(0, new T.Matrix4()); if (tint) im.setColorAt(0, p.c); im.frustumCulled = false; return im; };
+  const mesh = one(st.G.bark, st.mats.bark, false);
+  mesh.add(one(st.G.blobs, st.mats.blobs, true), one(st.G.cards, st.mats.cards, true));
+  p.taken = true; treeDirty();
+  const m = Math.round(420 * sx * sy * sz * (st.sp === 'cyp' ? 0.6 : 1));
+  const B = makeBody({ name: st.sp === 'cyp' ? 'Zypresse' : st.sp === 'plane' ? 'Platane' : 'Linde', key: 'tree:' + st.sp, kind: 'box', he, m, stuff: 'wood', small: false, p: [cw.x, cw.y, cw.z], yaw: 0, mesh });
+  B.q.copy(_tq); B.tree = { st, p, cl, s: new T.Vector3(sx, sy, sz), q0: _tq.clone() }; B.x0 = B.x.clone();
+  return B;
+}
+// Mitte und Greifradius eines stehenden Baums (für die Telekinese)
+export function treeCenter(st, p) {
+  p.m.decompose(_tp, _tq, _ts); const bb = st.bb;
+  return { x: _tp.x, y: _tp.y + (bb.min.y + bb.max.y) / 2 * _ts.y, z: _tp.z, r: Math.max(0.8, (bb.max.x - bb.min.x) / 2 * _ts.x * 0.7), name: st.sp === 'cyp' ? 'Zypresse' : st.sp === 'plane' ? 'Platane' : 'Linde' };
+}
+// weit weg: der Baum kehrt in die Instanzen zurück, umgestürzt bleibt er liegen, wie er liegt
+function treeRestore(B) {
+  const t = B.tree, p = t.p; removeBody(B);
+  if (B.x.distanceTo(B.x0) > 0.3 || B.q.angleTo(t.q0) > 0.05) {
+    const M = new T.Matrix4().compose(B.x, B.q, new T.Vector3(1, 1, 1)).multiply(new T.Matrix4().makeTranslation(-t.cl.x, -t.cl.y, -t.cl.z)).multiply(new T.Matrix4().makeScale(t.s.x, t.s.y, t.s.z));
+    p.m.copy(M); p.x = B.x.x; p.z = B.x.z;
+  }
+  p.taken = false; treeDirty();
+}
+
 /* ---------- V52: Straßenmöbel (Bänke, Papierkörbe, Hydranten, Briefkästen, Pflanzkübel) als Körper ----------
    Sie stehen als Instanzen in der Chunk-Schicht 'furniture' (props.js). Gepackt: Instanz auf Größe 0, p.taken, und ein
    Körper aus derselben Form; Bank und Papierkorb sind gebackene Modelle, der Rest Formen aus serpentine.js. */
@@ -504,6 +602,8 @@ export function cullBodies(dt) {
     else if (B.street) { if (B.x0 && B.x.distanceTo(B.x0) < 1.5) streetRestore(B); }
     else if (B.lamp) { if (B.x0 && B.x.distanceTo(B.x0) < 1.5) lampRestore(B); }
     else if (B.clut) { if (clutterRestore(B)) relay = true; }
+    else if (B.tear) { if (B.x0 && B.x.distanceTo(B.x0) < 1.5) tearRestore(B); }   // V54
+    else if (B.tree) treeRestore(B);   // V54: umgestürzt bleibt er liegen
     else if (B.spawn) {
       const S = B.spawn.S, it = B.spawn.it;
       // bleibt liegen, wo es ist: beim Wiederkommen entsteht es dort (die Gruppe erst, wenn keines ihrer Dinge mehr da ist)
@@ -1012,6 +1112,14 @@ function aim() {
     if (_v.lengthSq() - t * t > Math.min(0.5, c.r) ** 2) continue;
     bt = t; best = { street: p, kind: k, name: c.name };
   }
+  // V54: leichte feste Stücke (Hocker, Stühle, Kisten) lassen sich auch von Hand herausreißen
+  for (const e of tearNear(_ro.x, _ro.z, REACH + 1)) {
+    if ((e.m || 99) > 30) continue;
+    const I = tearInfo(e); _v.set(I.c.x - _ro.x, I.c.y - _ro.y, I.c.z - _ro.z);
+    const t = _v.dot(_rd); if (t < 0 || t > bt) continue;
+    if (_v.lengthSq() - t * t > Math.min(0.6, Math.max(I.he.x, I.he.z) + 0.1) ** 2) continue;
+    bt = t; best = { tear: e, name: e.name };
+  }
   for (const g of goodsNear(_ro.x, _ro.z, REACH)) {
     const r = Math.max(0.07, g.h * 0.5), cy = g.y + g.h * 0.45;
     _v.set(g.x - _ro.x, cy - _ro.y, g.z - _ro.z);
@@ -1027,7 +1135,7 @@ export function setupLoose() {
   INTERACT.push({
     test: p => { if (LOOSE.held || p.y > 1500) return false; LOOSE.aim = aim(); if (!LOOSE.aim) return false; const a = LOOSE.aim; aimLabel.label = 'Aufheben: ' + (a.body ? a.body.name : a.name || GOODS_NAME[a.goods.m] || 'Ware'); return true; },
     get label() { return aimLabel.label; },
-    act: () => { const a = LOOSE.aim; if (!a) return; if (a.furn) { const B = furnBody(a.furn); if (B === 'sit') { toast('Da sitzt jemand'); return; } pickUp(B); return; } if (a.street) { pickUp(streetBody(a.street, a.kind)); return; } pickUp(a.body || takeGoods(a.goods)); },
+    act: () => { const a = LOOSE.aim; if (!a) return; if (a.furn) { const B = furnBody(a.furn); if (B === 'sit') { toast('Da sitzt jemand'); return; } pickUp(B); return; } if (a.street) { pickUp(streetBody(a.street, a.kind)); return; } if (a.tear) { const B = tearBody(a.tear); if (B === 'sit') { toast('Da sitzt jemand'); return; } pickUp(B); return; } pickUp(a.body || takeGoods(a.goods)); },
   });
   for (const V of VENUES) SPAWNS.push(...venueSpawns(V));
   citySpawns();

@@ -307,11 +307,11 @@ export function updateSound(dt) {
 
   // Wetter
   sndSet(L.rain.gain, 0.07 * W.rain, 1.5); sndSet(L.rainLo.gain, 0.08 * W.rain, 1.5);
-  sndSet(L.snow.gain, 0.02 * W.snow * (1 - inside), 2);
+  sndSet(L.snow.gain, (0.02 * W.snow + 0.06 * (W.storm || 0)) * (1 - inside), 2);   // V54: im Schneesturm zischt das Treiben laut
   SND.rain = W.rain; SND.frost = W.frost * (1 - inside);
 
   // Dachkanten, Terrasse, Luftschiff-Deck: pfeifender Wind
-  const exposed = (z === 'terrace' || z === 'deck' ? 1 : z === 'out' && player.onGround && alt > 30 ? Math.min(1, alt / 120) : 0) * (1 - inside);
+  const exposed = Math.max(z === 'terrace' || z === 'deck' ? 1 : z === 'out' && player.onGround && alt > 30 ? Math.min(1, alt / 120) : 0, (W.storm || 0) * 0.6) * (1 - inside);   // V54: der Sturm heult auch unten in den Straßen
   sndSet(L.whistle.gain, exposed * (0.008 + WIND.gust * 0.02 + WIND.s * 0.0015), 0.6);
   sndSet(L.whF.frequency, 900 + WIND.gust * 900 + Math.sin(t * 0.37) * 200, 0.8);
 
