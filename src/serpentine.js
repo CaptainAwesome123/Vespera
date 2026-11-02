@@ -4,9 +4,8 @@ import { personGeoHi, personShare, HQ } from './people-model.js';
 import { stdMat, MAT, addCollider, glowTex, paintMat, mergeColored, PAINT, personLook } from './people-skeleton.js';
 import { lamps, trees, addGlow, NEON, addNeon, addSeg, shafts, spires, neons, segs, dedupeSegs, facadeMat, glowPts, roofs, curbs } from './facade-shader.js';
 import { buildGroundMask, groundGrass, COAST, ISL, buildSidewalks, blocks, inRect, PLAZA, MEDIAN, BRIDGE_LOOPS } from './island.js';
-import { buildHouseDoors } from './building-forms.js';
 import { IB, FACTORY_LOOPS, FACTORY_IDLERS } from './shops.js';
-import { makeSignTex, FAN_TEX, lathe, crownFins, caps, domes, buildEntrances, DOORS, TERRACE, CLOCKS } from './entrances.js';
+import { makeSignTex, FAN_TEX, lathe, crownFins, caps, domes, DOORS, TERRACE, CLOCKS } from './entrances.js';
 import { WATER_Y, setDance, placeCouple } from './dance.js';
 import { poolWaterMat, fountainJet } from './water.js';
 import { curtainMat, jetStreakMat } from './fountain.js';   // V41: Wasserschleier und Bogenstrahlen am Villenbrunnen
@@ -1947,8 +1946,6 @@ export function flushInstances() {
   scene.add(pools); STREET.pools = pools;
   buildLampFx(heads);
 
-  buildEntrances();
-  buildHouseDoors();
   // Bäume
   buildTrees();
 

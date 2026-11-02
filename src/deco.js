@@ -2,6 +2,7 @@ import { T, canvasTex, mulberry32, mergeGeos, MOBILE } from './core.js';
 import { stdMat, MAT } from './people-skeleton.js';
 import { registerLayer } from './chunks.js';
 import { addGlow, roofs } from './facade-shader.js';
+import { Acc, kitMats, kitPortal, kitDoor, setOrnPlane } from './portal-kit.js';
 
 /* =====================================================================
    V38 · FASSADENSCHMUCK: Art-Déco-Details als eigene Chunk-Schicht (nur in der Nähe gebaut)
@@ -19,20 +20,26 @@ export const ROOF_WORDS = ['AURORA', 'POLARIS', 'NORDLICHT', 'ZENITH', 'ORION', 
 export const GHOST_ADS = [['KOHLE & KOKS', 'GEBR. HALLER · SEIT 1899'], ['SEIFENFABRIK', 'NORDSTERN'], ['MASCHINENÖL', 'MARKE KRATER'], ['BRAUEREI', 'VESPERA · EXPORT'], ['ZIGARREN', 'HAVANNA IMPORT'], ['SCHMIEDE', 'EISEN · STAHL · GUSS']];
 
 /* ---------- Planung (während des Stadtaufbaus) ---------- */
-// Portal (entrances.js): fx/fz auf der Wand, o = Normale nach außen, kind, Arbeiterviertel ja/nein, Abstand zum Zentrum
-export function decoPortal(fx, fz, o, kind, worker, dist) {
-  DECOR.portals.push({ x: fx, z: fz, o, kind, worker, grade: worker ? 0 : dist < 520 ? 2 : 1 });
-  if (!worker) for (const s of [-1, 1]) addGlow(fx - o[1] * s * 2.8 + o[0] * 1.3, 4.1, fz + o[0] * s * 2.8 + o[1] * 1.3, [1.3, 0.92, 0.55], 0.7);
+// Portal (entrances.js): fx/fz auf der Wand, o = Normale nach außen, kind, Arbeiterviertel ja/nein, Abstand zum Zentrum, Hausfarbe
+// V54: gebaut aus dem Eingangs-Baukasten (portal-kit.js); die Lichtpunkte sitzen an dessen Laternen
+export function decoPortal(fx, fz, o, kind, worker, dist, tint) {
+  const grade = worker ? 0 : dist < 520 ? 2 : 1;
+  DECOR.portals.push({ x: fx, z: fz, o, kind, worker, grade, tint });
+  const at = (lx, y, lz, c, r) => addGlow(fx - o[1] * lx + o[0] * lz, y, fz + o[0] * lx + o[1] * lz, c, r);
+  if (!grade) { at(0, 4.2, 0.95, [1.25, 0.8, 0.45], 1.1); return; }
+  for (const s of [-1, 1]) at(s * (grade > 1 ? 3.2 : 2.72), 3.0, grade > 1 ? 1.3 : 1.05, [1.3, 0.92, 0.55], 0.8);
 }
 // Haustür (building-forms.js)
-export function decoHouseDoor(fx, fz, o, worker, dist) {
+export function decoHouseDoor(fx, fz, o, worker, dist, tint) {
   const grade = worker ? 0 : dist < 560 ? 2 : 1;
-  DECOR.doors.push({ x: fx, z: fz, o, worker, grade });
-  if (grade > 0) for (const s of [-1, 1]) addGlow(fx - o[1] * s * 1.75 + o[0] * 0.32, 3.05, fz + o[0] * s * 1.75 + o[1] * 0.32, [1.3, 0.9, 0.5], 0.7);
+  DECOR.doors.push({ x: fx, z: fz, o, worker, grade, tint });
+  const at = (lx, y, lz, c, r) => addGlow(fx - o[1] * lx + o[0] * lz, y, fz + o[0] * lx + o[1] * lz, c, r);
+  if (!grade) { at(0, 3.95, 0.8, [1.25, 0.8, 0.45], 0.9); return; }
+  for (const s of [-1, 1]) at(s * 1.95, 3.0, 0.48, [1.3, 0.9, 0.5], 0.7);
 }
 // Eingang eines gedrehten Ringhauses (island.js rotHouse): Punkt auf der Wand, Normale (nx, nz), Art, Arbeiterhaus
 export function decoOuterDoor(x, z, nx, nz, worker, kind, tint) {
-  DECOR.outer.push({ x, z, o: [nx, nz], worker, kind, tint });
+  DECOR.outer.push({ x, z, o: [nx, nz], worker, kind, tint, grade: worker ? 0 : Math.hypot(x, z) < 560 ? 2 : 1 });
   addGlow(x + nx * 0.45, 3.0, z + nz * 0.45, worker ? [1.2, 0.72, 0.4] : [1.3, 0.92, 0.55], 0.9);
 }
 // Gesims einer Turmstufe (entrances.js decoBuilding): Zinnen auf den Ecken, bei hohen Elite-Türmen ein Goldfries auf der Gesimsfläche
@@ -168,6 +175,7 @@ function pull(mat, key) {
 function mats() {
   if (M) return M;
   TEX.orn = ornTex(); TEX.ghost = ghostTex(); TEX.letters = lettersTex();
+  setOrnPlane((k, w, h, rep) => plane(w, h, ORN[k], rep || 1));
   M = {
     metal: stdMat({ color: 0xffffff, vertexColors: true, metalness: 0.95, roughness: 0.42, emissive: 0x100903, envI: 0.7 }),
     matte: stdMat({ color: 0xffffff, vertexColors: true, metalness: 0.25, roughness: 0.62, envI: 0.4 }),
@@ -182,8 +190,8 @@ function mats() {
 }
 
 /* ---------- Bauteile ---------- */
-const C = { gold: [0.79, 0.64, 0.35], bronze: [0.48, 0.35, 0.17], iron: [0.16, 0.15, 0.14], stone: [0.54, 0.53, 0.5], wood: [0.17, 0.11, 0.06] };
-const KIND = { gold: 'metal', bronze: 'metal', iron: 'matte', stone: 'matte', wood: 'matte' };
+const C = { gold: [0.79, 0.64, 0.35], bronze: [0.48, 0.35, 0.17], iron: [0.16, 0.15, 0.14], stone: [0.54, 0.53, 0.5], wood: [0.17, 0.11, 0.06], enamel: [0.09, 0.2, 0.15], carpet: [0.42, 0.04, 0.06] };
+const KIND = { gold: 'metal', bronze: 'metal', iron: 'matte', stone: 'matte', wood: 'matte', enamel: 'metal', carpet: 'matte' };
 const inCell = (p, cx, cz, size) => p.x >= cx * size && p.x < (cx + 1) * size && p.z >= cz * size && p.z < (cz + 1) * size;
 const B = (w, h, d, x = 0, y = 0, z = 0) => new T.BoxGeometry(w, h, d).translate(x, y, z);
 // Farbe je Ecke als aCol (mergeGeos nimmt eigene a*-Attribute mit; danach wird es zu color)
@@ -209,47 +217,13 @@ function lantern(p, lx, y, lz, dark) {
   p('glass', B(0.18, 0.36, 0.18), lx, y, lz);
   p('lamp', B(0.06, 0.1, 0.06), lx, y, lz);
 }
-// Vordach: dunkles Blech, Goldkanten, Fries an der Stirn, Unterseite voller Glühbirnen (dim = gedämpft)
-function canopy(p, w, depth, y, dim) {
-  p('iron', B(w, 0.12, depth), 0, y + 0.06, depth / 2);
-  p('orn', plane(w, 0.3, ORN.frieze, w / FRIEZE_M), 0, y + 0.03, depth + 0.03);
-  for (const s of [-1, 1]) p('gold', B(0.05, 0.3, depth + 0.02), s * (w / 2 - 0.02), y + 0.03, depth / 2);
-  p('lit', plane(w - 0.2, depth - 0.16, dim ? ORN.dim : ORN.lit, w / BULB_M).rotateX(Math.PI / 2), 0, y - 0.005, depth / 2);
-}
 // p(art, geo, lx, y, lz): Farbteile landen eingefärbt im Metall- oder Mattbeutel, der Rest in seinem Beutel
 const putter = (I, bag) => { const put = frame(I.x, I.z, I.o); return (k, g, lx, y, lz) => put(bag[KIND[k] || k], C[k] ? col(g, C[k]) : g, lx, y, lz); };
-function buildPortalDeco(P, bag) {
-  const p = putter(P, bag);
-  // Unterseite des vorhandenen Vordachs (Platte y 4,5–4,85, 0 bis 2,6 m vor der Wand) mit Glühbirnen, Goldfries an seiner Stirn
-  p('lit', plane(8.0, 2.3, P.grade ? ORN.lit : ORN.dim, 8 / BULB_M).rotateX(Math.PI / 2), 0, 4.485, 1.27);
-  if (!P.grade) return;
-  p('orn', plane(8.4, 0.3, ORN.frieze, 8.4 / FRIEZE_M), 0, 4.675, 2.63);
-  // Sonnenfächer in der Wand zwischen Vordach und Sturz
-  p('orn', plane(5.2, 2.2, ORN.fan), 0, 6.03, 0.06);
-  // zwei Pendelleuchten unter dem Vordach
-  for (const s of [-1, 1]) { p('gold', B(0.04, 0.5, 0.04), s * 2.8, 4.25, 1.3); p('lamp', new T.SphereGeometry(0.15, 10, 7), s * 2.8, 3.95, 1.3); p('gold', new T.ConeGeometry(0.2, 0.1, 10), s * 2.8, 4.05, 1.3); }
-}
-function buildDoorDeco(D, bag) {
-  if (!D.grade) return;
-  const p = putter(D, bag);
-  for (const s of [-1, 1]) lantern(p, s * 1.75, 3.05, 0.32, false);
-  // kleines Vordach über dem Sturz (Oberkante 4,1 m), darunter ein Fries auf der Wand
-  canopy(p, 3.4, 1.1, 4.5, D.grade < 2);
-  p('orn', plane(3.1, 0.3, ORN.frieze, 3.1 / FRIEZE_M), 0, 4.3, 0.05);
-}
-// Ringhäuser: Stufe, Gewände, Türblatt mit Füllungen, Griff, Oberlicht mit Sprossen, Laterne; Elitehäuser mit Vordach
-function buildOuterDoor(E, bag) {
-  const p = putter(E, bag), w = E.worker, m = w ? 'iron' : 'gold', f = w ? 'iron' : 'stone';
-  p('stone', B(3.0, 0.16, 0.9), 0, 0.3, 0.45);
-  p(f, B(0.28, 3.1, 0.3), -1.0, 1.75, 0.15); p(f, B(0.28, 3.1, 0.3), 1.0, 1.75, 0.15);
-  p(f, B(2.3, 0.3, 0.3), 0, 3.45, 0.15);
-  p('wood', B(1.7, 2.6, 0.1), 0, 1.52, 0.1);
-  for (const s of [-1, 1]) { p('wood', B(0.6, 0.8, 0.04), s * 0.4, 2.2, 0.16); p('wood', B(0.6, 1.1, 0.04), s * 0.4, 1.0, 0.16); }
-  p(m, B(0.03, 0.28, 0.05), 0.2, 1.2, 0.18); p(m, new T.SphereGeometry(0.04, 8, 6), 0.6, 1.15, 0.2);
-  p('glass', B(1.7, 0.45, 0.04), 0, 3.05, 0.12); p(m, B(1.8, 0.05, 0.08), 0, 2.84, 0.14);
-  for (let k = 1; k < 4; k++) p(m, B(0.03, 0.46, 0.03), -0.85 + k * 0.425, 3.05, 0.14);
-  lantern(p, 1.45, 3.0, 0.42, w);
-  if (!w) canopy(p, 3.0, 1.0, 3.9, true);
+// V54: Portale, Haustüren und Ringhaus-Türen kommen aus dem Eingangs-Baukasten (portal-kit.js); Laternen, Birnen und Friese von hier
+function buildKit(I, bag, K, G, fn) {
+  const p = putter(I, bag), parts = [];
+  fn(I, K, G, p, parts);
+  for (const [k, g, lx, y, lz] of parts) k === 'lantern' ? lantern(p, lx, y, lz, false) : p(k, g, lx, y, lz);
 }
 function buildCornice(Cn, bag) {
   const hw = Cn.w / 2, hd = Cn.d / 2, ins = Cn.c > 1.2 ? Cn.c * 0.5 + 0.7 : 0.8;
@@ -301,14 +275,16 @@ export function setupDecoLayers() {
     build(cx, cz) {
       const Mt = mats();
       const bag = { metal: [], matte: [], glass: [], lamp: [], orn: [], lit: [], ghost: [] };
-      for (const P of DECOR.portals) if (inCell(P, cx, cz, DECO_CELL)) buildPortalDeco(P, bag);
-      for (const D of DECOR.doors) if (inCell(D, cx, cz, DECO_CELL)) buildDoorDeco(D, bag);
-      for (const E of DECOR.outer) if (inCell(E, cx, cz, DECO_CELL)) buildOuterDoor(E, bag);
+      const K = new Acc(), G = new Acc(), KM = kitMats();
+      for (const P of DECOR.portals) if (inCell(P, cx, cz, DECO_CELL)) buildKit(P, bag, K, G, kitPortal);
+      for (const D of DECOR.doors) if (inCell(D, cx, cz, DECO_CELL)) buildKit(D, bag, K, G, kitDoor);
+      for (const E of DECOR.outer) if (inCell(E, cx, cz, DECO_CELL)) buildKit(E, bag, K, G, kitDoor);
       for (const Cn of DECOR.cornices) if (inCell(Cn, cx, cz, DECO_CELL)) buildCornice(Cn, bag);
       for (const Pi of DECOR.pilasters) if (inCell(Pi.seg, cx, cz, DECO_CELL)) buildPilaster(Pi, bag);
       for (const G of DECOR.ghosts) if (inCell(G, cx, cz, DECO_CELL)) buildGhost(G, bag);
       const g = new T.Group();
       for (const k in bag) if (bag[k].length) g.add(mesh(bag[k], Mt[k]));
+      for (const [A, m] of [[K, KM.kit], [G, KM.glow]]) { const geo = A.geo(); if (geo) { const ms = new T.Mesh(geo, m); ms.frustumCulled = false; g.add(ms); } }
       return g.children.length ? g : null;
     },
   });
@@ -335,7 +311,7 @@ export const decoStats = () => ({ portals: DECOR.portals.length, doors: DECOR.do
    ein Backsteinhaus mit Wandreklame, eine Ringhaus-Tür, vor dunklem Grund; tools/lab-shot.js macht Bilder (LAB=fassade) ---------- */
 // Fassadenquader aus FS.segs wie in flushInstances, für die Labore (Fassaden-Labor, Penthouse-Labor V41)
 export function labFacadeMesh(FS) {
-  const box = new T.BoxGeometry(1, 1, 1), S = FS.segs, m = new T.Matrix4(), q = new T.Quaternion(), up = new T.Vector3(0, 1, 0), p3 = new T.Vector3(), s3 = new T.Vector3();
+  const box = new T.BoxGeometry(1, 1, 1), S = FS.segs.filter(s => !s.dead), m = new T.Matrix4(), q = new T.Quaternion(), up = new T.Vector3(0, 1, 0), p3 = new T.Vector3(), s3 = new T.Vector3();
   const tintA = new Float32Array(S.length * 3), par = new Float32Array(S.length * 4), rib = new Float32Array(S.length * 3), flg = new Float32Array(S.length);
   const im = new T.InstancedMesh(box, FS.facadeMat, S.length);
   S.forEach((s, i) => {
@@ -352,6 +328,7 @@ export async function startFacadeLab(params) {
   const EN = await import('./entrances.js'), BF = await import('./building-forms.js'), SH = await import('./shops.js');
   const CH = await import('./chunks.js');
   PS.buildEnv(); PS.getMats();
+  try { const A = await import('./assets.js'); await A.loadManifest(); await A.applyTextures(); } catch (e) { /* ohne Fotos */ }   // V54: Eingangs-Atlas und Fototexturen
   scene.fog.density = 0.0002;
   const floor = new T.Mesh(new T.PlaneGeometry(400, 400), new T.MeshStandardMaterial({ color: 0x1a1612, roughness: 0.6 }));
   floor.rotation.x = -Math.PI / 2; scene.add(floor);
@@ -381,16 +358,25 @@ export async function startFacadeLab(params) {
   FS.addSeg({ x: 0, z: -400, w: 50, d: 50, y0: 0, y1: 180, tint: [0.92, 0.84, 0.66], seed: 504, style: 1, dens: 0.66, flood: 1, rib: [1.0, 0.78, 0.4] }, false);
   FS.addSeg({ x: -140, z: -400, w: 50, d: 50, y0: 0, y1: 180, tint: [0.92, 0.84, 0.66], seed: 504, style: 1, dens: 0.0, flood: 1, rib: [1.0, 0.78, 0.4] }, false);   // ohne Licht in den Fenstern
   FS.addSeg({ x: 140, z: -400, w: 50, d: 50, y0: 0, y1: 180, tint: [0.3, 0.26, 0.24], seed: 505, style: 2, dens: 1, flood: 1 }, false);   // dunkle Belmont-Stufe (Bogenfenster)
+  // V54: Eingangsreihe bei x = 100..204: je ein Haus mit Bar-Portal (schwarzer Marmor), Bürgerportal, Arbeiterkneipe, Haustür Mitte, Arbeiter-Haustür
+  const row = [['bar', 'portal', 0, FS.STONES[4]], ['shop', 'portal', 1, FS.STONES[5]], ['pub', 'portal', -1, SH.BRICK[0]], ['house', 'door', 1, FS.STONES[1]], ['house', 'door', -1, SH.BRICK[1] || SH.BRICK[0]]];
+  row.forEach(([kind, typ, gr, t], i) => {
+    const x = 100 + i * 26, z = 0, worker = gr < 0;
+    FS.addSeg({ x, z, w: 20, d: 12, y0: 0.2, y1: 22.2, tint: t, seed: 300 + i * 7, style: i % 2, dens: 0.4, flood: 0, rib: [0, 0, 0] }, false);
+    roofs.push({ x, z, w: 20, d: 12, H: 22.2, worker, dist: 100, edges: { s: true }, fw: 20, fd: 12, fx: x, fz: z, shop: true, arcade: false });
+    if (typ === 'portal') decoPortal(x, z + 6, [0, 1], kind, worker, gr > 0 ? 600 : 100, t); else decoHouseDoor(x, z + 6, [0, 1], worker, gr > 0 ? 600 : 100, t);
+  });
   planDeco();
   DECOR.signs.push({ x: 0, z: 9 - 1.4, o: [0, 1], w: 14, h: 14 * 160 / (110 * 6 + 40), y: 48.2 + 1.4 + 1.6, word: 'AURORA', col: 'gold', H: 48.2 });
   scene.add(labFacadeMesh(FS));
-  EN.buildEntrances(); BF.buildHouseDoors();
   setupDecoLayers();
   for (const L of CH.layers) for (let cx = -1; cx <= 1; cx++) for (let cz = -1; cz <= 1; cz++) { const o = L.build(cx, cz, 0, {}); if (o) scene.add(o); }
   const V = {
     alle: [[30, 12, 70], [0, 14, 0]], portal: [[2, 3.2, 20], [0, 4.5, 9]], portalnah: [[-3, 5.5, 13.5], [0, 5.8, 9]],
     tuer: [[20, 2.6, 2], [13, 2.8, 0]], krone: [[22, 54, 24], [0, 48.5, 0]], dach: [[0, 50, 40], [0, 50, 9]],
     reklame: [[40, 6, 22], [40, 7.5, 5]],
+    reihe: [[152, 7, 42], [152, 5, 0]], bar: [[102, 3.2, 16], [100, 4.2, 6]], buerger: [[128, 3.2, 16], [126, 4.2, 6]], kneipe: [[154, 2.6, 14], [152, 3, 6]],
+    haus: [[178, 2.4, 12], [178, 3, 6]], arbeitertuer: [[202, 2.2, 12], [204, 2.6, 6]], hotel: [[-4, 2.2, 20], [0, 5.2, 9]], tuernah: [[16.5, 2.0, 1.2], [13, 2.4, 0]],
     belmont: [[20, 90, -100], [0, 100, -400]], belmontb: [[20.25, 90.1, -100], [0.25, 100.1, -400]],   // V43: gleiche Sicht, Kamera um 25 cm versetzt (Flimmer-Maß)
     belmontnah: [[10, 90, -230], [0, 100, -400]], belmontnahb: [[10.15, 90.08, -230], [0.15, 100.08, -400]],
     dunkel: [[-110, 90, -310], [-140, 100, -400]], stufe2: [[170, 90, -310], [140, 100, -400]],

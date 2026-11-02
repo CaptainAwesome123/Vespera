@@ -88,34 +88,10 @@ export function houseDoor(cx, cz, sw, sd, edges, tint, rr, kind = 'house') {
   const side = sides[Math.floor(rr() * sides.length)], o = SIDE_O[side], ax = o[0] !== 0, L = ax ? sd : sw;
   const u = (rr() - 0.5) * Math.max(0, L - 8);
   const fx = cx + o[0] * sw / 2 + (ax ? 0 : u), fz = cz + o[1] * sd / 2 + (ax ? u : 0);
-  const ct = tint.map(v => v * 1.25);
-  const S = (a, b, y0, y1, off, t) => addSeg({ x: fx + o[0] * off, z: fz + o[1] * off, w: ax ? b : a, d: ax ? a : b, y0, y1, tint: t, seed: 995, style: 3, dens: -1, flood: 0.3, rib: [0, 0, 0] }, false);
-  for (const s of [-1, 1]) addSeg({ x: fx + o[0] * 0.17 + (ax ? 0 : s * 1.25), z: fz + o[1] * 0.17 + (ax ? s * 1.25 : 0), w: 0.4, d: 0.4, y0: 0.2, y1: 3.9, tint: ct, seed: 996, style: 3, dens: -1, flood: 0.3, rib: [0, 0, 0] }, false);
-  S(3.1, 0.5, 3.5, 4.1, 0.2, ct);
+  // V54: Gewände, Sturz und Tür baut der Eingangs-Baukasten (portal-kit.js); hier nur ein Platzhalter für die Schilder
+  addSeg({ x: fx + o[0] * 0.3, z: fz + o[1] * 0.3, w: ax ? 0.6 : 3.4, d: ax ? 3.4 : 0.6, y0: 0.2, y1: 5.7, tint, seed: 995, style: 3, dens: 0, flood: 0, dead: true, blockOnly: true }, false);
   HOUSE_DOORS.push({ fx, fz, o, tint });
   addGlow(fx + o[0] * 0.5, 3.1, fz + o[1] * 0.5, [1.3, 0.9, 0.5], 1.0);
   DOORS.push({ x: fx + o[0] * 0.4, z: fz + o[1] * 0.4, nx: o[0], nz: o[1], kind });
-  decoHouseDoor(fx, fz, o, tint[0] > tint[1] * 1.35, Math.hypot(cx, cz));   // V38: Wandlaternen und kleines Vordach an Elitehäusern
-}
-// Türblätter, Stufen und Laternen der Haustüren (ein Mesh je Material)
-export function buildHouseDoors() {
-  if (!HOUSE_DOORS.length) return;
-  const wood = [], gold = [], stone = [], glass = [];
-  for (const D of HOUSE_DOORS) {
-    const { fx, fz, o } = D, ax = -o[1], az = o[0], ry = Math.atan2(o[0], o[1]);
-    const put = (arr, g, lx, y, lz) => arr.push(g.rotateY(ry).translate(fx + ax * lx + o[0] * lz, y, fz + az * lx + o[1] * lz));
-    put(stone, new T.BoxGeometry(3.2, 0.16, 0.9), 0, 0.3, 0.45);
-    put(wood, new T.BoxGeometry(2.0, 3.0, 0.1), 0, 1.72, 0.1);
-    for (const s of [-1, 1]) { put(wood, new T.BoxGeometry(0.72, 0.9, 0.04), s * 0.48, 2.5, 0.16); put(wood, new T.BoxGeometry(0.72, 1.2, 0.04), s * 0.48, 1.0, 0.16); }
-    put(gold, new T.BoxGeometry(0.03, 0.3, 0.05), 0.22, 1.3, 0.18); put(gold, new T.SphereGeometry(0.04, 8, 6), 0.72, 1.25, 0.2);
-    put(glass, new T.BoxGeometry(2.0, 0.55, 0.04), 0, 3.22, 0.12); put(gold, new T.BoxGeometry(2.1, 0.05, 0.08), 0, 2.98, 0.14);
-    for (let k = 1; k < 5; k++) put(gold, new T.BoxGeometry(0.03, 0.56, 0.03), -1.0 + k * 0.4, 3.22, 0.14);
-    put(gold, new T.BoxGeometry(0.2, 0.36, 0.2), 0, 3.1, 0.55); put(gold, new T.BoxGeometry(0.04, 0.04, 0.5), 0, 3.3, 0.28);
-    put(gold, new T.BoxGeometry(0.22, 0.14, 0.02), 1.0, 3.6, 0.2);
-  }
-  const add = (list, mat) => { if (!list.length) return; const m = new T.Mesh(mergeGeos(list), mat); m.frustumCulled = false; scene.add(m); };
-  add(stone, stdMat({ color: 0x85827d, roughness: 0.75, envI: 0.3 }));
-  add(wood, stdMat({ color: 0x2a1a10, roughness: 0.45, envI: 0.5 }));
-  add(gold, MAT.gold);
-  add(glass, stdMat({ color: 0x1a1408, metalness: 0.5, roughness: 0.15, envI: 1.2, emissive: 0x3a2408 }));
+  decoHouseDoor(fx, fz, o, tint[0] > tint[1] * 1.35, Math.hypot(cx, cz), tint);   // V38: Wandlaternen und kleines Vordach an Elitehäusern
 }

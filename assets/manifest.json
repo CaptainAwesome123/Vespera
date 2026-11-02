@@ -25,7 +25,10 @@
     "stone-normal": { "url": "textures/stone-normal.jpg", "srgb": false, "source": "ambientCG Rock020, CC0" },
     "parquet-color": { "url": "textures/parquet-color.jpg", "source": "ambientCG WoodFloor043 (über pmndrs/market-assets), CC0" },
     "parquet-normal": { "url": "textures/parquet-normal.jpg", "srgb": false, "source": "ambientCG WoodFloor043, CC0" },
-    "parquet-rough": { "url": "textures/parquet-rough.jpg", "srgb": false, "source": "ambientCG WoodFloor043, CC0" }
+    "parquet-rough": { "url": "textures/parquet-rough.jpg", "srgb": false, "source": "ambientCG WoodFloor043, CC0" },
+    "portal-color": { "url": "textures/portal-color.webp", "source": "V54: Eingangs-Atlas, gezeichnet mit tools/make-portal-atlas.py (Grundfotos ambientCG Rock020/Marble006/Metal007 CC0, three.js brick MIT)" },
+    "portal-normal": { "url": "textures/portal-normal.jpg", "srgb": false, "source": "V54: Eingangs-Atlas, gezeichnet mit tools/make-portal-atlas.py (Grundfotos ambientCG Rock020/Marble006/Metal007 CC0, three.js brick MIT)" },
+    "portal-orm": { "url": "textures/portal-orm.jpg", "srgb": false, "source": "V54: Eingangs-Atlas, gezeichnet mit tools/make-portal-atlas.py (Grundfotos ambientCG Rock020/Marble006/Metal007 CC0, three.js brick MIT)" }
   },
   "people": {
     "comment": "V22: Menschen aus MakeHuman (CC0), gebaut mit tools/make-people.mjs; geladen von src/people-mh.js vor dem Aufbau der Stadt",
