@@ -565,7 +565,7 @@ export function buildBlock(b) {
   const ALLEY = 5;
   const xs = [ix0]; for (let k = 1; k < nx; k++) xs.push(ix0 + W * k / nx + rand(-4, 4)); xs.push(ix1);
   for (let k = 1; k < nx; k++) buildAlley(xs[k], iz0, iz1, b.d);
-  if (worker) for (let k = 1; k < nx; k++) planWorkerAlley(xs[k], iz0, iz1, Hc, b);   // V44: Wäscheleinen, Rohre, Kisten (eigener Zufall, ändert die Stadt nicht)
+  if (worker) for (let k = 1; k < nx; k++) planWorkerAlley(xs[k], iz0, iz1, Hc, b);   // V46: Wäscheleinen, Rohre, Kisten (eigener Zufall, ändert die Stadt nicht)
   const zs = [iz0]; for (let k = 1; k < nz; k++) zs.push(iz0 + D * k / nz + rand(-3, 3)); zs.push(iz1);
   for (let a = 0; a < nx; a++) for (let c = 0; c < nz; c++) {
     let lx0 = xs[a] + (a > 0 ? ALLEY / 2 : 0), lx1 = xs[a + 1] - (a < nx - 1 ? ALLEY / 2 : 0);

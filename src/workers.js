@@ -11,7 +11,7 @@ import { addLight } from './performance.js';
 import { VENUE_PEDS, signBoard } from './venues.js';
 
 /* =====================================================================
-   V44 · ARBEITERVIERTEL: Leben in den Backsteinvierteln am Rand des Kraters
+   V46 · ARBEITERVIERTEL: Leben in den Backsteinvierteln am Rand des Kraters
    - Wäscheleinen quer über die Gassen der Arbeiterblöcke, Fallrohre und Dampfleitungen an den Wänden,
      Kisten, Fässer, Mülltonnen und Kohlensäcke (Chunk-Schicht 'arbeiter', nur in der Nähe gebaut)
    - Feuertonnen an Straßenecken, um die sich Arbeiter die Hände wärmen

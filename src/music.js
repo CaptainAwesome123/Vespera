@@ -49,7 +49,7 @@ export function scheduleJazz(a) {
   if (a.jazz.gain.value < 0.002 && a.jazzTarget < 0.002) { a.next = 0; return; }
   const spb = 60 / 138;
   if (!a.next || a.next < ctx.currentTime) a.next = ctx.currentTime + 0.05;
-  if (a.pub) { scheduleStride(a); return; }   // V44: in der Brass Lantern spielt ein verstimmtes Kneipenklavier
+  if (a.pub) { scheduleStride(a); return; }   // V46: in der Brass Lantern spielt ein verstimmtes Kneipenklavier
   while (a.next < ctx.currentTime + 0.25) {
     const t = a.next, b = a.beat, bar = Math.floor(b / 4) % 8, bi = b % 4;
     const [root, q] = PROG[bar], tones = CHORD[q];
@@ -79,7 +79,7 @@ export function scheduleJazz(a) {
     a.next += spb; a.beat++;
   }
 }
-// V44: Kneipenklavier (Stride/Ragtime): links Bass und Akkord im Wechsel, rechts eine einfache, synkopierte Melodie;
+// V46: Kneipenklavier (Stride/Ragtime): links Bass und Akkord im Wechsel, rechts eine einfache, synkopierte Melodie;
 // jeder Melodieton doppelt und leicht gegeneinander verstimmt, so klingt es nach Honky-Tonk
 export const RAG = [[48, 'M'], [48, 'M'], [45, '7'], [45, '7'], [50, '7'], [43, '7'], [48, 'M'], [43, '7']];
 export const RAGC = { M: [0, 4, 7, 12], '7': [0, 4, 7, 10] };
@@ -137,7 +137,7 @@ export function updateAudio(dt) {
   if (inBall) { const d = Math.hypot(p.x - BAND_AT.x, p.y - BAND_AT.y, p.z - BAND_AT.z); jz = Math.min(1, 0.32 + 9 / (6 + d)); cut = 9000 - Math.min(5500, d * 110); }
   else if (inLobby) { jz = 0.4; cut = 800 + Math.max(0, 12 - p.z) * 40; }
   else if (Math.hypot(p.x, p.z) < 70 && p.y < 40 && !SND.salonOn) { jz = 0.12; cut = 450; }
-  // V44: Klavier in der Brass Lantern; draußen am Platz hört man es gedämpft durch die offene Tür
+  // V46: Klavier in der Brass Lantern; draußen am Platz hört man es gedämpft durch die offene Tür
   const PV = VENUES.find(V => V.kind === 'bar');
   let pub = false;
   if (PV && !inBall && !inLobby) {

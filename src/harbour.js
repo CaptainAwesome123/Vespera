@@ -151,7 +151,7 @@ export function portMats() {
   return PM;
 }
 // Bausatz: Teile nach Material sammeln, am Ende je Material zu einem Mesh verschmelzen (Farbe pro Teil)
-export function kit(extra = null) {   // V44: extra = eigene Materialien (z. B. Backstein im Arbeiterviertel)
+export function kit(extra = null) {   // V46: extra = eigene Materialien (z. B. Backstein im Arbeiterviertel)
   const G = {};
   return {
     add(k, g, c = [1, 1, 1]) { (G[k] ||= []).push([g, c]); return g; },

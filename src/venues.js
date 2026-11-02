@@ -20,7 +20,7 @@ import { SHIRTS, WORKWEAR, COATS } from './serpentine.js';
    ===================================================================== */
 export const VENUES = [], VENUE_PEDS = [];
 export const MENU = {
-  // V44: The Brass Lantern ist eine Arbeiterkneipe (Kanon): Bier vom Fass, Schnaps, Eintopf, Brote
+  // V46: The Brass Lantern ist eine Arbeiterkneipe (Kanon): Bier vom Fass, Schnaps, Eintopf, Brote
   bar: { title: 'The Brass Lantern', items: [
     ['Bier vom Fass', 'drink', 'beer'], ['Dunkles', 'drink', 'beerDark'], ['Korn', 'drink', 'schnaps'], ['Whisky', 'drink', 'tumbler'],
     ['Kaffee mit Schuss', 'drink', 'cup'], ['Linseneintopf', 'food', 'soup'], ['Erdnüsse', 'food', 'nuts'], ['Schinkenbrot', 'food', 'sandwich']] },
@@ -66,7 +66,7 @@ export function dishModel(type) {
     case 'coupe': add(lathe([[0.03, 0], [0.004, 0.005], [0.004, 0.1], [0.055, 0.125], [0.058, 0.14], [0.054, 0.14], [0.002, 0.108]], 18), M.glass); fill = add(new T.CylinderGeometry(0.05, 0.02, 0.022, 16).translate(0, 0.125, 0), M.champ); break;
     case 'highball': add(lathe([[0.03, 0], [0.032, 0.15], [0.03, 0.15], [0.028, 0.008], [0, 0.008]], 18), M.glass); fill = add(new T.CylinderGeometry(0.027, 0.027, 0.11, 16).translate(0, 0.064, 0), M.clear); break;
     case 'wine': add(lathe([[0.032, 0], [0.004, 0.005], [0.004, 0.08], [0.04, 0.12], [0.036, 0.19], [0.033, 0.19], [0.002, 0.086]], 18), M.glass); fill = add(new T.SphereGeometry(0.034, 14, 8, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2).translate(0, 0.118, 0), M.red); break;
-    case 'beer': case 'beerDark': {   // V44: Bierkrug mit Henkel und Schaumkrone
+    case 'beer': case 'beerDark': {   // V46: Bierkrug mit Henkel und Schaumkrone
       add(lathe([[0.042, 0], [0.046, 0.15], [0.043, 0.15], [0.039, 0.012], [0, 0.012]], 18), M.glass);
       add(new T.TorusGeometry(0.035, 0.008, 6, 12, Math.PI).rotateZ(-Math.PI / 2).translate(0.046, 0.08, 0), M.glass);
       fill = add(new T.CylinderGeometry(0.04, 0.037, 0.11, 16).translate(0, 0.067, 0), type === 'beer' ? M.beer : M.dark);
@@ -90,7 +90,7 @@ export function venue(o) {
   const K = kit(bar ? workMats() : null), V = { ...o, x0, x1, z0, z1, F, seats: [], tables: [], waiters: [], station: null, staff: [], peds: [] };
   VENUES.push(V);
   // Boden: Parkett in der Bar, Teppich im Restaurant; vor der Tür eine Stufe
-  // V44: Kneipe mit Dielenboden aus dunklem Holz
+  // V46: Kneipe mit Dielenboden aus dunklem Holz
   K.add(bar ? 'plank' : 'carpet', Bx(w, F, d, x, F / 2, z, bar ? 2.2 : 3), bar ? [0.5, 0.36, 0.26] : [0.75, 0.45, 0.45]);
   addCollider(x0, 0, z0, x1, F, z1);
   // Wände mit hohen Fenstern; Eingang mittig zur Stadt, zum See hin fast ganz verglast
@@ -99,8 +99,8 @@ export function venue(o) {
   const wo = { outK: bar ? 'brick' : 'stone', outC, inK, inC, th: 0.36, sill: bar ? 1.0 : 0.6, head: H - 0.9, win: bar ? 1.6 : 2.2, post: 0.6 };
   wallRun(K, cols, x0, z1, x1, z1, F, H, { ...wo, doors: [[w / 2 - 1.3, w / 2 + 1.3]] });
   wallRun(K, cols, x1, z1, x1, z0, F, H, wo);
-  wallRun(K, cols, x1, z0, x0, z0, F, H, { ...wo, sill: bar ? 1.0 : 0.45, win: bar ? 1.6 : 3.0, post: 0.45, windows: bar && o.pub ? false : undefined });   // V44: Kneipe: Rückwand ohne Fenster (Dartscheibe, Tafel, Bilder)
-  wallRun(K, cols, x0, z0, x0, z1, F, H, { ...wo, windows: bar && o.pub ? false : undefined });   // V44: hinter der Theke keine Fenster
+  wallRun(K, cols, x1, z0, x0, z0, F, H, { ...wo, sill: bar ? 1.0 : 0.45, win: bar ? 1.6 : 3.0, post: 0.45, windows: bar && o.pub ? false : undefined });   // V46: Kneipe: Rückwand ohne Fenster (Dartscheibe, Tafel, Bilder)
+  wallRun(K, cols, x0, z0, x0, z1, F, H, { ...wo, windows: bar && o.pub ? false : undefined });   // V46: hinter der Theke keine Fenster
   for (const b of cols) addCollider(b.x0, b.y0, b.z0, b.x1, b.y1, b.z1);
   if (bar) pubShell(K, o, V, H, outC);
   else {
@@ -121,7 +121,7 @@ export function venue(o) {
   // Innen: Wandleuchten, Kronleuchter, warmes Licht
   for (let u = x0 + 3; u < x1 - 2; u += 5) for (const zz of [z0 + 0.28, z1 - 0.28]) { K.add('lit', new T.SphereGeometry(0.16, 10, 8, 0, Math.PI * 2, 0, Math.PI / 2).rotateX(zz < z ? Math.PI / 2 : -Math.PI / 2).translate(u, F + 2.6, zz), [1.6, 1.05, 0.6]); addGlow(u, F + 2.6, zz + (zz < z ? 0.2 : -0.2), [1.3, 0.8, 0.4], 0.8); }
   for (const u of [x - w / 4, x + w / 4]) {
-    if (bar) { addLight(0xffa860, 2.0, 14, 1.6, u, F + H - 1.6, z); continue; }   // V44: in der Kneipe Messing-Hängelampen über jedem Tisch (pubShell)
+    if (bar) { addLight(0xffa860, 2.0, 14, 1.6, u, F + H - 1.6, z); continue; }   // V46: in der Kneipe Messing-Hängelampen über jedem Tisch (pubShell)
     K.add('gold', new T.CylinderGeometry(0.02, 0.02, 1.0, 6).translate(u, F + H - 0.7, z));
     for (let k = 0; k < 3; k++) K.add('gold', new T.TorusGeometry(0.55 - k * 0.15, 0.02, 6, 28).rotateX(Math.PI / 2).translate(u, F + H - 1.3 + k * 0.18, z));
     for (let k = 0; k < 10; k++) { const a = k / 10 * 6.28; K.add('lit', new T.CylinderGeometry(0.025, 0.025, 0.14, 6).translate(u + Math.cos(a) * 0.55, F + H - 1.2, z + Math.sin(a) * 0.55), [1.8, 1.25, 0.7]); }
@@ -133,7 +133,7 @@ export function venue(o) {
   // Theke an der Westwand: Mahagoni, Messinglauf, Spiegel, Flaschenregal, Hocker
   const cx = x0 + 2.4, cz0 = z0 + 2.2, cz1 = z1 - 3.4;
   K.add('varnish', Bx(0.8, 1.05, cz1 - cz0, cx, F + 0.53, (cz0 + cz1) / 2, 1), bar ? [0.42, 0.22, 0.13] : [0.6, 0.3, 0.18]);
-  K.add(bar ? 'gold' : 'stone', Bx(1.0, 0.07, cz1 - cz0 + 0.1, cx, F + 1.09, (cz0 + cz1) / 2, 1), bar ? [0.9, 0.78, 0.6] : [0.9, 0.88, 0.84]);   // V44: Messingplatte auf der Kneipentheke
+  K.add(bar ? 'gold' : 'stone', Bx(1.0, 0.07, cz1 - cz0 + 0.1, cx, F + 1.09, (cz0 + cz1) / 2, 1), bar ? [0.9, 0.78, 0.6] : [0.9, 0.88, 0.84]);   // V46: Messingplatte auf der Kneipentheke
   K.add('gold', new T.CylinderGeometry(0.025, 0.025, cz1 - cz0, 8).rotateX(Math.PI / 2).translate(cx + 0.48, F + 0.22, (cz0 + cz1) / 2));
   addNeon(cx + 0.41, F + 1.0, (cz0 + cz1) / 2, 0.02, 0.02, cz1 - cz0, bar ? NEON.amber : NEON.gold);
   addCollider(cx - 0.45, F, cz0, cx + 0.45, F + 1.1, cz1);
@@ -227,14 +227,14 @@ export function venue(o) {
   return V;
 }
 export function buildVenues() {
-  // V44: The Brass Lantern steht jetzt im Arbeiterviertel am Kneipenplatz (src/workers.js); fehlt der Platz, bleibt sie am Nordufer
+  // V46: The Brass Lantern steht jetzt im Arbeiterviertel am Kneipenplatz (src/workers.js); fehlt der Platz, bleibt sie am Nordufer
   const pub = buildWorkersQuarter();
   venue({ name: 'THE BRASS LANTERN', kind: 'bar', ...(pub || { x: -170, z: -1014, w: 24, d: 15 }), pub: !!pub });
   venue({ name: 'RESTAURANT AURORA', kind: 'restaurant', x: 170, z: -1012, w: 28, d: 16 });
   VIEWS.Digit9 = pub ? { name: 'The Brass Lantern · Arbeiterviertel', p: [pub.x, 0.26, pub.z + pub.d / 2 + 11], yaw: 0, pitch: 0.05, fly: false } : { name: 'The Brass Lantern', p: [-170, 0.26, -1000], yaw: 0, pitch: 0.05, fly: false };
   VIEWS.Digit0 = { name: 'Restaurant Aurora', p: [170, 0.26, -997], yaw: 0, pitch: 0.05, fly: false };
 }
-// V44: Schriftschild im richtigen Seitenverhältnis (nameplate ist 512 x 96 und schneidet lange Namen ab)
+// V46: Schriftschild im richtigen Seitenverhältnis (nameplate ist 512 x 96 und schneidet lange Namen ab)
 export function signBoard(text, w, h, color, bg) {
   const cw = 1024, ch = Math.max(48, Math.round(cw * h / w));
   const t = canvasTex(cw, ch, (g, W, Hh) => { g.fillStyle = bg; g.fillRect(0, 0, W, Hh); g.strokeStyle = color; g.lineWidth = Math.max(2, Hh * 0.04); g.strokeRect(Hh * 0.08, Hh * 0.08, W - Hh * 0.16, Hh * 0.84);
@@ -242,7 +242,7 @@ export function signBoard(text, w, h, color, bg) {
     g.fillStyle = color; g.shadowColor = 'rgba(0,0,0,0.6)'; g.shadowBlur = 4; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(text, W / 2, Hh / 2 + fs * 0.06); });
   return new T.Mesh(new T.PlaneGeometry(w, h), new T.MeshBasicMaterial({ map: t, color: new T.Color(1.15, 1.15, 1.15) }));
 }
-/* ---------- V44 · The Brass Lantern als Arbeiterkneipe: Backstein, grüne Holzfront, Messinglaternen, Dielen, Balkendecke ---------- */
+/* ---------- V46 · The Brass Lantern als Arbeiterkneipe: Backstein, grüne Holzfront, Messinglaternen, Dielen, Balkendecke ---------- */
 export function pubShell(K, o, V, H, outC) {
   const { x, z, w, d } = o, { x0, x1, z0, z1, F } = V, green = [0.11, 0.22, 0.15];
   K.add('ceil', Bx(w - 0.3, 0.2, d - 0.3, x, F + H - 0.1, z), [0.6, 0.47, 0.36]);

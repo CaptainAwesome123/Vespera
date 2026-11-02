@@ -17,7 +17,7 @@ export function startLab(params) {
   if (params.get('lab') === 'penthouse') { import('./lab-penthouse.js').then(L => L.startPenthouseLab(params)); return; }   // V41: Penthouse-Labor
   if (params.get('lab') === 'villa') { import('./lab-villa.js').then(L => L.startVillaLab(params)); return; }   // V41: Villa-Labor
   if (params.get('lab') === 'strassen') { import('./lab-strassen.js').then(L => L.startRoadsLab(params)); return; }   // V42: Straßen-Labor
-  if (params.get('lab') === 'arbeiter') { import('./lab-arbeiter.js').then(L => L.startWorkersLab(params)); return; }   // V44: Arbeiterviertel und Brass Lantern
+  if (params.get('lab') === 'arbeiter') { import('./lab-arbeiter.js').then(L => L.startWorkersLab(params)); return; }   // V46: Arbeiterviertel und Brass Lantern
   buildEnv(); getMats();
   scene.fog.density = 0.0002;
   const lamp = new T.PointLight(0xffc27a, 2.2, 14, 1.6); lamp.position.set(1.6, 3.6, 2.4); scene.add(lamp);

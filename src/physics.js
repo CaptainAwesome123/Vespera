@@ -676,7 +676,7 @@ export const SPAWNS = [
 ];
 function venueSpawns(V) {
   const out = [], F = V.F || 0, items = [];
-  const pub = V.kind === 'bar';   // V44: in der Kneipe Whisky, Gläser und Aschenbecher statt Champagner
+  const pub = V.kind === 'bar';   // V46: in der Kneipe Whisky, Gläser und Aschenbecher statt Champagner
   V.tables.slice(0, 6).forEach((t, i) => {
     if (i % 2 === 0) items.push([pub ? 'whisky' : 'champagne', t.x + 0.08, t.z - 0.05, 0, F + 0.78 - (F + 0.0)]);
     items.push([pub ? 'tumbler' : 'coupe', t.x - 0.12, t.z + 0.1, 0, F + 0.78 - F], [pub ? 'ashtray' : 'coupe', t.x + 0.15, t.z + 0.16, 0, F + 0.78 - F]);

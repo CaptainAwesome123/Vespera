@@ -1,5 +1,5 @@
 /* =====================================================================
-   V44 · ARBEITER-LABOR (index.html?lab=arbeiter[&composer=1][&view=platz][&t=12.5])
+   V46 · ARBEITER-LABOR (index.html?lab=arbeiter[&composer=1][&view=platz][&t=12.5])
    Nur der Kneipenplatz im Arbeiterviertel und die Blöcke drumherum: The Brass Lantern innen und außen,
    Werkstatt, Mietshäuser, Feuertreppe, Kiosk, Feuertonnen, Wäscheleinen und Rohre in den Gassen, mit den
    Leuten. Zum Prüfen im Software-Renderer (tools/lab-shot.js, LAB=arbeiter); die ganze Stadt wäre dort zu schwer.

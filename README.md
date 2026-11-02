@@ -52,8 +52,8 @@ src/                der Spielcode als ES-Module, ein Abschnitt pro Datei
   traffic.js          Verkehr auf dem Straßennetz
   player.js           Spieler: Gehen, Schwerkraft, Fliegen
   powers.js           Alexanders Kräfte (V33): Flug (F, Doppelsprung), Telekinese (T / rechte Maustaste), Unverwundbarkeit, Superlandung
-  venues.js           Brass Lantern (V44: Arbeiterkneipe am Kneipenplatz) und Restaurant Aurora
-  workers.js          Arbeiterviertel (V44): Kneipenplatz mit Werkstatt, Mietshäusern, Feuertreppe, Kiosk; Feuertonnen; Wäsche, Rohre und Kisten in den Gassen (Chunk-Schicht 'arbeiter'); Labor ?lab=arbeiter
+  venues.js           Brass Lantern (V46: Arbeiterkneipe am Kneipenplatz) und Restaurant Aurora
+  workers.js          Arbeiterviertel (V46): Kneipenplatz mit Werkstatt, Mietshäusern, Feuertreppe, Kiosk; Feuertonnen; Wäsche, Rohre und Kisten in den Gassen (Chunk-Schicht 'arbeiter'); Labor ?lab=arbeiter
   eating.js           Essen aus der Ich-Sicht
   particles.js        Rauch, Staub, Gischt
   driving.js          Fahrphysik
