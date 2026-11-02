@@ -27,6 +27,9 @@ Die Kenney-Dateien stammen aus dem GitHub-Spiegel `ETdoFresh/kenney.nl` (Inhalt 
 | `tiles-color.jpg`, `tiles-normal.jpg`, `tiles-rough.jpg` (V23) | [ambientCG Tiles036](https://ambientcg.com/view?id=Tiles036), 512 px | ambientCG | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) |
 | `stone-color.jpg`, `stone-normal.jpg` (V23) | [ambientCG Rock020](https://ambientcg.com/view?id=Rock020), 512 px | ambientCG | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) |
 | `parquet-color.jpg`, `parquet-normal.jpg`, `parquet-rough.jpg` (V23) | [ambientCG WoodFloor043](https://ambientcg.com/view?id=WoodFloor043), 512 px | ambientCG | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) |
+| `portal-color.webp`, `portal-normal.jpg`, `portal-orm.jpg` (V54, Eingangs-Atlas: Türen, Oberlichter, Sturz-Relief, Kanneluren, Stein, Bronze) | gezeichnet mit `tools/make-portal-atlas.py`; als Grundlage die Fotos [ambientCG Rock020](https://ambientcg.com/view?id=Rock020) (Kalkstein), [Marble006](https://ambientcg.com/view?id=Marble006) (schwarzer Marmor), [Metal007](https://ambientcg.com/view?id=Metal007) (Bronze) und three.js `brick_diffuse.jpg`/`brick_bump.jpg` (Backstein) | Vespera; ambientCG; three.js-Autoren | Fotos [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) bzw. [MIT](https://github.com/mrdoob/three.js/blob/dev/LICENSE); Zeichnung wie das Projekt |
+
+Seit V54 liegen `brick-color.jpg`, `brick-bump.jpg`, `stone-color.jpg` und `stone-normal.jpg` in voller Auflösung (1024 px) statt 512 px vor (dieselben Originale).
 
 Die ambientCG-Dateien wurden über den Spiegel `pmndrs/market-assets` (GitHub, dort als CC0 geführt) bezogen.
 

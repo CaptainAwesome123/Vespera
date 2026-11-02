@@ -7,49 +7,8 @@ import { BRICK, wantShop, shopFloor, tier, facadeRelief } from './shops.js';
 import { _m, _p, _q, _up, _s } from './traffic.js';
 import { decoPortal, decoCornice } from './deco.js';
 
-/* =====================================================================
-   V16 · EINGÄNGE: Stufen aus Granit, verglaste Doppeltür mit Goldrahmen und
-   Messinggriffen, Oberlicht mit Goldfächer, Wandlaternen; vor Hotels, Bars und
-   Restaurants ein roter Läufer zwischen Messingpfosten mit Kordel
-   ===================================================================== */
+// V16 · EINGÄNGE: seit V54 aus dem Eingangs-Baukasten (portal-kit.js, Schmuck-Schicht in deco.js); PORTALS bleibt die Liste
 export const PORTALS = [];
-export function buildEntrances() {
-  if (!PORTALS.length) return;
-  const stone = [], gold = [], glass = [], carpet = [];
-  for (const P of PORTALS) {
-    const { fx, fz, o, kind } = P, ax = -o[1], az = o[0], ry = Math.atan2(o[0], o[1]);
-    // lokale Teile: x entlang der Wand, z nach außen
-    const put = (arr, g, lx, y, lz) => arr.push(g.rotateY(ry).translate(fx + ax * lx + o[0] * lz, y, fz + az * lx + o[1] * lz));
-    put(stone, new T.BoxGeometry(5.6, 0.14, 0.95), 0, 0.29, 0.48);
-    put(stone, new T.BoxGeometry(5.2, 0.14, 0.55), 0, 0.43, 0.28);
-    // Tür: zwei Glasflügel in Goldrahmen, Griffe, Oberlicht mit Fächer
-    put(glass, new T.BoxGeometry(2.6, 3.3, 0.08), 0, 0.5 + 1.65, 0.04);
-    for (const s of [-1, 1]) {
-      put(gold, new T.BoxGeometry(0.08, 3.4, 0.12), s * 1.34, 2.2, 0.06);
-      put(gold, new T.BoxGeometry(0.03, 0.55, 0.05), s * 0.18, 2.0, 0.12);
-      put(gold, new T.BoxGeometry(0.04, 3.3, 0.1), 0, 2.15, 0.07);
-      // Wandlaternen
-      put(gold, new T.BoxGeometry(0.22, 0.42, 0.22), s * 2.05, 3.0, 0.2);
-      addGlow(fx + ax * s * 2.05 + o[0] * 0.25, 3.0, fz + az * s * 2.05 + o[1] * 0.25, [1.35, 0.95, 0.55], 1.1);
-    }
-    put(gold, new T.BoxGeometry(2.76, 0.1, 0.12), 0, 3.86, 0.06);
-    put(glass, new T.CircleGeometry(1.3, 20, 0, Math.PI), 0, 3.9, 0.05);
-    put(gold, new T.TorusGeometry(1.3, 0.05, 5, 20, Math.PI), 0, 3.9, 0.07);
-    for (let k = 1; k < 8; k++) { const a = k / 8 * Math.PI; put(gold, new T.BoxGeometry(0.035, 1.2, 0.03).translate(0, 0.6, 0).rotateZ(a - Math.PI / 2), 0, 3.9, 0.08); }
-    if (kind === 'hotel' || kind === 'bar' || kind === 'restaurant') {
-      put(carpet, new T.BoxGeometry(1.8, 0.02, 2.3), 0, 0.235, 2.0);
-      put(carpet, new T.BoxGeometry(1.8, 0.02, 0.95), 0, 0.37, 0.48);
-      for (const s of [-1, 1]) for (const lz of [1.3, 2.9]) { put(gold, new T.CylinderGeometry(0.035, 0.05, 0.95, 8), s * 1.15, 0.7, lz); put(gold, new T.SphereGeometry(0.06, 8, 6), s * 1.15, 1.2, lz); }
-      for (const s of [-1, 1]) put(carpet, new T.CylinderGeometry(0.02, 0.02, 1.6, 5).rotateX(Math.PI / 2), s * 1.15, 1.08, 2.1);
-    }
-  }
-  const add = (list, mat) => { if (!list.length) return; const m = new T.Mesh(mergeGeos(list), mat); m.frustumCulled = false; scene.add(m); };
-  add(stone, stdMat({ color: 0x8e8b86, roughness: 0.7, envI: 0.3 }));
-  add(gold, MAT.gold);
-  add(glass, stdMat({ color: 0x0a0d10, metalness: 0.7, roughness: 0.12, envI: 1.4, emissive: 0x1a1006 }));
-  add(carpet, stdMat({ color: 0x6a0d12, roughness: 0.85, envI: 0.15, emissive: 0x120202 }));
-}
-
 // Portal mit Rahmen, Vordach und Lichtband an der Straßenseite
 export const DOORS = [];  // Eingänge für Passanten {x,z,nx,nz,kind}
 export function portal(cx, cz, sw, sd, edges, tint, rr, kind) {
@@ -57,16 +16,13 @@ export function portal(cx, cz, sw, sd, edges, tint, rr, kind) {
   const side = sides[Math.floor(rr() * sides.length)], o = { n: [0, -1], s: [0, 1], w: [-1, 0], e: [1, 0] }[side];
   const ax = o[0] !== 0, L = ax ? sd : sw, u = (rr() - 0.5) * Math.max(0, L - 16);
   const fx = cx + o[0] * sw / 2 + (ax ? 0 : u), fz = cz + o[1] * sd / 2 + (ax ? u : 0);
-  const pt = tint.map(v => v * 1.3);
-  const S = (a, b, y0, y1, off, t, st = 3, fl = 0.6) => addSeg({ x: fx + o[0] * (off - 0.025), z: fz + o[1] * (off - 0.025), w: ax ? b + 0.05 : a, d: ax ? a : b + 0.05, y0, y1, tint: t, seed: 990, style: st, dens: 0, flood: fl }, false);
-  for (const sd2 of [-1, 1]) addSeg({ x: fx + o[0] * 0.325 + (ax ? 0 : sd2 * 3.1), z: fz + o[1] * 0.325 + (ax ? sd2 * 3.1 : 0), w: ax ? 0.75 : 0.9, d: ax ? 0.9 : 0.75, y0: 0.2, y1: 8.2, tint: pt.map(v => v * 0.8), seed: 991, style: 3, dens: 0, flood: 0.1 }, false);
-  S(7.5, 0.84, 7.2, 8.6, 0.42, pt);
-  S(8.4, 2.6, 4.5, 4.85, 1.3, pt.map(v => v * 0.8), 3, 0.3);
-  addNeon(fx + o[0] * 2.62, 4.68, fz + o[1] * 2.62, ax ? 0.08 : 8.4, 0.08, ax ? 8.4 : 0.08, NEON.gold);
-  addGlow(fx + o[0] * 1.6, 4.3, fz + o[1] * 1.6, [1.2, 0.85, 0.45], 2.2);
+  // V54: Laibung, Sturz, Krone und Vordach baut der Eingangs-Baukasten (portal-kit.js) in der Schmuck-Schicht.
+  // Hier bleibt ein unsichtbarer Platzhalter, damit Ladenschilder dem Portal ausweichen (placeSign), und das Licht unter dem Vordach.
+  addSeg({ x: fx + o[0] * 0.6, z: fz + o[1] * 0.6, w: ax ? 1.2 : 7.0, d: ax ? 7.0 : 1.2, y0: 0.2, y1: 7.7, tint, seed: 990, style: 3, dens: 0, flood: 0, dead: true, blockOnly: true }, false);
+  addGlow(fx + o[0] * 1.8, 4.6, fz + o[1] * 1.8, [1.2, 0.85, 0.45], 2.2);
   DOORS.push({ x: fx + o[0] * 0.3, z: fz + o[1] * 0.3, nx: o[0], nz: o[1], kind });
   PORTALS.push({ fx, fz, o, kind });
-  decoPortal(fx, fz, o, kind, tint[0] > tint[1] * 1.35, Math.hypot(cx, cz));   // V38: Sonnenfächer, Glühbirnen-Vordach, Pendelleuchten
+  decoPortal(fx, fz, o, kind, tint[0] > tint[1] * 1.35, Math.hypot(cx, cz), tint);   // V38: Sonnenfächer, Glühbirnen-Vordach, Pendelleuchten
 }
 /* ---------- Möbel: weich gerundete Modelle statt Kisten (Sessel, Sofas, Bistrostühle, runde Tische, Lampen) ---------- */
 export function roundBox(w, h, d, r, s = 3) {
@@ -467,7 +423,7 @@ export function placeSign(cx, cz, w, d, edges, worker = false, ctx = null) {
   const u0 = R();
   if (!ctx) { signDefs.push({ cx, cz, w, d, side, word, color, vertical, off: 0, wd: null }); return; }
   const blockers = [];
-  for (let i = ctx.s0; i < segs.length; i++) { const sg = segs[i]; if (!sg.dead) blockers.push({ b: segBox(sg), sg }); }
+  for (let i = ctx.s0; i < segs.length; i++) { const sg = segs[i]; if (!sg.dead || sg.blockOnly) blockers.push({ b: segBox(sg), sg }); }
   for (let i = ctx.n0; i < neons.length; i++) { const n = neons[i]; blockers.push({ b: [n.x - n.sx / 2, n.y - n.sy / 2, n.z - n.sz / 2, n.x + n.sx / 2, n.y + n.sy / 2, n.z + n.sz / 2], n }); }
   // Schilderkasten in Weltkoordinaten: t = Abstand von der Fassade, u = Lage entlang der Fassade
   const boxFor = (sd, u, vert, wd, h) => {
