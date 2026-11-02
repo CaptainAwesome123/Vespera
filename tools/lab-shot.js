@@ -27,6 +27,7 @@ const [,, url = 'http://localhost:8765/', out = 'lab', views = 'alle', time = '1
     await p.screenshot({ path: `${out}-${name}${pose ? '-' + pose : ''}${tt ? '-' + tt : ''}.png`, timeout: 120000 });
     console.log(name, Date.now() - t0, 'ms');
     if (process.env.STATS) console.log('  ', JSON.stringify(await p.evaluate(() => window.labStats ? window.labStats() : null)));   // V41: Zahlen aus dem Labor
+    if (process.env.PICK) for (const uv of process.env.PICK.split(';')) { const [u, v] = uv.split(',').map(Number); console.log('   pick', uv, JSON.stringify(await p.evaluate(([u, v]) => window.labPick ? window.labPick(u, v) : null, [u, v]))); }   // V41: PICK='0.2,0.3;0.8,0.3' -> Material unter dem Bildpunkt
   }
   console.log(logs.join('\n') || 'keine Fehler');
   await b.close();

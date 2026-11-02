@@ -9,6 +9,7 @@ import { IB, FACTORY_LOOPS, FACTORY_IDLERS } from './shops.js';
 import { makeSignTex, FAN_TEX, lathe, crownFins, caps, domes, buildEntrances, DOORS, TERRACE, CLOCKS } from './entrances.js';
 import { WATER_Y, setDance, placeCouple } from './dance.js';
 import { poolWaterMat, fountainJet } from './water.js';
+import { curtainMat, jetStreakMat } from './fountain.js';   // V41: Wasserschleier und Bogenstrahlen am Villenbrunnen
 import { VILLA, deckY, TER, terrainHeight, ROAD_Z0, VIA, ROAD_W, terrainHeightRaw, terrainInfo, VALLEY_W, PORT_LOOPS, PORT_PEDS } from './harbour.js';
 import { makeGlowPoints, buildCitizens } from './ragdoll.js';
 import { cars } from './airships.js';
@@ -811,6 +812,7 @@ export function buildVilla() {
     sofa: stdMat({ color: 0x8a6a3e, roughness: 0.75, env: false, emissive: 0x140c05 }),
     statue: stdMat({ color: 0xf2ede4, roughness: 0.35, envI: 0.6, emissive: 0x1a1612 }),
     roseW: stdMat({ color: 0xf4f0ea, roughness: 0.7, emissive: 0x3a3634 }), roseR: stdMat({ color: 0x8a0e1a, roughness: 0.6, emissive: 0x2a0306 }),
+    orange: stdMat({ color: 0xe0861c, roughness: 0.55, envI: 0.3, emissive: 0x3a1c04 }),   // V41
   };
   const basin = (lx, lz, r, y) => {
     put('stone', new T.CylinderGeometry(r + 0.5, r + 0.7, 0.9, 40), lx, y + 0.45, lz);
@@ -819,10 +821,52 @@ export function buildVilla() {
     colL(lx - r - 0.6, y, lz - r - 0.6, lx + r + 0.6, y + 0.9, lz + r + 0.6);
     for (let k = 0; k < 12; k++) { const a = k / 12 * Math.PI * 2; G(lx + Math.cos(a) * r * 0.85, y + 0.95, lz + Math.sin(a) * r * 0.85, NEON.teal, 1.0); }
   };
-  basin(0, 18, 5.5, by);
-  for (const [r, h, y] of [[1.6, 1.4, 0.9], [1.0, 1.4, 2.3], [0.5, 1.6, 3.7]]) put('stone', new T.CylinderGeometry(r * 0.8, r, h, 20), 0, by + y + h / 2, 18);
-  put('gold', new T.SphereGeometry(0.6, 16, 12), 0, by + 5.9, 18);
-  { const [fx, fz] = W(0, 18); fountainJet(fx, by + 6.4, fz, 2.5, 0.5); }
+  // V41: Großer Gartenbrunnen: gelapptes Becken, Sockel, drei geschwungene Schalen mit Wasserschleiern, Goldfinale, Bogenstrahlen (vorher gestapelte Zylinder)
+  {
+    const FX = 0, FZ = 18, R0 = 5.6;
+    const scallop = (g, n, amp, yMin) => { const P = g.attributes.position.array; for (let i = 0; i < P.length; i += 3) { if (P[i + 1] < yMin) continue; const a = Math.atan2(P[i + 2], P[i]), f = 1 + amp * Math.cos(a * n); P[i] *= f; P[i + 2] *= f; } g.computeVertexNormals(); return g; };
+    const lathe = (pts, n = 48) => new T.LatheGeometry(pts.map(([r, y]) => new T.Vector2(r, y)), n);
+    put('stone', new T.CylinderGeometry(R0 + 1.6, R0 + 1.9, 0.18, 48), FX, by + 0.09, FZ);   // Stufe
+    put('stone', scallop(lathe([[0, 0.28], [R0, 0.28], [R0, 1.0], [R0 + 0.35, 1.08], [R0 + 0.75, 1.0], [R0 + 0.9, 0.5], [R0 + 0.8, 0.18]]), 16, 0.03, 0.9), FX, by, FZ);
+    put('water', new T.CylinderGeometry(R0 - 0.05, R0 - 0.05, 0.08, 48), FX, by + 0.9, FZ);
+    put('gold', new T.TorusGeometry(R0 + 0.35, 0.07, 6, 64).rotateX(Math.PI / 2), FX, by + 1.1, FZ);
+    colL(FX - R0 - 1.0, by, FZ - R0 - 1.0, FX + R0 + 1.0, by + 1.0, FZ + R0 + 1.0);
+    for (let k = 0; k < 12; k++) { const a = k / 12 * Math.PI * 2; G(FX + Math.cos(a) * R0 * 0.85, by + 0.95, FZ + Math.sin(a) * R0 * 0.85, NEON.teal, 1.0); }
+    // Sockel mit vier Goldkugeln und drei Schalen
+    put('stone', lathe([[0, 0.3], [1.9, 0.3], [2.0, 0.55], [1.5, 0.7], [1.25, 1.3], [1.45, 1.6], [1.1, 1.7], [0.0, 1.7]], 32), FX, by, FZ);
+    for (let k = 0; k < 4; k++) { const a = k * Math.PI / 2 + Math.PI / 4; put('gold', new T.SphereGeometry(0.22, 10, 8), FX + Math.cos(a) * 1.45, by + 1.2, FZ + Math.sin(a) * 1.45); }
+    const bowls = [[2.7, 2.3], [1.75, 3.9], [1.05, 5.2]];
+    const CM = curtainMat(), JM = jetStreakMat(), cur = [], jets = [];
+    bowls.forEach(([r, y], i) => {
+      const stem = lathe([[0, 0], [0.5, 0], [0.42, 0.25], [0.32, 0.6], [0.45, 0.9], [0.55, 1.0]], 16), y0 = i ? bowls[i - 1][1] : 1.7;
+      put('stone', stem.scale(1, (y - 0.55 - y0) / 1.0, 1), FX, by + y0, FZ);
+      put('stone', scallop(lathe([[0, -0.55], [0.5, -0.52], [r * 0.72, -0.22], [r, 0.0], [r + 0.06, 0.12], [r - 0.18, 0.1], [r * 0.62, -0.1], [0, -0.16]], 40), 12, 0.04, -0.05), FX, by + y, FZ);
+      put('water', new T.CylinderGeometry(r - 0.2, r - 0.2, 0.04, 40), FX, by + y + 0.06, FZ);
+      put('gold', new T.TorusGeometry(r + 0.02, 0.03, 6, 48).rotateX(Math.PI / 2), FX, by + y + 0.12, FZ);
+      const drop = i ? y - bowls[i - 1][1] - 0.05 : y - 0.95;
+      cur.push(new T.CylinderGeometry(r + 0.04, r - 0.1, drop, 48, 1, true).translate(0, -drop / 2 + 0.1, 0).translate(FX, y, FZ));
+    });
+    put('gold', lathe([[0, 0], [0.3, 0], [0.18, 0.15], [0.14, 0.5], [0.3, 0.6], [0.0, 0.95]], 16), FX, by + 5.3, FZ);
+    put('gold', new T.SphereGeometry(0.34, 16, 12), FX, by + 6.45, FZ);
+    { const [fx, fz] = W(FX, FZ); fountainJet(fx, by + 6.9, fz, 2.2, 0.38); }
+    // Acht Bogenstrahlen vom Beckenrand in die unterste Schale
+    for (let k = 0; k < 8; k++) {
+      const a = k / 8 * Math.PI * 2, x0 = Math.cos(a) * (R0 - 0.5), z0 = Math.sin(a) * (R0 - 0.5), x1 = Math.cos(a) * 2.2, z1 = Math.sin(a) * 2.2, y0 = 1.15, y1 = 2.45, H = 4.6;
+      const pts = []; for (let j = 0; j <= 14; j++) { const t = j / 14; pts.push(new T.Vector3(FX + x0 + (x1 - x0) * t, y0 + (y1 - y0) * t + (H - y0) * 4 * t * (1 - t) * 0.55, FZ + z0 + (z1 - z0) * t)); }
+      jets.push(new T.TubeGeometry(new T.CatmullRomCurve3(pts), 24, 0.055, 6, false));
+      put('gold', new T.CylinderGeometry(0.06, 0.1, 0.28, 8), FX + x0, by + 1.08, FZ + z0);
+    }
+    for (const [list, mat] of [[cur, CM], [jets, JM]]) { const g = mergeGeos(list); g.rotateY(ry); g.translate(cx, by, cz); const m = new T.Mesh(g, mat); m.frustumCulled = false; m.renderOrder = 2; scene.add(m); }
+  }
+  // V41: Orangenbäumchen in Steinkübeln und niedrige Rosenbeete um den Brunnen
+  for (let k = 0; k < 8; k++) {
+    const a = k / 8 * Math.PI * 2 + Math.PI / 8, px = Math.cos(a) * 10.5, pz = 18 + Math.sin(a) * 10.5;
+    put('stone', new T.CylinderGeometry(0.62, 0.48, 0.9, 12), px, by + 0.45, pz); put('gold', new T.TorusGeometry(0.62, 0.04, 6, 20).rotateX(Math.PI / 2), px, by + 0.9, pz);
+    put('trunk', new T.CylinderGeometry(0.07, 0.1, 1.3, 7), px, by + 1.5, pz); put('hedge', new T.SphereGeometry(1.0, 12, 9).scale(1, 1.15, 1), px, by + 2.9, pz);
+    for (let j = 0; j < 9; j++) { const b = j * 2.4 + k, e = 0.6 + (j % 3) * 0.3; put('orange', new T.SphereGeometry(0.075, 6, 5), px + Math.cos(b) * 0.95 * Math.sin(e), by + 2.9 + Math.cos(e) * 1.05, pz + Math.sin(b) * 0.95 * Math.sin(e)); }
+    colL(px - 0.6, by, pz - 0.6, px + 0.6, by + 1.2, pz + 0.6);
+  }
+  for (const sd of [-1, 1]) for (const lz of [9, 27]) { put('hedge', roundBoxGeo(5.5, 0.55, 1.1), sd * 9.5, by + 0.28, lz); for (let j = 0; j < 7; j++) put(j % 2 ? 'roseR' : 'roseW', new T.SphereGeometry(0.1, 6, 5), sd * 9.5 - 2.4 + j * 0.8, by + 0.62, lz + (j % 2 ? 0.2 : -0.2)); colL(sd * 9.5 - 2.75, by, lz - 0.55, sd * 9.5 + 2.75, by + 0.6, lz + 0.55); }
   // Langer Pool auf der ersten Terrasse, innen beleuchtet
   const t1 = by - 5;
   for (const sd of [-1, 1]) {
@@ -836,7 +880,7 @@ export function buildVilla() {
   // Hecken und Blumenbeete auf der zweiten Terrasse
   const t2 = by - 11;
   for (const sd of [-1, 1]) for (const lx of [10, 20, 30]) {
-    put('hedge', new T.BoxGeometry(7, 1.4, 14), sd * lx, t2 + 0.7, 62); colL(sd * lx - 3.5, t2, 55, sd * lx + 3.5, t2 + 1.4, 69);
+    put('hedge', roundBoxGeo(7, 1.4, 14), sd * lx, t2 + 0.7, 62); colL(sd * lx - 3.5, t2, 55, sd * lx + 3.5, t2 + 1.4, 69);   // V41: gerundet geschnitten
     for (let k = 0; k < 3; k++) G(sd * lx, t2 + 1.6, 57 + k * 5, [1.3, 0.55, 0.45], 0.5);
   }
   basin(0, 62, 3.5, t2);
@@ -894,11 +938,7 @@ export function buildVilla() {
     VILLA.entry = (() => { const [x, z] = W(0, zC - 4); return { x, z, y: by }; })();
   }
   V(0, -40, 110, 34, by - 3, by + 0.05, { tint: [0.3, 0.29, 0.28], flood: 0.2 });
-  const parked = [];
-  for (let k = 0; k < 3; k++) { const lx = -10 + k * 10, lz = -44 + (k % 2) * 7; parked.push([lx, lz, ry + Math.PI / 2 + (k % 2 ? Math.PI : 0)]); }
-  const cm = new T.InstancedMesh(carGeoHi(), MAT.carPaint, parked.length), pc = new T.Color();
-  parked.forEach(([lx, lz, yaw], i) => { const [x, z] = W(lx, lz); cm.setMatrixAt(i, _m.compose(_p.set(x, by + 0.05, z), _q.setFromAxisAngle(_up, yaw), _s.set(1, 1, 1))); const c = pick([[0.04, 0.04, 0.05], [0.3, 0.04, 0.06], [0.8, 0.72, 0.58], [0.05, 0.16, 0.12], [0.08, 0.1, 0.22]]).map(v => v + (Math.random() - 0.5) * 0.012); cm.setColorAt(i, pc.setRGB(...c)); colL(lx - 1.1, by, lz - 2.6, lx + 1.1, by + 1.8, lz + 2.6); });
-  cm.frustumCulled = false; scene.add(cm);
+  // V41: keine abgestellten Limousinen mehr auf dem Vorplatz (Kanon 2026-11-01: der Villenparkplatz bleibt leer)
   for (let lx = -50; lx <= 50; lx += 12) { put('stone', new T.CylinderGeometry(0.12, 0.18, 4.5, 8), lx, by + 2.3, -57); G(lx, by + 4.8, -57, [1.35, 0.95, 0.55], 1.8); }
   const mastL = [38, -32], mastH = 42;
   for (const [dx, dz] of [[-1.5, -1.5], [1.5, -1.5], [1.5, 1.5], [-1.5, 1.5]]) put('iron', new T.CylinderGeometry(0.18, 0.3, mastH, 6).rotateZ(-dx * 0.025).rotateX(dz * 0.025), mastL[0] + dx, by + mastH / 2, mastL[1] + dz);
@@ -993,9 +1033,9 @@ export function villaInteriorMats() {
   books.wrapS = T.RepeatWrapping;
   return {
     marble: stdMat({ map: MB.map, roughnessMap: MB.rough, normalMap: MB.normal, normalScale: new T.Vector2(0.6, 0.6), roughness: 1, metalness: 0.0, envI: 0.9 }),
-    parq: stdMat({ map: PQ.map, roughnessMap: PQ.rough, normalMap: PQ.normal, normalScale: new T.Vector2(0.8, 0.8), roughness: 1, envI: 0.45, emissive: 0x3a2a1c, emissiveMap: PQ.map }),
-    panel: stdMat({ map: PN.map, roughnessMap: PN.rough, normalMap: PN.normal, roughness: 1, envI: 0.4, emissive: 0x403020, emissiveMap: PN.map }),
-    plaster: stdMat({ map: WP, roughness: 0.85, env: false, emissive: 0x8a7462, emissiveMap: WP }),
+    parq: stdMat({ map: PQ.map, roughnessMap: PQ.rough, normalMap: PQ.normal, normalScale: new T.Vector2(0.8, 0.8), roughness: 1, envI: 0.45, emissive: 0x16100a, emissiveMap: PQ.map }),
+    panel: stdMat({ map: PN.map, roughnessMap: PN.rough, normalMap: PN.normal, roughness: 1, envI: 0.4, emissive: 0x1a130c, emissiveMap: PN.map }),
+    plaster: stdMat({ map: WP, roughness: 0.85, env: false, emissive: 0x2e2620, emissiveMap: WP }),
     ceil: stdMat({ color: 0x3a2c1c, roughness: 0.9, env: false, emissive: 0x2a1c0e }),
     wood: stdMat({ color: 0x3a2214, roughness: 0.45, envI: 0.5, emissive: 0x080402 }),
     books: stdMat({ map: books, roughness: 0.8, envI: 0.2, emissive: 0x0c0806 }),
@@ -1220,6 +1260,12 @@ export function buildMountains() {
 }
 
 // UVs aus Weltkoordinaten: Böden von oben, Wände entlang ihrer Fläche, damit Muster nicht gestreckt werden
+// V41: Quader mit weich gerundeten Kanten und Ecken (Superellipsoid): für geschnittene Hecken und Polster
+export function roundBoxGeo(w, h, d, pw = 5) {
+  const g = new T.BoxGeometry(w, h, d, Math.max(2, Math.round(w)), Math.max(2, Math.round(h * 2)), Math.max(2, Math.round(d))), P = g.attributes.position.array, hx = w / 2, hy = h / 2, hz = d / 2;
+  for (let i = 0; i < P.length; i += 3) { const nx = P[i] / hx, ny = P[i + 1] / hy, nz = P[i + 2] / hz, n = Math.pow(Math.abs(nx) ** pw + Math.abs(ny) ** pw + Math.abs(nz) ** pw, 1 / pw) || 1; P[i] /= n; P[i + 1] /= n; P[i + 2] /= n; }
+  g.computeVertexNormals(); return g;
+}
 export function worldUV(g, sc) {
   const p = g.attributes.position.array, n = g.attributes.normal.array, uv = g.attributes.uv.array;
   for (let i = 0, j = 0; i < p.length; i += 3, j += 2) {
