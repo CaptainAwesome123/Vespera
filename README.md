@@ -41,6 +41,7 @@ src/                der Spielcode als ES-Module, ein Abschnitt pro Datei
   water.js            Wellen (Gerstner, acht Wellenzüge), Spiegelung, Gischt am Kai
   harbour.js          Kai, Jachthafen, Fähre, Luftschiffhafen
   serpentine.js       Bergstraße zur Villa, Villa außen, Garten, Fest, Berge
+  landscape.js        Landschaft um den Krater (V44): feines Netz für die Felswand am See, Wasserfälle mit Bachbett, Gischt und Eiszapfen, zwei Gletscher, Eissaum, Eisschollen, Schären; Labor ?lab=landschaft, Vergleich ?ohnelandschaft
   villa.js            Innenräume der Villa auf drei Ebenen: Halle, Ballsaal, Salon, Speisesaal, Küche, OG, Keller, Schwimmhalle (V28)
   ragdoll.js          Gliederpuppen-Physik
   sky.js              Himmel der Polarnacht: drehender Sternhimmel, Mond mit Phase, Polarlicht (V25)

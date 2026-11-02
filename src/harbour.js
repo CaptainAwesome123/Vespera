@@ -934,6 +934,9 @@ export function terrainInfo(wx, wz) {
   return { r, ang, met, south, rim, inner, peak };
 }
 export const VILLA = { x: 0, z: 0, y: 0, r: 170, ux: 0, uz: 0, ry: 0, boxes: null };
+// V44: Haken für landscape.js: carve(x, z, h) gräbt Bachbetten der Wasserfälle und Gletschertäler ins Gelände,
+// avoid(x, z) sagt, wo nichts wachsen oder stehen soll (Bach, Gletscher). Werden in planLandscape gesetzt.
+export const LAND_HOOK = { carve: null, avoid: null };
 export function terrainHeight(wx, wz) {
   let h = accessCarve(wx, wz, terrainHeightRaw(wx, wz));
   if (!VILLA.y) return h;
@@ -964,6 +967,7 @@ export function terrainHeight(wx, wz) {
 export function terrainHeightRaw(wx, wz) {
   const { r, ang, met, south, inner, peak } = terrainInfo(wx, wz);
   const x = wx, z = wz + 100;
+  let h;
   // Die Stadt liegt auf einer Insel: außerhalb der Ufermauer Seegrund, erst am Gebirge steigt das Land wieder
   const shore = -landDist(wx, wz);
   if (shore <= 0) return -2.5;
@@ -980,7 +984,11 @@ export function terrainHeightRaw(wx, wz) {
   const rn = (u, v) => 1 - Math.abs(2 * TER.noise(u, v) - 1);
   const crest = rn(x * 0.0024, z * 0.0024) * 0.5 + rn(x * 0.0061 + 5, z * 0.0061) * 0.3 + rn(x * 0.016, z * 0.016 + 3) * 0.2;
   const far = Math.min(1, Math.max(0, (met - peak) / 2500));
-  return floor * (1 - rise) + wall + base * (650 + 750 * ridge * detail) + Math.pow(rise, 1.3) * crest * crest * (380 + 500 * far) + rise * 22 * jag - 2.5;
+  // V44: Felswand mit Bändern und Vorsprüngen: Simse (Treppen in der Wand) und Ausbuchtungen in der Wandmitte
+  const tw = tc * tc * (3 - 2 * tc), wk = tw * (1 - tw) * 4 * (1 - south);
+  const bulge = ((TER.noise(x * 0.05 + 9, z * 0.05 + 4) - 0.5) * 16 + (TER.noise(x * 0.15 + 3, z * 0.15 + 8) - 0.5) * 5 + Math.sin(tw * 25.1) * 2.2) * wk;
+  h = floor * (1 - rise) + wall + bulge + base * (650 + 750 * ridge * detail) + Math.pow(rise, 1.3) * crest * crest * (380 + 500 * far) + rise * 22 * jag - 2.5;
+  return LAND_HOOK.carve ? LAND_HOOK.carve(wx, wz, h) : h;
 }
 /* ---------- Die einzige Zufahrt: ein durchgehender Viadukt bis an den Berg, dann der Tunnel ---------- */
 export const ROAD_W = 14, ROAD_Z0 = -985;

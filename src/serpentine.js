@@ -10,7 +10,7 @@ import { makeSignTex, FAN_TEX, lathe, crownFins, caps, domes, buildEntrances, DO
 import { WATER_Y, setDance, placeCouple } from './dance.js';
 import { poolWaterMat, fountainJet } from './water.js';
 import { curtainMat, jetStreakMat } from './fountain.js';   // V41: Wasserschleier und Bogenstrahlen am Villenbrunnen
-import { VILLA, deckY, TER, terrainHeight, ROAD_Z0, VIA, ROAD_W, terrainHeightRaw, terrainInfo, VALLEY_W, PORT_LOOPS, PORT_PEDS } from './harbour.js';
+import { VILLA, deckY, TER, terrainHeight, ROAD_Z0, VIA, ROAD_W, terrainHeightRaw, terrainInfo, VALLEY_W, PORT_LOOPS, PORT_PEDS, LAND_HOOK } from './harbour.js';
 import { makeGlowPoints, buildCitizens } from './ragdoll.js';
 import { cars } from './airships.js';
 import { carDamageAttr, carCabin, carLoft, carSweep, fenderPath, carWheel } from './cars.js';
@@ -556,7 +556,7 @@ export function buildAccessRoad() {
   const z0 = ROAD_Z0, pz = VIA.portalZ;
   const groundAt = z => z > -1040 ? 0 : terrainHeight(0, z);
   const st = stoneTex(); st.wrapS = st.wrapT = T.RepeatWrapping; st.repeat.set(1 / 7, 1 / 3.5);
-  const stoneM = stdMat({ map: st, color: 0x8f949a, roughness: 0.85, metalness: 0.02, envI: 0.25 });
+  const stoneM = snowy(stdMat({ map: st, color: 0x8f949a, roughness: 0.85, metalness: 0.02, envI: 0.25 }), 0.75);   // V44: Schnee auf Brüstung, Gesims und Pfeilerköpfen
   const parts = [], piers = [];
   // Pfeilerstellungen: kurze Bögen an der Rampe, weite Bögen über dem Tal
   const cuts = [z0];
@@ -578,6 +578,20 @@ export function buildAccessRoad() {
       const p = frustum(H, ROAD_W + 2 + H * 0.06, pw * 1.25, ROAD_W + 1, pw);
       p.translate(0, base, zc); parts.push(p);
       piers.push([zc, base, top, pw]);
+      // V44: Pfeiler im Wasser: Sockel und Eisbrecher (Rauten an beiden Enden, bis 7 m über den See); Gesimsband unter dem Deck
+      if (base < WATER_Y + 1 && H > 8) {
+        const bw = ROAD_W + 2 + H * 0.06;
+        parts.push(new T.BoxGeometry(bw + 1.6, 2.4, pw * 1.25 + 1.6).translate(0, base + 1.2, zc));
+        for (const sd of [-1, 1]) parts.push(new T.CylinderGeometry(pw * 0.62, pw * 0.75, WATER_Y + 7 - base, 4).rotateY(Math.PI / 4).translate(sd * (bw / 2 - 0.2), (WATER_Y + 7 + base) / 2, zc));
+      }
+      // V44: Art-Déco-Pylonen auf der Brüstung an jedem dritten Pfeiler: gestufter Stein, Goldstreifen, Leuchtkappe
+      if (i % 3 === 1 && H > 6 && zc < z0 - 30) for (const sd of [-1, 1]) {
+        const x = sd * (ROAD_W / 2 + 0.55), y = top + 1.2;
+        parts.push(new T.BoxGeometry(1.7, 3.4, 2.2).translate(x, y + 1.7, zc), new T.BoxGeometry(1.2, 1.6, 1.6).translate(x, y + 4.2, zc), new T.BoxGeometry(0.8, 0.6, 1.1).translate(x, y + 5.3, zc));
+        addNeon(x + sd * 0.9, y + 1.7, zc, 0.1, 3.0, 0.14, NEON.gold); addNeon(x, y + 5.6, zc, 0.5, 0.08, 0.8, NEON.gold);
+        addGlow(x, y + 5.9, zc, [1.3, 0.95, 0.55], 2.6);
+        addCollider(x - 0.9, y, zc - 1.2, x + 0.9, y + 5.6, zc + 1.2);
+      }
     }
     if (i === cuts.length - 1) break;
     // Bogenzwickel zwischen zwei Pfeilern
@@ -593,6 +607,10 @@ export function buildAccessRoad() {
     // Fahrbahnplatte mit Gesims und Brüstung
     const L = za - zb, mz = c, my = deckY(c);
     parts.push(new T.BoxGeometry(ROAD_W + 2.2, 1.3, L + 0.05).rotateX(slope).translate(0, my - 0.65, mz));
+    // V44: Gesimsband unter der Platte, Schlusssteine über dem Bogenscheitel, warmes Licht im Gewölbe der hohen Bögen
+    parts.push(new T.BoxGeometry(ROAD_W + 3.0, 0.5, L + 0.05).rotateX(slope).translate(0, my - 1.55, mz));
+    for (const sd of [-1, 1]) parts.push(new T.BoxGeometry(0.5, 1.9, 1.6).translate(sd * (ROAD_W / 2 + 0.75), spring + r + 0.3, c));
+    if (r > 8) addGlow(0, spring + r * 0.6, c, [1.15, 0.85, 0.5], 3.4);
     for (const sd of [-1, 1]) {
       const g0 = SERP.zJ - 5.2, g1 = SERP.zJ + 5.2;
       const pieces = sd > 0 && SERP.on && zb < g1 && za > g0 ? [[zb, g0], [g1, za]].filter(([a, b]) => b - a > 0.3) : [[zb, za]];
@@ -743,7 +761,9 @@ export function buildCityGate() {
   addGlow(0, 16.8, z - 2, [1.3, 0.95, 0.55], 6); addGlow(0, 16.8, z + 2, [1.3, 0.95, 0.55], 6);
 }
 export const VILLA_DOOR = { x: 7.5, w: 2.8, h: 5.0 };   // V23: Flügeltüren in der Rückwand der Villa (lokal ±x)
-export function buildVilla() {
+// V44: Standortsuche eigenständig (das Landschafts-Labor braucht den Standort ohne das Haus)
+export function planVillaSite() {
+  if (VILLA.y) return;
   // Standort suchen: ein Hang im Nordosten, von dem der Blick zur Stadt möglichst frei ist
   let bestA = 0, bestR = 0, bestY = 0, bestBlock = 1e9;
   for (let a = Math.PI * 0.12; a <= Math.PI * 0.42; a += Math.PI * 0.03) {
@@ -756,9 +776,13 @@ export function buildVilla() {
   }
   VILLA.x = Math.sin(bestA) * bestR; VILLA.z = -Math.cos(bestA) * bestR - 100; VILLA.y = bestY;
   const rr0 = Math.hypot(VILLA.x, VILLA.z); VILLA.ux = -VILLA.x / rr0; VILLA.uz = -VILLA.z / rr0;
+  VILLA.ry = Math.atan2(VILLA.ux, VILLA.uz);
+}
+export function buildVilla() {
+  planVillaSite();
   U.uVilla.value.set(VILLA.x, VILLA.y + 8, VILLA.z);
   const cx = VILLA.x, cz = VILLA.z, by = VILLA.y;
-  const ry = VILLA.ry = Math.atan2(VILLA.ux, VILLA.uz), cs = Math.cos(ry), sn = Math.sin(ry);
+  const ry = VILLA.ry, cs = Math.cos(ry), sn = Math.sin(ry);
   U.uVillaRot.value.set(cs, sn, 1);
   // Lokales System: +lz zeigt zur Stadt, lx quer dazu
   const W = (lx, lz) => [cx + lx * cs + lz * sn, cz - lx * sn + lz * cs];
@@ -1151,6 +1175,8 @@ export function updateVilla(t) {
   updateVillaRooms(t, C, rot);   // V28: Zonen, Türen, Tänzer im Ballsaal, Raumnamen
   C.flag();
 }
+// V44: Geländenetz und -material für landscape.js (feiner Klippenring, Ausschnitt im groben Netz)
+export const MOUNT = { geo: null, mat: null, mesh: null };
 export function buildMountains() {
   // Ein Netz bis an den Horizont: in der Mitte dicht (etwa 18 m), nach außen immer gröber
   const N = 440, HALF = 13000;
@@ -1166,7 +1192,7 @@ export function buildMountains() {
   const mat = new T.ShaderMaterial({
     uniforms: U,
     vertexShader: `varying vec3 vW; varying vec3 vN; varying float vD; void main(){ vec4 w = modelMatrix*vec4(position,1.0); vW = w.xyz; vN = normalize(mat3(modelMatrix)*normal); vec4 mv = viewMatrix*w; vD = length(mv.xyz); gl_Position = projectionMatrix*mv; }`,
-    fragmentShader: `uniform vec3 uFogColor; uniform float uFogDensity; uniform vec3 uMoonDir; uniform vec3 uTeal; uniform vec3 uVilla; uniform vec3 uVillaRot; uniform vec3 uCam; uniform float uSnowCover; uniform float uMoonLit; varying vec3 vW; varying vec3 vN; varying float vD;
+    fragmentShader: `uniform vec3 uFogColor; uniform float uFogDensity; uniform vec3 uMoonDir; uniform vec3 uTeal; uniform vec3 uVilla; uniform vec3 uVillaRot; uniform vec3 uCam; uniform float uSnowCover; uniform float uMoonLit; uniform float uAurora; uniform vec4 uGlacier[2]; varying vec3 vW; varying vec3 vN; varying float vD;
       ${FOG_GLSL}
       float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7)))*43758.5453); }
       float vnoise(vec2 p){ vec2 i=floor(p), f=fract(p); f=f*f*(3.0-2.0*f); return mix(mix(hash(i),hash(i+vec2(1,0)),f.x), mix(hash(i+vec2(0,1)),hash(i+vec2(1,1)),f.x), f.y); }
@@ -1181,24 +1207,40 @@ export function buildMountains() {
         // Feinrelief: Rauschen als Höhe, daraus eine gestörte Normale
         float fade = 1.0 - smoothstep(250.0, 1300.0, vD);
         vec2 q = vW.xz * 0.045 + vec2(0.0, vW.y * 0.02);
-        float hgt = fbm(q) * 6.0 + vnoise(vW.xz * 0.35) * 0.6 * (1.0 - smoothstep(80.0, 300.0, vD));
+        float hgt = fbm(q) * 6.0 + vnoise(vW.xz * 0.35) * 0.6 * (1.0 - smoothstep(80.0, 300.0, vD)) + vnoise(vW.xz * 0.12 + vW.y * 0.05) * 1.6 * (1.0 - smoothstep(150.0, 600.0, vD));   // V44: Mittelmaßstab für die Klippen
         vec3 dpx = dFdx(vW), dpy = dFdy(vW);
         float dhx = dFdx(hgt), dhy = dFdy(hgt);
         vec3 r1 = cross(dpy, n0), r2 = cross(n0, dpx);
         float det = dot(dpx, r1);
         vec3 grad = sign(det) * (dhx * r1 + dhy * r2);
-        vec3 n = normalize(abs(det) * n0 - grad * 0.9 * fade);
+        vec3 n = normalize(abs(det) * n0 - grad * 1.5 * fade);   // V44: kräftigeres Relief
         if (dot(n, n) < 0.5 || abs(det) < 1e-6) n = n0;
         float moon = max(dot(n, uMoonDir), 0.0);
         float steep = 1.0 - n0.y;
         float strata = 0.75 + 0.5*vnoise(vec2(vW.y*0.09, (vW.x + vW.z)*0.01)) * (0.7 + 0.6*vnoise(vW.xz*0.02));
         float tone = 0.7 + 0.6*fbm(vW.xz*0.006);
-        vec3 rock = mix(vec3(0.016, 0.03, 0.04), vec3(0.03, 0.035, 0.04), fbm(vW.xz*0.01)) * strata * tone;
+        vec3 rock = mix(vec3(0.02, 0.036, 0.046), vec3(0.034, 0.04, 0.045), fbm(vW.xz*0.01)) * strata * tone;
         rock += vec3(0.09, 0.12, 0.16) * moon * strata;
-        rock *= 0.65 + 0.35*smoothstep(-2.0, 3.0, hgt - 2.5);
+        rock *= 0.5 + 0.5*smoothstep(-2.0, 3.0, hgt - 2.5);   // V44: Rinnen dunkler (Verschattung)
         // Grasige, bewaldete Hänge unten, nackter Fels in den Steilwänden
         float meadow = smoothstep(0.45, 0.2, steep) * (1.0 - smoothstep(320.0, 520.0, vW.y)) * smoothstep(-170.0, -120.0, vW.y + 40.0*vnoise(vW.xz*0.01));
         rock = mix(rock, (vec3(0.012, 0.03, 0.026) + vec3(0.04, 0.07, 0.07)*moon) * (0.8 + 0.4*vnoise(vW.xz*0.08)), meadow*0.8);
+        // V44: nasser, dunkler Felsfuß an der Wasserlinie
+        rock *= mix(0.45, 1.0, smoothstep(-1.4, 1.6, vW.y));
+        // V44: Gletscher: Eis in zwei Tälern (uGlacier: Winkel, Breitenfaktor, Uferabstand, an), mit Spalten
+        float gIce = 0.0;
+        { vec2 gp = vec2(vW.x, vW.z + 100.0); float gAng = atan(gp.x, -gp.y), gR = length(gp), gM = max(abs(gp.x), abs(gp.y));
+          for (int k = 0; k < 2; k++) { vec4 G = uGlacier[k]; if (G.w < 0.5) continue;
+            float lat = abs(gAng - G.x) * gR, W = (45.0 + max(0.0, gM - G.z - 30.0) * 0.12) * G.y;
+            gIce = max(gIce, smoothstep(W, W - 18.0, lat) * smoothstep(G.z - 14.0, G.z + 18.0, gM) * (1.0 - smoothstep(G.z + 820.0, G.z + 1000.0, gM))); } }
+        if (gIce > 0.001) {
+          float crev = smoothstep(0.8, 0.92, vnoise(vec2((vW.x - vW.z)*0.22, (vW.x + vW.z)*0.03))) + 0.5*smoothstep(0.86, 0.95, vnoise(vec2(vW.x*0.3, vW.z*0.05) + 3.0));
+          vec3 iceCol = (vec3(0.16, 0.3, 0.38) + vec3(0.45, 0.6, 0.72) * moon + uTeal * 0.12 * (0.5 + 0.5 * n.y)) * (1.0 - 0.7 * clamp(crev, 0.0, 1.0));
+          // Abbruchkante (steile Gletscherfront): dunkles, blaues Eis mit senkrechten Rinnen statt einer hellen Fläche (sah sonst wie ein Lichtstrahl aus)
+          float serac = 0.55 + 0.45 * vnoise(vec2((vW.x - vW.z) * 0.35, vW.y * 0.04));
+          iceCol = mix(iceCol, vec3(0.03, 0.08, 0.11) * serac + vec3(0.12, 0.18, 0.22) * moon * serac, smoothstep(0.35, 0.75, steep));
+          rock = mix(rock, iceCol, gIce * 0.95);
+        }
         float snowLine = 640.0 + 160.0*fbm(vW.xz*0.003) - 60.0*n0.y - uSnowCover * 520.0;
         float snow = smoothstep(snowLine - 50.0, snowLine + 30.0, vW.y + 40.0*(vnoise(vW.xz*0.05) - 0.5)) * smoothstep(0.86, 0.42, steep + 0.15*(vnoise(vW.xz*0.2) - 0.5));
         // V30: Schnee auch an den Klippen: liegt auf Bändern und Simsen der Felsschichten, in Rinnen und auf flacheren Stufen; nur die
@@ -1207,7 +1249,12 @@ export function buildMountains() {
         float crev = smoothstep(0.6, 0.8, fbm(vW.xz*0.02 + vW.y*0.004)) * smoothstep(0.98, 0.55, steep);
         snow = max(snow, (max(ledge, crev) * 0.85) * smoothstep(-160.0, -60.0, vW.y) * clamp(0.6 + uSnowCover, 0.0, 1.0));
         snow = max(snow, smoothstep(0.42, 0.18, steep) * smoothstep(0.35, 0.65, fbm(vW.xz*0.03) + uSnowCover * 0.5) * 0.75);
+        // V44: Eis- und Schneebänder in den Steilwänden (gefrorene Klippen der Polarnacht), den Schichten folgend
+        float bands = smoothstep(0.66, 0.86, vnoise(vec2(vW.y*0.16 + fbm(vW.xz*0.01)*5.0, (vW.x + vW.z)*0.02))) * smoothstep(0.35, 0.75, steep) * smoothstep(0.0, 8.0, vW.y);
+        snow = max(snow, bands * 0.75 * clamp(0.5 + uSnowCover, 0.0, 1.0));
         vec3 snowCol = vec3(0.16, 0.2, 0.27) + vec3(0.55, 0.62, 0.78)*pow(moon, 1.4) + uTeal*0.06;
+        snowCol += vec3(0.07, 0.26, 0.14) * uAurora * 0.45 * max(n.y, 0.0);   // V44: Polarlicht schimmert auf dem Schnee
+        snow *= 1.0 - 0.55 * gIce;   // auf dem Gletscher weht der Schnee ab, das Eis bleibt sichtbar
         vec3 col = mix(rock, snowCol, snow);
         // Stadtschein auf den Hängen, die zur Stadt zeigen
         vec3 toCity = normalize(vec3(-vW.x, 0.0, -vW.z));
@@ -1221,6 +1268,7 @@ export function buildMountains() {
   });
   mat.extensions.derivatives = true;
   const m = new T.Mesh(geo, mat); m.position.set(0, 0, -100); m.frustumCulled = false; scene.add(m);
+  MOUNT.geo = geo; MOUNT.mat = mat; MOUNT.mesh = m;
   // V33: die Dreiecke um die Villa bekommen ein eigenes Netz, das im Hausgrundriss verworfen wird (discard nur dort, nicht im ganzen Gelände)
   if (VILLA.y) {
     const ix = geo.index.array, P = pos.array, keep = [], cut = [];
@@ -1244,44 +1292,13 @@ export function buildMountains() {
     const info = terrainInfo(x, z);
     if (info.south > 0.3 || info.met < info.rim + VALLEY_W || Math.hypot(x - VILLA.x, z - VILLA.z) < VILLA.r + 30) continue;
     const y = terrainHeight(x, z);
-    if (y > 420 || y < WATER_Y + 3 || serpNear(x, z, 14)) continue;
+    if (y > 420 || y < WATER_Y + 3 || serpNear(x, z, 14) || (LAND_HOOK.avoid && LAND_HOOK.avoid(x, z))) continue;   // V44: nicht im Bach oder auf dem Gletscher
+    if (Math.abs(terrainHeight(x + 4, z) - y) > 2.6 || Math.abs(terrainHeight(x, z + 4) - y) > 2.6) continue;   // V44: nicht an Steilwänden (Tannen hingen in der Klippe)
     const sc = 0.8 + rnd() * 0.9;
     mm.makeScale(sc, sc, sc).setPosition(x, y, z); pm.setMatrixAt(np++, mm);
   }
   pm.count = np; pm.frustumCulled = false; scene.add(pm);
-  // Wasserfälle über den Felsabbruch
-  const wfMat = new T.ShaderMaterial({
-    uniforms: U, transparent: true, depthWrite: false, blending: T.AdditiveBlending, side: T.DoubleSide,
-    vertexShader: `varying vec2 vUv; varying float vD; void main(){ vUv = uv; vec4 mv = modelViewMatrix*vec4(position,1.0); vD = -mv.z; gl_Position = projectionMatrix*mv; }`,
-    fragmentShader: `uniform float uTime; uniform float uFogDensity; varying vec2 vUv; varying float vD;
-      float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7)))*43758.5453); }
-      float noise(vec2 p){ vec2 i=floor(p), f=fract(p); f=f*f*(3.0-2.0*f); return mix(mix(hash(i),hash(i+vec2(1,0)),f.x), mix(hash(i+vec2(0,1)),hash(i+vec2(1,1)),f.x), f.y); }
-      void main(){
-        float fall = noise(vec2(vUv.x*9.0, vUv.y*4.0 + uTime*1.4)) * noise(vec2(vUv.x*22.0 + 3.0, vUv.y*9.0 + uTime*2.2));
-        float edge = smoothstep(0.0, 0.18, vUv.x) * smoothstep(1.0, 0.82, vUv.x);
-        float mist = (1.0 - smoothstep(0.0, 0.35, vUv.y)) * 0.5;
-        float a = (0.25 + 1.3*fall) * edge * (0.55 + 0.45*vUv.y) + mist;
-        a *= exp(-uFogDensity*uFogDensity*vD*vD*0.3);
-        gl_FragColor = vec4(vec3(0.55, 0.85, 0.9) * a * 0.55, 1.0); }`,
-  });
-  // Wasserfälle stürzen vom Steilufer der Berge in den See
-  for (let k = 0; k < 11; k++) {
-    const ang = -Math.PI * 0.72 + (k + 0.5) / 11 * Math.PI * 1.44 + (rnd() - 0.5) * 0.12;
-    if (Math.abs(ang) < 0.08) continue;
-    const sx = Math.sin(ang), sz = -Math.cos(ang);
-    let r = 1000, top = 0;
-    for (; r < 2200; r += 2) if (terrainHeightRaw(sx * r, sz * r - 100) > 20) break;
-    let dTop = 0;
-    for (let d = 0; d < 80; d += 4) { const hh = terrainHeightRaw(sx * (r + d), sz * (r + d) - 100); if (hh > top && hh < 190) { top = hh; dTop = d; } }
-    const x = sx * (r - 4), z = sz * (r - 4) - 100;
-    if (Math.hypot(x - VILLA.x, z - VILLA.z) < VILLA.r + 60 || top < 40) continue;
-    // die Bahn folgt der Felswand: unten vor dem Fels, oben an der Kante
-    const w = 10 + rnd() * 14, h = top - WATER_Y, run = dTop + 4, len = Math.hypot(h, run);
-    const m = new T.Mesh(new T.PlaneGeometry(w, len), wfMat);
-    m.rotation.order = 'YXZ'; m.rotation.set(Math.atan2(run, h), Math.atan2(sx, sz), 0);
-    m.position.set(x + sx * run / 2, WATER_Y + h / 2, z + sz * run / 2); m.frustumCulled = false; m.renderOrder = 2; scene.add(m);
-    shafts.push({ x, z, y: WATER_Y, h: 40, w: w * 2.2, c: [0.4, 0.8, 0.85] });
-  }
+  // V44: die Wasserfälle baut jetzt landscape.js (buildLandscape): Bahn an der Felswand, Bachbett, Gischt, Schaum, Eis
   // ein paar Berghütten mit Lichtern an den Hängen
   const pts = [];
   for (let k = 0; k < 14; k++) {
