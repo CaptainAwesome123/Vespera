@@ -27,6 +27,7 @@ import { buildAtmosphere } from './atmosphere.js';
 import { setupLoose } from './physics.js';
 import { buildImperial, IMP } from './imperial.js';
 import { buildCarLights } from './carlight.js';
+import { buildSquareGround, setupWorkerLayer } from './workers.js';
 import { planLandscape, buildLandscape } from './landscape.js';   // V44: Klippenring, Wasserfälle, Gletscher, Eis
 
 /* =====================================================================
@@ -85,6 +86,7 @@ export async function build() {
   await step('buildVenues');
   buildGround();
   await step('buildGround');
+  buildSquareGround();   // V46: Kopfsteinpflaster auf dem Kneipenplatz im Arbeiterviertel
   buildSigns();
   await step('buildSigns');
   buildBridges();
@@ -171,6 +173,8 @@ export async function build() {
   await step('setupStreetLayers');
   setupDecoLayers();     // V38: Fassadenschmuck (Fächer, Friese, Zinnen, Vordächer, Dachreklame) als Chunk-Schichten
   await step('setupDecoLayers');
+  setupWorkerLayer();    // V46: Wäsche, Rohre und Kram in den Gassen der Arbeiterblöcke
+  await step('setupWorkerLayer');
   primeChunks();
   await step('primeChunks');
   buildPlayerModel();    // V24: der Spieler als Figur (Third-Person-Ansicht, Taste V)

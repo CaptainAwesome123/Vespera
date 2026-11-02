@@ -151,7 +151,7 @@ export function portMats() {
   return PM;
 }
 // Bausatz: Teile nach Material sammeln, am Ende je Material zu einem Mesh verschmelzen (Farbe pro Teil)
-export function kit() {
+export function kit(extra = null) {   // V46: extra = eigene Materialien (z. B. Backstein im Arbeiterviertel)
   const G = {};
   return {
     add(k, g, c = [1, 1, 1]) { (G[k] ||= []).push([g, c]); return g; },
@@ -162,7 +162,7 @@ export function kit() {
         const m = mergeGeos(geos), col = new Float32Array(m.attributes.position.count * 3); let o = 0;
         geos.forEach((g, i) => { const c = G[k][i][1]; for (let j = 0; j < g.attributes.position.count; j++) col.set(c, (o + j) * 3); o += g.attributes.position.count; });
         m.setAttribute('color', new T.BufferAttribute(col, 3));
-        const mesh = new T.Mesh(m, P[k]); if (k === 'glass') mesh.renderOrder = 3; parent.add(mesh); out.push(mesh);
+        const mesh = new T.Mesh(m, (extra && extra[k]) || P[k]); if (k === 'glass') mesh.renderOrder = 3; parent.add(mesh); out.push(mesh);
       }
       return out;
     },

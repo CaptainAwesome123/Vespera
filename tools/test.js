@@ -20,6 +20,8 @@ const SPOTS = [
   { name: 'ballsaal', p: [30, 0.26, -12], yaw: 0.6, pitch: 0.05 },                     // V33: Ballsaal mit neuer Ausstattung
   { name: 'auto', p: [0, 0.26, 120], yaw: 0, pitch: 0, car: true },                   // V39: Pierce Arrow nehmen und ein Stück fahren
   { name: 'penthouse', p: [0, 250, 17], yaw: 0, pitch: 0.05 },                       // V33: Alexanders Penthouse-Suite
+  { name: 'arbeiterplatz', p: [152, 0.26, -726], yaw: 0, pitch: 0.08 },                // V46: Kneipenplatz im Arbeiterviertel, The Brass Lantern
+  { name: 'kneipe', p: [158, 0.56, -746], yaw: 1.2, pitch: -0.05 },                   // V46: in der Brass Lantern
 ];
 (async () => {
   const b = await chromium.launch({ args: ['--use-gl=swiftshader', '--enable-webgl', '--ignore-gpu-blocklist', '--no-sandbox', '--enable-precise-memory-info'] });

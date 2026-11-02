@@ -7,6 +7,7 @@ import { driveExit } from './driving.js';
 import { toast } from './boat.js';
 import { playing, paused, isTouch } from './input.js';
 import { SND, audioCtx, audioBus, toggleSound, soundMuted, updateSound } from './audio.js';
+import { VENUES } from './venues.js';
 
 /* =====================================================================
    MUSIK: sanfte Akkorde über Web Audio (nur nach Klick)
@@ -48,6 +49,7 @@ export function scheduleJazz(a) {
   if (a.jazz.gain.value < 0.002 && a.jazzTarget < 0.002) { a.next = 0; return; }
   const spb = 60 / 138;
   if (!a.next || a.next < ctx.currentTime) a.next = ctx.currentTime + 0.05;
+  if (a.pub) { scheduleStride(a); return; }   // V46: in der Brass Lantern spielt ein verstimmtes Kneipenklavier
   while (a.next < ctx.currentTime + 0.25) {
     const t = a.next, b = a.beat, bar = Math.floor(b / 4) % 8, bi = b % 4;
     const [root, q] = PROG[bar], tones = CHORD[q];
@@ -73,6 +75,29 @@ export function scheduleJazz(a) {
         jzLead(a, mtof(a.mel), t + spb * sub, spb * (sub ? 0.34 : 0.66) * (R() < 0.3 ? 2 : 1));
       }
       if (R() < 0.05) a.rest = 4 + Math.floor(R() * 4);
+    }
+    a.next += spb; a.beat++;
+  }
+}
+// V46: Kneipenklavier (Stride/Ragtime): links Bass und Akkord im Wechsel, rechts eine einfache, synkopierte Melodie;
+// jeder Melodieton doppelt und leicht gegeneinander verstimmt, so klingt es nach Honky-Tonk
+export const RAG = [[48, 'M'], [48, 'M'], [45, '7'], [45, '7'], [50, '7'], [43, '7'], [48, 'M'], [43, '7']];
+export const RAGC = { M: [0, 4, 7, 12], '7': [0, 4, 7, 10] };
+export function scheduleStride(a) {
+  const ctx = a.ctx, spb = 60 / 112;
+  while (a.next < ctx.currentTime + 0.25) {
+    const t = a.next, b = a.beat, bar = Math.floor(b / 4) % 8, bi = b % 4, [root, q] = RAG[bar], ch = RAGC[q];
+    if (bi % 2 === 0) jzTone(a, mtof(root - 12 + (bi === 2 ? 7 : 0)), t, 0.4, 'triangle', 0.34, 900);
+    else for (const iv of ch.slice(1)) jzTone(a, mtof(root + iv), t, 0.22, 'triangle', 0.055, 2200);
+    if (a.rest > 0) a.rest--;
+    else for (const sub of [0, 0.62]) {
+      if (R() > (sub ? 0.45 : 0.78)) continue;
+      const pool = ch.map(v => root + 12 + v).concat(ch.map(v => root + 24 + v));
+      let best = pool[0]; for (const n of pool) if (Math.abs(n - a.mel - (R() - 0.5) * 7) < Math.abs(best - a.mel)) best = n;
+      a.mel = Math.max(67, Math.min(88, best + (R() < 0.12 ? -1 : 0)));
+      const f = mtof(a.mel), d = spb * (sub ? 0.35 : 0.6);
+      jzTone(a, f, t + spb * sub, d * 1.6, 'triangle', 0.075, 3400); jzTone(a, f * 1.009, t + spb * sub, d * 1.3, 'square', 0.014, 1900);
+      if (R() < 0.04) a.rest = 2 + Math.floor(R() * 3);
     }
     a.next += spb; a.beat++;
   }
@@ -112,8 +137,18 @@ export function updateAudio(dt) {
   if (inBall) { const d = Math.hypot(p.x - BAND_AT.x, p.y - BAND_AT.y, p.z - BAND_AT.z); jz = Math.min(1, 0.32 + 9 / (6 + d)); cut = 9000 - Math.min(5500, d * 110); }
   else if (inLobby) { jz = 0.4; cut = 800 + Math.max(0, 12 - p.z) * 40; }
   else if (Math.hypot(p.x, p.z) < 70 && p.y < 40 && !SND.salonOn) { jz = 0.12; cut = 450; }
+  // V46: Klavier in der Brass Lantern; draußen am Platz hört man es gedämpft durch die offene Tür
+  const PV = VENUES.find(V => V.kind === 'bar');
+  let pub = false;
+  if (PV && !inBall && !inLobby) {
+    const inPub = p.x > PV.x0 && p.x < PV.x1 && p.z > PV.z0 && p.z < PV.z1 + 0.3 && p.y < PV.F + 4.5;
+    const dDoor = Math.hypot(p.x - (PV.x0 + PV.x1) / 2, p.z - PV.z1);
+    if (inPub) { const d = Math.hypot(p.x - (PV.x1 - 1.5), p.z - (PV.z1 - 3)); jz = Math.min(0.85, 0.3 + 6 / (5 + d)); cut = 5200; pub = true; }
+    else if (dDoor < 28 && p.y < 12) { jz = 0.2 * (1 - dDoor / 28); cut = 700; pub = true; }
+  }
   if (jz > 0.4 && soundMuted() && !bandHint && playing) { bandHint = true; toast('Die Band spielt · M schaltet den Ton ein'); }
   if (!audio) return;
+  if (audio.pub !== pub) { audio.pub = pub; audio.next = 0; }
   const t = audio.ctx.currentTime;
   audio.jazzTarget = jz;
   audio.jazz.gain.setTargetAtTime(jz, t, 0.6);
