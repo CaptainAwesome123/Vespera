@@ -1,4 +1,5 @@
 import { U, T, mulberry32, canvasTex, mergeGeos, geoView, pick, R, scene, camera, fogHideDist } from './core.js';
+import { tearTag, tearWrap } from './tear.js';
 import { wantTexture } from './assets.js';
 import { stdMat, ENV, addCollider } from './people-skeleton.js';
 import { addNeon, NEON, lamps, addGlow, addSeg } from './facade-shader.js';
@@ -154,11 +155,11 @@ export function portMats() {
 export function kit(extra = null) {   // V46: extra = eigene Materialien (z. B. Backstein im Arbeiterviertel)
   const G = {};
   return {
-    add(k, g, c = [1, 1, 1]) { (G[k] ||= []).push([g, c]); return g; },
+    add(k, g, c = [1, 1, 1]) { (G[k] ||= []).push([tearTag(g, k), c]); return g; },   // V54: solange ein Ausreiß-Stück begonnen ist, wird die Form markiert
     build(parent) {
       const P = portMats(), out = [];
       for (const k in G) {
-        const geos = G[k].map(([g]) => { g = !g.attributes.normal && g.index ? g.toNonIndexed() : geoView(g); if (!g.attributes.uv) g.setAttribute('uv', new T.BufferAttribute(new Float32Array(g.attributes.position.count * 2), 2)); if (!g.attributes.normal) g.computeVertexNormals(); return g; });
+        const geos = G[k].map(([g]) => { if (!g.attributes.normal && g.index) { const ud = g.userData; g = g.toNonIndexed(); g.userData = ud; } else g = geoView(g); if (!g.attributes.uv) g.setAttribute('uv', new T.BufferAttribute(new Float32Array(g.attributes.position.count * 2), 2)); if (!g.attributes.normal) g.computeVertexNormals(); return g; });
         const m = mergeGeos(geos), col = new Float32Array(m.attributes.position.count * 3); let o = 0;
         geos.forEach((g, i) => { const c = G[k][i][1]; for (let j = 0; j < g.attributes.position.count; j++) col.set(c, (o + j) * 3); o += g.attributes.position.count; });
         m.setAttribute('color', new T.BufferAttribute(col, 3));
@@ -587,11 +588,11 @@ export function buildPort() {
     }
     x = g1;
   }
-  for (let px = QX[0] + 10; px <= QX[1] - 18; px += 15) if (!QUAY_GAPS.some(([a, b]) => px > a - 3 && px < b + 3)) { K.add('iron', lathe([[0.2, 0], [0.17, 0.08], [0.13, 0.4], [0.2, 0.48], [0.22, 0.55], [0, 0.58]], 12).translate(px + 7.5, 0.25, z1 - 1.3)); addCollider(px + 7.3, 0, z1 - 1.5, px + 7.7, 0.8, z1 - 1.1); }
+  for (let px = QX[0] + 10; px <= QX[1] - 18; px += 15) if (!QUAY_GAPS.some(([a, b]) => px > a - 3 && px < b + 3)) { tearWrap('poller:' + px, { name: 'Poller', m: 90, stuff: 'metal', kind: 'cyl' }, () => K.add('iron', lathe([[0.2, 0], [0.17, 0.08], [0.13, 0.4], [0.2, 0.48], [0.22, 0.55], [0, 0.58]], 12).translate(px + 7.5, 0.25, z1 - 1.3))); addCollider(px + 7.3, 0, z1 - 1.5, px + 7.7, 0.8, z1 - 1.1); }   // V54: ausreißbar
   for (let px = QX[0] + 20; px <= QX[1] - 20; px += 60) for (let k = 0; k < 9; k++) K.add('iron', new T.BoxGeometry(0.5, 0.03, 0.03).translate(px, -0.2 - k * 0.3, z1 + 0.05));
   // Bänke zum Wasser hin
   for (let px = QX[0] + 15; px <= QX[1] - 15; px += 32) if (!QUAY_GAPS.some(([a, b]) => px > a - 6 && px < b + 6)) {
-    benchGeo(K, 2.0, px, 0.25, z1 - 3.0, 0); addCollider(px - 1, 0, z1 - 3.3, px + 1, 0.45, z1 - 2.7);
+    tearWrap('kaibank:' + px, { name: 'Bank', m: 55, stuff: 'wood', seat: true }, () => benchGeo(K, 2.0, px, 0.25, z1 - 3.0, 0)); addCollider(px - 1, 0, z1 - 3.3, px + 1, 0.45, z1 - 2.7);   // V54: ausreißbar (nicht, wenn jemand sitzt)
     if (Math.abs(px) < 800 && R() < 0.4) { const m = []; for (const dx of R() < 0.5 ? [-0.4, 0.4] : [(R() - 0.5) * 1.2]) m.push({ st: 4, x: px + dx, y: 0.69, z: z1 - 3.02, yaw: dx > 0 ? -0.25 : 0.25, sc: 0.92 + R() * 0.14, v: 0, sit: true, act: 7.8 }); PORT_PEDS.push(...m); if (m.length > 1) CHATS.push({ m, t: R() * 3, sit: true, x: px, z: z1 - 3 }); }
   }
 

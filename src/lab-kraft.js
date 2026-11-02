@@ -13,8 +13,12 @@ import { Crowd, COATS, DRESSES, GOWNS, turnHead, setAct } from './serpentine.js'
 import { buildPlayerModel, PM } from './player-model.js';
 import { PL_U } from './people-skeleton.js';
 import { FURN, placeFurn, movOn, movOff, MOV } from './entrances.js';
-import { LOOSE, furnBody, spawnProp, updateLoose } from './physics.js';
+import { LOOSE, furnBody, spawnProp, updateLoose, tearBody, treeBody } from './physics.js';
 import { player } from './player.js';
+import { kit, benchGeo, Bx } from './harbour.js';
+import { tearWrap, TEAR, tearStats } from './tear.js';
+import { trees } from './facade-shader.js';
+import { buildTrees, TREE_SETS, updateTreeLod } from './serpentine.js';
 
 export const KLAB = { crowd: null, t: null, bodies: [] };
 export function startKraftLab(params) {
@@ -53,6 +57,21 @@ export function startKraftLab(params) {
   lift(7, -1.6, 1.6, Z + 4.2, 0.5, -0.3);   // ein Stuhl
   // ein paar lose Dinge der Straße (neue Arten)
   for (const [k, x, z] of [['barrel', -7.5, Z + 3.5], ['dustbin', -6.5, Z + 3.8], ['coalsack', -5.6, Z + 3.4], ['milkcan', -4.8, Z + 3.9], ['trunk', -7.2, Z + 5.2], ['lantern', -5.9, Z + 5.0], ['bucket', -5.0, Z + 5.2], ['signboard', -8.2, Z + 5.0], ['winecrate', -4.0, Z + 5.3]]) { const Bd = spawnProp(k, x, 0, z, 0.3); if (Bd) { Bd.awake = false; } }
+  // ---- V54: Ausreißen. Rechts eine Reihe fester Stücke aus dem Bausatz (Bank, Poller, Fass mit Platte, Kistenstapel), eine Bank und
+  //      der Poller sind herausgerissen (eigener Körper, schweben schräg); dazu zwei Bäume, eine Platane ist herausgerissen ----
+  const RX = 12, RZ = Z + 2, K = kit();
+  const lamp2 = new T.PointLight(0xffc27a, 2.6, 22, 1.5); lamp2.position.set(RX + 4, 4.5, RZ + 3); scene.add(lamp2);
+  tearWrap('lab:bank', { name: 'Bank', m: 55, stuff: 'wood', seat: true }, () => benchGeo(K, 2.0, RX, 0, RZ, 0));
+  tearWrap('lab:bank2', { name: 'Bank', m: 55, stuff: 'wood', seat: true }, () => benchGeo(K, 2.0, RX + 3, 0, RZ, 0));
+  tearWrap('lab:poller', { name: 'Poller', m: 90, stuff: 'metal', kind: 'cyl' }, () => K.add('iron', new T.LatheGeometry([[0.2, 0], [0.17, 0.08], [0.13, 0.4], [0.2, 0.48], [0.22, 0.55], [0, 0.58]].map(([r, y]) => new T.Vector2(r, y)), 12).translate(RX + 5, 0, RZ)));
+  tearWrap('lab:fass', { name: 'Stehtisch-Fass', m: 65, stuff: 'wood', kind: 'cyl' }, () => { K.add('plank', new T.CylinderGeometry(0.34, 0.3, 0.9, 14).translate(RX + 6.5, 0.45, RZ), [0.55, 0.38, 0.24]); K.add('plank', new T.CylinderGeometry(0.42, 0.42, 0.05, 14).translate(RX + 6.5, 0.93, RZ), [0.42, 0.28, 0.18]); });
+  tearWrap('lab:kisten', { name: 'Kistenstapel', m: 40, stuff: 'wood' }, () => { for (let k = 0; k < 3; k++) K.add('plank', Bx(0.6, 0.45, 0.6, RX + 8, 0.225 + k * 0.45, RZ + (k % 2) * 0.05, 1), [0.5, 0.38, 0.26]); });
+  K.build(scene);
+  const torn = (key, x, y, z, rx, rz) => { const e = TEAR.map.get(key), Bd = tearBody(e); if (!Bd || Bd === 'sit') { console.warn('Labor: Ausreißen fehlt', key, Bd); return; } Bd.x.set(x, y, z); Bd.q.setFromEuler(new T.Euler(rx, 0.4, rz)); Bd.awake = false; Bd.v.set(0, 0, 0); Bd.w.set(0, 0, 0); KLAB.bodies.push(Bd); };
+  torn('lab:bank', RX, 2.0, RZ + 2.5, 0.4, 0.3);
+  torn('lab:poller', RX + 5, 1.6, RZ + 2.5, 1.1, 0.2);
+  trees.length = 0; trees.push({ x: RX + 2, z: RZ - 6, y: 0, s: 0.9, sp: 'plane' }, { x: RX + 9, z: RZ - 6, y: 0, s: 0.8, sp: 'linden' }, { x: RX - 3, z: RZ - 7, y: 0, s: 1.0, sp: 'cyp' });
+  try { buildTrees(); const st = TREE_SETS.find(s => s.sp === 'plane'); const Bd = st && treeBody(st, st.pts[0]); if (Bd) { Bd.x.set(RX + 2, 6.5, RZ - 2); Bd.q.setFromEuler(new T.Euler(0.9, 0.3, 0.35)); Bd.awake = false; Bd.v.set(0, 0, 0); Bd.w.set(0, 0, 0); KLAB.bodies.push(Bd); } else console.warn('Labor: Baum fehlt'); } catch (e) { console.warn('Labor: Bäume', e); }
   // ---- Leute, die staunen (Posen aus awe.js), schauen alle zum Spieler ----
   const C = KLAB.crowd = new Crowd(['tux', 'gown', 'dress', 'suit', 'lady', 'worker', 'coat', 'furcoat'], 24);
   const look = (face, tone, hair, hat = 2, style = 0) => face + 64 * tone + 320 * hair + 7680 * hat + 23040 * style;
@@ -77,11 +96,12 @@ export function startKraftLab(params) {
     reihe: [[-2.5, 1.4, -0.5], [-2.5, 0.6, Z + 3]], dinge: [[-6, 1.6, 2.5], [-6, 0.5, Z + 4.4]],
     staunen: [[0, 1.6, 4.8], [0, 1.1, 0]], staunenlinks: [[-2.2, 1.5, 3.2], [-2.2, 1.1, 0]], staunenrechts: [[2.4, 1.5, 3.2], [2.4, 1.0, 0]], hut: [[0.6, 1.65, 2.2], [0.6, 1.3, 0]], verbeugung: [[3.4, 1.3, 2.0], [1.8, 0.9, 0]],
     spieler: [[0.8, 1.6, 6.4], [0, 1.0, 4]], alles: [[0, 3.5, 9], [0, 0.8, -2]],
+    reissen: [[RX + 4, 3.2, RZ + 11], [RX + 4, 2.2, RZ - 2]], reissennah: [[RX + 1.5, 1.8, RZ + 5.5], [RX + 2.5, 1.2, RZ + 1]], baum: [[RX - 2, 5, RZ + 7], [RX + 2, 5, RZ - 3]], baumseite: [[RX - 9, 2.5, RZ - 2], [RX + 2, 5.5, RZ - 2]],
   };
   KLAB.t = params.get('t') != null ? +params.get('t') : null;
   window.labView = name => { const v = V[name] || V.alles; camera.position.set(...v[0]); camera.lookAt(...v[1]); C.flag(); };
   window.labTime = t => { KLAB.t = t; };
-  window.labStats = () => ({ mov: MOV.list.length, taken: MOV.list.filter(e => e.taken).length, bodies: LOOSE.bodies.length, meshes: LOOSE.bodies.filter(b => b.mesh).length, ranges: MOV.list.reduce((s, e) => s + e.ranges.length, 0) });
+  window.labStats = () => ({ mov: MOV.list.length, taken: MOV.list.filter(e => e.taken).length, bodies: LOOSE.bodies.length, meshes: LOOSE.bodies.filter(b => b.mesh).length, tear: tearStats(), ranges: MOV.list.reduce((s, e) => s + e.ranges.length, 0) });
   window.labView(params.get('view') || 'alles');
   $('overlay').hidden = true;
   for (const h of document.querySelectorAll('.hud, .touch')) h.style.display = 'none';
@@ -89,7 +109,7 @@ export function startKraftLab(params) {
   const loop = now => {
     U.uTime.value = KLAB.t != null ? KLAB.t : (now - t0) / 1000; U.uCam.value.copy(camera.position);
     C.flag(); if (PM.mesh) PM.update(0);
-    try { updateLoose(1 / 60); } catch (e) { /* nur zeichnen */ }
+    try { updateLoose(1 / 60); updateTreeLod(1 / 60); } catch (e) { /* nur zeichnen */ }
     renderer.render(scene, camera);
     window.labFrames = (window.labFrames || 0) + 1;
     requestAnimationFrame(loop);

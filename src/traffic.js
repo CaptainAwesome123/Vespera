@@ -13,6 +13,7 @@ import { DRIVE } from './eating.js';
 import { buildFX } from './particles.js';
 import { buildFlags, buildLeaves } from './wind.js';
 import { paused } from './input.js';
+import { tearInst } from './tear.js';
 import { CARM, CARM_PAINT, isModelCar, modelCarMeshes } from './carmodel.js';
 
 /* =====================================================================
@@ -567,7 +568,11 @@ export function buildTrams() {
   const bm = new T.Mesh(mergeGeos(beds), bedM); bm.frustumCulled = false; scene.add(bm);
   const pole = mergeGeos([new T.CylinderGeometry(0.1, 0.16, 7, 8).translate(0, 3.5, 0), new T.SphereGeometry(0.2, 8, 6).translate(0, 7.05, 0), new T.CylinderGeometry(0.22, 0.22, 0.5, 8).translate(0, 0.25, 0)]);
   const pm = new T.InstancedMesh(pole, MAT.brass, poles.length / 2);
-  for (let i = 0; i < poles.length / 2; i++) pm.setMatrixAt(i, _m.makeTranslation(poles[i * 2], 0.2, poles[i * 2 + 1]));
+  for (let i = 0; i < poles.length / 2; i++) {
+    const px = poles[i * 2], pz = poles[i * 2 + 1], m0 = _m.makeTranslation(px, 0.2, pz).clone(); pm.setMatrixAt(i, m0);
+    // V54: Masten ausreißbar (die Fahrdrähte bleiben hängen); eigenes Netz aus derselben Form, Mitte in halber Höhe
+    tearInst('mast:' + px.toFixed(0) + ',' + pz.toFixed(0), { name: 'Oberleitungsmast', m: 260, stuff: 'metal', kind: 'cyl' }, { x: px, y: 0.2, z: pz, he: [0.22, 3.6, 0.22], cy: 3.6, ims: [[pm, i]], m0, mesh: () => new T.Mesh(pole.clone().translate(0, -3.6, 0), MAT.brass) });
+  }
   pm.frustumCulled = false; scene.add(pm);
   const wl = new T.LineSegments(new T.BufferGeometry().setAttribute('position', new T.Float32BufferAttribute(wire, 3)), new T.LineBasicMaterial({ color: 0x3a3a3a }));
   wl.frustumCulled = false; scene.add(wl);

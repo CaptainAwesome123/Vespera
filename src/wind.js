@@ -6,6 +6,7 @@ import { COL } from './serpentine.js';
 import { _m, _p, _q, _s } from './traffic.js';
 import { DRIVE } from './eating.js';
 import { paused } from './input.js';
+import { tearInst } from './tear.js';
 import { audioCtx, audioBus } from './audio.js';
 
 /* =====================================================================
@@ -136,11 +137,21 @@ export function buildFlags() {
   const im = new T.InstancedMesh(cloth, mat, n), c = new T.Color();
   const poleG = mergeColored([[new T.CylinderGeometry(0.05, 0.08, 1, 8).translate(0, 0.5, 0), [0.75, 0.7, 0.62]], [new T.SphereGeometry(0.11, 10, 8).translate(0, 1.0, 0), COL.gold]]);
   const pm = new T.InstancedMesh(poleG, paintMat({ color: 0xffffff, metalness: 0.6, roughness: 0.35, envI: 0.8 }), n);
+  const poleMat = pm.material;
   FLAGS.forEach((f, i) => {
     im.setMatrixAt(i, _m.compose(_p.set(f.x, f.y + f.pole - 0.15, f.z), _q.identity(), _s.setScalar(f.s)));
     im.setColorAt(i, c.setRGB(...f.c));
-    pm.setMatrixAt(i, _m.compose(_p.set(f.x, f.y, f.z), _q.identity(), _s.set(1, f.pole, 1)));
-    if (f.y < 1) addCollider(f.x - 0.1, f.y, f.z - 0.1, f.x + 0.1, f.y + f.pole, f.z + 0.1);
+    const m0 = _m.compose(_p.set(f.x, f.y, f.z), _q.identity(), _s.set(1, f.pole, 1)).clone(); pm.setMatrixAt(i, m0);
+    if (f.y < 1) {
+      addCollider(f.x - 0.1, f.y, f.z - 0.1, f.x + 0.1, f.y + f.pole, f.z + 0.1);
+      // V54: Fahnenmasten am Boden ausreißbar: Mast und Tuch werden zu einem Körper (das Tuch weht weiter, als Instanz mit Farbe)
+      const H = f.pole, cy = H / 2, col = new T.Color(...f.c);
+      tearInst('fahne:' + f.x.toFixed(0) + ',' + f.z.toFixed(0), { name: 'Fahnenmast', m: 30 + 6 * H, stuff: 'metal', kind: 'cyl' }, { x: f.x, y: f.y, z: f.z, he: [0.12, cy, 0.12], cy, ims: [[im, i], [pm, i]], m0, mesh: () => {
+        const mesh = new T.Mesh(poleG.clone().scale(1, H, 1).translate(0, -cy, 0), poleMat);
+        const fl = new T.InstancedMesh(cloth, mat, 1); fl.setMatrixAt(0, new T.Matrix4().compose(new T.Vector3(0, H - 0.15 - cy, 0), new T.Quaternion(), new T.Vector3(f.s, f.s, f.s))); fl.setColorAt(0, col); fl.frustumCulled = false; mesh.add(fl);
+        return mesh;
+      } });
+    }
   });
   im.frustumCulled = pm.frustumCulled = false; scene.add(im, pm);
 }
