@@ -224,7 +224,7 @@ export function mergeGeos(geos) {
   const movs = [];
   for (const g of geos) {
     const c = g.attributes.position.count;
-    if (g.userData && g.userData.mov) movs.push([g.userData.mov, o, c]);   // V52: bewegliche Möbel merken sich ihren Eckenbereich
+    if (g.userData && g.userData.mov) movs.push([g.userData.mov, o, c, oi, g.index ? g.index.count : c]);   // V52: bewegliche Möbel merken sich ihren Eckenbereich (V54: auch den Indexbereich)
     putAttr(pos, g.attributes.position, o, 3);
     putAttr(nor, g.attributes.normal, o, 3);
     if (g.attributes.uv) putAttr(uv, g.attributes.uv, o, 2);
@@ -233,7 +233,7 @@ export function mergeGeos(geos) {
     o += c;
   }
   const m = new T.BufferGeometry();
-  for (const [mv, o2, c2] of movs) mv.e.ranges.push({ geo: m, role: mv.role, key: mv.key, o: o2, c: c2 });
+  for (const [mv, o2, c2, io, ic] of movs) mv.e.ranges.push({ geo: m, role: mv.role, key: mv.key, o: o2, c: c2, io, ic });
   m.setAttribute('position', new T.BufferAttribute(pos, 3));
   m.setAttribute('normal', new T.BufferAttribute(nor, 3));
   m.setAttribute('uv', new T.BufferAttribute(uv, 2));

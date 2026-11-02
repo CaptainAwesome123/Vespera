@@ -2297,11 +2297,20 @@ export function buildTrees() {
     const list = bySp[sp], G = treeGeos(sp), n = list.length;
     const mk = (geo, mat, tint) => { const im = new T.InstancedMesh(geo, mat, n); im.frustumCulled = false; im.count = 0; im.instanceMatrix.setUsage(T.DynamicDrawUsage); if (tint) { for (let i = 0; i < n; i++) im.setColorAt(i, c); im.userData.tint = true; } scene.add(im); return im; };
     const hi = [mk(G.bark, barkMat), mk(G.blobs, blobMat, true), mk(G.cards, leafMat, true)], lo = [mk(G.lo, loMat, true)];
-    const pts = list.map(t => { q.setFromAxisAngle(up, rr() * 6.28); const s = t.s * (sp === 'cyp' ? 1.0 : 1.1); m.compose(new T.Vector3(t.x, t.y ?? 0.25, t.z), q, new T.Vector3(s, s * (0.9 + rr() * 0.2), s)); return { x: t.x, z: t.z, m: m.clone(), c: new T.Color().setHSL(0.25 + rr() * 0.1, 0.3 + rr() * 0.25, sp === 'cyp' ? 0.32 : 0.4 + rr() * 0.2) }; });
-    TREE_SETS.push({ hi, lo, pts });
+    const pts = list.map(t => { q.setFromAxisAngle(up, rr() * 6.28); const s = t.s * (sp === 'cyp' ? 1.0 : 1.1); m.compose(new T.Vector3(t.x, t.y ?? 0.25, t.z), q, new T.Vector3(s, s * (0.9 + rr() * 0.2), s)); return { x: t.x, z: t.z, y: t.y ?? 0.25, m: m.clone(), c: new T.Color().setHSL(0.25 + rr() * 0.1, 0.3 + rr() * 0.25, sp === 'cyp' ? 0.32 : 0.4 + rr() * 0.2), taken: false }; });
+    // V54: Mats und Formen merken, damit die Telekinese einen Baum als eigenen Körper herausreißen kann (physics.js treeBody)
+    const bb = new T.Box3(); for (const g of [G.bark, G.blobs, G.cards]) { g.computeBoundingBox(); bb.union(g.boundingBox); }
+    TREE_SETS.push({ hi, lo, pts, sp, G, bb, mats: { bark: barkMat, blobs: blobMat, cards: leafMat } });
   }
   updateTreeLod(1);
 }
+// V54: nahe Bäume, die noch stehen: [Satz, Baum]; treeDirty() lässt die Instanzen im nächsten Bild neu verteilen
+export function treeNear(x, z, r) {
+  const out = [];
+  for (const st of TREE_SETS) for (const p of st.pts) if (!p.taken && (p.x - x) ** 2 + (p.z - z) ** 2 < r * r) out.push([st, p]);
+  return out;
+}
+export function treeDirty() { treeTimer = 0; TREE_CAP.v = -1; }
 export function updateTreeLod(dt) {
   if ((treeTimer -= dt) > 0 && TREE_CAP.v === FOGVIS.cap) return;
   treeTimer = 0.3; TREE_CAP.v = FOGVIS.cap;
@@ -2309,6 +2318,7 @@ export function updateTreeLod(dt) {
   for (const st of TREE_SETS) {
     let a = 0, b = 0;
     st.pts.forEach((p, i) => {
+      if (p.taken) return;   // V54: herausgerissen
       const d2 = (p.x - cp.x) ** 2 + (p.z - cp.z) ** 2;
       if (d2 < D2) { for (const im of st.hi) { im.setMatrixAt(a, p.m); if (im.userData.tint) im.setColorAt(a, p.c); } a++; }
       else if (d2 < F2) { st.lo[0].setMatrixAt(b, p.m); st.lo[0].setColorAt(b, p.c); b++; }
