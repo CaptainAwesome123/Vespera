@@ -62,11 +62,12 @@ export function setupStreetLayers() {
     build(cx, cz, lod) {
       if (lod > 0) return null;
       const g = new T.Group(), cc = new T.Color();
-      const colored = (p, i, im) => { im.setMatrixAt(i, p.m); im.setColorAt(i, cc.setRGB(...p.c)); };
+      // V52: p._im/_i merken sich die Instanz (Telekinese nimmt das Stück heraus: p.taken, Instanz auf 0)
+      const colored = (p, i, im) => { im.setMatrixAt(i, p.m); im.setColorAt(i, cc.setRGB(...p.c)); p._im = im; p._i = i; };
       for (const k in F.out) {
-        const list = F.out[k].filter(p => inCell(p, cx, cz, STREET_CELL)); if (!list.length) continue;
+        const list = F.out[k].filter(p => !p.taken && inCell(p, cx, cz, STREET_CELL)); if (!list.length) continue;
         const bk = props.baked[k];
-        if (bk) { g.add(instanced(bk.geo, bk.material || propsMat(), list, (p, i, im) => { im.setMatrixAt(i, p.m); im.setColorAt(i, cc.setRGB(...p.c)); }, true)); continue; }
+        if (bk) { g.add(instanced(bk.geo, bk.material || propsMat(), list, colored, true)); continue; }
         if (k === 'column') { g.add(instanced(F.colGeo, F.posterMat, list, (p, i, im) => im.setMatrixAt(i, p.m))); g.add(instanced(F.colParts, F.mat, list, colored, true)); continue; }
         g.add(instanced(F.TYPES[k], F.mat, list, colored, true));
         if (k === 'clock') g.add(instanced(F.faces, F.faceMat, list, (p, i, im) => im.setMatrixAt(i, p.m)));

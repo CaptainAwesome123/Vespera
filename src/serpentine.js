@@ -2750,7 +2750,7 @@ export function pedSocial(dt) {
   for (const c of CHATS) {
     if (c.share || (c.x - cp.x) ** 2 + (c.z - cp.z) ** 2 > 140 * 140 || (c.t -= dt) > 0) continue;
     const n = c.m.length, spk = Math.floor(Math.random() * n), laugh = Math.random() < 0.16, base = c.sit ? 7 : 0;
-    c.m.forEach((pd, i) => { if (!pd.a) return; let v;
+    c.m.forEach((pd, i) => { if (!pd.a || pd.aw) return; let v;   // V52: wer gerade Alexander zuschaut, redet nicht weiter
       if (laugh) v = c.sit ? 7.3 : 2.6 + i * 0.05;
       else if (i === spk) v = base + 0.9;
       else { const r = Math.random(); v = c.sit ? (r < 0.3 ? 11.4 : 7.2) : (r < 0.5 ? 1.6 : r < 0.65 ? 5.6 : r < 0.8 ? 15.5 : r < 0.88 ? 16.5 : 0.3); }

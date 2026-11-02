@@ -8,9 +8,14 @@
      C sinkt, Shift schneller. Nahe am Boden sinken landet. Von hinten (V)
      sieht man die Figur im Flug: im Stand schwebend, im schnellen Flug
      waagrecht, V47: beide Arme gestreckt nach hinten.
-   - Telekinese: T (oder rechte Maustaste halten) packt, worauf man schaut,
-     bis 120 m weit: lose Dinge jeden Gewichts und Wagen. Mausrad näher und
-     weiter, Klick schleudert, T / rechte Maustaste loslassen lässt fallen.
+   - Telekinese: rechte Maustaste (oder T) packt, worauf man schaut, bis
+     120 m weit: lose Dinge jeden Gewichts, Wagen, Menschen und seit V52 auch
+     die Möbel der Räume (Sofas, Sessel, Stühle, Tische, Lampen) und das
+     Straßenmobiliar (Bänke, Papierkörbe, Hydranten, Briefkästen, Kübel).
+     Mausrad näher und weiter, Linksklick schleudert, rechte Maustaste
+     (oder T) noch einmal lässt fallen.
+   - V52: die Leute reagieren (awe.js): sie bleiben stehen, schauen, staunen,
+     ziehen den Hut, klatschen, verbeugen sich.
    - Unverwundbar: Wagen prallen an ihm ab und verbeulen, ein Sturz aus
      jeder Höhe endet in einer Landung, die den Schnee aufwirbelt.
    Sichtbar wird der Kristall nur leise: ein türkiser Schimmer um das, was er
@@ -18,10 +23,11 @@
    ===================================================================== */
 import { T, camera, scene, canvasTex } from './core.js';
 import { player } from './player.js';
-import { LOOSE, bumpSound } from './physics.js';
+import { LOOSE, bumpSound, movNear, movWorld, furnInfo, furnBody, streetNear, streetBody } from './physics.js';
+import { aweBurst, AWE } from './awe.js';
 import { BODIES, looseFromTraffic, looseFromParked, impulse, crashDamage } from './driving.js';
 import { TRF } from './traffic.js';
-import { parked, peds, turnHead } from './serpentine.js';
+import { parked, peds } from './serpentine.js';
 import { fxEmit } from './particles.js';
 import { toast, BOAT } from './boat.js';
 import { DRIVE } from './eating.js';
@@ -55,6 +61,7 @@ function launch(ground) {
     shockRing(p.x, p.y, p.z, 4.5, 0.6);
     POWERS.shake = Math.min(1.2, POWERS.shake + 0.3); bumpSound('wood', 0.5, 160);
   }
+  aweBurst('takeoff', 32);   // V52
 }
 // V35: in der Hocke vor dem Abheben hält player.js ihn am Boden
 export function takeoffHold() { const T0 = POWERS.takeoff; return !!T0 && !T0.launched; }
@@ -93,10 +100,7 @@ export function superLanding(vImpact) {
     B.awake = true; B.still = 0; B.v.x += dx / (d || 1) * f; B.v.z += dz / (d || 1) * f; B.v.y += f * 0.45;
     B.w.set((Math.random() - 0.5) * 6, (Math.random() - 0.5) * 6, (Math.random() - 0.5) * 6);
   }
-  for (const pd of peds) {
-    if (!pd.a || !pd.a.on || pd.rag) continue;
-    const e = pd.a.m.elements; if ((e[12] - p.x) ** 2 + (e[14] - p.z) ** 2 < (R * 2.5) ** 2 && Math.abs(e[13] - p.y) < 6) turnHead(pd.a, p.x, p.z);
-  }
+  aweBurst('land', R * 2.5 + 12);   // V52: alle in der Nähe erschrecken, staunen, manche verbeugen sich
 }
 
 // V35: jede Landung aus Sprung, Sturz oder Flug. Ab 14 m/s die Heldenlandung, darunter federt er in die Knie
@@ -203,6 +207,9 @@ function tkAim() {
   for (const c of parked) if (!c.hidden && !c.dyn) { const e = c.m.elements; test(e[12], e[13] + 0.5, e[14], 2.1, () => ({ kind: 'parked', c })); }
   // V35: auch Menschen (sanft, sie kommen auf die Füße zurück)
   for (const pd of peds) if (pd.a && pd.a.on && !pd.rag && !pd.sit && !pd.back) { const e = pd.a.m.elements; test(e[12], e[13] + 1.0, e[14], 0.5, () => ({ kind: 'ped', pd })); }
+  // V52: Möbel der Räume und das Straßenmobiliar
+  for (const e of movNear(o.x, o.z, TK_RANGE)) { const W = movWorld(e), I = furnInfo(e); if (Math.abs(W.y - o.y) < 60) test(W.x, W.y + I.cy, W.z, I.r, () => ({ kind: 'furn', e })); }
+  for (const [p, k] of streetNear(o.x, o.z, TK_RANGE)) test(p.x, p.m.elements[13] + 0.5, p.z, k === 'bench' || k === 'planter' ? 1.0 : 0.5, () => ({ kind: 'street', p, k }));
   return best;
 }
 export function tkGrab() {
@@ -214,18 +221,23 @@ export function tkGrab() {
     if (!S) { toast('Telekinese: gerade nicht'); return false; }
     const minP = (PM.view === 'third' && PM.mesh ? PM.dist : 0) + 2.2;
     POWERS.tk = { kind: 'ped', S, pd: a.pd, dist: Math.max(minP, Math.min(30, a.t)), t: 0 };
-    toast('Ein Passant schwebt (er nimmt es mit Humor) · Mausrad näher/weiter · Klick sanft werfen · T absetzen');
+    toast('Ein Passant schwebt (er nimmt es mit Humor) · Mausrad näher/weiter · Linksklick sanft werfen · rechte Maustaste absetzen');
+    aweBurst('tk', 28); POWERS.aweT = 2.5;   // V52
     return true;
   }
-  let B = a.B, kind = a.kind === 'loose' ? 'loose' : 'car';
+  let B = a.B, kind = a.kind === 'loose' || a.kind === 'furn' || a.kind === 'street' ? 'loose' : 'car';
   if (a.kind === 'traffic') B = looseFromTraffic(a.c);
   else if (a.kind === 'parked') B = looseFromParked(a.c);
-  const minD = (PM.view === 'third' && PM.mesh ? PM.dist : 0) + (kind === 'car' ? 7 : 2.2);
+  else if (a.kind === 'furn') { B = furnBody(a.e); if (B === 'sit') { toast('Telekinese: da sitzt noch jemand'); return false; } if (!B) { toast('Telekinese: zu viel in Bewegung'); return false; } }
+  else if (a.kind === 'street') { B = streetBody(a.p, a.k); if (!B) { toast('Telekinese: zu viel in Bewegung'); return false; } }
+  const minD = (PM.view === 'third' && PM.mesh ? PM.dist : 0) + (kind === 'car' ? 7 : Math.max(2.2, B.r * B.sc * 1.3 + 1));
   POWERS.tk = { kind, B, dist: Math.max(minD, Math.min(40, a.t)), t: 0 };
   if (kind === 'loose') { LOOSE.tk = B; B.awake = true; B.still = 0; LOOSE.tkTarget = new T.Vector3().copy(B.x); }
   else { B.tk = true; B.air = true; B.still = 0; }
   const name = kind === 'loose' ? B.name : 'Wagen';
-  toast(name + ' schwebt · Mausrad näher/weiter · Klick schleudern · T loslassen');
+  toast(name + ' schwebt · Mausrad näher/weiter · Linksklick schleudern · rechte Maustaste loslassen');
+  aweBurst('tk', 28);   // V52: die Leute staunen
+  POWERS.aweT = 2.5;
   return true;
 }
 // V35: Werfen: erst holt Alexander aus (das Gehaltene zieht kurz zu ihm heran), dann lässt er es los
@@ -252,10 +264,10 @@ function tkLetGo(throwIt) {
     const B = H.B; B.tk = false; B.still = 0;
     if (throwIt) { B.vx = d.x * 32; B.vz = d.z * 32; B.vy = d.y * 32 + 4; B.w = (Math.random() - 0.5) * 3; B.air = true; }
   }
-  if (throwIt) { const c = tkCenter(H); fxEmit('crystal', c.x, c.y, c.z, d.x * 6, d.y * 6, d.z * 6, 16, 0.8); }
+  if (throwIt) { const c = tkCenter(H); fxEmit('crystal', c.x, c.y, c.z, d.x * 6, d.y * 6, d.z * 6, 16, 0.8); aweBurst('throw', 30); }   // V52: Applaus
 }
 export function tkToggle() { if (POWERS.tk) tkRelease(false); else tkGrab(); }
-export function tkDistance(dy) { const H = POWERS.tk; if (H) H.dist = Math.max(H.kind === 'car' ? 6 : H.kind === 'ped' ? 2.2 : 1.8, Math.min(H.kind === 'ped' ? 40 : 60, H.dist * (dy > 0 ? 1.12 : 1 / 1.12))); }
+export function tkDistance(dy) { const H = POWERS.tk; if (H) H.dist = Math.max(H.kind === 'car' ? 6 : H.kind === 'ped' ? 2.2 : Math.max(1.8, H.B.r * H.B.sc * 1.3 + 0.6), Math.min(H.kind === 'ped' ? 40 : 60, H.dist * (dy > 0 ? 1.12 : 1 / 1.12))); }
 export function tkCenter(H) { if (H.kind === 'ped') { const c = H.S.p[0]; return _pt.set(c[0], c[1], c[2]); } const B = H.B; return H.kind === 'loose' ? _pt.copy(B.x) : _pt.set(B.x, B.y + 0.75, B.z); }
 
 /* ---------- Jedes Bild (vor den Wagen und den losen Dingen) ---------- */
@@ -307,8 +319,14 @@ export function updatePowers(dt, t) {
       if (Math.random() < 0.5) { const u = Math.random(); fxEmit('crystal', hx + (c.x - hx) * u, hy + (c.y - hy) * u, hz + (c.z - hz) * u, (c.x - hx) * 0.15, (c.y - hy) * 0.15, (c.z - hz) * 0.15, 1, 0.03, 0.6); }
     }
   }
-  // Funken des Kristalls im schnellen Flug
+  // V52: wer ihn fliegen sieht oder etwas schweben sieht, bleibt stehen und schaut (alle paar Sekunden neu geprüft)
   const sp = player.v.length();
+  POWERS.aweT = (POWERS.aweT || 0) - dt;
+  if (POWERS.aweT <= 0) {
+    if (player.fly && (sp > 3 || player.p.y > 3)) { POWERS.aweT = 0.8; aweBurst('fly', 42, 0.6); }
+    else if (POWERS.tk) { POWERS.aweT = 2.5; aweBurst('tk', 28, 0.7); }
+  }
+  // Funken des Kristalls im schnellen Flug
   if (player.fly && sp > 22) {
     POWERS.trail += dt * Math.min(30, sp * 0.3);
     while (POWERS.trail > 1) { POWERS.trail -= 1; fxEmit('crystal', player.p.x, player.p.y + 0.9, player.p.z, -player.v.x * 0.05, -player.v.y * 0.05, -player.v.z * 0.05, 1, 0.5, 0.8); }

@@ -1413,6 +1413,22 @@ export function addCollider(x0, y0, z0, x1, y1, z1) {
     }
   return b;
 }
+// V52: Kollisionsquader eines Möbelstücks entfernen, das Alexander anhebt: kleine Quader (keine Wände), deren Grundriss im
+// Grundriss des Stücks liegt (etwas Spielraum) und deren Unterkante auf dessen Boden steht
+export function removeColliders(x0, z0, x1, z1, y0, y1, out = null) {
+  let n = 0;
+  for (let ix = Math.floor(x0 / CELL); ix <= Math.floor(x1 / CELL); ix++)
+    for (let iz = Math.floor(z0 / CELL); iz <= Math.floor(z1 / CELL); iz++) {
+      const a = colGrid.get(ix + ',' + iz); if (!a) continue;
+      for (let i = a.length - 1; i >= 0; i--) {
+        const b = a[i];
+        if (b.x1 - b.x0 > 6 || b.z1 - b.z0 > 6 || b.y1 - b.y0 > 2.6) continue;
+        if (b.x0 < x0 - 0.45 || b.x1 > x1 + 0.45 || b.z0 < z0 - 0.45 || b.z1 > z1 + 0.45 || b.y0 < y0 - 0.4 || b.y0 > y1) continue;
+        a.splice(i, 1); n++; if (out && out.indexOf(b) < 0) out.push(b);
+      }
+    }
+  return n;
+}
 export function nearBoxes(x, z, r) {
   const out = new Set();
   for (let ix = Math.floor((x - r) / CELL); ix <= Math.floor((x + r) / CELL); ix++)

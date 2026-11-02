@@ -134,8 +134,23 @@ export const FURN = {
     return P;
   },
 };
+// V52: jedes Möbelstück weiß, welche Form es ist (für die Telekinese: Sofas, Sessel, Stühle, Tische, Lampen sind greifbar)
+for (const k of Object.keys(FURN)) { const f = FURN[k]; FURN[k] = (...a) => { const P = f(...a); P.furn = { type: k, args: a }; return P; }; }
+/* V52: Verzeichnis der beweglichen Möbel. Solange MOV.frame gesetzt ist (movOn), merkt sich placeFurn jedes Stück:
+   Art, Maße, Ort, Drehung, Materialzuordnung und (über mergeGeos in core.js) die Eckenbereiche in den zusammengefassten
+   Netzen. Packt Alexander ein Stück mit Telekinese, fallen diese Ecken in sich zusammen (das Stück verschwindet aus dem
+   festen Netz) und ein eigener Körper mit denselben Materialien schwebt davon (physics.js furnBody).
+   frame: null = Weltkoordinaten; { x, y, z, ry } = lokales System (Villa), das erst beim Zusammenbau gedreht wird. */
+export const MOV = { on: false, frame: null, list: [], seq: 0 };
+export const MOV_TYPES = { sofa: 1, clubChair: 1, diningChair: 1, bistroChair: 1, roundTable: 1, barStool: 1, floorLamp: 1, tableLamp: 1, vasePlant: 1 };
+export function movOn(frame = null) { MOV.on = true; MOV.frame = frame; }
+export function movOff() { MOV.on = false; MOV.frame = null; }
 // Ein Möbelstück aufstellen: Teile drehen, verschieben und in die passenden Materialgruppen legen
-export function placeFurn(parts, map, add, x, y, z, a = 0) { for (const [g, role] of parts) add(map[role] || map.up, g.clone().rotateY(a).translate(x, y, z)); }
+export function placeFurn(parts, map, add, x, y, z, a = 0) {
+  const F = parts.furn, e = MOV.on && F && MOV_TYPES[F.type] ? { id: MOV.seq++, type: F.type, args: F.args, map, x, y, z, a, frame: MOV.frame, ranges: [], taken: false } : null;
+  if (e) MOV.list.push(e);
+  for (const [g, role] of parts) { const h = g.clone().rotateY(a).translate(x, y, z); if (e) h.userData.mov = { e, role, key: map[role] || map.up }; add(map[role] || map.up, h); }
+}
 // Café-Terrassen vor Cafés und Restaurants: Bistrotische mit Stühlen und Kerzenlicht
 export const TERRACE = [];
 export function buildTerraces() {

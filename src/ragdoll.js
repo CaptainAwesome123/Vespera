@@ -1,4 +1,5 @@
 import { shared, MOBILE, T, scene, camera, mulberry32, $, U } from './core.js';
+import { aweStep, aweEnd } from './awe.js';
 import { personShare } from './people-model.js';
 import { MAT, HRIG } from './people-skeleton.js';
 import { FACTORIES, FACTORY_NAMES, FACTORY_LOOPS } from './shops.js';
@@ -68,6 +69,7 @@ export function ragStart(pd, B) {
   const s = ragSlot(); if (!s) return false;
   const a = pd.a, fem = a.kind === 'lady' || a.kind === 'gown' || a.kind === 'dress' || a.kind === 'furcoat', J = ragJoints(fem), sub = ragSub(a.kind);
   if (pd.st === 7) { const P = pd.mp; endMeet(pd); if (P) endMeet(P); }
+  if (pd.aw) aweEnd(pd);   // V52
   a.m.decompose(_gP, _gQ, _gS);
   const sp = Math.hypot(B.vx, B.vz), ux = B.vx / sp, uz = B.vz / sp;
   const p = [], q = [], rest = [];
@@ -309,6 +311,7 @@ export function updatePedestrians(dt, t) {
   for (const pd of peds) {
     const lp = pd.lp;
     if (pd.st === 5 || pd.st === 6 || pd.rag || pd.back) continue;
+    if (pd.st === 9) { aweStep(pd, dt); continue; }   // V52: steht und staunt über Alexander
     if (pd.st === 4) { pedCrowd.set(pd.a, pd.x, pd.y - (pd.yo || 0), pd.z, pd.yaw, pd.sc, pd.tilt || 0); continue; }
     if (pd.st === 7) {
       // Begegnung: Hand geben, reden und zuhören im Wechsel, lachen, zum Abschied winken
@@ -503,6 +506,7 @@ export function updateCitizens(dt) {
   CLOCK.min = (CLOCK.min + dt) % 1440;
   for (const c of citizens) {
     const a = c.ped.a; if (!a) continue;
+    if (c.ped.aw) { aweStep(c.ped, dt); continue; }   // V52: hält inne und schaut Alexander zu
     if (c.st === 'in') {
       a.on = false;
       c.wait -= dt;
