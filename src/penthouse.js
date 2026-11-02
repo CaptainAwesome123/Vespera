@@ -714,7 +714,7 @@ export function buildPenthouse() {
     ['candlestick', -12.95, -16.5, 0, 0.71], ['book', -12.1, -16.5, 0.1, 0.71],                                     // Wannenbrett
     ['frame', 16.5, -19.3, 0.2, 0.75], ['book', 17.4, -19.3, -0.1, 0.75],                                           // Frisiertisch
   ];
-  SPAWNS.push({ x: 0, z: 0, y0: F1 - 40, items: I1, y: F1 + 2.2, floor: F1, pent: true }, { x: 0, z: 0, y0: F1 - 40, items: I2, y: F2 + 2.2, floor: F2, pent: true });
+  SPAWNS.push({ x: 0, z: 0, y0: F1 - 40, items: I1, y: 2.2, floor: F1, pent: true }, { x: 0, z: 0, y0: F1 - 40, items: I2, y: 2.2, floor: F2, pent: true });   // y ist relativ zu floor (updateSpawns addiert)
 
   /* ================= Netze bauen ================= */
   for (const where in B) {
