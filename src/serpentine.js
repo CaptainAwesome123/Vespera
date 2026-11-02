@@ -12,6 +12,7 @@ import { poolWaterMat, fountainJet } from './water.js';
 import { curtainMat, jetStreakMat } from './fountain.js';   // V41: Wasserschleier und Bogenstrahlen am Villenbrunnen
 import { VILLA, deckY, TER, terrainHeight, ROAD_Z0, VIA, ROAD_W, terrainHeightRaw, terrainInfo, VALLEY_W, PORT_LOOPS, PORT_PEDS, LAND_HOOK } from './harbour.js';
 import { makeGlowPoints, buildCitizens } from './ragdoll.js';
+import { lifePeds, newsCorner } from './life.js';
 import { cars } from './airships.js';
 import { carDamageAttr, carCabin, carLoft, carSweep, fenderPath, carWheel } from './cars.js';
 import { CARM, CARM_PAINT, isModelCar, modelCarMeshes } from './carmodel.js';
@@ -2701,7 +2702,9 @@ export function buildPedestrians() {
     peds.push(...m); if (m.length > 1) CHATS.push({ m, t: R() * 3, sit: true, x: tr.x, z: tr.z });
   }
   // Zeitungsjungen an Straßenecken halten die Abendausgabe hoch
-  for (const b of blocks) { if (b.d > 520 || R() > 0.08) continue; peds.push({ st: 4, x: b.x0 + 1.2, y: 0.22, z: b.z0 + 1.2, yaw: -Math.PI * 0.75, sc: 0.64, v: 0, kind: 'kid', act: 6.5 }); }
+  for (const b of blocks) { if (b.d > 520 || R() > 0.08) continue; const nb = { st: 4, x: b.x0 + 1.2, y: 0.22, z: b.z0 + 1.2, yaw: -Math.PI * 0.75, sc: 0.64, v: 0, kind: 'kid', act: 6.5 }; newsCorner(nb); peds.push(nb); }
+  // V55: Kellner auf den Terrassen, Polizeistreifen, laufende Zeitungsjungen, Straßenmusiker mit Publikum (src/life.js)
+  peds.push(...lifePeds(loops));
   {
     const rw = mulberry32(1918), F = MOBILE ? 0.5 : 1;
     const at = (d, o, side, yaw, extra) => { const tx = d.nz * side, tz = -d.nx * side; return { st: 4, x: d.x + d.nx * o.n + tx * o.t, y: 0.22, z: d.z + d.nz * o.n + tz * o.t, yaw, sc: 0.93 + rw() * 0.12, v: 0, ...extra }; };
@@ -2734,6 +2737,7 @@ export function buildPedestrians() {
   pedCrowd.far = 420;
   peds.forEach(pd => { const r0 = R(), r1 = Math.random(), kd = r1 < 0.03 ? 'police' : r1 < 0.06 ? 'kid' : r0 < 0.28 ? 'coat' : r0 < 0.52 ? 'suit' : r0 < 0.71 ? 'lady' : r0 < 0.86 ? 'dress' : 'furcoat', k = pd.kind || kd, cl = k === 'dress' ? pick(DRESSES) : k === 'furcoat' ? pick(FURCOATS) : k === 'police' ? [0.06, 0.07, 0.16] : k === 'kid' ? pick(SHIRTS) : k === 'gown' ? pick(GOWNS) : k === 'tux' ? COL.tux : pick(COATS); if (k === 'kid') pd.sc = 0.6 + Math.random() * 0.08; pd.a = pedCrowd.add(k, pd.col || cl); const fem = k === 'lady' || k === 'dress' || k === 'gown' || k === 'furcoat'; pd.fem = fem; pd.a.gait[1] = Math.abs(pd.v) * (fem ? 5.4 : 4.6) / pd.sc; pd.a.gait[2] = pd.st === 4 || pd.st === 8 ? 0 : (fem ? 0.34 : 0.38) + Math.random() * 0.1; if (pd.st === 4 || pd.st === 8) pd.a.gait[1] = pd.act != null ? pd.act : Math.random() < 0.6 ? 0.6 + Math.random() * 0.35 : 0; if (pd.sit) pd.yo = (fem ? 0.8 : 0.87) * pd.sc; });
   for (const c of CHATS) if (c.share && c.m[0].a && c.m[1].a) c.m[1].a.gait[0] = c.m[0].a.gait[0];
+  for (const c of CHATS) for (const m of c.m) m.chat = c;   // V55: wer zu welcher Runde gehört (Tuscheln, wenn Alexander vorbeigeht)
   pedCrowd.finish();
   buildDrivers();
 }

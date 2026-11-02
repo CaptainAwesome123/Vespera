@@ -22,6 +22,7 @@ import { curbs, roofs, lamps } from './facade-shader.js';
 import { DOORS, TERRACE } from './entrances.js';
 import { SHOPS } from './shops.js';
 import { STREET } from './serpentine.js';
+import { LIFE } from './life.js';
 import { blocks, PLAZA, MEDIAN, QUAY, QX } from './island.js';
 import { QUAY_GAPS } from './harbour.js';
 import { GEOS, KINDS_OF, propMaterial } from './physics.js';
@@ -89,6 +90,7 @@ export function planClutter() {
       const ax = c.ax + dx * t, az = c.az + dz * t;
       if (ax > PLAZA.x0 - 2 && ax < PLAZA.x1 + 2 && az > PLAZA.z0 - 2 && az < PLAZA.z1 + 2) continue;
       if (ax > MEDIAN.x0 - 2 && ax < MEDIAN.x1 + 2 && az > MEDIAN.z0 - 2 && az < MEDIAN.z1 + 2) continue;
+      if (LIFE.spots.some(q => Math.abs(q.x - ax) < 4.5 && Math.abs(q.z - az) < 4.5)) continue;   // V55: Platz der Straßenmusiker frei lassen
       // an der Wand: Abstand vom Bordstein = 3,5 m minus halbe Tiefe
       const wall = (k, u = 0, extra = 0, tilt = 0) => { const I = K[k]; const ins = 3.42 - I.he[2] * Math.cos(tilt) - Math.sin(tilt) * I.he[1] - extra; return put(k, ax + dx * u + nx * ins, az + dz * u + nz * ins, out + (tilt ? 0 : (rr() - 0.5) * 0.12), 0.22, col(k), -tilt); };   // angelehnt: oben zur Wand
       const kerb = (k, u = 0, ins = 1.2) => put(k, ax + dx * u + nx * ins, az + dz * u + nz * ins, out + Math.PI / 2 * (rr() < 0.5 ? 1 : -1) + (rr() - 0.5) * 0.3, 0.22, col(k));

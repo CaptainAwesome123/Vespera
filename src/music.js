@@ -8,6 +8,7 @@ import { toast } from './boat.js';
 import { playing, paused, isTouch } from './input.js';
 import { SND, audioCtx, audioBus, toggleSound, soundMuted, updateSound } from './audio.js';
 import { VENUES } from './venues.js';
+import { nearestMusic } from './life.js';
 
 /* =====================================================================
    MUSIK: sanfte Akkorde über Web Audio (nur nach Klick)
@@ -49,6 +50,7 @@ export function scheduleJazz(a) {
   if (a.jazz.gain.value < 0.002 && a.jazzTarget < 0.002) { a.next = 0; return; }
   const spb = 60 / 138;
   if (!a.next || a.next < ctx.currentTime) a.next = ctx.currentTime + 0.05;
+  if (a.pub === 'organ') { scheduleOrgan(a); return; }   // V55: Leierkasten auf der Straße
   if (a.pub) { scheduleStride(a); return; }   // V46: in der Brass Lantern spielt ein verstimmtes Kneipenklavier
   while (a.next < ctx.currentTime + 0.25) {
     const t = a.next, b = a.beat, bar = Math.floor(b / 4) % 8, bi = b % 4;
@@ -102,6 +104,22 @@ export function scheduleStride(a) {
     a.next += spb; a.beat++;
   }
 }
+/* V55: Leierkasten: Walzer im Dreivierteltakt, Bass auf Eins, Nachschlag auf Zwei und Drei, Melodie aus Pfeifen (Rechteck + Dreieck eine
+   Oktave höher, leicht schwankend wie eine alte Walze); 16 Takte, dann von vorn */
+export const WALTZ = [
+  [[76, 1], [79, 1], [84, 1]], [[83, 2], [79, 1]], [[77, 1], [79, 1], [83, 1]], [[81, 2], [77, 1]], [[74, 1], [77, 1], [81, 1]], [[79, 2], [77, 1]], [[76, 1], [74, 1], [72, 1]], [[76, 3]],
+  [[76, 1], [79, 1], [84, 1]], [[88, 2], [84, 1]], [[81, 1], [84, 1], [89, 1]], [[88, 2], [84, 1]], [[79, 1], [84, 1], [88, 1]], [[86, 2], [83, 1]], [[84, 1], [79, 1], [76, 1]], [[72, 3]]];
+export const WALTZ_H = [48, 48, 43, 43, 43, 43, 48, 48, 48, 48, 41, 41, 48, 43, 48, 48];
+export function scheduleOrgan(a) {
+  const ctx = a.ctx, spb = 60 / 168;
+  while (a.next < ctx.currentTime + 0.25) {
+    const t = a.next, b = a.beat, bar = Math.floor(b / 3) % 16, bi = b % 3, root = WALTZ_H[bar], ch = root === 43 ? [4, 7, 10] : [4, 7, 12];
+    if (bi === 0) jzTone(a, mtof(root - 12), t, 0.5, 'triangle', 0.3, 800);
+    else for (const iv of ch) jzTone(a, mtof(root + iv), t, 0.16, 'square', 0.022, 1600);
+    let at = 0; for (const [n, d] of WALTZ[bar]) { if (at === bi) { const f = mtof(n) * (1 + 0.004 * Math.sin(t * 5.3)), dur = spb * d * 0.92; jzTone(a, f, t, dur, 'square', 0.03, 2600); jzTone(a, f * 2.003, t, dur, 'triangle', 0.035, 4200); } at += d; }
+    a.next += spb; a.beat++;
+  }
+}
 export function jzTone(a, f, t, dur, type, vol, cut) {
   const o = a.ctx.createOscillator(), g = a.ctx.createGain(), fl = a.ctx.createBiquadFilter();
   o.type = type; o.frequency.value = f; fl.type = 'lowpass'; fl.frequency.value = cut;
@@ -145,6 +163,11 @@ export function updateAudio(dt) {
     const dDoor = Math.hypot(p.x - (PV.x0 + PV.x1) / 2, p.z - PV.z1);
     if (inPub) { const d = Math.hypot(p.x - (PV.x1 - 1.5), p.z - (PV.z1 - 3)); jz = Math.min(0.85, 0.3 + 6 / (5 + d)); cut = 5200; pub = true; }
     else if (dDoor < 28 && p.y < 12) { jz = 0.2 * (1 - dDoor / 28); cut = 700; pub = true; }
+  }
+  // V55: Straßenmusik (Leierkasten, Klavier) in der Nähe, wenn sonst nichts lauter spielt
+  if (!inBall && !inLobby && p.y < 20) {
+    const m = nearestMusic(p);
+    if (m && m.d < 32) { const v = 0.6 * Math.pow(1 - m.d / 32, 1.4); if (v > jz) { jz = v; cut = 5200 - m.d * 110; pub = m.s.type === 'organ' ? 'organ' : true; } }
   }
   if (jz > 0.4 && soundMuted() && !bandHint && playing) { bandHint = true; toast('Die Band spielt · M schaltet den Ton ein'); }
   if (!audio) return;
