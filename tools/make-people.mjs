@@ -502,11 +502,12 @@ function paintScalp(buf, R, rig) {
     hl = hl * front + (1 - front) * (rig.headC + 0.005 - 0.075 * sst(rig.headZ - 0.03, rig.headZ - 0.08, z));
     hl = Math.min(hl, f.browY + 0.054 + 0.03 * side);
     // V49: weicher Ansatz über knapp 1 cm (feine Härchen, leicht ausgefranst), ohne Körnung und Relief: vorher wirkte der Streifen wie Stoppeln
-    const m = sst(hl - 0.006, hl + 0.004, y + (vN3(x * 260, z * 260, 1.7) - 0.5) * 0.004);
-    if (m < 0.002) continue;
-    const g = 0.94 + 0.12 * vN3(x * 300, y * 60 + z * 40, 0.5);
-    for (let d = 0; d < 3; d++) buf[k + d] = Math.round(buf[k + d] * (1 - m) + Math.min(255, col[d] * g) * m);
-    buf[k + 3] = Math.round(buf[k + 3] * (1 - m) + 128 * m);
+    // V50: ganz glatt: keine Helligkeitsflecken, kein ausgefranster Rand, und in einem Saum von 1 cm unter dem Ansatz auch kein
+    // Poren-Relief (Alpha 128): das Relief der Haut war am Übergang noch als leichte Körnung zu sehen
+    const m = sst(hl - 0.006, hl + 0.004, y), flat = sst(hl - 0.016, hl - 0.006, y);
+    if (flat < 0.002) continue;
+    for (let d = 0; d < 3; d++) buf[k + d] = Math.round(buf[k + d] * (1 - m) + col[d] * m);
+    buf[k + 3] = Math.round(buf[k + 3] * (1 - flat) + 128 * flat);
   }
   return buf;
 }
