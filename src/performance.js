@@ -32,6 +32,7 @@ import { PM, updatePlayerModel, thirdPersonCamera } from './player-model.js';
 import { ATMO, updateAtmosphere } from './atmosphere.js';
 import { updateLoose, updateSpawns } from './physics.js';
 import { updatePowers, powersCamera } from './powers.js';
+import { KRAEFTE, updateKraefte } from './kraefte.js';
 import { updateEnergy } from './energy.js';
 import { updateAwe } from './awe.js';
 
@@ -205,7 +206,9 @@ const HUD_LAST = {};
 export function hudSet(id, v, html = false) { if (HUD_LAST[id] === v) return; HUD_LAST[id] = v; const el = $(id); if (html) el.innerHTML = v; else el.textContent = v; }
 export let hudTimer = 0, elapsed = 0; shared.last = performance.now();
 export function frame(now) {
-  const raw = (now - shared.last) / 1000, dt = Math.min(0.05, raw); shared.last = now; elapsed += dt;
+  const raw = (now - shared.last) / 1000, rdt = Math.min(0.05, raw); shared.last = now;
+  // V60: Zeitlupe (Taste Z): die Welt läuft mit dt, Alexander selbst (Bewegung, Kräfte, Kamera) mit der echten Zeit rdt
+  const dt = rdt * KRAEFTE.timeK; elapsed += dt;
   adaptResolution(raw, now);
   const t = elapsed;
   U.uTime.value = t;
@@ -219,7 +222,8 @@ export function frame(now) {
   }
   updatePort(dt, t);
   if (playing) carryPlayer();
-  if (playing && !paused) { if (DRIVE.on) updateDrive(dt); else if (BOAT.on) updateBoatInput(dt); else if (IMP.st === 'helm') impHelmInput(dt); else updatePlayer(dt); updatePowers(dt, t); updateEnergy(dt); }   // V33: Alexanders Kräfte; V58: am Steuer der Aurora Imperial
+  if (playing && !paused) { if (DRIVE.on) updateDrive(rdt); else if (BOAT.on) updateBoatInput(rdt); else if (IMP.st === 'helm') impHelmInput(rdt); else updatePlayer(rdt); updatePowers(rdt, t); updateEnergy(rdt); }   // V33: Alexanders Kräfte; V58: am Steuer der Aurora Imperial; V59: Energieschub
+  if (playing && !paused) updateKraefte(rdt, t);   // V60: Schockwelle, Schild, Levitation, Zeitlupe
   if (playing) updateVehicleWorld(dt);
   if (playing) { updateSpawns(); updateLoose(dt); }   // V26: lose Dinge
   if (playing && !paused) updateBoat(dt);
@@ -235,11 +239,11 @@ export function frame(now) {
     camera.position.set(Math.sin(a) * 430, 150 + Math.sin(t * 0.07) * 30, Math.cos(a) * 430);
     camera.lookAt(0, 210, 0);
   }
-  updatePlayerModel(dt, playing && !DRIVE.on && !BOAT.on && !DINE.seat);
-  if (playing && !paused) powersCamera(dt);
+  updatePlayerModel(rdt, playing && !DRIVE.on && !BOAT.on && !DINE.seat);
+  if (playing && !paused) powersCamera(rdt);
   U.uCam.value.copy(camera.position);
   updateAtmosphere(dt);   // V25: Wetter, Mond, Nebel, Mondschatten
-  updateNearPlane(dt);
+  updateNearPlane(rdt);
   updateCars(dt);
   updateCarLights();   // V38
   updateTrucks(dt);
@@ -260,8 +264,8 @@ export function frame(now) {
   if (nearVilla) updateVilla(t); else updateVillaZones(false);
   updateLights(dt);
   updateDetails(dt);
-  updateChunks(dt);
-  updateFogCull(dt);
+  updateChunks(rdt);
+  updateFogCull(rdt);
   updateParked(dt);
   updateLampLod(dt); updateTreeLod(dt);
   updateInteract();
@@ -279,7 +283,7 @@ export function frame(now) {
   if (bloomPass) { const mist = Math.min(U.uMist.value, 2.3), wet = U.uRain.value + U.uSnow.value; bloomPass.strength = 0.66 + 0.1 * mist + 0.12 * wet; bloomPass.threshold = 0.72 - 0.06 * mist * 0.5; }
 
   if (playing) {
-    hudTimer -= dt;
+    hudTimer -= rdt;
     if (hudTimer <= 0) {
       hudTimer = 0.25;
       const d = districtAt(player.p.x, player.p.z, player.p.y);
@@ -298,10 +302,10 @@ export function frame(now) {
         if (HUD_LAST.npcOp !== 1) { HUD_LAST.npcOp = 1; card.style.opacity = 1; }
       } else if (HUD_LAST.npcOp !== 0) { HUD_LAST.npcOp = 0; card.style.opacity = 0; }
     }
-    if (shared.districtTimer > 0 && (shared.districtTimer -= dt) <= 0) $('district').style.opacity = 0;
+    if (shared.districtTimer > 0 && (shared.districtTimer -= rdt) <= 0) $('district').style.opacity = 0;
   }
-  if (shared.toastTimer > 0 && (shared.toastTimer -= dt) <= 0) $('toast').style.opacity = 0;
-  if (shared.sayTimer > 0 && (shared.sayTimer -= dt) <= 0) $('say').style.opacity = 0;
+  if (shared.toastTimer > 0 && (shared.toastTimer -= rdt) <= 0) $('toast').style.opacity = 0;
+  if (shared.sayTimer > 0 && (shared.sayTimer -= rdt) <= 0) $('say').style.opacity = 0;
 
   const PI = PERF.on ? renderer.info : null;
   // Die Schattenkarte entsteht im ersten Zeichnen des Bildes (oft im Spiegelbild); ihre Aufrufe zählen nur unter Schatten

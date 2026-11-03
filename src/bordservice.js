@@ -60,9 +60,9 @@ function put(ag) {
 }
 
 /* ---------- Aufbau: Plätze, Lokale, Stewards ---------- */
-const LINES_UP = ['Bitte sehr, Sir. Mit Blick auf Vespera.', 'Zum Wohl, Sir. Der Kapitän lässt grüßen.', 'Bitte sehr, Sir. Die Bar ist ganz zu Ihren Diensten.'];
-const LINES_LOW = ['Bitte sehr, Sir. Die Bordküche empfiehlt sich.', 'Wohl bekomm’s, Sir.', 'Bitte sehr, Sir. Frisch aus der Bordküche.'];
-const GREET = ['Willkommen an Bord, Sir. Die Bar im Salon ist geöffnet.', 'Guten Abend, Sir. Nehmen Sie Platz, wo Sie mögen, wir bringen alles.', 'Willkommen zurück an Bord, Sir. Der Speisesalon ist gedeckt.'];
+export const LINES_UP = ['Bitte sehr, Sir. Mit Blick auf Vespera.', 'Zum Wohl, Sir. Der Kapitän lässt grüßen.', 'Bitte sehr, Sir. Die Bar ist ganz zu Ihren Diensten.'];
+export const LINES_LOW = ['Bitte sehr, Sir. Die Bordküche empfiehlt sich.', 'Wohl bekomm’s, Sir.', 'Bitte sehr, Sir. Frisch aus der Bordküche.'];
+export const GREET = ['Willkommen an Bord, Sir. Die Bar im Salon ist geöffnet.', 'Guten Abend, Sir. Nehmen Sie Platz, wo Sie mögen, wir bringen alles.', 'Willkommen zurück an Bord, Sir. Der Speisesalon ist gedeckt.'];
 export function buildBordservice() {
   const I = IMP, D = I.D; if (!D) return;
   const fyA = D.fyA, fyB = D.fyB;

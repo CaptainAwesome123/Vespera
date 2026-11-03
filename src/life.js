@@ -201,11 +201,11 @@ export function lifePeds(loops) {
 export function newsCorner(pd) { pd.life = { type: 'news', t: Math.random() * 5, walk: false }; LIFE.news.push(pd); }
 
 /* ---------- Jedes Bild ---------- */
-const HEAD = ['Extrablatt! Extrablatt! Alexander fliegt über den Krater!', 'Abendausgabe! Polarlicht über Vespera, so hell wie nie!', 'Extrablatt! Die Aurora Imperial über der Stadt!',
+export const HEAD = ['Extrablatt! Extrablatt! Alexander fliegt über den Krater!', 'Abendausgabe! Polarlicht über Vespera, so hell wie nie!', 'Extrablatt! Die Aurora Imperial über der Stadt!',
   'Neueste Nachrichten! Großer Ball im Belmont, ganz Vespera tanzt!', 'Abendausgabe! Vespera baut weiter: drei neue Türme!', 'Extrablatt! Herr Alexander hebt Automobil mit bloßem Blick!',
   'Abendausgabe! Börse im Hoch, die Stadt feiert!', 'Extrablatt! Wer ist die geheimnisvolle Dame im Belmont?'];
-const HEAD_HIM = ['Herr Alexander! Sie sind auf der Titelseite!', 'Eine Zeitung für Herrn Alexander? Geht aufs Haus!', 'Extrablatt! … oh! Guten Abend, Herr Alexander!'];
-const MUSIC_HIM = { organ: ['Ein Walzer für den Herrn von Vespera!', 'Für Sie spiel’ ich den schönsten, Herr Alexander!'], piano: ['Das nächste Lied ist für Herrn Alexander!', 'Meine Damen und Herren … Herr Alexander hört zu!'] };
+export const HEAD_HIM = ['Herr Alexander! Sie sind auf der Titelseite!', 'Eine Zeitung für Herrn Alexander? Geht aufs Haus!', 'Extrablatt! … oh! Guten Abend, Herr Alexander!'];
+export const MUSIC_HIM = { organ: ['Ein Walzer für den Herrn von Vespera!', 'Für Sie spiel’ ich den schönsten, Herr Alexander!'], piano: ['Das nächste Lied ist für Herrn Alexander!', 'Meine Damen und Herren … Herr Alexander hört zu!'] };
 export function lifeSay(who, s, dur = 4) {
   const el = $('say'); if (!el || shared.sayTimer > 0.5) return false;
   el.innerHTML = '<b></b><span></span>'; el.querySelector('b').textContent = who; el.querySelector('span').textContent = '„' + s + '“';

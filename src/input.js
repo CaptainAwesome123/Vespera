@@ -3,6 +3,7 @@ import { player, keys, touch } from './player.js';
 import { DINE, placeOrder, closeMenu } from './venues.js';
 import { DRIVE } from './eating.js';
 import { initWindAudio } from './wind.js';
+import { kraefteKey } from './kraefte.js';
 import { toast, VIEWS, goView, showDistrict, districtAt } from './boat.js';
 import { toggleMusic, activeUse } from './music.js';
 import { composer } from './bloom.js';
@@ -57,6 +58,7 @@ window.addEventListener('keydown', e => {
   if (paused) return;
   if (e.code === 'KeyF') toggleFlight();   // V33: Alexander fliegt
   if (e.code === 'Space' && !e.repeat && !player.fly && !player.onGround && !DRIVE.on) startFlight();   // im Sprung noch einmal: abheben
+  if (!DRIVE.on) kraefteKey(e);   // V60: X Schockwelle, H Schild, L Levitation, Z Zeitlupe (kraefte.js)
   if (e.code === 'KeyT') tkToggle();   // Telekinese (auch rechte Maustaste)
   if (e.code === 'KeyM') toggleMusic();
   if (e.code === 'KeyE' && activeUse) activeUse.act();
