@@ -37,6 +37,7 @@ import { fxEmit } from './particles.js';
 import { GOODS_AT } from './assets.js';
 import { goodsBaked, goodsMaterial } from './props.js';
 import { VENUES } from './venues.js';
+import { ORTE } from './orte.js';
 import { paused, isTouch } from './input.js';
 import { BOAT } from './boat.js';
 import { DINE } from './venues.js';
@@ -1138,6 +1139,7 @@ export function setupLoose() {
     act: () => { const a = LOOSE.aim; if (!a) return; if (a.furn) { const B = furnBody(a.furn); if (B === 'sit') { toast('Da sitzt jemand'); return; } pickUp(B); return; } if (a.street) { pickUp(streetBody(a.street, a.kind)); return; } if (a.tear) { const B = tearBody(a.tear); if (B === 'sit') { toast('Da sitzt jemand'); return; } pickUp(B); return; } pickUp(a.body || takeGoods(a.goods)); },
   });
   for (const V of VENUES) SPAWNS.push(...venueSpawns(V));
+  SPAWNS.push(...ORTE.spawns);   // V58: Goldbarren im Tresor, Sekt an der Theaterbar, Zeitungen am Café
   citySpawns();
 }
 // V52: Dinge, die in der ganzen Stadt herumstehen: vor Läden, bei den Cafés, an den Feuertonnen und auf dem Kneipenplatz

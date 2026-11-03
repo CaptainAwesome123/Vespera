@@ -16,7 +16,7 @@ const [,, url = 'http://localhost:8765/', out = 'lab', views = 'alle', time = '1
     fs.existsSync(fp) ? r.fulfill({ body: fs.readFileSync(fp), contentType: 'application/javascript', headers: { 'Access-Control-Allow-Origin': '*' } }) : r.abort();
   });
   const t0 = Date.now();
-  await p.goto(url + (url.includes('?') ? '&' : '?') + 'lab=' + (process.env.LAB || 'menschen') + '&t=' + time, { waitUntil: 'commit', timeout: 120000 });
+  await p.goto(url + (url.includes('?') ? '&' : '?') + 'lab=' + (process.env.LAB || 'menschen') + '&t=' + time, { waitUntil: 'commit', timeout: +(process.env.SHOT || 120000) });
   try { await p.waitForFunction(() => (window.labFrames || 0) > 1, null, { timeout: 240000, polling: 500 }); }
   catch (e) { console.log('kein Bild:', logs.join('\n')); await b.close(); process.exit(1); }
   console.log('Labor bereit nach', Date.now() - t0, 'ms');
@@ -24,7 +24,7 @@ const [,, url = 'http://localhost:8765/', out = 'lab', views = 'alle', time = '1
     const [nv, tt] = v.split('@'), [name, pose] = nv.split('#');   // V35: ansicht#pose (Alexanders Bewegungen, siehe LAB.poses)
     await p.evaluate(([n, t, ps]) => { window.labView(n); if (ps && window.labPose) window.labPose(ps); if (t) window.labTime(+t); window.labFrames = 0; }, [name, tt, pose]);
     await p.waitForFunction(() => window.labFrames > 1, null, { timeout: +(process.env.WAIT || 120000), polling: 200 });
-    await p.screenshot({ path: `${out}-${name}${pose ? '-' + pose : ''}${tt ? '-' + tt : ''}.png`, timeout: 120000 });
+    await p.screenshot({ path: `${out}-${name}${pose ? '-' + pose : ''}${tt ? '-' + tt : ''}.png`, timeout: +(process.env.SHOT || 120000) });
     console.log(name, Date.now() - t0, 'ms');
     if (process.env.STATS) console.log('  ', JSON.stringify(await p.evaluate(() => window.labStats ? window.labStats() : null)));   // V41: Zahlen aus dem Labor
     if (process.env.PICK) for (const uv of process.env.PICK.split(';')) { const [u, v] = uv.split(',').map(Number); console.log('   pick', uv, JSON.stringify(await p.evaluate(([u, v]) => window.labPick ? window.labPick(u, v) : null, [u, v]))); }   // V41: PICK='0.2,0.3;0.8,0.3' -> Material unter dem Bildpunkt

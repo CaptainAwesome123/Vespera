@@ -18,6 +18,7 @@ import { updateCarLights } from './carlight.js';
 import { updateCars, updateTrucks, updateTrams } from './traffic.js';
 import { player, updatePlayer, EYE } from './player.js';
 import { updateVenues } from './venues.js';
+import { updateOrte } from './orte.js';
 import { DRIVE, updateCarScenes, updateCarReturns } from './eating.js';
 import { updateDrive, updateVehicleWorld, driveCamera } from './driving.js';
 import { updateWind, WIND, windName } from './wind.js';
@@ -268,6 +269,7 @@ export function frame(now) {
   updateIndustry(t);
   updateShips(t);
   updateVenues(dt);
+  updateOrte(dt);   // V58: Revue im Metropol, Applaus, Platzanweiserin
   updateShops(dt);
   updateCarScenes(dt); updateCarReturns(dt);
   updateBeamSpots();   // V38: Lichtfleck des Luftschiff-Scheinwerfers

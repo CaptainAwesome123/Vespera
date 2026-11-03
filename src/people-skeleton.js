@@ -553,7 +553,7 @@ void humanPose(float fem, float gs, float elder) {
       else if (act < 6.5) { float cy = fract(tt / 9.0), k = smoothstep(0.15, 0.3, cy) * (1.0 - smoothstep(0.7, 0.85, cy)); uL = -1.45 * k; fL = -0.08; aL = 0.3 * k; nkY = 0.3 * k; fgC.y = 0.9; }
       else if (act < 7.5) { sitK = 1.0; uR = -0.42; uL = -0.42; fR = -0.95; fL = -0.95; }
       else if (act < 8.5) { uR = -1.0; uL = -1.0; fR = -0.8; fL = -0.8; aR = -0.1; aL = -0.1; hp = 0.15; spP = 0.12; }
-      else if (act < 9.5) { float c = abs(sin(tt * 8.5)); uR = -0.8; uL = -0.8; fR = -1.2; fL = -1.2; aR = -0.32 + 0.16 * c; aL = aR; fgC = vec2(0.0); }
+      else if (act < 9.5) { float c = abs(sin(tt * 8.5)); sitK = step(0.75, actI); uR = -0.8; uL = -0.8; fR = -1.2; fL = -1.2; aR = -0.32 + 0.16 * c; aL = aR; fgC = vec2(0.0); }
       else if (act < 10.5) { float cy = fract(tt / 5.5), k = smoothstep(0.05, 0.2, cy) * (1.0 - smoothstep(0.32, 0.48, cy)); sitK = 1.0; uR = -0.62 - 0.3 * k; fR = -0.85 - 1.25 * k; uL = -0.6; fL = -0.9 + 0.08 * sin(tt * 5.0) * (1.0 - k); hp = 0.12 - 0.22 * k; spP = 0.08 * k; fgC = vec2(1.0); }
       else if (act < 11.5) { float cy = fract(tt / 8.0), k = smoothstep(0.0, 0.14, cy) * (1.0 - smoothstep(0.3, 0.44, cy)); sitK = 1.0; uR = -0.5 - 0.42 * k; fR = -0.9 - 1.3 * k; uL = -0.45; fL = -0.95; hp = -0.12 * k; fgC.x = 0.9; }
       else if (act < 12.5) { uR = -0.38; fR = -1.45; aR = 0.12; fL = -0.25; fgC.x = 0.2; }
