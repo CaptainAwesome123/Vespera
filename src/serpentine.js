@@ -1013,9 +1013,10 @@ export function buildVilla() {
   const pl = (kind, color, lx, y, lz, yaw) => { const a = crowd.add(kind, color); const [x, z] = W(lx, lz); a.x = x; a.y = y; a.z = z; a.yaw = yaw + ry; return a; };
   VILLA.sway = []; VILLA.dancers = [];
   // Portiers an den Türen zur Vorfahrt, Chauffeure bei den Wagen, ein Gärtner und ein Diener auf der Terrasse
-  for (const sd of [-1, 1]) for (const e of [-1, 1]) pl('livery', [0.32, 0.05, 0.07], sd * VILLA_DOOR.x + e * 1.9, by, -24.6, Math.PI);
+  // V57: Portiers verbeugen sich und weisen zur Tür, der Gärtner fegt Schnee und schaufelt (Abläufe in haushalt.js)
+  for (const sd of [-1, 1]) for (const e of [-1, 1]) pl('livery', [0.32, 0.05, 0.07], sd * VILLA_DOOR.x + e * 1.9, by, -24.6, Math.PI).job = { key: 'portier' };
   for (let k = 0; k < 2; k++) pl('livery', [0.32, 0.05, 0.07], -6 + k * 18, by, -50, 0);
-  pl('livery', [0.3, 0.32, 0.22], -24, by, 22, 0.8); pl('livery', [0.9, 0.88, 0.82], 9, by, 6, Math.PI * 0.2);
+  pl('livery', [0.3, 0.32, 0.22], -24, by, 22, 0.8).job = { key: 'schnee' }; pl('livery', [0.9, 0.88, 0.82], 9, by, 6, Math.PI * 0.2).job = { key: 'terrasse' };
   // V28: alle Innenräume, ihre Möbel, Türen, Lichter und Bewohner (vor crowd.finish, weil Figuren dazukommen)
   buildVillaRooms({ W, V, G, colL, pl, by, ry, M, crowd });
   crowd.finish();

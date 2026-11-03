@@ -11,6 +11,7 @@ import { finishShops, buildIndustry } from './shops.js';
 import { buildTerraces, buildSigns } from './entrances.js';
 import { buildBelmont, buildBelmontInterior, buildBelmontDoor, BEL } from './belmont.js';
 import { buildPenthouse } from './penthouse.js';
+import { buildPentStaff } from './haushalt.js';
 import { buildHarbor, setupReflection } from './water.js';
 import { planAccess, buildPort, portInteractions, VILLA } from './harbour.js';
 import { buildGround, buildVilla, planSerpentine, buildAccessRoad, buildSerpentine, flushInstances, buildMountains } from './serpentine.js';
@@ -96,6 +97,8 @@ export async function build() {
   await step('buildElevated');
   buildVilla();
   await step('buildVilla');
+  buildPentStaff();   // V57: Concierge, Barkeeper, Kellner und Pianist im Penthouse (die Villa belebt haushalt.js beim ersten Bild)
+  await step('buildPentStaff');
   planSerpentine();
   await step('planSerpentine');
   const noLand = new URLSearchParams(location.search).has('ohnelandschaft');   // V44: ?ohnelandschaft = Vergleich ohne die neue Landschaft

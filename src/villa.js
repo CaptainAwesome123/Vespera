@@ -493,7 +493,8 @@ export function buildVillaRooms(ctx) {
     glow(lx, y + 0.3, lz + 0.7, [1.2, 0.95, 0.7], 1.2); col(lx - 0.45, y, lz - 0.45, lx + 0.45, y + 2.5, lz + 0.45);
   };
   const room = (name, zone, x0, x1, z0, z1, y, hint) => VR.rooms.push({ name, zone, x0: Math.min(x0, x1), x1: Math.max(x0, x1), z0: Math.min(z0, z1), z1: Math.max(z0, z1), y, hint });
-  const person = (kind, color, lx, lz, y, yaw) => pl(kind, color, lx, by + y, lz, yaw);
+  // V57: job = Tagesablauf der Figur (haushalt.js): Stationen, Handlungen, Pausen im Keller, Sitzplätze der Gesindestube
+  const person = (kind, color, lx, lz, y, yaw, job) => { const a = pl(kind, color, lx, by + y, lz, yaw); if (job) a.job = typeof job === 'string' ? { key: job } : job; return a; };
   const WHITE = [0.9, 0.88, 0.82], BLACK = [0.05, 0.05, 0.06], MAID = [0.08, 0.08, 0.1];
 
   /* ---------- V33: Ausstattung: Gemälde, Wandleuchter, Blumen, Flügel ---------- */
@@ -611,8 +612,8 @@ export function buildVillaRooms(ctx) {
   for (const sd of [-1, 1]) palm(EG, sd * 12.4, -5, 0, 3.6);
   chand(EG, 0, -7.3, Y1 + H2 - 2.2, 2.6, 1.6); chand(EG, 0, -17.5, H1 - 1.6, 1.3);
   light(0, 6, -10, 0xffd9a6, 0.85, 28); light(0, 5, -18, 0xffd9a6, 0.65, 20);
-  VR.randolf = person('tux', BLACK, 0, -16.2, 0, Math.PI);
-  person('dress', MAID, -12, -8, 0, Math.PI * 0.5); person('dress', MAID, 12.5, -14.5, 0, -Math.PI * 0.4);
+  VR.randolf = person('tux', BLACK, 0, -16.2, 0, Math.PI, 'randolf');
+  person('dress', MAID, -12, -8, 0, Math.PI * 0.5, 'halle-w'); person('dress', MAID, 12.5, -14.5, 0, -Math.PI * 0.4, 'halle-o');
 
   // ---------- Salon (links) ----------
   room('Salon', EG, -29.4, -14.7, -22.4, -1.6, 0);
@@ -637,7 +638,7 @@ export function buildVillaRooms(ctx) {
   furn(EG, FURN.roundTable(0.5), FM, -17, 0, -5); lampT(EG, -17, -5, 0.74); for (let k = 0; k < 3; k++) { const a = k / 3 * Math.PI * 2 + 0.5; furn(EG, FURN.bistroChair(), FM, -17 + Math.sin(a) * 0.85, 0, -5 + Math.cos(a) * 0.85, a + Math.PI); } col(-17.6, 0, -5.6, -16.4, 0.8, -4.4);
   chand(EG, -22, -12, H1 - 1.6, 1.6);
   light(-22, 5.5, -12, 0xffd9a6, 0.9, 26);
-  person('dress', MAID, -24.5, -6.6, 0, Math.PI * 0.75);   // Zimmermädchen staubt den Flügel ab
+  person('dress', MAID, -24.5, -6.6, 0, Math.PI * 0.75, 'salon');   // Zimmermädchen staubt den Flügel ab, den Kamin, bringt Blumen
 
   // ---------- Herrenzimmer mit Bar und Billard (rechts) ----------
   room('Herrenzimmer', EG, 14.7, 29.4, -22.4, -1.6, 0, 'Bar und Billard');
@@ -655,7 +656,7 @@ export function buildVillaRooms(ctx) {
   for (let row = 0; row < 3; row++) { box(EG, 'gold', 12.6, 0.06, 0.45, 22, 1.6 + row * 1.15, -21.9); for (let k = 0; k < 26; k++) A(EG, 'bottle', new T.CylinderGeometry(0.06, 0.08, 0.42 + (k % 3) * 0.06, 8), 16.2 + k * 0.46, 1.9 + row * 1.15, -21.85); }
   glow(22, 3.0, -21.2, [1.3, 0.75, 0.35], 3.5);
   for (let k = 0; k < 7; k++) furn(EG, FURN.barStool(), FL, 16.6 + k * 1.75, 0, -16.55);
-  person('livery', WHITE, 22, -20.6, 0, 0);
+  person('livery', WHITE, 22, -20.6, 0, 0, 'bar');
   // Billardtisch mit grünem Tuch und Kugeln, Queue-Ständer
   box(EG, 'wood', 3.0, 0.7, 1.7, 22, 0.1, -8); box(EG, 'plantD', 2.8, 0.06, 1.5, 22, 0.8, -8); box(EG, 'wood', 3.1, 0.12, 1.8, 22, 0.82, -8);
   for (let k = 0; k < 7; k++) A(EG, k % 2 ? 'gold' : 'leather', new T.SphereGeometry(0.04, 8, 6), 22 + rand(-1.1, 1.1), 0.9, -8 + rand(-0.55, 0.55));
@@ -688,7 +689,7 @@ export function buildVillaRooms(ctx) {
   for (let k = 0; k < 4; k++) A(EG, 'steel', lathe([[0.18, 0], [0.2, 0.02], [0.08, 0.05], [0.1, 0.12], [0.22, 0.14], [0.22, 0.18]], 12), -54 + k * 1.1, 1.16, -2);
   for (const sd of [-1, 1]) { palm(EG, -42.2 + sd * 10.5, 5.2, 0, 3.2); statue(EG, -42.2 + sd * 5, -10, 0, 1.4); }
   light(-42.2, 5.5, -2, 0xffd9a6, 1.0, 30);
-  for (const lx of [-52, -33]) person('livery', WHITE, lx, 4, 0, Math.PI);
+  for (const lx of [-52, -33]) person('livery', WHITE, lx, 4, 0, Math.PI, lx < -40 ? 'tafel-w' : 'tafel-o');
 
   // ---------- Küche (linker Flügel hinten) ----------
   room('Küche', EG, -51.5, -30, -22.4, -11.2, 0);
@@ -710,7 +711,7 @@ export function buildVillaRooms(ctx) {
   for (let k = 0; k < 3; k++) { box(EG, 'wood', 2.5, 0.05, 0.4, -33, 1.6 + k * 0.6, -21.9); for (let j = 0; j < 6; j++) A(EG, j % 2 ? 'bottle' : 'white', new T.CylinderGeometry(0.07, 0.07, 0.3, 8), -34.1 + j * 0.44, 1.65 + k * 0.6, -21.9); }
   for (const lx of [-46, -36]) { A(EG, 'brassM', new T.ConeGeometry(0.35, 0.3, 14, 1, true), lx, 3.0, -17); glow(lx, 2.9, -17, [1.35, 0.95, 0.55], 1.6); }
   light(-41, 3.5, -17, 0xffe0b0, 0.8, 22);
-  person('livery', WHITE, -41, -15.6, 0, Math.PI); person('dress', MAID, -46, -20.9, 0, 0); person('dress', MAID, -35, -13.1, 0, Math.PI);
+  person('livery', WHITE, -41, -15.6, 0, Math.PI, 'koch'); person('dress', MAID, -46, -20.9, 0, 0, 'kueche-s'); person('dress', MAID, -35, -13.1, 0, Math.PI, 'kueche-n');
 
   // ---------- Ballsaal (rechter Flügel) ----------
   room('Ballsaal', EG, 30, 54.4, -22.4, 6.4, 0, 'Still und spiegelblank');
@@ -737,7 +738,7 @@ export function buildVillaRooms(ctx) {
   for (const lz of [-19, 4]) for (const lx of [34, 51]) { furn(EG, FURN.roundTable(0.5), FM, lx, 0, lz); lampT(EG, lx, lz, 0.74); for (let j = 0; j < 2; j++) furn(EG, FURN.bistroChair(), FM, lx + (j ? 0.9 : -0.9), 0, lz, j ? -Math.PI / 2 : Math.PI / 2); col(lx - 0.6, 0, lz - 0.6, lx + 0.6, 0.8, lz + 0.6); }
   for (const [lx, lz] of [[31.4, 5.2], [53, 5.2], [31.4, -21.2], [53, -21.2]]) palm(EG, lx, lz, 0, 3.4);
   // V33: kein Fest mehr; ein Diener poliert das Silber am Buffet, ein Zimmermädchen richtet die Tische
-  person('livery', WHITE, 50.5, -7.5, 0, -Math.PI / 2); person('dress', MAID, 34.8, 4, 0, Math.PI * 0.3);
+  person('livery', WHITE, 50.5, -7.5, 0, -Math.PI / 2, 'buffet'); person('dress', MAID, 34.8, 4, 0, Math.PI * 0.3, 'tische');
 
   /* ================= Obergeschoss ================= */
   // ---------- Galerie um die Halle, Seitengalerien, Flur nach hinten ----------
@@ -755,7 +756,7 @@ export function buildVillaRooms(ctx) {
   windows(OG, 'x', -22.2, -16, 16, Y1 + 0.9, 3.2, 5);
   for (const sd of [-1, 1]) { fern(OG, sd * 10, -21, Y1, 1.8); statue(OG, sd * 16.5, -21.5, Y1, 1.2); }
   chand(OG, 0, -17.5, Y1 + H2 - 1.5, 1.2); light(0, Y1 + 3.5, -17.5, 0xffd9a6, 0.8, 22);
-  person('dress', MAID, -8, -20, Y1, Math.PI * 0.5);
+  person('dress', MAID, -8, -20, Y1, Math.PI * 0.5, 'galerie');
   // Flur hinten (beide Seiten) bis in die Flügel
   for (const sd of [-1, 1]) {
     room(sd < 0 ? 'Flur West' : 'Flur Ost', OG, sd * 17.5, sd * 54.4, -22.4, -20, Y1);
@@ -824,7 +825,8 @@ export function buildVillaRooms(ctx) {
   A(OG, 'stone', lathe([[1.2, 0], [1.3, 0.15], [1.1, 0.5], [1.3, 0.6]], 24), 23.6, Y1, -14); A(OG, 'water', new T.CylinderGeometry(1.1, 1.1, 0.05, 24), 23.6, Y1 + 0.55, -14); col(22.3, Y1, -15.3, 24.9, Y1 + 0.6, -12.7);
   for (let k = 0; k < 6; k++) glow(23.6 + Math.cos(k) * 0.9, Y1 + 0.62, -14 + Math.sin(k) * 0.9, NEON.teal, 0.5);
   light(23.6, Y1 + 3.5, -10, 0xcfe8ff, 0.7, 20);
-  person('livery', [0.3, 0.32, 0.22], 21, -6, Y1, 0.6);   // der Gärtner gießt die Farne
+  person('livery', [0.3, 0.32, 0.22], 21, -6, Y1, 0.6, 'wintergarten');   // der Gärtner gießt die Farne
+  person('livery', [0.3, 0.32, 0.22], -21.5, 0.4, Y1, Math.PI / 2, 'loggia');   // V57: ein zweiter Gärtner fegt Schnee auf der Loggia
 
   // ---------- Schlafzimmer, Bad, Ankleide (linker Flügel) ----------
   room('Schlafzimmer', OG, -54.4, -30, -8.8, 6.4, Y1);
@@ -846,7 +848,7 @@ export function buildVillaRooms(ctx) {
   box(OG, 'panel', 2.4, 1.0, 0.6, -52.5, Y1, 4.5); box(OG, 'mirror', 2.0, 1.4, 0.06, -52.5, Y1 + 1.1, 4.78); box(OG, 'gold', 2.2, 0.08, 0.1, -52.5, Y1 + 2.5, 4.78); col(-53.7, Y1, 4.2, -51.3, Y1 + 1.0, 4.8);
   fern(OG, -31, 5.5, Y1, 1.4); fern(OG, -53.5, -8, Y1, 1.4);
   chand(OG, -42.2, -1, Y1 + H2 - 1.4, 1.3); light(-42.2, Y1 + 3.5, -1, 0xffd0a8, 0.9, 24);
-  person('dress', MAID, -46, -3, Y1, Math.PI * 0.9);
+  person('dress', MAID, -46, -3, Y1, Math.PI * 0.9, 'schlaf');
   room('Badezimmer', OG, -54.4, -43.2, -19.6, -9.2, Y1);
   floor(OG, 'marble', -54.4, -43.2, -19.6, -9.2, Y1 + 0.03); ceiling(OG, 'cream', -54.4, -43.2, -19.6, -9.2, Y1 + H2 - 0.05);
   wall(OG, 'tile', 'z', -54.3, -19.6, -9.2, Y1, H2, 0.14, [], { col: false, side: 1, trim: false });
@@ -951,7 +953,7 @@ export function buildVillaRooms(ctx) {
   for (const lx of [-34, -31.5]) { box(KE, 'wood', 0.1, 2.4, 2.2, lx, KY, -20); for (let k = 0; k < 4; k++) { box(KE, 'wood', 0.3, 0.04, 2.2, lx + 0.1, KY + 0.5 + k * 0.6, -20); for (let j = 0; j < 5; j++) A(KE, j % 2 ? 'bottle' : 'white', new T.CylinderGeometry(0.07, 0.07, 0.3, 8), lx + 0.1, KY + 0.55 + k * 0.6, -21 + j * 0.5); } }
   box(KE, 'gold', 5, 0.06, 0.06, -45, KY + 2.5, -19); for (let k = 0; k < 9; k++) A(KE, 'copper', lathe([[0.1, 0], [0.12, 0.18], [0.14, 0.2]], 10).rotateX(Math.PI), -47 + k * 0.5, KY + 2.45, -19);
   glow(-40, KY + KH - 0.5, -19, [1.3, 0.9, 0.5], 2.0); light(-40, KY + 2.8, -19, 0xffe0b0, 0.8, 20);
-  person('livery', WHITE, -45, -20.3, KY, Math.PI); person('dress', MAID, -36, -18, KY, 0); person('dress', MAID, -41, -17.5, KY, 2.8);
+  person('livery', WHITE, -45, -20.3, KY, Math.PI, 'kel-koch'); person('dress', MAID, -36, -18, KY, 0, 'kel-1'); person('dress', MAID, -41, -17.5, KY, 2.8, 'kel-2');
   // Zimmer der Bediensteten, Randolfs Zimmer, Silberkammer, Tresor (hinten)
   const cell = (name, x0, x1, dz, fn) => {
     room(name, KE, x0, x1, -22.4, -16.4, KY);
@@ -997,7 +999,9 @@ export function buildVillaRooms(ctx) {
     table(KE, cx, cz, KY, 1.2, 7, 'wood'); for (let k = 0; k < 4; k++) for (const sd of [-1, 1]) furn(KE, FURN.diningChair(), FM, cx + sd * 1.0, KY, cz - 2.4 + k * 1.6, sd > 0 ? Math.PI / 2 : -Math.PI / 2);
     for (let k = 0; k < 6; k++) A(KE, 'white', new T.CylinderGeometry(0.14, 0.14, 0.015, 14), cx + (k % 2 ? 0.5 : -0.5), KY + 0.78, cz - 2 + k * 0.8);
     fireplace(KE, x0 + 0.45, cz, KY, Math.PI / 2, 'brick'); glow(cx, KY + KH - 0.4, cz, [1.3, 0.85, 0.45], 1.8); light(cx, KY + 2.8, cz, 0xffd0a0, 0.7, 16);
-    person('livery', WHITE, cx - 1.6, cz + 1, KY, Math.PI / 2); person('dress', MAID, cx + 1.6, cz - 1, KY, -Math.PI / 2); person('livery', WHITE, cx, cz + 4.5, KY, Math.PI);
+    // V57: an jedem Stuhl eine Figur; zwei sitzen immer hier, die übrigen erscheinen, wenn jemand vom Personal Pause macht
+    for (let k = 0; k < 4; k++) for (const sd of [-1, 1]) person((k + (sd > 0 ? 1 : 0)) % 2 ? 'dress' : 'livery', (k + (sd > 0 ? 1 : 0)) % 2 ? MAID : WHITE, cx + sd * 1.0, cz - 2.4 + k * 1.6, KY, sd > 0 ? -Math.PI / 2 : Math.PI / 2, { key: 'stuhl', sit: 0.53, perm: k === 1 });
+    person('livery', WHITE, cx, cz + 4.5, KY, Math.PI, 'kamin');
     bookwall(KE, 'x', 6.0, cx - 3, cx + 3, KY + 0.8, 1.6);
   });
   front('Waschküche', -42.8, -30, 6.4, 'tile', (cx, cz) => {
@@ -1015,7 +1019,7 @@ export function buildVillaRooms(ctx) {
     for (let k = 0; k < 3; k++) { const lx = cx - 7 + k * 7; A(KE, 'iron', new T.CylinderGeometry(1.6, 1.6, 3.0, 18), lx, KY + 1.5, cz - 1.5); A(KE, 'iron', new T.SphereGeometry(1.6, 18, 10, 0, Math.PI * 2, 0, Math.PI / 2), lx, KY + 3.0, cz - 1.5); col(lx - 1.7, KY, cz - 3.2, lx + 1.7, KY + 3.4, cz + 0.2); A(KE, 'fire', new T.PlaneGeometry(0.8, 0.5), lx, KY + 0.7, cz + 0.12); glow(lx, KY + 0.7, cz + 0.6, [1.5, 0.6, 0.2], 2.0); for (const dx of [-0.8, 0.8]) A(KE, 'copper', new T.CylinderGeometry(0.1, 0.1, 6, 8).rotateX(Math.PI / 2), lx + dx, KY + 3.2, cz + 1.5); A(KE, 'brassM', new T.TorusGeometry(0.25, 0.04, 6, 16).rotateX(Math.PI / 2), lx + 1.0, KY + 2.2, cz + 0.4); }
     box(KE, 'copper', 0.2, 0.2, 28, 0, KY + 3.1, cz + 2.5); box(KE, 'iron', 28, 0.1, 0.1, 0, KY + 3.3, cz + 4);
     A(KE, 'tealG', new T.SphereGeometry(2, 10, 8).scale(3, 0.6, 1), cx, KY + 3.0, cz + 2); light(cx, KY + 2.5, cz, 0xffa060, 0.8, 18);
-    person('livery', [0.3, 0.28, 0.26], cx + 3, cz + 3, KY, Math.PI);
+    person('livery', [0.3, 0.28, 0.26], cx + 3, cz + 3, KY, Math.PI, 'heizer');
   });
   front('Weinkeller', 14.7, 29.4, -1.6, 'stoneF', (cx, cz) => {
     for (const lx of [cx - 6, cx - 2, cx + 2, cx + 6]) { for (let k = 0; k < 5; k++) box(KE, 'wood', 0.5, 0.04, 9, lx, KY + 0.4 + k * 0.55, cz - 1); box(KE, 'wood', 0.06, 3.0, 9, lx - 0.25, KY, cz - 1); box(KE, 'wood', 0.06, 3.0, 9, lx + 0.25, KY, cz - 1); col(lx - 0.3, KY, cz - 5.5, lx + 0.3, KY + 3.0, cz + 3.5); for (let k = 0; k < 5; k++) for (let j = 0; j < 26; j++) A(KE, j % 4 === 0 ? 'bottle' : 'black', new T.CylinderGeometry(0.04, 0.04, 0.3, 6).rotateZ(Math.PI / 2), lx, KY + 0.48 + k * 0.55, cz - 5.3 + j * 0.34); }
@@ -1049,7 +1053,9 @@ export function buildVillaRooms(ctx) {
   A(KE, 'tile', new T.PlaneGeometry(2.4, 2.4).rotateX(-Math.PI / 2).rotateY(Math.PI / 4), 42.5, KY + 0.035, -14.5); box(KE, 'gold', 0.12, 0.02, 6, 42.5, KY + 0.035, -17.5);
   for (const lx of [36, 42.5, 49]) { A(KE, 'gold', new T.TorusGeometry(0.9, 0.05, 6, 24).rotateX(Math.PI / 2), lx, KY + KH - 0.7, -5); for (let k = 0; k < 8; k++) A(KE, 'lamp', new T.OctahedronGeometry(0.07), lx + Math.cos(k * 0.785) * 0.9, KY + KH - 0.85, -5 + Math.sin(k * 0.785) * 0.9); glow(lx, KY + KH - 0.9, -5, [0.6, 1.2, 1.2], 2.2); }
   light(42.5, KY + 2.4, -5, 0x60e0d8, 1.0, 26); light(42.5, KY + 2.0, -17, 0xffd0a0, 0.5, 14);
-  person('livery', WHITE, 33, -10, KY, Math.PI / 2); person('dress', MAID, 45, 2.4, KY, Math.PI);
+  person('livery', WHITE, 33, -10, KY, Math.PI / 2, 'bad-diener'); person('dress', MAID, 45, 2.4, KY, Math.PI, 'bad-maedchen');
+  // V57: Beistelltische zwischen den Liegen (dort stellt Randolf die Getränke ab)
+  for (const lx of [37.3, 42.5, 47.7]) { furn(KE, FURN.roundTable(0.3, 0.5), FM, lx, KY, 3.2); col(lx - 0.32, KY, 2.88, lx + 0.32, KY + 0.52, 3.52); }
 
 
   /* ================= V33: Ausstattung der Räume: Gemälde, Leuchter, Blumen, Flügel auf der Bühne ================= */
@@ -1152,8 +1158,8 @@ export function buildVillaRooms(ctx) {
   for (const z in VR.groups) { VR.groups[z].visible = false; scene.add(VR.groups[z]); }
   // Randolf ansprechen
   INTERACT.push({
-    test: p => { const a = VR.randolf; if (!a || !VR.groups.eg || !VR.groups.eg.visible) return false; const e = a.m.elements; return (p.x - e[12]) ** 2 + (p.z - e[14]) ** 2 < 2.4 * 2.4 && Math.abs(p.y - e[13]) < 2; },
-    label: 'Mit Randolf sprechen', act: () => { VR.said = (VR.said + 1) % RANDOLF_SAYS.length; toast(`Randolf: „${RANDOLF_SAYS[VR.said]}“`); },
+    test: p => { const a = VR.randolf; if (!a || !a.on || !VR.groups.eg || !VR.groups.eg.visible) return false; const e = a.m.elements; return (p.x - e[12]) ** 2 + (p.z - e[14]) ** 2 < 3.2 * 3.2 && Math.abs(p.y - e[13]) < 2; },
+    label: 'Mit Randolf sprechen', act: () => { if (VR.talk) return VR.talk(); VR.said = (VR.said + 1) % RANDOLF_SAYS.length; toast(`Randolf: „${RANDOLF_SAYS[VR.said]}“`); },
   });
 }
 
@@ -1178,7 +1184,8 @@ export function updateVillaRooms(t, C, rot) {
   // Türen öffnen sich, wenn der Spieler nahe kommt
   for (const d of VR.doors) {
     if (!d.grp.visible) continue;
-    const dx = l.x - d.lx, dz = l.z - d.lz, dy = l.y - d.y, want = d.fixed || (dx * dx + dz * dz < 7.3 && dy > -1.5 && dy < 2.5) ? 1 : 0;
+    const dx = l.x - d.lx, dz = l.z - d.lz, dy = l.y - d.y, near = q => (q.x - d.lx) ** 2 + (q.z - d.lz) ** 2 < 7.3 && q.y - d.y > -1.5 && q.y - d.y < 2.5;   // V57: auch für Randolf und das Personal (VR.walkers)
+    const want = d.fixed || (dx * dx + dz * dz < 7.3 && dy > -1.5 && dy < 2.5) || (VR.walkers && VR.walkers.some(near)) ? 1 : 0;
     if (Math.abs(want - d.open) < 0.002) continue;
     d.open += (want - d.open) * Math.min(1, dt * 3.2);
     for (const L of d.leaves) L.m.rotation.y = L.s * d.open * 1.5 * d.dir;
@@ -1188,7 +1195,8 @@ export function updateVillaRooms(t, C, rot) {
   for (const q of VR.rooms) if (l.x > q.x0 && l.x < q.x1 && l.z > q.z0 && l.z < q.z1 && l.y > q.y - 0.4 && l.y < q.y + 4.5) { r = q; break; }
   if (r && r !== VR.room) {
     VR.room = r;
-    if (!r.seen) { r.seen = true; toast(r.name === 'Eingangshalle' ? 'Randolf: „Guten Abend, Sir. Willkommen zu Hause.“' : r.hint ? `${r.name} · ${r.hint}` : r.name); }
+    if (!r.seen) { r.seen = true; toast(r.name === 'Eingangshalle' && !VR.tick ? 'Randolf: „Guten Abend, Sir. Willkommen zu Hause.“' : r.hint && r.name !== 'Eingangshalle' ? `${r.name} · ${r.hint}` : r.name); }   // V57: Randolf begrüßt selbst (haushalt.js)
     else toast(r.name);
   }
+  if (VR.tick) VR.tick(dt, t, r);   // V57: Personal, Randolf, Bedienung (haushalt.js)
 }

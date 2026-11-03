@@ -4,6 +4,7 @@ import { skipDepthResolve } from './depth.js';
 import { updateIndustry, updateShops } from './shops.js';
 import { inBelmont, interiorCrowd, updateBelmontDoor } from './belmont.js';
 import { inPenthouse, updatePenthouse } from './penthouse.js';
+import { updatePentStaff } from './haushalt.js';
 import { updateCrystal, crystalAura } from './crystal.js';
 import { WATER_Y, updateInterior } from './dance.js';
 import { REFL, updateWaves, harborWater, renderReflection } from './water.js';
@@ -250,6 +251,7 @@ export function frame(now) {
   updateInterior(t, nearBel);
   updateBelmontDoor(dt);
   updatePenthouse(dt); updateCrystal(dt); crystalAura(dt);   // V57: der Meteoritenkristall lebt
+  updatePentStaff(dt);   // V57: Personal im Penthouse
   const nearVilla = Math.hypot(camera.position.x - VILLA.x, camera.position.z - VILLA.z) < 650;
   if (VILLA.crowd) VILLA.crowd.show(nearVilla);
   if (nearVilla) updateVilla(t); else updateVillaZones(false);

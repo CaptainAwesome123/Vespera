@@ -324,9 +324,10 @@ export function updateSound(dt) {
   }
 
   // Salonmusik und Knistern: Villa, Penthouse, Salon des Luftschiffs
-  const sal = z === 'villa' ? 0.5 : z === 'pent' ? 0.45 : z === 'ship' ? 0.32 : z === 'terrace' ? 0.12 : 0;
+  // V57: im Penthouse spielt der Pianist (Pause zwischen den Stücken: SND.pianoK), das Kaminknistern hängt von der Nähe zum Feuer ab (SND.fireK)
+  const sal = z === 'villa' ? 0.5 : z === 'pent' ? 0.45 * (SND.pianoK ?? 1) : z === 'ship' ? 0.32 : z === 'terrace' ? 0.12 * (SND.pianoK ?? 1) : 0;
   SND.salon.want = sal; sndSet(SND.salon.g.gain, sal, sal > SND.salon.g.gain.value ? 1.2 : 0.8);
-  sndSet(L.crackle.gain, sal ? 0.25 + sal * 0.4 : 0, 1);
+  sndSet(L.crackle.gain, sal ? (0.25 + sal * 0.4) * (SND.fireK ?? 1) : 0, 1);
   SND.salonOn = sal;
 }
 

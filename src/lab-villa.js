@@ -15,12 +15,13 @@ import { LIGHTS } from './performance.js';
 import { player } from './player.js';
 import { labFacadeMesh } from './deco.js';
 import { SPAWNS, spawnProp, updateLoose } from './physics.js';
+import { hookVilla } from './haushalt.js';   // V57: Personal, Randolf, Bedienung
 
 export async function startVillaLab(params) {
   const FS = await import('./facade-shader.js');
   buildEnv(); getMats();
   scene.fog.density = 0.00025;
-  buildVilla();
+  buildVilla(); hookVilla();
   scene.add(labFacadeMesh(FS));
   { const box = new T.BoxGeometry(1, 1, 1), nm = new T.InstancedMesh(box, new T.MeshBasicMaterial({ color: 0xd2d2d2 }), neons.length), m = new T.Matrix4(), c = new T.Color(), q = new T.Quaternion(), e = new T.Euler(), p = new T.Vector3(), s = new T.Vector3();
     neons.forEach((n, i) => { m.compose(p.set(n.x, n.y, n.z), q.setFromEuler(e.set(0, n.ry || 0, n.rz || 0)), s.set(n.sx, n.sy, n.sz)); nm.setMatrixAt(i, m); nm.setColorAt(i, c.setRGB(...n.c)); }); scene.add(nm); }
@@ -42,13 +43,14 @@ export async function startVillaLab(params) {
     salon: [[-16, 1.7, -4], [-24, 1.4, -16]], salon2: [[-28, 1.7, -20], [-18, 1.4, -8]], herren: [[16, 1.7, -4], [24, 1.4, -16]], speise: [[-32, 1.7, 5], [-45, 1.3, -3]],
     ballsaal: [[32, 1.7, 5], [45, 2.5, -12]], keller: [[0, -2.5, -12], [0, -3, -20]], schwimmhalle: [[36, -2.5, -8], [44, -3.5, -2]],
     og: [[3, 11.8, -2.5], [-10, 11.5, -18]], schreibtisch: [[-21, 11.8, -12.3], [-23.6, 11.0, -15]], palme: [[-10, 1.7, -2.5], [-12.4, 2.6, -5]], bibliothek: [[-19.5, 11.8, -3], [-26, 11.2, -5.5]], schlaf: [[-30, 11.8, -2], [-42, 11.3, -16]], arbeit: [[30, 11.8, -2], [42, 11.3, -16]],
-    garten: [[0, 2.0, 2], [0, 3, 18]], brunnen: [[6, 1.7, 10], [0, 2.5, 18]], loggia: [[20, 1.7, 8], [-10, 4, 0]], aussen: [[0, 10, 60], [0, 8, 0]], vorfahrt: [[-8, 2.5, -58], [0, 5, -24]], parkplatz: [[-20, 6, -60], [0, 2, -42]],
+    garten: [[0, 2.0, 2], [0, 3, 18]], gesinde: [[-45, -2.5, -11], [-49, -3.6, -2]], kueche: [[-31.5, 1.7, -12.5], [-42, 1.0, -18]], speisediener: [[-36, 1.7, 5.5], [-43, 1.0, -3]], betten: [[-36, 11.8, 2], [-43, 10.8, -5]], loggiagarten: [[-2, 11.8, 1.2], [-18, 10.8, 0.4]], randolf: [[-4, 1.7, -10], [0, 1.0, -16.2]], liegen: [[42.5, -2.5, -6], [42.5, -3.8, 3]], brunnen: [[6, 1.7, 10], [0, 2.5, 18]], loggia: [[20, 1.7, 8], [-10, 4, 0]], aussen: [[0, 10, 60], [0, 8, 0]], vorfahrt: [[-8, 2.5, -58], [0, 5, -24]], parkplatz: [[-20, 6, -60], [0, 2, -42]],
     pool: [[0, -3, 36], [18, -4.5, 45]], terrassen: [[-40, 6, 100], [0, -8, 50]],
   };
   const vis = () => { const v = updateVillaZones(true); if (VILLA.crowd) VILLA.crowd.flag(); return v; };
   window.labView = name => { const v = V[name] || V.halle; camera.position.copy(Wp(...v[0])); camera.lookAt(Wp(...v[1])); player.p.copy(camera.position); player.p.y -= 1.6; relight(); vis(); };
   const LABV = { t: params.get('t') != null ? +params.get('t') : null };
   window.labTime = t => { LABV.t = t; };
+  window.labRun = s => { for (let k = 0; k < s * 10; k++) { if (VR.tick) VR.tick(0.1, 0, null); } VILLA.crowd.flag(); };   // V57: Abläufe vorspulen
   window.labView(params.get('view') || 'halle');
   window.labStats = () => { let tris = 0, draws = 0; const cnt = o => { if (o.visible === false) return; if (o.isMesh && o.geometry) { const g = o.geometry, n = g.index ? g.index.count : g.attributes.position.count; tris += n / 3 * (o.isInstancedMesh ? o.count : 1); draws++; } for (const c of o.children) cnt(c); }; cnt(scene); return { tris: Math.round(tris), draws, zones: Object.fromEntries(Object.entries(VR.groups).map(([k, g]) => [k, g.visible])), local: (() => { const l = villaLocal(camera.position); return [l.x, l.y, l.z].map(v => +v.toFixed(1)); })(), lights: pool.map(l => +l.intensity.toFixed(2)) }; };
   const ray = new T.Raycaster();

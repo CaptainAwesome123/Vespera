@@ -445,7 +445,9 @@ export function standUp() {
   if (DINE.menuOpen) { closeMenu(); if (!isTouch) tryLock(); }
   if (DINE.item) { DINE.item.removeFromParent(); DINE.item = null; }
   DINE.order = null; DINE.venue = null;
-  player.p.set(s.x + Math.sin(s.yaw) * -0.7, s.y - 0.5, s.z + Math.cos(s.yaw) * -0.7); player.pitch = 0;
+  if (s.up) player.p.set(s.up[0], s.up[1], s.up[2]);   // V57: Sofas und Liegen: vor dem Platz aufstehen (dahinter ist die Lehne)
+  else player.p.set(s.x + Math.sin(s.yaw) * -0.7, s.y - 0.5, s.z + Math.cos(s.yaw) * -0.7);
+  player.pitch = 0;
 }
 export function openMenu() {
   const V = DINE.venue, M = MENU[V.kind], el = $('menuCard');
@@ -462,8 +464,21 @@ export function openMenu() {
   el.hidden = false; DINE.menuOpen = true;
   if (locked) { DINE.keepLock = true; document.exitPointerLock(); }
 }
-export function closeMenu() { $('menuCard').hidden = true; DINE.menuOpen = false; }
+export function closeMenu() { $('menuCard').hidden = true; DINE.menuOpen = false; DINE.onPick = null; }
+// V57: Auswahlkarte für Gespräche (Randolf, Konrad): dieselbe Karte, Zahl drücken oder antippen, cb(Index)
+export function openChoice(title, opts, cb) {
+  const el = $('menuCard'); el.innerHTML = '';
+  const h = document.createElement('h3'); h.textContent = title; el.append(h);
+  const grid = document.createElement('div'); grid.className = 'items';
+  opts.forEach((o, i) => { const bt = document.createElement('button'); bt.type = 'button'; bt.innerHTML = '<kbd>' + ((i + 1) % 10) + '</kbd>'; bt.append(o); bt.onclick = () => placeOrder(i); grid.append(bt); });
+  el.append(grid);
+  const p = document.createElement('p'); p.textContent = 'Zahl drücken oder antippen · Esc schließt'; el.append(p);
+  const cl = document.createElement('button'); cl.type = 'button'; cl.className = 'close'; cl.textContent = 'Schließen'; cl.onclick = () => { closeMenu(); if (!isTouch) tryLock(); }; el.append(cl);
+  el.hidden = false; DINE.menuOpen = true; DINE.onPick = cb; DINE.picks = opts.length;
+  if (locked) { DINE.keepLock = true; document.exitPointerLock(); }
+}
 export function placeOrder(i) {
+  if (DINE.onPick) { const f = DINE.onPick; if (i >= DINE.picks) return; closeMenu(); if (!isTouch) tryLock(); f(i); return; }
   const it = MENU[DINE.venue.kind].items[i]; if (!it) return;
   DINE.order = it; closeMenu();
   toast(`Bestellt: ${it[0]} · der Kellner kommt gleich`);
