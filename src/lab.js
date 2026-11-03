@@ -22,6 +22,7 @@ export function startLab(params) {
   if (params.get('lab') === 'luftschiff') { import('./lab-luftschiff.js').then(L => L.startShipLab(params)); return; }   // V54: Aurora Imperial innen
   if (params.get('lab') === 'wetter') { import('./lab-wetter.js').then(L => L.startWeatherLab(params)); return; }   // V54: Polarlicht, Schneesturm, Eisblumen, nasse Straßen
   if (params.get('lab') === 'kram') { import('./lab-kram.js').then(L => L.startKramLab(params)); return; }   // V53: die vielen neuen losen Dinge
+  if (params.get('lab') === 'gegner') { import('./lab-gegner.js').then(L => L.startGegnerLab(params)); return; }   // V60: Anarchisten, Räuber, Festnahme
   if (params.get('lab') === 'leben') { import('./lab-leben.js').then(L => L.startLifeLab(params)); return; }   // V55: Straßenmusik, Kellner, Haltungen zu Alexander
   if (params.get('lab') === 'orte') { import('./lab-orte.js').then(L => L.startOrteLab(params)); return; }   // V58: Theater, Bank, Café
   if (params.get('lab') === 'kraft') { import('./lab-kraft.js').then(L => L.startKraftLab(params)); return; }   // V52: Telekinese-Möbel und staunende Leute
