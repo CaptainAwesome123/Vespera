@@ -10,6 +10,7 @@ import { PM, toggleView, toggleDance, zoomView } from './player-model.js';
 import { cycleWeather } from './atmosphere.js';
 import { LOOSE, drop, rotateHeld } from './physics.js';
 import { POWERS, toggleFlight, startFlight, tkToggle, tkGrab, tkRelease, tkDistance } from './powers.js';
+import { togglePerf } from './performance.js';
 
 /* =====================================================================
    EINGABE
@@ -59,6 +60,7 @@ window.addEventListener('keydown', e => {
   if (e.code === 'KeyB') { shared.bloomOn = !shared.bloomOn && !!composer; toast(shared.bloomOn ? 'Leuchteffekt an' : 'Leuchteffekt aus'); }
   if (e.code === 'KeyN') cycleWeather();
   if (e.code === 'KeyK') toggleQuality();   // V38: Qualitätsstufe
+  if (e.code === 'KeyP') toast(togglePerf() ? 'Leistungsanzeige an' : 'Leistungsanzeige aus');   // V57
   if (e.code === 'KeyR' && LOOSE.held) rotateHeld();
   if (e.code === 'KeyV') toast(toggleView() === 'third' ? 'Ansicht von hinten' : 'Ich-Ansicht');
   if (e.code === 'KeyG') { if (PM.view !== 'third') toggleView(); const d = toggleDance(); toast(d === 1 ? 'Charleston' : d === 2 ? 'Langsamer Tanz' : 'Tanz aus'); }

@@ -305,7 +305,6 @@ function mesh(list, mat) {
   if (g.attributes.aCol) { g.setAttribute('color', g.attributes.aCol); g.deleteAttribute('aCol'); }
   const m = new T.Mesh(g, mat); m.frustumCulled = false; return m;
 }
-export const decoStats = () => ({ portals: DECOR.portals.length, doors: DECOR.doors.length, outer: DECOR.outer.length, cornices: DECOR.cornices.length, pilasters: DECOR.pilasters.length, ghosts: DECOR.ghosts.length, signs: DECOR.signs.length });
 
 /* ---------- V38 · FASSADEN-LABOR (index.html?lab=fassade): ein Elitehaus mit Portal, Haustür und Dachreklame,
    ein Backsteinhaus mit Wandreklame, eine Ringhaus-Tür, vor dunklem Grund; tools/lab-shot.js macht Bilder (LAB=fassade) ---------- */

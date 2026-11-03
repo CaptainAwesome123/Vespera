@@ -8,11 +8,11 @@ import { updateCrystal, crystalAura } from './crystal.js';
 import { WATER_Y, updateInterior } from './dance.js';
 import { REFL, updateWaves, harborWater, renderReflection } from './water.js';
 import { updatePort, carryPlayer, VILLA, terrainHeight } from './harbour.js';
-import { updateVilla, updateParked, updateLampLod, updateTreeLod, updateFireworks } from './serpentine.js';
+import { updateVilla, updateParked, updateLampLod, updateTreeLod } from './serpentine.js';
 import { inVillaHouse, updateVillaZones } from './villa.js';
 import { inImperial } from './imperial.js';
 import { updatePedestrians, CLOCK, citizenNear, citizenDoing } from './ragdoll.js';
-import { searchlights, updateBeamSpots } from './airships.js';
+import { updateBeamSpots } from './airships.js';
 import { updateCarLights } from './carlight.js';
 import { updateCars, updateTrucks, updateTrams } from './traffic.js';
 import { player, updatePlayer, EYE } from './player.js';
@@ -92,7 +92,8 @@ export function updateDetails(dt) {
    Menschen und Autos (2 m), Möbel und Läden (5 m), Laternen und Bäume (10 m). Türme und Silhouette
    ragen aus dem Bodennebel heraus und bleiben immer stehen. Von oben (Flug, Villa) ist der Nebel dünn,
    dann greift nichts davon. */
-export const FOGCULL = { t: 0, low: new Set(['furniture', 'goods', 'shops', 'props', 'deco']), tall: new Set(['lamps', 'decoFar']), hidden: 0 };
+// V57: auch der Kleinkram (V53) und die Gassen im Arbeiterviertel (V46, Wäscheleinen und Rohre an den Wänden: hoch)
+export const FOGCULL = { t: 0, low: new Set(['furniture', 'goods', 'shops', 'props', 'deco', 'clutter']), tall: new Set(['lamps', 'decoFar', 'arbeiter']), hidden: 0 };
 export function updateFogCull(dt) {
   if ((FOGCULL.t -= dt) > 0) return;
   FOGCULL.t = 0.3;
@@ -112,7 +113,10 @@ export function updateFogCull(dt) {
 // bei ruhigem Lauf langsam wieder höher, aber nie über eine Stufe, die schon zu langsam war.
 export const PR_DEV = window.devicePixelRatio || 1, PR_MAX = MOBILE ? Math.min(1.5, PR_DEV) : Math.min(2, Math.max(PR_DEV, 1) * 1.6);
 export const PR_LEVELS = [0.5, 0.6, 0.7, 0.8, 0.9, 1, 1.15, 1.3, 1.5, 1.75, 2].filter(v => v <= PR_MAX + 1e-6);
-export const PR_START = MOBILE ? Math.min(PR_MAX, 0.9) : LOW ? Math.min(PR_MAX, 1) : Math.min(PR_MAX, Math.max(PR_DEV, 1) * 1.3);   // V38: niedrige Stufe startet mit 1,0
+// V57: am PC startet die hohe Stufe mit der echten Bildschirmauflösung (vorher 1,3-fach: 70 % mehr Bildpunkte schon beim ersten Bild)
+// und steigt nur, wenn Luft ist; nach unten geht es schon unter 49 Bildern pro Sekunde (vorher erst unter 42, dann blieb das Bild
+// bei 45 Bildern mit Überabtastung stehen statt bei flüssigen 60)
+export const PR_START = MOBILE ? Math.min(PR_MAX, 0.9) : Math.min(PR_MAX, Math.max(PR_DEV, 1));   // V38: niedrige Stufe startet mit 1,0
 export let prIdx = PR_LEVELS.reduce((b, v, i) => Math.abs(v - PR_START) < Math.abs(PR_LEVELS[b] - PR_START) ? i : b, 0);
 export let prCeil = PR_LEVELS.length - 1, ftAvg = 16.7, prTimer = 0, goodTime = 0, lastUp = -1e9, adaptOn = true;
 export function setPR(v) { renderer.setPixelRatio(v); if (composer) composer.setPixelRatio(v); resize(); }
@@ -122,7 +126,10 @@ export function adaptResolution(raw, now) {
   if ((prTimer += raw) < 1.0) return;
   // ganz unten und immer noch zu langsam: die echte Wasserspiegelung abschalten
   if (ftAvg > 30 && prIdx === 0 && REFL.rt && !REFL.off) { REFL.off = true; ftAvg = 20; }
-  if (ftAvg > 24 && prIdx > 0) {
+  // V57: wird es knapp, entsteht das Spiegelbild (Hafen, nasses Pflaster) nur noch jedes zweite Bild; man sieht es kaum, es spart
+  // aber fast ein ganzes zusätzliches Zeichnen der Stadt in halber Auflösung
+  if (ftAvg > 19) REFL.half = true; else if (ftAvg < 15.5) REFL.half = false;
+  if (ftAvg > 20.5 && prIdx > 0) {
     if (now - lastUp < 5000) prCeil = prIdx - 1;
     prIdx--; setPR(PR_LEVELS[prIdx]); goodTime = 0; ftAvg = 18;
   } else if (ftAvg < 18.5) {
@@ -130,6 +137,40 @@ export function adaptResolution(raw, now) {
     if (goodTime > 4 && prIdx < prCeil) { prIdx++; setPR(PR_LEVELS[prIdx]); lastUp = now; goodTime = 0; }
   } else goodTime = 0;
   prTimer = 0;
+}
+
+// V57: Leistungsanzeige (Taste P oder ?leistung): Bilder pro Sekunde, Bildzeit, Auflösung, Zeichenaufrufe und Dreiecke je Durchgang
+// (Bild, Spiegelbild, Mondschatten). So lassen sich Messwerte vom eigenen PC als Bildschirmfoto schicken.
+export const PERF = { on: new URLSearchParams(location.search).has('leistung'), el: null, t: 0, n: 0, acc: 0, worst: 0, refl: [0, 0], shad: [0, 0], main: [0, 0], wrapped: false };
+export function togglePerf() { PERF.on = !PERF.on; if (!PERF.on && PERF.el) { PERF.el.style.display = 'none'; renderer.info.autoReset = true; } return PERF.on; }
+function perfSetup() {
+  if (!PERF.el) {
+    const e = PERF.el = document.createElement('div');
+    e.style.cssText = 'position:fixed;left:8px;bottom:8px;z-index:50;padding:6px 9px;background:rgba(4,14,16,.72);color:#d8f0ea;font:12px/1.45 ui-monospace,Consolas,monospace;white-space:pre;pointer-events:none;border:1px solid rgba(200,160,90,.4);border-radius:4px';
+    document.body.appendChild(e);
+  }
+  if (!PERF.wrapped) {
+    PERF.wrapped = true;
+    const sm = renderer.shadowMap, oR = sm.render, I = renderer.info.render;
+    sm.render = function (...a) { const c = I.calls, t = I.triangles; oR.apply(this, a); PERF.shad[0] += I.calls - c; PERF.shad[1] += I.triangles - t; };
+  }
+  PERF.el.style.display = 'block';
+}
+const fmtK = v => v >= 1e6 ? (v / 1e6).toFixed(1) + ' Mio.' : Math.round(v / 1000) + ' k';
+function perfFrame(raw) {
+  if (!PERF.on) return;
+  if (!PERF.el || PERF.el.style.display !== 'block') perfSetup();
+  PERF.n++; PERF.acc += raw; PERF.worst = Math.max(PERF.worst, raw);
+  if ((PERF.t += raw) < 0.5) return;
+  const f = PERF.n, I = renderer.info, mem = performance.memory ? Math.round(performance.memory.usedJSHeapSize / 1048576) + ' MB' : '?';
+  const loaded = layers.reduce((s, L) => s + L.chunks.size, 0);
+  PERF.el.textContent = `${Math.round(f / PERF.t)} Bilder/s · ${(PERF.acc / f * 1000).toFixed(1)} ms (schlechtestes ${(PERF.worst * 1000).toFixed(0)} ms)\n`
+    + `Auflösung ${PR_LEVELS[prIdx].toFixed(2)} · Qualität ${LOW ? 'niedrig' : 'hoch'} · Spiegelbild ${REFL.off ? 'aus' : REFL.half ? 'halb' : 'voll'}\n`
+    + `Bild:       ${Math.round(PERF.main[0] / f)} Aufrufe · ${fmtK(PERF.main[1] / f)} Dreiecke\n`
+    + `Spiegelung: ${Math.round(PERF.refl[0] / f)} Aufrufe · ${fmtK(PERF.refl[1] / f)} Dreiecke\n`
+    + `Schatten:   ${Math.round(PERF.shad[0] / f)} Aufrufe · ${fmtK(PERF.shad[1] / f)} Dreiecke\n`
+    + `Programme ${I.programs.length} · Geometrien ${I.memory.geometries} · Texturen ${I.memory.textures} · Zellen ${loaded} · JS ${mem}`;
+  PERF.t = PERF.n = PERF.acc = PERF.worst = 0; PERF.refl[0] = PERF.refl[1] = PERF.shad[0] = PERF.shad[1] = PERF.main[0] = PERF.main[1] = 0;
 }
 
 // V23: Nahebene mit dem Abstand zur nächsten Fläche: zu Fuß 0,2 m (Wände, Teller), im Flug über den Dächern bis 4 m.
@@ -227,8 +268,6 @@ export function frame(now) {
   updateVenues(dt);
   updateShops(dt);
   updateCarScenes(dt); updateCarReturns(dt);
-  updateFireworks(dt);
-  for (const s of searchlights) s.piv.rotation.set(Math.sin(t * 0.21 + s.ph) * s.tilt, t * 0.12 + s.ph, Math.cos(t * 0.17 + s.ph) * s.tilt);
   updateBeamSpots();   // V38: Lichtfleck des Luftschiff-Scheinwerfers
   // V38: im Dunst und bei Niederschlag leuchten die Lichter weicher und weiter (Nachleuchten etwas stärker, Schwelle tiefer)
   if (bloomPass) { const mist = Math.min(U.uMist.value, 2.3), wet = U.uRain.value + U.uSnow.value; bloomPass.strength = 0.66 + 0.1 * mist + 0.12 * wet; bloomPass.threshold = 0.72 - 0.06 * mist * 0.5; }
@@ -258,7 +297,14 @@ export function frame(now) {
   if (shared.toastTimer > 0 && (shared.toastTimer -= dt) <= 0) $('toast').style.opacity = 0;
   if (shared.sayTimer > 0 && (shared.sayTimer -= dt) <= 0) $('say').style.opacity = 0;
 
+  const PI = PERF.on ? renderer.info : null;
+  // Die Schattenkarte entsteht im ersten Zeichnen des Bildes (oft im Spiegelbild); ihre Aufrufe zählen nur unter Schatten
+  let s0 = 0, s1 = 0;
+  if (PI) { PI.autoReset = false; PI.reset(); s0 = PERF.shad[0]; s1 = PERF.shad[1]; }
   renderReflection();
+  if (PI) { PERF.refl[0] += PI.render.calls - (PERF.shad[0] - s0); PERF.refl[1] += PI.render.triangles - (PERF.shad[1] - s1); PI.reset(); s0 = PERF.shad[0]; s1 = PERF.shad[1]; }
   if (composer) { bloomPass.enabled = shared.bloomOn; skipDepthResolve(renderer, composer.renderTarget1); skipDepthResolve(renderer, composer.renderTarget2); composer.render(); } else renderer.render(scene, camera);
+  if (PI) { PERF.main[0] += PI.render.calls - (PERF.shad[0] - s0); PERF.main[1] += PI.render.triangles - (PERF.shad[1] - s1); }
+  perfFrame(raw);
   requestAnimationFrame(frame);
 }

@@ -194,9 +194,9 @@ export function buildCars() {
   shared.carCmp = lodCompactor(shared.carMeshHi, shared.carMesh, LOD_CAR2);
   // V39: ein Teil des Verkehrs fährt als Pierce Arrow (echtes Modell), mit eigenen Lackfarben
   if (CARM.ready) {
-    const M = modelCarMeshes(cars.length); carLampsFromModel();
+    const M = modelCarMeshes(cars.length, true, true); carLampsFromModel();
     cars.forEach((car, i) => { if (!isModelCar(i)) return; car.model = true; car.col = pick(CARM_PAINT).map(v => v + (Math.random() - 0.5) * 0.012); });
-    TRF.modelCmp = lodCompactor(M.hi, M.lo, CARM.near2);
+    TRF.modelCmp = lodCompactor(M.hi, M.lo, CARM.near2, M.far, CARM.shadow2);   // V57: ferne Wagen ohne Mondschatten
   }
   const pts = [];
   for (let i = 0; i < cars.length; i++) {
@@ -329,14 +329,26 @@ export function buildTrafficLights() {
   }
   if (!list.length) return;
   const im = new T.InstancedMesh(geo, mat, list.length); list.forEach((m, i) => im.setMatrixAt(i, m)); im.frustumCulled = false; scene.add(im);
+  TL_MAST.im = im; TL_MAST.list = list; TL_MAST.x = list.map(m => m.elements[12]); TL_MAST.z = list.map(m => m.elements[14]);
   const pts = glow.map(g => ({ p: [g.x, 4.95, g.z], c: [0.2, 1.4, 0.5], s: 0.55, ph: 0, bl: 0 }));
   TL_GLOW = { pts: makeGlowPoints(pts, true), list: glow, t: 0 }; scene.add(TL_GLOW.pts);
   // Farbe wird je Bild gesetzt: Rot oben, Gelb Mitte, Grün unten
   TL_GLOW.col = TL_GLOW.pts.geometry.attributes.color || null;
 }
+// V57: die Masten standen alle 246 in jedem Bild (auch im Spiegelbild), 173 000 Dreiecke. Jetzt nur noch die, die nicht
+// ganz im Nebel liegen (gleiche Sichtweite wie Möbel und Läden, FOGVIS.low), höchstens 650 m weit
+export const TL_MAST = { im: null, list: null, x: null, z: null };
+function cullTrafficMasts() {
+  const M = TL_MAST; if (!M.im) return;
+  const cp = camera.position, D = Math.min(FOGVIS.low, FOGVIS.cap, 650 + Math.max(0, cp.y)), D2 = D * D, dy2 = cp.y * cp.y;
+  let n = 0;
+  for (let i = 0; i < M.list.length; i++) if ((M.x[i] - cp.x) ** 2 + (M.z[i] - cp.z) ** 2 + dy2 < D2) M.im.setMatrixAt(n++, M.list[i]);
+  M.im.count = n; M.im.instanceMatrix.needsUpdate = true;
+}
 export function updateTrafficLights() {
   if (!TL_GLOW || (TL_GLOW.t -= 1 / 30) > 0) return;
   TL_GLOW.t = 0.25;
+  cullTrafficMasts();
   const pos = TL_GLOW.pts.geometry.attributes.position.array, col = TL_GLOW.col && TL_GLOW.col.array, t = TRF.t;
   TL_GLOW.list.forEach((g, i) => {
     const green = lightGreen(g.n, g.ax, t), amber = lightAmber(g.n, g.ax, t);
