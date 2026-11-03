@@ -96,7 +96,7 @@ export function brazierGeo(K, x, z, y0 = 0.22) {
 // Leute um eine Feuertonne: wärmen sich die Hände (8), trinken (15), lehnen und rauchen (36)
 function brazierPeople(x, z, y0, rr, n) {
   for (let k = 0; k < n; k++) {
-    const a = rr() * 6.28 / n + k * 6.28 / n, r = 0.95 + rr() * 0.2, px = x + Math.sin(a) * r, pz = z + Math.cos(a) * r, kind = rr() < 0.75 ? 'worker' : rr() < 0.6 ? 'coat' : 'sailor';
+    const a = rr() * 6.28 / n + k * 6.28 / n, r = 0.95 + rr() * 0.2, px = x + Math.sin(a) * r, pz = z + Math.cos(a) * r, kind = rr() < 0.75 ? (rr() < 0.45 ? 'worker' : rr() < 0.5 ? 'braces' : 'jacket') : rr() < 0.6 ? 'coat' : 'sailor';   // V56: auch Hemdsärmel mit Hosenträgern und Arbeitsjacken
     const act = rr() < 0.6 ? 8 + 0.3 + rr() * 0.4 : rr() < 0.6 ? 15.3 + rr() * 0.4 : 0.3 + rr() * 0.4;
     VENUE_PEDS.push({ st: 4, x: px, y: y0, z: pz, yaw: Math.atan2(x - px, z - pz), sc: 0.95 + rr() * 0.1, v: 0, kind, col: kind === 'worker' ? (rr() < 0.5 ? WORKWEAR : SHIRTS)[Math.floor(rr() * 4)] : COATS[Math.floor(rr() * COATS.length)], act });
   }

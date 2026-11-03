@@ -736,7 +736,7 @@ export function personBuild(kind, q) {
   return personMerge(P, kind);
 }
 // Hutmaske je Art: welche Hutvarianten das Haar bedecken (Bit 0-2), 8 = immer eine Mütze
-export const HATMASK = { coat: 7, suit: 3, worker: 7, kid: 7, lady: 7, dress: 2, police: 8, chauffeur: 8, sailor: 8, livery: 8, furcoat: 7 };
+export const HATMASK = { coat: 7, suit: 3, worker: 7, kid: 7, lady: 7, dress: 2, police: 8, chauffeur: 8, sailor: 8, livery: 8, furcoat: 7, dbl: 3, braces: 7, jacket: 7, flapper: 7 };   // V56: neue Arten
 // Zusammenfügen mit Index; Farben, Glieder, Varianten, Stoffart und Schwung je Ecke
 export function personMerge(parts, kind) {
   let n = 0, ni = 0;

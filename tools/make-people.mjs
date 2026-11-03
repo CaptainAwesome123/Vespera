@@ -23,8 +23,12 @@ import { MeshoptEncoder, MeshoptSimplifier } from 'meshoptimizer';
 import * as M from './people/mh.mjs';
 import * as F from './people/fit.mjs';
 
-const [,, MH, ND, PREV] = process.argv;
-if (!MH || !ND) { console.error('Aufruf: node tools/make-people.mjs <makehuman/data> <makehuman-data/public/data> [vorschau]'); process.exit(1); }
+// V56: dritter Ordner = die mit MakeHuman ausgelieferten Bilder in voller Größe (2048 px: Haut, Kleidung, Haare; CC0 wie die
+//   Grundausstattung): github.com/dmaugis/makehuman-py3-assets, Ordner base (Dateien über Git LFS bzw. media.githubusercontent.com).
+//   Fehlt er, werden die 512er-Bilder des npm-Pakets genommen (gröber, aber derselbe Aufbau)
+const [,, MH, ND, HI, PREV] = process.argv;
+if (!MH || !ND) { console.error('Aufruf: node tools/make-people.mjs <makehuman/data> <makehuman-data/public/data> [makehuman-py3-assets/base] [vorschau]'); process.exit(1); }
+const hi = (...p) => { if (!HI) return null; const f = path.join(HI, ...p); return fs.existsSync(f) ? f : null; };
 const OUT = path.join(path.dirname(new URL(import.meta.url).pathname), '..', 'assets', 'people');
 fs.mkdirSync(OUT, { recursive: true });
 await MeshoptSimplifier.ready; await MeshoptEncoder.ready;
@@ -71,6 +75,12 @@ const PARTS = {
   'fedora2-m': { body: 'm', src: 'clothes/fedora_cocked', hat: true, fab: 'felt' },
   'coat-f':    { body: 'f', src: 'clothes/Coat', fab: 'wool', skirt: true, furcoat: true },
   'shoes2-m':  { body: 'm', src: 'clothes/shoes04', fab: 'leather' },
+  // V56: Kleidung der Zwanziger. Flapperkleid aus dem geraden TubeDress (punkduck, CC BY 3.0): Perlenmieder, tiefe Taille, Fransen
+  // gemalt; Hemdsärmel mit Hosenträgern und Arbeitsjacke aus den MakeHuman-Freizeitanzügen 03 und 05 (Grundausstattung, CC0),
+  // in den Kacheln zu Leinenhemd, Wollhose, Cordjacke umgemalt. Cloche (Glockenhut) und Kleidträger werden unten gebaut
+  'flapper-f': { body: 'f', src: 'clothes/TubeDress', fab: 'silk', skirt: true },
+  'braces-m':  { body: 'm', src: 'clothes/male_casualsuit03', fab: 'cotton' },
+  'jacket-m':  { body: 'm', src: 'clothes/male_casualsuit05', fab: 'wool' },
   'brows-m':   { body: 'm', src: 'eyebrows/eyebrow001', brow: true },
   'brows-f':   { body: 'f', src: 'eyebrows/eyebrow010', brow: true },
   'lashes-m':  { body: 'm', src: 'eyelashes/Eyelashes01', brow: true },
@@ -78,30 +88,42 @@ const PARTS = {
 };
 const FAB = { skin: 1, hair: 2, wool: 3, silk: 4, cotton: 5, leather: 6, fur: 7, felt: 8, straw: 9, sequin: 10, knit: 11, metal: 12, satin: 13, stock: 14 };
 // Atlas: 4 x 6 Kacheln zu 512 px. Haut: Kachel je Geschlecht und Alter/Herkunft (Auswahl im Shader); Reihe 5: Spieler
-const TILE = 512, AW = 4 * TILE, AH = 10 * TILE;   // V39: eine Reihe mehr; V44: drei Reihen für Köpfe und Hände
+// V56: 18 Reihen (2048 x 9216). Köpfe 512 x 1024 (die Kopfinsel ist knapp doppelt so hoch wie breit), Anzüge, Kostüm, Flapperkleid
+// und Latzhose 1024 px, alles aus den 2048er-Quellbildern. Handys und Grafik mit kleineren Texturen nehmen die halbe Fassung
+const TILE = 512, AW = 4 * TILE, AH = 18 * TILE;
 const SKIN = {
   m: ['young_caucasian_male/textures/young_lightskinned_male_diffuse.png', 'middleage_caucasian_male/textures/middleage_lightskinned_male_diffuse.png', 'old_caucasian_male/textures/old_lightskinned_male_diffuse.png', 'young_african_male/textures/young_darkskinned_male_diffuse.png'],
   f: ['young_caucasian_female/textures/young_lightskinned_female_diffuse.png', 'middleage_caucasian_female/textures/middleage_lightskinned_female_diffuse.png', 'old_caucasian_female/textures/old_lightskinned_female_diffuse.png', 'young_african_female/textures/young_darkskinned_female_diffuse.png'],
 };
+// V56: dieselben Hautbilder in 2048 px (makehuman-py3-assets/base/skins/textures), wenn vorhanden
+const skinFile = (gk, k) => hi('skins', 'textures', path.basename(SKIN[gk][k])) || sk(SKIN[gk][k]);
+// V56: Kleidungs- und Haarbilder in 2048 px (base/clothes/<name>/<name>_diffuse.png, base/hair/<name>/<name>_diffuse.png), sonst die des Teils
+const HI_NAME = { 'hairE-m': 'afro' }, HI_PATH = { 'fedora-m': ['clothes', 'fedora01', 'materials', 'fedora_texture.png'] };
+function partTex(name) {
+  const P = parts[name], src = path.basename(P.def.src).toLowerCase(), dir = P.def.hair ? 'hair' : 'clothes';
+  return (HI_PATH[name] && hi(...HI_PATH[name])) || hi(dir, src, (HI_NAME[name] || src) + '_diffuse.png') || P.tex;
+}
+const partAO = name => { const src = path.basename(parts[name].def.src); return hi('clothes', src, src + '_ao.png'); };
 // Bereiche im Atlas [x, y, w, h] in Kacheln; Varianten der Anzüge werden gemalt (paintVariant)
 const RECT = {
   skin_m: [0, 0, 1, 1], skin_f: [0, 1, 1, 1],                       // erste Kachel je Reihe; Reihe = Geschlecht, Spalte = Hautbild
-  suit: [0, 2, 1, 1], tux: [1, 2, 1, 1], uniform: [2, 2, 1, 1], waiter: [3, 2, 1, 1],
-  work: [0, 3, 1, 1], lady: [1, 3, 1, 1],
-  shoes: [2, 3, 0.5, 0.5], boots: [2.5, 3, 0.5, 0.5], brows_m: [2.5, 3.5, 0.25, 0.25], brows_f: [2.75, 3.5, 0.25, 0.25], lashes: [2.5, 3.75, 0.5, 0.25],
-  heels: [3, 3, 0.25, 0.25],
-  hairA_m: [0, 4, 0.5, 0.5], hairB_m: [0.5, 4, 0.5, 0.5], hairC_m: [0, 4.5, 0.5, 0.5],
-  hairA_f: [1, 4, 1, 1], hairB_f: [2, 4, 1, 1], hairC_f: [3, 4, 1, 1],
-  skin_p: [0, 5, 1, 1], face_p: [1, 5, 1, 1],                      // Spieler: Körperhaut und Kopf in dreifacher Auflösung mit Gesicht
-  // V39
-  hairD_m: [0.5, 4.5, 0.5, 0.5], hairD_f: [2, 5, 1, 1], hairE_f: [3, 5, 1, 1],
-  furcoat: [0, 6, 1, 1], fedora: [1, 6, 0.5, 0.5], shoes2: [1.5, 6, 0.5, 0.5], hairE_m: [1, 6.5, 0.5, 0.5],
-  // V44: Augen in voller Auflösung des Quellbilds (1024 px, vorher auf 256 verkleinert); Köpfe und Hände der Stadtleute in eigenen
-  // Kacheln (erste Kachel je Reihe, die Spalte wählt der Shader wie bei der Haut nach Alter und Herkunft), mit gemalten Poren,
-  // Lippenlinien und Knöchelfalten; das Relief steckt im Alphakanal. Hände: rechte Hand links, linke Hand rechts in der halben Kachel
-  eyes: [2, 6, 2, 1],
-  face_m: [0, 7, 1, 1], face_f: [0, 8, 1, 1], hands_m: [0, 9, 1, 0.5], hands_f: [0, 9.5, 1, 0.5],
+  // V44/V56: Köpfe und Hände der Stadtleute in eigenen Kacheln (erste Kachel je Reihe, die Spalte wählt der Shader wie bei der Haut
+  // nach Alter und Herkunft), mit gemalten Poren, Lippenlinien und Knöchelfalten; das Relief steckt im Alphakanal.
+  // Hände: rechte Hand links, linke Hand rechts in der halben Kachel. Augen in voller Auflösung des Quellbilds (1024 px)
+  face_m: [0, 2, 1, 2], face_f: [0, 4, 1, 2], hands_m: [0, 6, 1, 0.5], hands_f: [0, 6.5, 1, 0.5],
+  skin_p: [0, 7, 1, 1], face_p: [1, 7, 1, 1], eyes: [2, 7, 2, 1],   // Spieler: Körperhaut und Kopf mit Gesicht
+  // V56: Anzugfamilie in 1024 px (dieselbe UV-Anordnung: Varianten durch Verschieben und Skalieren in people-mh.js)
+  suit: [0, 8, 2, 2], dbl: [2, 8, 2, 2], tux: [0, 10, 2, 2], lady: [2, 10, 2, 2],
+  flapper: [0, 12, 2, 2], work: [2, 12, 2, 2],
+  braces: [0, 14, 1, 1], jacket: [1, 14, 1, 1], uniform: [2, 14, 1, 1], waiter: [3, 14, 1, 1],
+  furcoat: [0, 15, 1, 1], hairA_f: [1, 15, 1, 1], hairB_f: [2, 15, 1, 1], hairC_f: [3, 15, 1, 1],
+  hairD_f: [0, 16, 1, 1], hairE_f: [1, 16, 1, 1],
+  hairA_m: [2, 16, 0.5, 0.5], hairB_m: [2.5, 16, 0.5, 0.5], hairC_m: [2, 16.5, 0.5, 0.5], hairD_m: [2.5, 16.5, 0.5, 0.5], hairE_m: [3, 16, 0.5, 0.5],
+  fedora: [3.5, 16, 0.5, 0.5], shoes2: [3, 16.5, 0.5, 0.5], cloche: [3.5, 16.5, 0.5, 0.5],
+  shoes: [0, 17, 0.5, 0.5], boots: [0.5, 17, 0.5, 0.5], brows_m: [1, 17, 0.25, 0.25], brows_f: [1.25, 17, 0.25, 0.25], lashes: [1, 17.25, 0.5, 0.25],
+  heels: [1.5, 17, 0.25, 0.25],
 };
+const CT = 2 * TILE;   // V56: Kantenlänge der großen Kleidungskacheln
 
 /* ---------------- Grunddaten ---------------- */
 const base = M.readObj(path.join(MH, '3dobjs/base.obj'));
@@ -359,14 +381,17 @@ function vN3(x, y, z) {
 }
 const sst = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 // Quellausschnitt eines Inselkastens hochrechnen und nachschärfen (Alpha wird in skinDetail gesetzt)
+// V56: der Kasten ist in Pixeln des 512er-Bilds angegeben; aus einem 2048er-Quellbild wird der viermal so große Ausschnitt genommen
 async function upscaleBox(file, box, w, h, sigma) {
-  const skin = await readRGBA(file, TILE, TILE);
-  return sharp(skin, { raw: { width: TILE, height: TILE, channels: 4 } }).extract({ left: box[0], top: box[1], width: box[2], height: box[3] })
-    .resize(w, h, { fit: 'fill', kernel: 'lanczos3' }).sharpen({ sigma, m1: 0.5, m2: 1.3 }).raw().toBuffer();
+  const meta = await sharp(file).metadata(), S = meta.width / TILE;
+  const skin = await readRGBA(file, meta.width, meta.height);
+  return sharp(skin, { raw: { width: meta.width, height: meta.height, channels: 4 } }).extract({ left: Math.round(box[0] * S), top: Math.round(box[1] * S), width: Math.round(box[2] * S), height: Math.round(box[3] * S) })
+    .resize(w, h, { fit: 'fill', kernel: 'lanczos3' }).sharpen({ sigma: S > 1 ? sigma * 0.7 : sigma, m1: 0.5, m2: 1.3 }).raw().toBuffer();
 }
 // buf: Kachel (RGBA, size x size); R: Rasterung (rasterRect) mit Lage und Normale je Texel; o: { face, age (0 jung … 1 alt),
 // dark, hand (Gelenke der rechten Hand), mirror (linke Hand: Lage und Normale an x spiegeln) }
-function skinDetail(buf, size, R, o) {
+function skinDetail(buf, size, R, o) {   // size: Kantenlänge oder [Breite, Höhe]
+  const npx = Array.isArray(size) ? size[0] * size[1] : size * size;
   const face = o.face, dark = o.dark ? 0.7 : 1, age = o.age || 0, smooth = o.smooth || 1;   // V48: smooth < 1 dämpft Poren und Flecken
   // Fingergelenke: Lage, Richtung zum nächsten Gelenk, Handflächenseite (dahin krümmt sich der Finger: Achse x Richtung)
   const joints = [];
@@ -374,7 +399,7 @@ function skinDetail(buf, size, R, o) {
     const J = fg[j].slice(0, 3), A = fg[j].slice(3), N = fg[Math.min(j + 1, 2)], P2 = fg[Math.min(j, 1)], D = F.nrm(F.sub(N.slice(0, 3), P2.slice(0, 3)));
     joints.push({ J, D, P: F.nrm(F.cross(A, D)), first: j === 0 });
   }
-  for (let t = 0; t < size * size; t++) {
+  for (let t = 0; t < npx; t++) {
     const k = t * 4;
     if (!(R[t * 7 + 6] > 0)) { buf[k + 3] = 128; continue; }
     let x = R[t * 7], y = R[t * 7 + 1], z = R[t * 7 + 2], nx = R[t * 7 + 3], ny = R[t * 7 + 4], nz = R[t * 7 + 5];
@@ -405,8 +430,8 @@ function skinDetail(buf, size, R, o) {
       if (cf > 0.002) { const f = Math.pow(0.5 + 0.5 * Math.cos((y - face.eyeY) * 6.2832 / 0.0048 + (ax - face.eyeX) * 90 + (vN3(x * 250, y * 250, z * 250) - 0.5) * 7), 3.0); r *= 1 - 0.1 * f * cf; g *= 1 - 0.12 * f * cf; b *= 1 - 0.12 * f * cf; h -= f * 1.0 * cf; }
     }
     const pa = (1 - 0.7 * lip) * rw * (1 + 0.35 * age);
-    const pc = 1 + pore * 0.06 * pa * dark * smooth; r *= pc; g *= pc; b *= pc; h += pore * 0.5 * pa * smooth;
-    r *= 1 + mott * 0.09 * mw * dark * smooth; g *= 1 - mott * 0.03 * mw * smooth; b *= 1 - mott * 0.05 * mw * smooth;
+    const pc = 1 + pore * (HI ? 0.04 : 0.06) * pa * dark * smooth; r *= pc; g *= pc; b *= pc; h += pore * 0.5 * pa * smooth;
+    const mk = HI ? 0.7 : 1; r *= 1 + mott * 0.09 * mk * mw * dark * smooth; g *= 1 - mott * 0.03 * mk * mw * smooth; b *= 1 - mott * 0.05 * mk * mw * smooth;
     // Hände: Knöchelfalten auf dem Rücken, Beugefalten in der Fläche, Knöchel leicht gerötet
     for (const q of joints) {
       const dx = x - q.J[0], dy = y - q.J[1], dz = z - q.J[2], t1 = dx * q.D[0] + dy * q.D[1] + dz * q.D[2];
@@ -429,12 +454,13 @@ function bodyRelief(buf, w, h, seed) {
 }
 // Köpfe und Hände der Stadtleute: je Geschlecht und Hautbild eine Kopfkachel und zwei halbe Handkacheln
 async function detailTiles() {
-  const rastAt = (gk, code, size) => rasterRect({ ...SKINRAST[gk], inHead: Uint8Array.from(SKINRAST[gk].where, w => w === code ? 1 : 0) }, size);
+  const rastAt = (gk, code, size, sizeY) => rasterRect({ ...SKINRAST[gk], inHead: Uint8Array.from(SKINRAST[gk].where, w => w === code ? 1 : 0) }, size, sizeY);
   for (const gk of ['m', 'f']) {
-    const rh = rastAt(gk, 1, TILE), rR = rastAt(gk, 2, TILE / 2), rL = rastAt(gk, 3, TILE / 2), fr = RECT['face_' + gk], hr = RECT['hands_' + gk];
+    const fr = RECT['face_' + gk], hr = RECT['hands_' + gk], FW = fr[2] * TILE, FH = fr[3] * TILE;
+    const rh = rastAt(gk, 1, FW, FH), rR = rastAt(gk, 2, TILE / 2), rL = rastAt(gk, 3, TILE / 2);
     for (let k = 0; k < 4; k++) {
-      const file = sk(SKIN[gk][k]), age = k === 1 ? 0.45 : k === 2 ? 1 : 0, dark = k === 3;
-      blit(skinDetail(await upscaleBox(file, HEADBOX.head, TILE, TILE, 0.8), TILE, rh, { face: RIG[gk].face, age, dark }), [fr[0] + k, fr[1], 1, 1]);
+      const file = skinFile(gk, k), age = k === 1 ? 0.45 : k === 2 ? 1 : 0, dark = k === 3;
+      blit(skinDetail(await upscaleBox(file, HEADBOX.head, FW, FH, 0.8), [FW, FH], rh, { face: RIG[gk].face, age, dark }), [fr[0] + k, fr[1], fr[2], fr[3]]);
       blit(skinDetail(await upscaleBox(file, HEADBOX.handR, TILE / 2, TILE / 2, 1.2), TILE / 2, rR, { hand: RIG[gk].hand, age, dark }), [hr[0] + k, hr[1], 0.5, 0.5]);
       blit(skinDetail(await upscaleBox(file, HEADBOX.handL, TILE / 2, TILE / 2, 1.2), TILE / 2, rL, { hand: RIG[gk].hand, mirror: true, age, dark }), [hr[0] + k + 0.5, hr[1], 0.5, 0.5]);
     }
@@ -520,13 +546,13 @@ function warmSkin(buf) {
   for (let i = 0; i < buf.length; i += 4) for (let d = 0; d < 3; d++) buf[i + d] = Math.max(0, Math.min(255, Math.round((m[d] + (buf[i + d] - m[d]) * 0.8) * tint[d])));
 }
 // Rasterung des Kopfes in seiner Kachel: je Texel Lage (x, y, z) und Normale (x, y, z), Deckung
-function rasterRect(H, size) {
-  const R = new Float32Array(size * size * 7), I = H.idx, uv = H.uv, P = H.pos, N = H.nrm;
+function rasterRect(H, size, sizeY = size) {   // V56: auch rechteckig (Breite, Höhe)
+  const R = new Float32Array(size * sizeY * 7), I = H.idx, uv = H.uv, P = H.pos, N = H.nrm;
   for (let t = 0; t < I.length; t += 3) {
     const a = I[t], b = I[t + 1], c = I[t + 2]; if (!H.inHead[a] || !H.inHead[b] || !H.inHead[c]) continue;
-    const X = [uv[a * 2] * size, uv[b * 2] * size, uv[c * 2] * size], Y = [(1 - uv[a * 2 + 1]) * size, (1 - uv[b * 2 + 1]) * size, (1 - uv[c * 2 + 1]) * size];
+    const X = [uv[a * 2] * size, uv[b * 2] * size, uv[c * 2] * size], Y = [(1 - uv[a * 2 + 1]) * sizeY, (1 - uv[b * 2 + 1]) * sizeY, (1 - uv[c * 2 + 1]) * sizeY];
     const den = (Y[1] - Y[2]) * (X[0] - X[2]) + (X[2] - X[1]) * (Y[0] - Y[2]); if (Math.abs(den) < 1e-9) continue;
-    for (let py = Math.max(0, Math.floor(Math.min(...Y))); py <= Math.min(size - 1, Math.ceil(Math.max(...Y))); py++)
+    for (let py = Math.max(0, Math.floor(Math.min(...Y))); py <= Math.min(sizeY - 1, Math.ceil(Math.max(...Y))); py++)
       for (let px = Math.max(0, Math.floor(Math.min(...X))); px <= Math.min(size - 1, Math.ceil(Math.max(...X))); px++) {
         const qx = px + 0.5, qy = py + 0.5;
         const w0 = ((Y[1] - Y[2]) * (qx - X[2]) + (X[2] - X[1]) * (qy - Y[2])) / den, w1 = ((Y[2] - Y[0]) * (qx - X[2]) + (X[0] - X[2]) * (qy - Y[2])) / den, w2 = 1 - w0 - w1;
@@ -568,13 +594,14 @@ function affineFit(src, dst) {
 async function buildAtlas() {
   // Haut
   for (const [gk, list] of Object.entries(SKIN)) for (let k = 0; k < 4; k++) {
-    const r = RECT['skin_' + gk]; const buf = await readRGBA(sk(list[k]), TILE, TILE);
+    const r = RECT['skin_' + gk]; const buf = await readRGBA(skinFile(gk, k), TILE, TILE);
     blit(bodyRelief(buf, TILE, TILE, k + (gk === 'f' ? 4 : 0)), [r[0] + k, r[1], 1, 1]);   // V44: leichtes Relief im Alphakanal
   }
   // Anzug und Varianten: dunkler Stoff = Farbe der Figur; Hemd, Krawatte, Knöpfe bleiben
+  // V56: 1024 px aus dem 2048er-Quellbild (Uniform und Kellner werden auf 512 verkleinert); im Anzug steckt jetzt eine Weste
   const suit = parts['suit-m'];
-  const suitBuf = await readRGBA(suit.tex, TILE, TILE);
-  const suitRaster = uvRaster(suit, TILE);
+  const suitBuf = await readRGBA(partTex('suit-m'), CT, CT);
+  const suitRaster = uvRaster(suit, CT);
   const isCloth = (b, i) => lum(b[i], b[i + 1], b[i + 2]) < 105 && sat(b, i) < 0.35;
   const at = (i) => { const k = i; return [suitRaster[k], suitRaster[k + 1], suitRaster[k + 2], suitRaster[k + 3]]; };
   const mk = (fn) => { const b = Buffer.from(suitBuf); fn && fn(b); return b; };
@@ -582,12 +609,9 @@ async function buildAtlas() {
   // Krawatte: schmaler Streifen vorn in der Mitte zwischen Kragen und Bauch
   const isTie = (p) => p[3] === 1 && Math.abs(p[0]) < 0.035 && p[1] > rigM.top - 0.33 && p[1] < rigM.neck - 0.02 && p[2] > 0.05;
   const shirtCol = [236, 233, 226];
-  blit(paintMask(mk(), isCloth), RECT.suit);
-  // Frack: Krawatte weg (weißes Hemd, die Fliege kommt als Teil dazu), Revers in Satin dunkler
-  // V24: der ganze Krawattenstreifen wird Hemd (vorher blieben die dunklen Streifen der Krawatte stehen)
-  const isTieBand = (b, i, p) => isTie(p) && (!isCloth(b, i) || Math.abs(p[0]) < 0.022);
   // V32: Smoking: Hemdbrust (eigene Insel, ohne Krawatte) weiß mit feinen Biesen und drei Onyxknöpfen
-  const shirtR = uvRaster(suit, TILE, (a, b, c) => TIE.inT[a] && TIE.inT[b] && TIE.inT[c]);
+  const shirtR = uvRaster(suit, CT, (a, b, c) => TIE.inT[a] && TIE.inT[b] && TIE.inT[c]);
+  const shAt = i => [shirtR[i], shirtR[i + 1], shirtR[i + 2], shirtR[i + 3]];
   const sm = meshes['suit-m'], sp = sm.pos, nS = sp.length / 3, BW = 0.01, band = y => Math.round(y / BW);
   const edge = new Map();
   for (let i = 0; i < nS; i++) {
@@ -597,9 +621,39 @@ async function buildAtlas() {
   let yBtn = rigM.hip; for (let y = rigM.hip; y < rigM.top; y += BW) { const e = edge.get(band(y)); if (e !== undefined && e < 0.012) yBtn = y; }
   let yColl = 0; for (let i = 0; i < nS; i++) if (TIE.inT[i] && Math.abs(sp[i * 3]) < 0.01) yColl = Math.max(yColl, sp[i * 3 + 1]);
   const stud = (x, y) => [0.075, 0.13, 0.185].some(o => yColl - o > yBtn + 0.01 && Math.hypot(x, y - (yColl - o)) < 0.0042);
-  console.log('Smoking: oberster Knopf', yBtn.toFixed(3), 'Kragen', yColl.toFixed(3));
+  console.log('Smoking: oberster Knopf', yBtn.toFixed(3), 'Kragen', yColl.toFixed(3), 'Hüfte', rigM.hip.toFixed(3), 'Taille', rigM.waist.toFixed(3), 'Schulter', rigM.top.toFixed(3));
+  // V56: Dreiteiler. Auf der Hemdinsel liegt unter dem Krawattenknoten eine Weste: V-Ausschnitt, feiner Fischgrat, vier Hornknöpfe;
+  // die Krawatte (gesättigte Texel des Quellbilds) bleibt darüber. Grau und dunkel gemalt, damit sie die Farbe der Figur bekommt
+  const isTieTex = (b, i, p) => isTie(p) && sat(b, i) > 0.25;
+  const vestEdge = x => yColl - 0.075 + Math.abs(x) * 1.2;
+  const vestBtn = (x, y) => Math.abs(x) < 0.0038 && [0.11, 0.155, 0.2, 0.245].some(o => Math.abs(y - (yColl - o)) < 0.0038);
+  const paintVest = (b, i, sh, p) => {
+    if (sh[3] !== 1 || isTieTex(b, i, p) || sh[1] > vestEdge(sh[0])) return false;
+    if (vestBtn(sh[0], sh[1])) { b[i] = 118; b[i + 1] = 82; b[i + 2] = 46; return true; }
+    const hb = 0.5 + 0.5 * Math.sin((sh[0] * (Math.floor(sh[1] / 0.008) % 2 ? 1 : -1) + sh[1]) * 6.2832 / 0.0032);
+    const g = 72 + 16 * (vN3(sh[0] * 900, sh[1] * 900, sh[2] * 900) - 0.5) + 9 * (hb - 0.5);
+    b[i] = b[i + 1] = b[i + 2] = Math.max(40, Math.min(100, g)); return true;
+  };
+  blit(paintMask(mk(b => { for (let i = 0; i < b.length; i += 4) paintVest(b, i, shAt(i), at(i)); }), isCloth), RECT.suit);
+  // V56: Zweireiher: Kreidestreifen (senkrecht am Rumpf, längs am Ärmel) und sechs Hornknöpfe in zwei Reihen, dazu die Weste
+  const armP = (() => { const d = [rigM.wr[0] - rigM.shX, rigM.wr[1] - rigM.top], l = Math.hypot(d[0], d[1]); return [-d[1] / l, d[0] / l]; })();
+  const dblBtn = p => { if (p[2] < 0.05 || Math.abs(p[0]) > 0.2) return 0; for (const y of [0, 0.085, 0.17]) for (const sx of [-0.045, 0.045]) if (Math.hypot(p[0] - sx, p[1] - (rigM.waist - 0.03 + y)) < 0.0095) return 1; return 0; };
+  blit(paintMask(mk(b => { for (let i = 0; i < b.length; i += 4) { const p = at(i); if (p[3] !== 1) continue;
+    if (paintVest(b, i, shAt(i), p)) continue;
+    if (dblBtn(p)) { b[i] = 52; b[i + 1] = 38; b[i + 2] = 28; continue; }
+    if (isCloth(b, i)) {
+      // Streifen laufen rund um Rumpf, Arm oder Bein (Winkel um die jeweilige Achse mal Umfang), so bleiben sie überall gleich breit
+      const arm = Math.abs(p[0]) > 0.2 && p[1] > rigM.hip, leg = !arm && p[1] < rigM.hip - 0.04;
+      const cx = arm ? Math.sign(p[0]) * (rigM.shX + (rigM.wr[0] - rigM.shX) * Math.min(1, Math.max(0, (rigM.top - p[1]) / (rigM.top - rigM.wr[1])))) : leg ? Math.sign(p[0]) * rigM.hx : 0;
+      const cz = arm ? rigM.shZ : 0, nst = arm ? 24 : leg ? 42 : 76, ang = Math.atan2(p[0] - cx, p[2] - cz) / 6.2832 * nst, f = ang - Math.floor(ang);
+      const st = Math.exp(-Math.pow((f - 0.5) / 0.05, 2)), g = Math.min(104, lum(b[i], b[i + 1], b[i + 2]) * (1 + 0.8 * st));
+      b[i] = b[i + 1] = b[i + 2] = g;
+    } } }), isCloth), RECT.dbl);
+  // Frack: Krawatte weg (weißes Hemd, die Fliege kommt als Teil dazu), Revers in Satin dunkler
+  // V24: der ganze Krawattenstreifen wird Hemd (vorher blieben die dunklen Streifen der Krawatte stehen)
+  const isTieBand = (b, i, p) => isTie(p) && (!isCloth(b, i) || Math.abs(p[0]) < 0.022);
   blit(paintMask(mk(b => { for (let i = 0; i < b.length; i += 4) {
-    const k = i, sh = [shirtR[k], shirtR[k + 1], shirtR[k + 2], shirtR[k + 3]], p = at(i);
+    const sh = shAt(i), p = at(i);
     if (sh[3] === 1) {
       const ax = Math.abs(sh[0]), bib = ax < 0.05 && sh[1] < yColl - 0.035 ? 1 : 0;
       const pl = bib ? 0.95 + 0.05 * Math.cos(ax / 0.0065 * Math.PI * 2) : 1;
@@ -607,29 +661,100 @@ async function buildAtlas() {
       else { b[i] = shirtCol[0] * pl; b[i + 1] = shirtCol[1] * pl; b[i + 2] = shirtCol[2] * pl; }
     }
   } }), isCloth), RECT.tux);
+  const shrink = async (b, from, to) => sharp(b, { raw: { width: from, height: from, channels: 4 } }).resize(to, to, { kernel: 'lanczos3' }).raw().toBuffer();
   // Uniform: Messingknöpfe zweireihig, dunkle Krawatte
   const btn = (p) => { if (p[3] !== 1 || p[2] < 0.06) return 0; for (const y of [0.0, 0.1, 0.2, 0.3]) for (const sx of [-0.055, 0.055]) { const d = Math.hypot(p[0] - sx, p[1] - (rigM.waist - 0.08 + y)); if (d < 0.011) return 1; } return 0; };
-  blit(paintMask(mk(b => { for (let i = 0; i < b.length; i += 4) { const p = at(i); if (isTie(p) && !isCloth(b, i)) { b[i] = 30; b[i + 1] = 28; b[i + 2] = 32; } if (btn(p)) { b[i] = 200; b[i + 1] = 160; b[i + 2] = 80; } } }),
-    (b, i) => isCloth(b, i) && !(b[i] === 200 && b[i + 1] === 160)), RECT.uniform);
+  blit(await shrink(paintMask(mk(b => { for (let i = 0; i < b.length; i += 4) { const p = at(i); if (isTie(p) && !isCloth(b, i)) { b[i] = 30; b[i + 1] = 28; b[i + 2] = 32; } if (btn(p)) { b[i] = 200; b[i + 1] = 160; b[i + 2] = 80; } } }),
+    (b, i) => isCloth(b, i) && !(b[i] === 200 && b[i + 1] === 160)), CT, TILE), RECT.uniform);
   // Kellner: Jacke in Farbe der Figur, Hose schwarz, schwarze Fliege statt Krawatte
-  blit(paintMask(mk(b => { for (let i = 0; i < b.length; i += 4) { const p = at(i); if (isTieBand(b, i, p)) { b[i] = shirtCol[0]; b[i + 1] = shirtCol[1]; b[i + 2] = shirtCol[2]; } if (p[3] === 1 && p[1] < rigM.hip - 0.02 && isCloth(b, i)) { b[i] = b[i + 1] = b[i + 2] = Math.min(255, lum(b[i], b[i + 1], b[i + 2]) * 0.35) | 1; } } }),
-    (b, i) => isCloth(b, i) && !(b[i] & 1 && b[i] === b[i + 1] && b[i] < 40)), RECT.waiter);
-  // Latzhose: der Stoff wird gefärbt, Schnallen und Knöpfe bleiben
-  const work = await readRGBA(parts['work-m'].tex, TILE, TILE);
+  blit(await shrink(paintMask(mk(b => { for (let i = 0; i < b.length; i += 4) { const p = at(i); if (isTieBand(b, i, p)) { b[i] = shirtCol[0]; b[i + 1] = shirtCol[1]; b[i + 2] = shirtCol[2]; } if (p[3] === 1 && p[1] < rigM.hip - 0.02 && isCloth(b, i)) { b[i] = b[i + 1] = b[i + 2] = Math.min(255, lum(b[i], b[i + 1], b[i + 2]) * 0.35) | 1; } } }),
+    (b, i) => isCloth(b, i) && !(b[i] & 1 && b[i] === b[i + 1] && b[i] < 40)), CT, TILE), RECT.waiter);
+  // Latzhose: der Stoff wird gefärbt, Schnallen und Knöpfe bleiben (V56: 1024 px mit den Schatten der Falten aus dem AO-Bild)
+  const work = await mulAO(await readRGBA(partTex('work-m'), CT, CT), partAO('work-m'), CT);
   blit(paintMask(work, (b, i) => b[i + 3] > 10 && b[i + 2] > b[i] * 1.15 && lum(b[i], b[i + 1], b[i + 2]) > 60), RECT.work);
-  // Damenkostüm: dunkler Stoff gefärbt, Bluse bleibt
-  const lady = await readRGBA(parts['lady-f'].tex, TILE, TILE);
+  // Damenkostüm: dunkler Stoff gefärbt, Bluse bleibt (V56: 1024 px, mehr Zeichnung aus dem Quellbild und den Faltenschatten)
+  const lady = await mulAO(await readRGBA(partTex('lady-f'), CT, CT), partAO('lady-f'), CT);
   paintMask(lady, (b, i) => b[i + 3] > 10);
-  for (let i = 0; i < lady.length; i += 4) lady[i] = lady[i + 1] = lady[i + 2] = Math.round(180 * 0.75 + lady[i] * 0.25);
+  for (let i = 0; i < lady.length; i += 4) lady[i] = lady[i + 1] = lady[i + 2] = Math.round(170 * 0.6 + lady[i] * 0.4);
   blit(lady, RECT.lady);
+  // V56: Hemdsärmel mit Hosenträgern (Freizeitanzug 03: gestreiftes Hemd und Jeans): das Hemd wird cremefarbenes Leinen mit der
+  // Webstruktur der Streifen, die Jeans eine Wollhose mit Fischgrat in der Farbe der Figur, dazu Lederträger vorn und hinten
+  {
+    const P = parts['braces-m'], R = uvRaster(P, TILE), b = await mulAO(await readRGBA(partTex('braces-m'), TILE, TILE), partAO('braces-m'), TILE);
+    const flag = new Uint8Array(TILE * TILE);
+    for (let i = 0; i < b.length; i += 4) {
+      if (b[i + 3] < 10) continue;
+      const p = [R[i], R[i + 1], R[i + 2], R[i + 3]], L = lum(b[i], b[i + 1], b[i + 2]);
+      if (b[i + 2] > b[i] + 12) { b[i] = b[i + 1] = b[i + 2] = herring(p, L); flag[i / 4] = 1; continue; }
+      if (p[3] === 1 && p[1] > rigM.hip - 0.03 && p[1] < rigM.top + 0.045 && Math.abs(p[0]) < 0.12 && Math.abs(Math.abs(p[0]) - 0.062) < 0.017) {
+        const e = Math.min(1, (1 - Math.abs(Math.abs(p[0]) - 0.062) / 0.017) * 4), d = 0.8 + 0.2 * e;
+        b[i] = 86 * d; b[i + 1] = 58 * d; b[i + 2] = 34 * d; continue;
+      }
+      const w = 0.88 + 0.12 * (L / 255) + 0.05 * (vN3(p[0] * 1500, p[1] * 1500, p[2] * 1500) - 0.5);
+      b[i] = 234 * w; b[i + 1] = 216 * w; b[i + 2] = 180 * w;
+    }
+    blit(paintMask(b, (bb, i) => flag[i / 4] === 1), RECT.braces);
+  }
+  // V56: Arbeitsjacke (Freizeitanzug 05: Jacke, gestreiftes Hemd, Jeans): Jacke in Figurenfarbe mit Tweed-Noppen, Hemd Leinen,
+  // Hose dunkel mit Fischgrat
+  {
+    const P = parts['jacket-m'], R = uvRaster(P, TILE), b = await mulAO(await readRGBA(partTex('jacket-m'), TILE, TILE), partAO('jacket-m'), TILE);
+    const flag = new Uint8Array(TILE * TILE);
+    for (let i = 0; i < b.length; i += 4) {
+      if (b[i + 3] < 10) continue;
+      const p = [R[i], R[i + 1], R[i + 2], R[i + 3]], L = lum(b[i], b[i + 1], b[i + 2]);
+      if (b[i + 2] > b[i] + 12) { const g = herring(p, L) * 0.5; b[i] = g * 1.1; b[i + 1] = g; b[i + 2] = g * 0.9; continue; }       // Hose: dunkles Braungrau, bleibt
+      const frontV = p[3] === 1 && Math.abs(p[0]) < 0.09 && p[2] > 0.03 && p[1] > rigM.waist - 0.1;
+      if (b[i] > b[i + 1] + 30 || (L < 40 && frontV)) { const w = 0.86 + 0.14 * Math.min(1, L / 120); b[i] = 234 * w; b[i + 1] = 216 * w; b[i + 2] = 180 * w; continue; }   // Hemd (nur vorn im Ausschnitt)
+      const fl = vN3(p[0] * 700 + 1, p[1] * 700, p[2] * 700), g = 70 + 0.3 * L + (fl > 0.74 ? 26 : fl < 0.22 ? -18 : 0) + 8 * (vN3(p[0] * 300, p[1] * 300, p[2] * 300) - 0.5);
+      b[i] = b[i + 1] = b[i + 2] = Math.max(30, Math.min(104, g)); flag[i / 4] = 1;
+    }
+    blit(paintMask(b, (bb, i) => flag[i / 4] === 1), RECT.jacket);
+  }
+  // V56: Flapperkleid (TubeDress, weiß mit Schattierung): Mieder mit Perlen-Chevrons und Goldlinien, tiefe Taille mit Goldband,
+  // Rock in Figurenfarbe, unten Fransen (helle und dunkle Strähnen um den Körper). Gold bleibt, alles andere wird gefärbt
+  {
+    const P = parts['flapper-f'], R = uvRaster(P, CT), b = await readRGBA(P.tex, CT, CT), rf = RIG.f;
+    const waistY = rf.hip - 0.02, fringeY = rf.hip - 0.17, gold = [214, 176, 96], flag = new Uint8Array(CT * CT), fr = x => x - Math.floor(x);
+    for (let i = 0; i < b.length; i += 4) {
+      if (b[i + 3] < 10) continue;
+      const p = [R[i], R[i + 1], R[i + 2], R[i + 3]]; if (p[3] !== 1) continue;
+      const L = lum(b[i], b[i + 1], b[i + 2]) / 255, ang = Math.atan2(p[0], p[2]) / 6.2832, y = p[1];
+      let g = 150 + 70 * (L - 0.82), isGold = Math.abs(y - waistY) < 0.007;
+      if (y > waistY + 0.007) {
+        const tri = Math.abs(fr(ang * 10) * 2 - 1), z1 = fr((y - waistY) / 0.034 + 0.5 * tri);
+        if (Math.abs(z1 - 0.5) < 0.075) isGold = true;
+        else if (vN3(p[0] * 2200, p[1] * 2200, p[2] * 2200) > 0.82) g += 45;   // Perlen
+      } else if (y < fringeY) {
+        if (Math.abs(y - fringeY) < 0.005) isGold = true;
+        else { const sN = fr(ang * 110 + 0.25 * fr(ang * 13)); g *= 0.72 + 0.5 * (sN < 0.5 ? 1 : 0) + 0.12 * (vN3(p[0] * 600, p[1] * 60, p[2] * 600) - 0.5); }
+      }
+      if (isGold) { const sh = 0.8 + 0.25 * L; b[i] = gold[0] * sh; b[i + 1] = gold[1] * sh; b[i + 2] = gold[2] * sh; }
+      else { b[i] = b[i + 1] = b[i + 2] = Math.max(20, Math.min(250, g)); flag[i / 4] = 1; }
+    }
+    blit(paintMask(b, (bb, i) => flag[i / 4] === 1), RECT.flapper);
+  }
+  // V56: Cloche: Filz mit Körnung, dunkles Ripsband und eine Schleife links; Spalte = Winkel, Zeile = Höhe (Krone oben, Krempe unten)
+  {
+    const [x0, y0, w, h] = rectPx(RECT.cloche), [v0, v1] = CLOCHE.band;
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const i = ((y0 + y) * AW + x0 + x) * 4, u = x / w, v = y / h;
+      let g = 150 + 18 * (vN3(x / 2.5, y / 2.5, 7) - 0.5) + 6 * (vN3(x / 9, y / 9, 3) - 0.5);
+      const inBand = v > v0 && v < v1, bow = Math.hypot((u - 0.3) * 2.2, (v - (v0 + v1) / 2) / (v1 - v0) * 0.9) < 1;
+      if (inBand) g *= 0.5 + 0.05 * Math.sin(y * 2.2);
+      if (bow) g *= 0.72 + 0.35 * Math.pow(Math.max(0, 1 - Math.hypot((u - 0.3) * 2.2, (v - (v0 + v1) / 2) / (v1 - v0) * 0.9)), 1.5);
+      atlas[i] = atlas[i + 1] = atlas[i + 2] = Math.max(30, Math.min(230, g)); atlas[i + 3] = 96;
+    }
+  }
   // Schuhe
-  for (const [k, part] of [['shoes', 'shoes-m'], ['boots', 'boots-m']]) { const r = rectPx(RECT[k]); const b = await readRGBA(parts[part].tex, r[2], r[3]); for (let i = 3; i < b.length; i += 4) b[i] = 255; blit(b, RECT[k]); }
+  for (const [k, part] of [['shoes', 'shoes-m'], ['boots', 'boots-m']]) { const r = rectPx(RECT[k]); const b = await readRGBA(partTex(part), r[2], r[3]); for (let i = 3; i < b.length; i += 4) b[i] = 255; blit(b, RECT[k]); }
   // Augen (braun; die Farbe der Iris wählt der Shader)
   { const r = rectPx(RECT.eyes); const b = await readRGBA(path.join(MH, 'eyes/materials/brown_eye.png'), r[2], r[3]); blit(b, RECT.eyes); }
   // Haare, Brauen, Wimpern: Grauwert (Strähnen) + Deckung
   for (const [k, part] of [['hairA_m', 'hairA-m'], ['hairB_m', 'hairB-m'], ['hairC_m', 'hairC-m'], ['hairA_f', 'hairA-f'], ['hairB_f', 'hairB-f'], ['hairC_f', 'hairC-f'], ['brows_m', 'brows-m'], ['brows_f', 'brows-f'], ['lashes', 'lashes-m'],
     ['hairD_m', 'hairD-m'], ['hairE_m', 'hairE-m'], ['hairD_f', 'hairD-f'], ['hairE_f', 'hairE-f']]) {
-    const r = rectPx(RECT[k]); const b = await readRGBA(parts[part].tex, r[2], r[3]);
+    // V56: aus den 2048er-Bildern (feinere Strähnen); hairB-m bleibt beim alten Bild, damit Alexanders Frisur gleich aussieht
+    const r = rectPx(RECT[k]); const b = await readRGBA(part === 'hairB-m' ? parts[part].tex : partTex(part), r[2], r[3]);
     let s = 0, c = 0; for (let i = 0; i < b.length; i += 4) if (b[i + 3] > 128) { s += lum(b[i], b[i + 1], b[i + 2]); c++; }
     const kk = c ? 0.75 * 255 / (s / c) : 1;
     for (let i = 0; i < b.length; i += 4) { const g = Math.min(255, lum(b[i], b[i + 1], b[i + 2]) * kk); b[i] = b[i + 1] = b[i + 2] = g; }
@@ -638,8 +763,8 @@ async function buildAtlas() {
   // Absatzschuhe: glattes Leder (Farbe kommt aus der Figur)
   { const [x0, y0, w, h] = rectPx(RECT.heels); for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const i = ((y0 + y) * AW + x0 + x) * 4; const g = 170 + 20 * Math.sin(x * 0.3) * Math.sin(y * 0.2); atlas[i] = atlas[i + 1] = atlas[i + 2] = g; atlas[i + 3] = 96; } }
   // V39: Fedora (Filz, Farbe der Figur bzw. des Hutes), braune Herrenschuhe, Pelzmantel (blaugrauer Stoff wird gefärbt, Pelz und Schnalle bleiben)
-  { const r = rectPx(RECT.fedora); const b = await readRGBA(parts['fedora-m'].tex, r[2], r[3]); blit(paintMask(b, (bb, i) => bb[i + 3] > 10), RECT.fedora); }
-  { const r = rectPx(RECT.shoes2); const b = await readRGBA(parts['shoes2-m'].tex, r[2], r[3]); for (let i = 3; i < b.length; i += 4) b[i] = 255; blit(b, RECT.shoes2); }
+  { const r = rectPx(RECT.fedora); const b = await readRGBA(partTex('fedora-m'), r[2], r[3]); blit(paintMask(b, (bb, i) => bb[i + 3] > 10), RECT.fedora); }
+  { const r = rectPx(RECT.shoes2); const b = await readRGBA(partTex('shoes2-m'), r[2], r[3]); for (let i = 3; i < b.length; i += 4) b[i] = 255; blit(b, RECT.shoes2); }
   { const b = await readRGBA(parts['coat-f'].tex, TILE, TILE); blit(paintMask(b, (bb, i) => bb[i + 3] > 10 && bb[i + 2] > bb[i] + 8), RECT.furcoat); }
   await playerTiles();
   await detailTiles();   // V44
@@ -648,6 +773,18 @@ async function buildAtlas() {
   // V44: Alpha trägt jetzt das Hautrelief (Rauschen); mit alphaQuality 90 wäre die Datei 3,4 MB, mit 65 etwa 1,5 MB bei gleichem Bild
   await sharp(atlas, { raw: { width: AW, height: AH, channels: 4 } }).webp({ quality: 86, alphaQuality: 65, effort: 5 }).toFile(path.join(OUT, 'people-atlas.webp'));
   await sharp(atlas, { raw: { width: AW, height: AH, channels: 4 } }).resize(AW / 2, AH / 2, { kernel: 'lanczos3' }).webp({ quality: 82, alphaQuality: 60, effort: 5 }).toFile(path.join(OUT, 'people-atlas-m.webp'));
+}
+// V56: Schatten der Falten aus dem AO-Bild der Grundausstattung (sanft, nie unter 0,55)
+async function mulAO(buf, file, size) {
+  if (!file) return buf;
+  const ao = await readRGBA(file, size, size);
+  for (let i = 0; i < buf.length; i += 4) { const a = Math.max(0.55, Math.pow(ao[i] / 255, 0.5)); buf[i] *= a; buf[i + 1] *= a; buf[i + 2] *= a; }
+  return buf;
+}
+// V56: Fischgrat (Wollhose): schräge Grate, die Richtung wechselt alle 1,2 cm; Grauwert fürs Färben
+function herring(p, L) {
+  const col = Math.floor(p[0] / 0.012), d = col % 2 ? 1 : -1, hb = 0.5 + 0.5 * Math.sin((p[0] * d * 0.9 + p[1]) * 6.2832 / 0.0045);
+  return Math.max(30, Math.min(104, 62 + 0.1 * L + 9 * (hb - 0.5) + 7 * (vN3(p[0] * 400, p[1] * 400, p[2] * 400) - 0.5)));
 }
 function dilate(buf, w, h, n) {
   // nur Farbe auffüllen, wo das Bild ganz leer ist (Alpha 0 und schwarz)
@@ -665,7 +802,7 @@ function dilate(buf, w, h, n) {
 const meshes = {}, HEADP = {}, HEADBOX = {}, SKINRAST = {};   // V44: Inselkästen im Hautbild und Rasterdaten je Geschlecht
 function addMesh(name, m) { meshes[name] = m; }
 // Körper: Verdeckung je Kleidungsstück als Bitmaske über die Grundnetz-Ecken
-const HIDEBIT = { 'suit-m': 1, 'work-m': 2, 'shoes-m': 4, 'boots-m': 8, 'lady-f': 16, 'heels-f': 32, 'coat-f': 128, 'shoes2-m': 256 };   // 64: Krawatte im Anzug (eigenes Netz)
+const HIDEBIT = { 'suit-m': 1, 'work-m': 2, 'shoes-m': 4, 'boots-m': 8, 'lady-f': 16, 'heels-f': 32, 'coat-f': 128, 'shoes2-m': 256, 'flapper-f': 512, 'braces-m': 1024, 'jacket-m': 2048 };   // 64: Krawatte im Anzug (eigenes Netz); V56: Flapperkleid, Hemdsärmel, Jacke
 for (const [gk, B] of Object.entries(bodies)) {
   const { U, pos } = B, n = U.vid.length, ws = U.vid.map(b => W[b]);
   const la = limbAttrs(ws, pos, gk);
@@ -751,7 +888,7 @@ for (const [name, P] of Object.entries(parts)) {
   const def = P.def, gk = def.body, n = P.U.vid.length;
   const la = limbAttrs(P.w, P.pos, gk);
   const rk = { 'suit-m': 'suit', 'work-m': 'work', 'shoes-m': 'shoes', 'boots-m': 'boots', 'lady-f': 'lady', 'brows-m': 'brows_m', 'brows-f': 'brows_f', 'lashes-m': 'lashes', 'lashes-f': 'lashes',
-    'fedora-m': 'fedora', 'fedora2-m': 'fedora', 'coat-f': 'furcoat', 'shoes2-m': 'shoes2' }[name] || name.replace('-', '_');
+    'fedora-m': 'fedora', 'fedora2-m': 'fedora', 'coat-f': 'furcoat', 'shoes2-m': 'shoes2', 'flapper-f': 'flapper', 'braces-m': 'braces', 'jacket-m': 'jacket' }[name] || name.replace('-', '_');
   const uv = toAtlasUV(P.U.uv, RECT[rk]);
   const kindTex = def.hair ? 3 : def.brow ? 5 : 1;
   const soft = new Float32Array(n * 3), opt = new Float32Array(n);
@@ -767,6 +904,7 @@ for (const [name, P] of Object.entries(parts)) {
   const coatPix = def.furcoat ? await readRGBA(P.tex, TILE, TILE) : null;
   for (let i = 0; i < n; i++) {
     soft[i * 3] = fab;
+    if (name === 'flapper-f') soft[i * 3] = P.pos[i * 3 + 1] > rig.hip - 0.013 ? FAB.sequin : FAB.silk;   // V56: Perlenmieder glitzert, der Rock ist Seide
     if (coatPix) { const u = P.U.uv[i * 2], v = P.U.uv[i * 2 + 1], k = ((Math.min(TILE - 1, Math.max(0, Math.floor((1 - v) * TILE)))) * TILE + Math.min(TILE - 1, Math.max(0, Math.floor(u * TILE)))) * 4;
       if (!(coatPix[k + 2] > coatPix[k] + 8) && coatPix[k + 3] > 10) soft[i * 3] = FAB.fur; }
     if (def.hair) {
@@ -823,6 +961,48 @@ for (const [name, P] of Object.entries(parts)) {
   addMesh('heels-f', { pos: Float32Array.from(P), nrm: Float32Array.from(N), uv, tex: new Float32Array(m).fill(1), idx: Uint32Array.from(ids), limb: Float32Array.from(L), blend, reg, soft, opt: new Float32Array(m), paint: true });
 }
 
+// V56: Cloche (Glockenhut der Damen): Drehkörper um die Kopfmitte, Krone hoch genug für die Frisuren darunter (der Shader staucht
+// das Haar unter dem Hut nur um 10 %), unten eine kleine, nach unten gezogene Krempe. Spalte der Kachel = Winkel, Zeile = Höhe
+const CLOCHE = { band: [0, 0] };
+{
+  const R = RIG.f, hc = R.headC, hz = R.headZ;
+  // Profil (Radius, Höhe über der Kopfmitte) von der Krone zur Krempe
+  // Unterkante vorn auf Brauenhöhe (gut 2 cm über der Kopfmitte), hinten und seitlich 2 cm tiefer über Ohren und Nacken
+  // Krone weit genug für Bubikopf und Bob darunter (Haarradius bis 12,6 cm)
+  const prof = [[0, 0.172], [0.04, 0.169], [0.075, 0.158], [0.1, 0.138], [0.113, 0.11], [0.12, 0.078], [0.124, 0.048], [0.126, 0.03], [0.13, 0.024], [0.138, 0.016], [0.144, 0.01]];
+  const NA = 28, pos = [], nrm = [], uv = [], idx = [], yTop = prof[0][1], yBot = prof[prof.length - 1][1];
+  for (let j = 0; j < prof.length; j++) for (let a = 0; a <= NA; a++) {
+    const t = a / NA * Math.PI * 2, [r, y0] = prof[j], y = y0 - 0.022 * Math.max(0, -Math.cos(t)) * sst(0.06, 0.03, y0), flare = 1 + 0.05 * Math.max(0, Math.cos(t)) * sst(0.03, 0.012, y0);
+    pos.push(Math.sin(t) * r * flare, hc + y, hz + Math.cos(t) * r * flare); uv.push(a / NA, 1 - (yTop - y0) / (yTop - yBot));
+    const pj = prof[Math.max(0, j - 1)], nj = prof[Math.min(prof.length - 1, j + 1)], dr = nj[0] - pj[0], dy = nj[1] - pj[1], l = Math.hypot(dr, dy) || 1;
+    nrm.push(Math.sin(t) * dy / l, -dr / l, Math.cos(t) * dy / l);
+  }
+  for (let j = 0; j < prof.length - 1; j++) for (let a = 0; a < NA; a++) { const o = j * (NA + 1) + a; idx.push(o, o + NA + 1, o + 1, o + 1, o + NA + 1, o + NA + 2); }
+  CLOCHE.band = [(yTop - 0.044) / (yTop - yBot), (yTop - 0.031) / (yTop - yBot)];   // Ripsband knapp über der Krempe
+  const n = pos.length / 3, soft = new Float32Array(n * 3); for (let i = 0; i < n; i++) soft[i * 3] = FAB.felt;
+  addMesh('cloche-f', { pos: Float32Array.from(pos), nrm: Float32Array.from(nrm), uv: toAtlasUV(Float32Array.from(uv), RECT.cloche), tex: new Float32Array(n).fill(1), idx: Uint32Array.from(idx),
+    limb: new Float32Array(n * 2), blend: new Float32Array(n), reg: new Uint8Array(n).fill(1), soft, opt: new Float32Array(n) });
+}
+// V56: Träger des Flapperkleids: zwei dünne Bänder vom vorderen Rand des Mieders über die Schulter zum hinteren Rand
+{
+  const D = meshes['flapper-f'], B = meshes['body-f'], R = RIG.f, P = [], N = [], idx = [], L = [];
+  const topAt = (sx, back) => { let best = null; for (let i = 0; i < D.pos.length; i += 3) { const x = D.pos[i], y = D.pos[i + 1], z = D.pos[i + 2]; if (Math.abs(x - sx) < 0.012 && (back ? z < 0 : z > 0) && (!best || y > best[1])) best = [x, y, z]; } return best; };
+  for (const sd of [-1, 1]) {
+    const f = topAt(sd * 0.07, false), b = topAt(sd * 0.07, true); if (!f || !b) continue;
+    let sh = null; for (let i = 0; i < B.pos.length; i += 3) { const x = B.pos[i], y = B.pos[i + 1], z = B.pos[i + 2]; if (Math.abs(x - sd * 0.07) < 0.012 && Math.abs(z - (f[2] + b[2]) / 2) < 0.03 && (!sh || y > sh[1])) sh = [x, y, z]; }
+    const top = sh ? sh[1] + 0.006 : R.top + 0.03, pts = [f, [f[0], (f[1] + top) / 2 + 0.01, f[2] * 0.75], [sd * 0.072, top, (f[2] + b[2]) / 2], [b[0], (b[1] + top) / 2 + 0.01, b[2] * 0.75], b];
+    const o = P.length / 3, NS = 6, r = 0.0045;
+    for (let k = 0; k < pts.length; k++) {
+      const p = pts[k], q = pts[Math.min(k + 1, pts.length - 1)], pr = pts[Math.max(k - 1, 0)], d = F.nrm(F.sub(q, pr)), u = F.nrm(F.cross(d, [1, 0, 0])), v = F.cross(d, u);
+      for (let s2 = 0; s2 < NS; s2++) { const a = s2 / NS * Math.PI * 2, nn = F.add(F.mul(u, Math.cos(a)), F.mul(v, Math.sin(a))); P.push(...F.add(p, F.mul(nn, r))); N.push(...nn); L.push(0, 0); }
+    }
+    for (let k = 0; k < pts.length - 1; k++) for (let s2 = 0; s2 < NS; s2++) { const a = o + k * NS + s2, b2 = o + k * NS + (s2 + 1) % NS; idx.push(a, a + NS, b2, b2, a + NS, b2 + NS); }
+  }
+  const n = P.length / 3, soft = new Float32Array(n * 3); for (let i = 0; i < n; i++) soft[i * 3] = FAB.silk;
+  const uv = new Float32Array(n * 2), rr = RECT.heels; for (let i = 0; i < n; i++) { uv[i * 2] = (rr[0] + 0.5 * rr[2]) * TILE / AW; uv[i * 2 + 1] = 1 - (rr[1] + 0.5 * rr[3]) * TILE / AH; }
+  addMesh('straps-f', { pos: Float32Array.from(P), nrm: Float32Array.from(N), uv, tex: new Float32Array(n).fill(1), idx: Uint32Array.from(idx), limb: Float32Array.from(L), blend: new Float32Array(n), reg: new Uint8Array(n).fill(3), soft, opt: new Float32Array(n) });
+  console.log('Kleidträger:', n, 'Ecken');
+}
 // V48: Alexanders eigene Frisur nach den Referenzbildern: die glatt zurückgekämmte short04 mit mehr Fülle. Oben und vorn hebt sich das
 // Haar rundum etwas vom Kopf (oben 1 cm, vorn bis 1,5 cm, wie eine zurückgekämmte Tolle), nach unten (Schläfen, Ohren, Nacken) läuft es weich auf die alte
 // Lage aus, damit keine Lücke zur Kopfhaut entsteht (die Haarkarten haben zu viele Ränder, um nach dem Rand zu gehen)
@@ -855,7 +1035,7 @@ for (const [name, P] of Object.entries(parts)) {
   addMesh('hairP-m', { ...src, pos });
 }
 // V39: Höhen von Hüten und Frisuren über der Kopfmitte (Haar unter dem Hut wird im Shader nur um 10 % gestaucht)
-for (const k of ['fedora-m', 'fedora2-m', 'hairA-m', 'hairB-m', 'hairC-m', 'hairD-m', 'hairE-m', 'hairA-f', 'hairB-f', 'hairD-f', 'hairE-f']) { const m = meshes[k]; if (!m) continue; let y = -1e9, r = 0; const hc = RIG[k.endsWith('-f') ? 'f' : 'm'].headC; for (let i = 0; i < m.pos.length; i += 3) { y = Math.max(y, m.pos[i + 1]); if (m.pos[i + 1] > hc + 0.02) r = Math.max(r, Math.hypot(m.pos[i], m.pos[i + 2] - RIG.m.headZ)); } console.log(k, 'oben', (y - hc).toFixed(3), 'Radius', r.toFixed(3)); }
+for (const k of ['fedora-m', 'fedora2-m', 'cloche-f', 'hairA-m', 'hairB-m', 'hairC-m', 'hairD-m', 'hairE-m', 'hairA-f', 'hairB-f', 'hairD-f', 'hairE-f']) { const m = meshes[k]; if (!m) continue; let y = -1e9, r = 0; const hc = RIG[k.endsWith('-f') ? 'f' : 'm'].headC; for (let i = 0; i < m.pos.length; i += 3) { y = Math.max(y, m.pos[i + 1]); if (m.pos[i + 1] > hc + 0.02) r = Math.max(r, Math.hypot(m.pos[i], m.pos[i + 2] - RIG.m.headZ)); } console.log(k, 'oben', (y - hc).toFixed(3), 'Radius', r.toFixed(3)); }
 /* ---------------- Detailstufe 1: vereinfacht ---------------- */
 function simplify(m, ratio, err = 0.02) {
   const target = Math.max(3, Math.floor(m.idx.length * ratio / 3) * 3);
@@ -866,7 +1046,8 @@ function simplify(m, ratio, err = 0.02) {
 // Haare dürfen gröber werden (Fehler 0.05), in dem Abstand sieht man nur noch die Form
 const LOD1 = { 'shirt-m': 0.5, 'body-m': 0.15, 'body-f': 0.15, 'body-p': 0.3, 'suit-m': 0.18, 'work-m': 0.25, 'lady-f': 0.3, 'shoes-m': 0.15, 'boots-m': 0.2, 'heels-f': 0.25, 'eyes-m': 1, 'eyes-f': 1,
   'hairA-m': 0.3, 'hairB-m': 0.4, 'hairP-m': 0.4, 'hairC-m': 0.25, 'hairA-f': 0.3, 'hairB-f': 0.15, 'hairC-f': 0.2,
-  'hairD-m': 0.3, 'hairE-m': 0.2, 'hairD-f': 0.2, 'hairE-f': 0.15, 'fedora-m': 0.3, 'fedora2-m': 0.3, 'coat-f': 0.18, 'shoes2-m': 0.15 };
+  'hairD-m': 0.3, 'hairE-m': 0.2, 'hairD-f': 0.2, 'hairE-f': 0.15, 'fedora-m': 0.3, 'fedora2-m': 0.3, 'coat-f': 0.18, 'shoes2-m': 0.15,
+  'flapper-f': 0.35, 'braces-m': 0.3, 'jacket-m': 0.25, 'cloche-f': 0.5, 'straps-f': 1 };
 for (const [k, r] of Object.entries(LOD1)) if (meshes[k]) meshes[k + '@1'] = r < 1 ? simplify(meshes[k], r, /^hair/.test(k) ? 0.05 : 0.02) : meshes[k];
 
 /* ---------------- Vorschau ---------------- */

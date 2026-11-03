@@ -33,7 +33,7 @@
   "people": {
     "comment": "V22: Menschen aus MakeHuman (CC0), gebaut mit tools/make-people.mjs; geladen von src/people-mh.js vor dem Aufbau der Stadt",
     "meshes": "people/people.glb", "meta": "people/people.json", "atlas": "people/people-atlas.webp", "atlasMobile": "people/people-atlas-m.webp",
-    "source": "MakeHuman 1.x Grundnetz hm08, Makro-Ziele, Skelett, Kleidung, Haare, Brauen, Wimpern, Haut- und Augentexturen; CC0"
+    "source": "MakeHuman 1.x Grundnetz hm08, Makro-Ziele, Skelett, Kleidung, Haare, Brauen, Wimpern, Haut- und Augentexturen; CC0. V56: Bilder in 2048 px aus dmaugis/makehuman-py3-assets (CC0), Flapperkleid TubeDress von punkduck (CC BY 3.0); Atlas 2048 x 9216, Handy-Fassung halb so groß"
   },
   "placements": [],
   "demo": {

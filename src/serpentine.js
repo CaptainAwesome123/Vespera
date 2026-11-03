@@ -2414,7 +2414,7 @@ export function personGeo(kind) {
   const cyl = (rt, rb, h, x, y, z, c, seg = 8) => P.push([new T.CylinderGeometry(rt, rb, h, seg).translate(x, y + h / 2, z), c]);
   const sph = (r, x, y, z, c, sy = 1) => P.push([new T.SphereGeometry(r, 10, 8).scale(1, sy, 1).translate(x, y, z), c]);
   const box = (w, h, d, x, y, z, c) => P.push([new T.BoxGeometry(w, h, d).translate(x, y, z), c]);
-  const male = kind !== 'lady' && kind !== 'gown' && kind !== 'dress' && kind !== 'furcoat';
+  const male = kind !== 'lady' && kind !== 'gown' && kind !== 'dress' && kind !== 'furcoat' && kind !== 'flapper';
   if (male) {
     const leg = kind === 'coat' ? [0.07, 0.07, 0.08] : kind === 'worker' || kind === 'kid' ? [0.17, 0.14, 0.11] : kind === 'suit' || kind === 'police' ? PAINT : COL.tux;
     for (const sx of [-0.1, 0.1]) { LB = [sx < 0 ? 1 : 2, 0.9]; cyl(0.075, 0.065, 0.86, sx, 0.02, 0, leg); box(0.12, 0.08, 0.26, sx, 0.04, 0.04, COL.dark); } LB = [0, 0];
@@ -2535,7 +2535,7 @@ export function carGeoHi(opts = {}) {
 export class Crowd {
   constructor(kinds, max) { this.nr = {}; this.hi = {}; this.lo = {}; this.list = []; this.max = max; this.kinds = kinds; this.vis = true; this.far = 320; }
   // Statur: jede Figur etwas schmaler oder kräftiger
-  add(kind, color, face) { const fem = kind === 'lady' || kind === 'gown' || kind === 'dress' || kind === 'furcoat'; this.list.push({ kind, color, m: new T.Matrix4(), on: false, bw: fem ? 0.86 + Math.random() * 0.22 : 0.86 + Math.random() * 0.32, gait: [Math.random() * 6.28, 0, 0, face ?? personLook(kind)], live: [0, -9, 0, 1] }); return this.list[this.list.length - 1]; }
+  add(kind, color, face) { const fem = kind === 'lady' || kind === 'gown' || kind === 'dress' || kind === 'furcoat' || kind === 'flapper'; this.list.push({ kind, color, m: new T.Matrix4(), on: false, bw: fem ? 0.86 + Math.random() * 0.22 : 0.86 + Math.random() * 0.32, gait: [Math.random() * 6.28, 0, 0, face ?? personLook(kind)], live: [0, -9, 0, 1] }); return this.list[this.list.length - 1]; }
   finish() {
     for (const k of this.kinds) {
       const n = this.list.filter(a => a.kind === k).length;
@@ -2642,6 +2642,10 @@ export const SHIRTS = [[0.82, 0.8, 0.74], [0.55, 0.62, 0.72], [0.7, 0.66, 0.56],
 export const DRESSES = [[0.62, 0.12, 0.16], [0.08, 0.32, 0.34], [0.78, 0.66, 0.42], [0.5, 0.48, 0.6], [0.12, 0.12, 0.14], [0.72, 0.5, 0.45], [0.3, 0.42, 0.28], [0.85, 0.8, 0.7]];
 export const COATS = [[0.06, 0.05, 0.05], [0.1, 0.08, 0.07], [0.16, 0.12, 0.09], [0.08, 0.08, 0.12], [0.3, 0.26, 0.2], [0.22, 0.07, 0.08], [0.05, 0.14, 0.15], [0.35, 0.3, 0.24]];
 // V39: Pelzmäntel der Damen (Stoff; Pelzbesatz bleibt cremefarben): Bordeaux, Petrol, Nachtschwarz, Pflaume, Kamel, Elfenbein, Smaragd, Marine
+// V56: Flapperkleider: Schwarz, Champagner, Smaragd, Bordeaux, Silbergrau, Mitternachtsblau, Elfenbein, Pflaume
+export const TWEEDS = [[0.24, 0.18, 0.12], [0.3, 0.24, 0.16], [0.16, 0.14, 0.12], [0.2, 0.2, 0.18], [0.28, 0.2, 0.1], [0.14, 0.16, 0.14]];   // V56: Tweedjacken
+export const TROUSERS = [[0.16, 0.14, 0.12], [0.2, 0.19, 0.17], [0.12, 0.12, 0.13], [0.22, 0.17, 0.12], [0.18, 0.18, 0.2]];   // V56: Wollhosen zu Hemdsärmeln
+export const FLAPPERS = [[0.05, 0.05, 0.06], [0.78, 0.66, 0.42], [0.04, 0.3, 0.22], [0.4, 0.06, 0.1], [0.55, 0.56, 0.6], [0.06, 0.08, 0.26], [0.86, 0.82, 0.72], [0.3, 0.1, 0.3]];
 export const FURCOATS = [[0.36, 0.07, 0.1], [0.05, 0.2, 0.21], [0.07, 0.07, 0.09], [0.22, 0.12, 0.28], [0.6, 0.48, 0.32], [0.88, 0.85, 0.8], [0.06, 0.26, 0.16], [0.08, 0.1, 0.22]];
 export const GOWNS = [[0.75, 0.6, 0.35], [0.85, 0.78, 0.62], [0.6, 0.62, 0.66], [0.45, 0.05, 0.08], [0.04, 0.22, 0.24], [0.06, 0.06, 0.07], [0.7, 0.45, 0.4], [0.9, 0.86, 0.8]];
 /* ---------- Passanten auf den Gehsteigen ---------- */
@@ -2673,8 +2677,8 @@ export function buildPedestrians() {
       // Paare gehen Seite an Seite, im gleichen Tempo
       // V39: dazu Dreiergruppen (zwei Herren, eine Dame oder umgekehrt); Begleiter kennen einander und schauen sich beim Gehen an (pedSocial)
       else if (!lp.worker && R() < 0.15) {
-        const trio = R() < 0.3, lady = () => R() < 0.45 ? 'lady' : R() < 0.7 ? 'dress' : 'furcoat';
-        pd.v = Math.sign(pd.v) * rand(0.9, 1.15); pd.lat = trio ? 0.62 : 0.33; pd.cool = 1e9; pd.kind = R() < 0.5 ? 'suit' : 'coat';
+        const trio = R() < 0.3, lady = () => R() < 0.35 ? 'lady' : R() < 0.55 ? 'dress' : R() < 0.75 ? 'flapper' : 'furcoat';   // V56: dazu Flapperkleider
+        pd.v = Math.sign(pd.v) * rand(0.9, 1.15); pd.lat = trio ? 0.62 : 0.33; pd.cool = 1e9; pd.kind = R() < 0.4 ? 'suit' : R() < 0.6 ? 'dbl' : 'coat';
         const grp = [pd, { lp, t: pd.t, v: pd.v, ph: pd.ph, sc: rand(0.9, 1.0), st: 0, cool: 1e9, lat: trio ? -0.62 : -0.33, kind: lady() }];
         if (trio) grp.push({ lp, t: pd.t, v: pd.v, ph: pd.ph + 2, sc: rand(0.9, 1.06), st: 0, cool: 1e9, lat: 0.001, kind: R() < 0.5 ? 'coat' : lady() });
         for (const g of grp) g.pair = grp.filter(o => o !== g);
@@ -2752,9 +2756,9 @@ export function buildPedestrians() {
   for (let k = 0; k < TRUCK_N; k++) { const m = { st: 5, sc: 1, v: 1.3, col: WORKWEAR[2], kind: 'worker' }; deliveryMen.push(m); peds.push(m); }
   for (const w of FACTORY_IDLERS) { const r = R(); peds.push({ st: 4, x: w.x, y: 0.22, z: w.z, yaw: w.yaw, sc: 1, v: 0, col: pick(SHIRTS), kind: 'worker', act: r < 0.2 ? 15.4 : r < 0.4 ? 25.3 : r < 0.6 ? 26.3 : r < 0.85 ? 27.3 : 38.3 }); }
   for (const pd of peds) if (pd.lp && pd.lp.worker) { pd.col = pick(SHIRTS); pd.kind = 'worker'; pd.cool = 1e9; }
-  pedCrowd = new Crowd(['coat', 'suit', 'worker', 'lady', 'dress', 'furcoat', 'police', 'kid', 'tux', 'gown', 'livery', 'waiter', 'sailor', 'chauffeur'], peds.length);
+  pedCrowd = new Crowd(['coat', 'suit', 'worker', 'lady', 'dress', 'furcoat', 'police', 'kid', 'tux', 'gown', 'livery', 'waiter', 'sailor', 'chauffeur', 'dbl', 'braces', 'jacket', 'flapper'], peds.length);   // V56: Zweireiher, Hemdsärmel, Arbeitsjacke, Flapper
   pedCrowd.far = 420;
-  peds.forEach(pd => { const r0 = R(), r1 = Math.random(), kd = r1 < 0.03 ? 'police' : r1 < 0.06 ? 'kid' : r0 < 0.28 ? 'coat' : r0 < 0.52 ? 'suit' : r0 < 0.71 ? 'lady' : r0 < 0.86 ? 'dress' : 'furcoat', k = pd.kind || kd, cl = k === 'dress' ? pick(DRESSES) : k === 'furcoat' ? pick(FURCOATS) : k === 'police' ? [0.06, 0.07, 0.16] : k === 'kid' ? pick(SHIRTS) : k === 'gown' ? pick(GOWNS) : k === 'tux' ? COL.tux : pick(COATS); if (k === 'kid') pd.sc = 0.6 + Math.random() * 0.08; pd.a = pedCrowd.add(k, pd.col || cl); const fem = k === 'lady' || k === 'dress' || k === 'gown' || k === 'furcoat'; pd.fem = fem; pd.a.gait[1] = Math.abs(pd.v) * (fem ? 5.4 : 4.6) / pd.sc; pd.a.gait[2] = pd.st === 4 || pd.st === 8 ? 0 : (fem ? 0.34 : 0.38) + Math.random() * 0.1; if (pd.st === 4 || pd.st === 8) pd.a.gait[1] = pd.act != null ? pd.act : Math.random() < 0.6 ? 0.6 + Math.random() * 0.35 : 0; if (pd.sit) pd.yo = (fem ? 0.8 : 0.87) * pd.sc; });
+  peds.forEach(pd => { const r0 = R(), r1 = Math.random(), kd = r1 < 0.03 ? 'police' : r1 < 0.06 ? 'kid' : r0 < 0.24 ? 'coat' : r0 < 0.4 ? 'suit' : r0 < 0.5 ? 'dbl' : r0 < 0.64 ? 'lady' : r0 < 0.76 ? 'dress' : r0 < 0.88 ? 'flapper' : 'furcoat', k = pd.kind === 'worker' && Math.random() < 0.5 ? (Math.random() < 0.5 ? 'braces' : 'jacket') : pd.kind || kd, cl = k === 'dress' ? pick(DRESSES) : k === 'flapper' ? pick(FLAPPERS) : k === 'furcoat' ? pick(FURCOATS) : k === 'braces' || k === 'jacket' ? pick(WORKWEAR) : k === 'police' ? [0.06, 0.07, 0.16] : k === 'kid' ? pick(SHIRTS) : k === 'gown' ? pick(GOWNS) : k === 'tux' ? COL.tux : pick(COATS); if (k === 'kid') pd.sc = 0.6 + Math.random() * 0.08; pd.a = pedCrowd.add(k, k === 'jacket' ? pick(TWEEDS) : k === 'braces' ? pick(TROUSERS) : pd.col || cl); const fem = k === 'lady' || k === 'dress' || k === 'gown' || k === 'furcoat' || k === 'flapper'; pd.fem = fem; pd.a.gait[1] = Math.abs(pd.v) * (fem ? 5.4 : 4.6) / pd.sc; pd.a.gait[2] = pd.st === 4 || pd.st === 8 ? 0 : (fem ? 0.34 : 0.38) + Math.random() * 0.1; if (pd.st === 4 || pd.st === 8) pd.a.gait[1] = pd.act != null ? pd.act : Math.random() < 0.6 ? 0.6 + Math.random() * 0.35 : 0; if (pd.sit) pd.yo = (fem ? 0.8 : 0.87) * pd.sc; });
   for (const c of CHATS) if (c.share && c.m[0].a && c.m[1].a) c.m[1].a.gait[0] = c.m[0].a.gait[0];
   for (const c of CHATS) for (const m of c.m) m.chat = c;   // V55: wer zu welcher Runde gehört (Tuscheln, wenn Alexander vorbeigeht)
   pedCrowd.finish();

@@ -10,6 +10,11 @@
    Herren tragen echte Fedoras aus MakeHuman, die Damen einen Pelzmantel (Art
    'furcoat'); der Shader der Menge ist dafür nicht gewachsen, alles kommt aus
    Netzen, Atlas und Daten.
+   V56: Haut, Kleidung und Haare aus den 2048er-Originalbildern (Atlas 2048 x
+   9216, Köpfe 512 x 1024, Anzüge 1024); Kleidung der Zwanziger: Zweireiher mit
+   Kreidestreifen und Weste, Hemdsärmel mit Hosenträgern, Tweedjacke, Flapper-
+   kleid mit Perlenmieder, Fransen und Trägern, Cloche-Hüte der Damen. Kacheln
+   anderer Größe erreicht tileMap (Verschieben und Skalieren der Atlas-UV).
    ===================================================================== */
 import { T, MOBILE, ANISO, renderer } from './core.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
@@ -63,6 +68,10 @@ const DARK_TROUSERS = [0.07, 0.07, 0.08], GLOVE_SATIN = [0.92, 0.9, 0.86];
 // Damen: A bob02, B bob01, C ponytail01, D long01 offen, E braid01 Zopf). mhHat = Hutvariante -> MakeHuman-Hut statt des gebauten
 // (Farbe des Filzes dazu). shoes2 = braune Halbschuhe (shoes04).
 const FED_DARK = [0.16, 0.14, 0.13], FED_BLACK = [0.05, 0.05, 0.06], FED_GREY = [0.24, 0.23, 0.22];
+// V56: Cloche-Farben (Filz): dunkles Bordeaux, Schwarz, Creme
+const CLO_DARK = [0.26, 0.09, 0.1], CLO_BLACK = [0.05, 0.05, 0.06], CLO_CREAM = [0.62, 0.55, 0.42];
+// V56: Grundkachel je Kleidungsteil; eine andere Kachel der Art (K.tile) wird durch Verschieben und Skalieren der Atlas-UV erreicht
+const BASE_TILE = { 'suit-m': 'suit', 'work-m': 'work', 'lady-f': 'lady', 'flapper-f': 'flapper', 'braces-m': 'braces', 'jacket-m': 'jacket' };
 export const MH_KIND = {
   suit:      { g: 'm', parts: ['suit-m', 'shoes-m'], tile: 'suit', keep: ['hat', 'carry', 'props'], hair: ['A', 'D', 'B'], mhHat: { 1: ['fedora-m', FED_DARK] } },
   tux:       { g: 'm', parts: ['suit-m', 'shoes-m'], tile: 'tux', color: [0.025, 0.025, 0.03], keep: ['props'], shirt: true, bow: true, hair: ['B', 'D', 'A'] },
@@ -74,11 +83,17 @@ export const MH_KIND = {
   worker:    { g: 'm', parts: ['work-m', 'boots-m'], tile: 'work', keep: ['hat', 'props'], hair: ['C', 'E', 'A'] },
   sailor:    { g: 'm', parts: ['work-m', 'boots-m'], tile: 'work', keep: ['hat', 'props'], hair: ['C', 'A', 'E'] },
   kid:       { g: 'm', parts: ['work-m', 'boots-m'], tile: 'work', keep: ['hat', 'carry', 'props'], hair: ['A', 'C', 'D'] },
-  lady:      { g: 'f', parts: ['lady-f', 'heels-f'], tile: 'lady', keep: ['hat', 'carry', 'props'], hair: ['A', 'B', 'E'] },
+  lady:      { g: 'f', parts: ['lady-f', 'heels-f'], tile: 'lady', keep: ['hat', 'carry', 'props'], hair: ['A', 'B', 'E'], mhHat: { 1: ['cloche-f', CLO_DARK] } },
   gown:      { g: 'f', parts: ['heels-f'], keep: ['body', 'hat', 'props'], cover: { from: 0.02, to: 1.366, mg: 0.012 }, gloves: GLOVE_SATIN, longGloves: true, hair: ['A', 'B', 'D'] },
   dress:     { g: 'f', parts: ['heels-f'], keep: ['body', 'hat', 'props'], cover: { from: 0.42, to: 1.366, mg: 0.01 } , hair: ['B', 'A', 'C'] },
   // V39: Dame im langen Pelzmantel (Wintermantel mit Pelzkragen, -manschetten und -saum; Stoff in der Farbe der Figur), Hüte und Taschen wie das Kostüm
-  furcoat:   { g: 'f', parts: ['coat-f', 'heels-f'], tile: 'furcoat', keep: ['hat', 'carry', 'props'], build: 'lady', hair: ['A', 'B', 'C'] },
+  furcoat:   { g: 'f', parts: ['coat-f', 'heels-f'], tile: 'furcoat', keep: ['hat', 'carry', 'props'], build: 'lady', hair: ['A', 'B', 'C'], mhHat: { 1: ['cloche-f', CLO_DARK], 3: ['cloche-f', CLO_CREAM] } },
+  // V56: Kleidung der Zwanziger. Zweireiher mit Kreidestreifen und Weste (Anzugnetz, eigene Kachel); Hemdsärmel mit Hosenträgern und
+  // Arbeitsjacke (MakeHuman-Freizeitanzüge, umgemalt); Flapperkleid mit Perlenmieder, Fransen, Trägern, langen Handschuhen und Cloche
+  dbl:       { g: 'm', parts: ['suit-m', 'shoes-m'], tile: 'dbl', keep: ['hat', 'carry', 'props'], build: 'suit', hair: ['D', 'B', 'A'], mhHat: { 1: ['fedora-m', FED_GREY] } },
+  braces:    { g: 'm', parts: ['braces-m', 'boots-m'], tile: 'braces', keep: ['hat', 'carry', 'props'], build: 'worker', hair: ['C', 'E', 'A'] },
+  jacket:    { g: 'm', parts: ['jacket-m', 'boots-m'], tile: 'jacket', keep: ['hat', 'carry', 'props'], build: 'worker', hair: ['A', 'C', 'E'] },
+  flapper:   { g: 'f', parts: ['flapper-f', 'straps-f', 'heels-f'], tile: 'flapper', keep: ['hat', 'carry', 'props'], build: 'lady', hair: ['A', 'B', 'E'], gloves: GLOVE_SATIN, longGloves: true, mhHat: { 1: ['cloche-f', CLO_BLACK], 3: ['cloche-f', CLO_DARK] } },
   // V24: der Spieler (nach den Referenzbildern): eigenes Gesicht, blondes Haar, weiße Rose am Revers (V47: ohne Einstecktuch)
   // V32: im Smoking (Hemdbrust mit Biesen und Onyxknöpfen) mit schwarzer Fliege; Haar glatt zurückgekämmt
   player:    { g: 'm', body: 'p', parts: ['suit-m', 'shoes-m'], tile: 'tux', color: [0.025, 0.025, 0.03], keep: ['props'], player: true, shirt: true, bow: true },
@@ -248,6 +263,8 @@ export function mhPersonGeo(kind, q) {
   const K = MH_KIND[kind] || MH_KIND.suit, gk = K.g, rig = HRIG[gk], fine = q > 1.5, lod = fine ? '' : '@1';
   const S = n => MHP.src[n + lod] || MHP.src[n];
   const meta = MHP.meta, RECT = meta.atlas.rect, AW = meta.atlas.w, AH = meta.atlas.h, TILE = meta.atlas.tile, hm = HATMASK[kind] || 0;
+  // V56: Atlas-UV einer Grundkachel auf eine andere (auch anders große) Kachel legen: [u0', v0', u0, v0, su, sv]; v zählt von unten
+  const tileMap = (a, b) => [b[0] * TILE / AW, 1 - (b[1] + b[3]) * TILE / AH, a[0] * TILE / AW, 1 - (a[1] + a[3]) * TILE / AH, b[2] / a[2], b[3] / a[3]];
   // Zubehör aus personBuild (Hüte, Requisiten, Werkzeuge, Mäntel und Kleider)
   PB.mh = { rig, gloves: null }; let parts;
   try { parts = personBuild(K.player ? 'tux' : K.build || kind, q); } finally { K._gloves = PB.mh.gloves; PB.mh = null; }
@@ -287,7 +304,9 @@ export function mhPersonGeo(kind, q) {
       A.limb.push(src._limb[i * 2], src._limb[i * 2 + 1]); A.opt.push(o.opt0 ? 0 : o.opt != null ? o.opt : src._opt[i]);
       let sk = src._soft[i * 3 + 2]; if (sk === 1) sk += 16 * hm;
       A.soft.push(fab, src._soft[i * 3 + 1], sk);
-      A.tuv.push(src.uv[i * 2] + du, src.uv[i * 2 + 1] + dv); A.tk.push(tk); A.bl.push(src._blend[i]);
+      if (o.map) A.tuv.push(o.map[0] + (src.uv[i * 2] - o.map[2]) * o.map[4], o.map[1] + (src.uv[i * 2 + 1] - o.map[3]) * o.map[5]);
+      else A.tuv.push(src.uv[i * 2] + du, src.uv[i * 2 + 1] + dv);
+      A.tk.push(tk); A.bl.push(src._blend[i]);
     }
     for (const i of tris) A.idx.push(base + map[i]);
     A.n += k;
@@ -311,12 +330,12 @@ export function mhPersonGeo(kind, q) {
     if (pn === 'heels-f') o.color = [0.05, 0.04, 0.045];
     else if (pn === 'shoes-m' && K.player) { o.color = [0.014, 0.014, 0.017]; o.fab = FAB.patent; }   // V35: schwarze Lackschuhe
     else if (pn === 'shoes-m' || pn === 'boots-m' || pn === 'shoes2-m') o.color = NOPAINT;
-    else if (pn === 'coat-f') o.color = [1, 1, 1];                                              // V39: Mantelstoff in Figurenfarbe, Pelz aus dem Atlas
+    else if (pn === 'coat-f' || pn === 'straps-f') o.color = [1, 1, 1];                         // V39: Mantelstoff in Figurenfarbe, Pelz aus dem Atlas; V56: Kleidträger
     else {
-      const baseTile = pn === 'suit-m' ? 'suit' : pn === 'work-m' ? 'work' : 'lady', t = K.tile || baseTile;
+      const baseTile = BASE_TILE[pn] || 'lady', t = K.tile || baseTile;
       // V32: Smoking und Kellner: Hemdbrust ohne Krawatte statt der mit
       if (K.shirt && pn === 'suit-m' && src._hide && MHP.src['shirt-m']) { o.drop = i => (src._hide[i] & 64) !== 0; o.shirt = true; }
-      if (t !== baseTile) { o.du = (RECT[t][0] - RECT[baseTile][0]) * TILE / AW; o.dv = -(RECT[t][1] - RECT[baseTile][1]) * TILE / AH; }
+      if (t !== baseTile) o.map = tileMap(RECT[baseTile], RECT[t]);
       o.color = K.color || [1, 1, 1];
       if (K.coat && pn === 'suit-m') {
         // unter dem Mantel: Ärmel in Mantelfarbe, Hose dunkel; was der Mantel verdeckt, fällt weg
@@ -325,7 +344,7 @@ export function mhPersonGeo(kind, q) {
       }
     }
     add(src, o);
-    if (o.shirt) add(S('shirt-m'), { du: o.du, dv: o.dv, color: o.color });
+    if (o.shirt) add(S('shirt-m'), { map: o.map, color: o.color });
   }
   // Zubehör anhängen (gleiche Felder wie personMerge)
   if (keep.length) {

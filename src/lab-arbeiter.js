@@ -58,7 +58,7 @@ export async function startWorkersLab(params) {
   const cells = new Set(WORK.alleys.map(A => Math.floor(A.x / WORK_CELL) + ',' + Math.floor((A.z0 + A.z1) / 2 / WORK_CELL)));
   for (const k of cells) { const [cx, cz] = k.split(',').map(Number); const g = buildWorkerCell(cx, cz); if (g) scene.add(g); }
   // Leute: wie im Spiel über VENUE_PEDS (Kneipe, Platz, Feuertonnen)
-  const C = new Crowd(['coat', 'suit', 'worker', 'lady', 'dress', 'furcoat', 'police', 'kid', 'tux', 'gown', 'livery', 'waiter', 'sailor', 'chauffeur'], VENUE_PEDS.length + 4);
+  const C = new Crowd(['coat', 'suit', 'worker', 'lady', 'dress', 'furcoat', 'police', 'kid', 'tux', 'gown', 'livery', 'waiter', 'sailor', 'chauffeur', 'braces', 'jacket'], VENUE_PEDS.length + 4);
   for (const pd of VENUE_PEDS) { const k = pd.kind || 'coat'; pd.a = C.add(k, pd.col || COATS[1]); pd.fem = k === 'lady' || k === 'dress' || k === 'gown' || k === 'furcoat'; pd.a.gait[1] = pd.act ?? 0.6; pd.a.gait[2] = 0; if (pd.sit) pd.yo = (pd.fem ? 0.8 : 0.87) * pd.sc; }
   C.finish();
   for (const pd of VENUE_PEDS) C.set(pd.a, pd.x, pd.y - (pd.yo || 0), pd.z, pd.yaw, pd.sc || 1);

@@ -31,7 +31,7 @@ export function startLab(params) {
   const teal = new T.PointLight(0x58d0d0, 0.8, 12, 1.6); teal.position.set(-3, 2.5, -1); scene.add(teal);
   const floor = new T.Mesh(new T.PlaneGeometry(40, 40), new T.MeshStandardMaterial({ color: 0x1a1612, roughness: 0.6 }));
   floor.rotation.x = -Math.PI / 2; scene.add(floor);
-  const C = LAB.crowd = new Crowd(['tux', 'gown', 'dress', 'suit', 'lady', 'worker', 'coat', 'furcoat'], 48);
+  const C = LAB.crowd = new Crowd(['tux', 'gown', 'dress', 'suit', 'lady', 'worker', 'coat', 'furcoat', 'dbl', 'braces', 'jacket', 'flapper'], 60);
   const A = (kind, col, x, z, yaw, gait, face) => { const a = C.add(kind, col, face); a.lab = { x, z, yaw }; if (gait) a.gait.splice(0, 3, ...gait); return a; };
   // vordere Reihe: Gesichter (stehend), hintere Reihe: Gehen und Tanzen
   const look = (face, tone, hair, hat = 2, style = 0) => face + 64 * tone + 320 * hair + 7680 * hat + 23040 * style;
@@ -49,6 +49,16 @@ export function startLab(params) {
   A('coat', [0.08, 0.08, 0.12], -3.3, 0, 0, [8.1, 0, 0], look(19, 1, 4, 0, 0));
   A('lady', [0.3, 0.26, 0.2], 3.3, 0, 0, [8.6, 0, 0], look(50, 2, 1, 2, 2));
   A('gown', [0.85, 0.78, 0.62], 3.9, 0, 0, [9.1, 0, 0], look(53, 0, 2, 2, 2));
+  // V56: Zwanziger: rechts Flapper (mit und ohne Cloche), Dame im Kostüm mit Cloche, Pelzmantel mit cremefarbener Cloche;
+  // links Zweireiher, Hemdsärmel mit Hosenträgern, Arbeitsjacke, Zweireiher ohne Hut
+  A('flapper', [0.05, 0.05, 0.06], 4.6, 0, 0, [9.6, 0, 0], look(35, 0, 1, 0, 0));
+  A('flapper', [0.78, 0.66, 0.42], 5.2, 0, -0.2, [10.1, 0, 0], look(39, 1, 0, 1, 1));
+  A('lady', [0.1, 0.12, 0.2], 5.8, 0, 0, [10.6, 0, 0], look(43, 0, 2, 0, 2));
+  A('furcoat', [0.07, 0.07, 0.09], 6.4, 0, 0.2, [11.1, 0, 0], look(49, 2, 4, 2, 0));
+  A('dbl', [0.08, 0.08, 0.12], -3.9, 0, 0, [11.6, 0, 0], look(23, 0, 0, 0, 0));
+  A('braces', [0.2, 0.19, 0.17], -4.5, 0, 0.2, [12.1, 0, 0], look(25, 1, 1, 1, 1));
+  A('jacket', [0.24, 0.18, 0.12], -5.1, 0, -0.2, [12.6, 0, 0], look(27, 3, 0, 2, 2));
+  A('dbl', [0.16, 0.12, 0.09], -5.7, 0, 0, [13.1, 0, 0], look(29, 1, 3, 1, 1));
   // Tanzpaare und Gehende
   A('tux', COATS[0], -1.2, -3, 0, [0, 20, 0], look(5, 0, 0)); A('gown', GOWNS[0], -1.28, -2.62, Math.PI, [0, 21, 0], look(33, 0, 2));
   A('tux', COATS[0], 1.2, -3, 0.4, [0.7, 22, 0], look(7, 1, 1)); A('dress', DRESSES[0], 1.2, -2.2, 0.4 + Math.PI, [0.7, 22, 0], look(47, 0, 0));
@@ -86,6 +96,12 @@ export function startLab(params) {
     handnah: [[-1.0, 0.98, 0.7], [-0.75, 0.85, 0.0]], spielerhand: [[-0.4, 0.98, 2.9], [-0.2, 0.85, 2.2]], spielernah: [[0, 1.68, 2.82], [0, 1.67, 2.2]],
     // V48: Alexander im Dreiviertelprofil (wie auf den Referenzbildern)
     spielerportraet: [[0.42, 1.7, 2.85], [0, 1.66, 2.2]], spielerprofil: [[0.72, 1.7, 2.25], [0, 1.66, 2.2]],
+    // V56: Zwanziger-Reihen rechts und links, Nahaufnahmen von Weste, Zweireiher, Hosenträgern, Jacke, Flapper und Cloche
+    zwanziger: [[5.5, 1.4, 3.4], [5.5, 1.0, 0]], zwanzigerl: [[-4.8, 1.4, 3.4], [-4.8, 1.0, 0]],
+    weste: [[0.9, 1.35, 1.0], [0.9, 1.28, 0]], zweireiher: [[-3.9, 1.3, 1.5], [-3.9, 1.15, 0]], zweireiherseite: [[-2.9, 1.3, 0.6], [-3.9, 1.15, 0]],
+    hosentraeger: [[-4.5, 1.3, 1.4], [-4.5, 1.15, 0]], hosentraegerhinten: [[-4.5, 1.3, -1.4], [-4.5, 1.15, 0]], jacke: [[-5.1, 1.3, 1.4], [-5.1, 1.15, 0]],
+    flapper: [[4.6, 1.2, 1.7], [4.6, 1.0, 0]], flapperseite: [[5.9, 1.2, 1.0], [5.2, 1.0, 0]], cloche: [[4.5, 1.7, 0.75], [4.6, 1.62, 0]], clochedame: [[5.8, 1.7, 0.75], [5.8, 1.62, 0]],
+    gesichtnah2: [[5.25, 1.6, 0.55], [5.2, 1.57, 0]], haut2: [[-4.5, 1.62, 0.5], [-4.5, 1.6, 0]],
   };
   // V35: Alexanders Bewegungen als Standbild (?pose=... oder window.labPose(name)); u: [Platz im uPl, x, y, z, w]
   LAB.poses = {
