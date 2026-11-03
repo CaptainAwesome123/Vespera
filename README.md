@@ -138,11 +138,18 @@ Pflasterstein-Fotos fehlen noch (keine erreichbare CC0-Quelle), die Straße blei
 **Menschen (V22):** `tools/make-people.mjs` baut aus den MakeHuman-Daten (CC0) zwei Körper (Mann, Frau), Anzüge,
 Arbeitskleidung, Damenkostüm, Schuhe, je drei Frisuren, Brauen, Wimpern und Augen, stellt sie in die Ruhehaltung
 des Spiels und schreibt `assets/people/`. Aufruf: `node tools/make-people.mjs <makehuman>/makehuman/data
-<makehuman-data>/public/data [vorschau-ordner]` (npm: `meshoptimizer`, `@gltf-transform/core`,
+<makehuman-data>/public/data [makehuman-py3-assets/base] [vorschau-ordner]` (npm: `meshoptimizer`, `@gltf-transform/core`,
 `@gltf-transform/extensions`, `@gltf-transform/functions`, `sharp`). Im Spiel setzt `mhPersonGeo` in
 `src/people-mh.js` die Figuren für die nahen und mittleren Stufen zusammen (Tabelle `MH_KIND`: Teile,
 Atlasbild, Farbe, welche gebauten Teile wie Hüte, Mäntel, Kleider und Werkzeuge bleiben); ferne Figuren
 bleiben die gebauten. Lädt `assets/people` nicht, läuft alles wie in V21.
+*V56:* alle Haut-, Kleidungs- und Haarbilder kommen aus den 2048er-Originalen der MakeHuman-Auslieferung
+(Spiegel `dmaugis/makehuman-py3-assets`, Ordner `base`, Dateien über `media.githubusercontent.com`); der Atlas ist
+2048 x 9216 (Köpfe 512 x 1024, Anzüge, Kostüm, Latzhose und Flapperkleid 1024 px; Handys die halbe Fassung).
+Neue Arten: `dbl` (Zweireiher mit Kreidestreifen), `braces` (Hemdsärmel mit Hosenträgern), `jacket` (Tweedjacke),
+`flapper` (Flapperkleid mit Perlenmieder, Fransen, Trägern, langen Handschuhen); Damen tragen Cloche-Hüte, der Anzug
+hat eine Weste. Labor: `?lab=menschen`, Ansichten `zwanziger`, `zwanzigerl`, `weste`, `zweireiher`, `hosentraeger`,
+`jacke`, `flapper`, `cloche`, `clochedame`.
 
 **Hände und Smoking (V32):** Die Finger der MakeHuman-Körper haben je drei Gelenke. `fingerPose` in
 `tools/people/fit.mjs` legt die Hände entspannt an (leicht gebeugt, Finger beisammen, Daumen neben dem

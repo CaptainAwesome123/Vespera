@@ -161,7 +161,7 @@ export function lifePeds(loops) {
       const an = Math.atan2(-fx, -fz) + (k - (n - 1) / 2) * 0.55 + (rr() - 0.5) * 0.15, rad = rad0 + rr() * 0.5;
       const x = cx + Math.sin(an) * rad, z = cz + Math.cos(an) * rad;
       if (!freeSpot(x, z, 0.3, walkers ? loops : null, false)) continue;
-      const fem = !worker && rr() < 0.5, kind = worker ? (rr() < 0.8 ? 'worker' : 'coat') : fem ? pickR(['lady', 'dress', 'furcoat']) : pickR(['coat', 'suit', 'suit']);
+      const fem = !worker && rr() < 0.5, kind = worker ? pickR(['worker', 'worker', 'braces', 'jacket', 'coat']) : fem ? pickR(['lady', 'dress', 'furcoat', 'flapper']) : pickR(['coat', 'suit', 'suit', 'dbl']);   // V56
       const col = kind === 'worker' ? pickR(rr() < 0.5 ? SHIRTS : WORKWEAR) : kind === 'dress' ? pickR(DRESSES) : undefined;
       const r = rr(), act = r < 0.35 ? 0.6 + rr() * 0.3 : r < 0.6 ? 1.5 : r < 0.75 ? 15.3 : 0.2;
       const pd = { st: 4, x, y, z, yaw: Math.atan2(cx - x, cz - z), sc: 0.92 + rr() * 0.14, v: 0, kind, act, listen: s };
