@@ -53,6 +53,8 @@ import './stimmen.js';   // V59: mehr Sätze und Reaktionen
 import './zeitung.js';   // V61: der Vespera-Kurier (Zeitung, Extrablätter, Rufe der Zeitungsjungen)
 import './pausemenu.js'; // V61: Pausenmenü mit Tastenübersicht (Tab / F1)
 import './handy.js';     // V61: Touch-Steuerung und Leistung fürs Handy
+import './kontor.js';    // V61: Wirtschaft, Handel, Börse, Besitz (Taste I)
+import './aufgaben.js';  // V61: Aufgaben von Bürgern, Randolf, Bürgermeister, Bank
 
 import { shared, $, renderer, scene, camera } from './core.js';
 import { layers, chunkStats } from './chunks.js';

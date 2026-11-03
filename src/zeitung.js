@@ -462,7 +462,7 @@ function ztRender() {
   ].join('');
   F.el.firstChild.innerHTML = `
     <div class="zm">${ZT_FAN}<div class="zt">Vespera <span>·</span> Kurier</div>
-      <div class="zl"><span>Jahrgang XVI · Nr. ${ed.nr}</span>${ed.extra ? '<span class="zx">Extrablatt</span>' : '<span>Abendausgabe</span>'}<span>${ztEsc(ed.datum)} · ${ztEsc(ed.uhr)}</span><span>10 Pfennig</span></div></div>
+      <div class="zl"><span>Jahrgang XVI · Nr. ${ed.nr}</span>${ed.extra ? '<span class="zx">Extrablatt</span>' : '<span>Abendausgabe</span>'}<span>${ztEsc(ed.datum)} · ${ztEsc(ed.uhr)}</span><span>10 Funken</span></div></div>
     <div class="zgrid"><div>${ztItemHtml(ed.lead, true)}<div class="zitems">${ed.items.map(i => ztItemHtml(i, false)).join('')}</div></div><aside class="zside">${side}</aside></div>
     <div class="zfoot"><button data-z="alt" ${F.view <= 0 ? 'disabled' : ''}>◂ Ältere</button><span>Ausgabe ${F.view + 1} von ${n} · U oder Esc schließt · Pfeile blättern</span><button data-z="neu" ${F.view >= n - 1 ? 'disabled' : ''}>Neuere ▸</button><button data-z="zu">Schließen</button></div>`;
   F.el.firstChild.scrollTop = 0;
