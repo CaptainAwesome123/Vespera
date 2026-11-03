@@ -188,8 +188,8 @@ function freshFlowers(name) {
 function growFlowers(dt) { for (const F of HS.flowers) if (F.grow < 1) { F.grow = Math.min(1, F.grow + dt * 0.9); const s = 0.3 + 0.7 * F.grow; F.ms[F.k].scale.set(s, s, s); } }
 
 /* ---------- Randolf ---------- */
-const R_GREET = ['Guten Abend, Sir. Willkommen zu Hause.', 'Willkommen zurück, Sir. Darf ich Ihnen den Mantel abnehmen?', 'Sir. Das Haus ist bereit, der Kamin im Salon brennt.', 'Guten Abend, Sir. Ganz Vespera spricht von Ihnen, wenn ich das sagen darf.'];
-const R_ROOM = {
+export const R_GREET = ['Guten Abend, Sir. Willkommen zu Hause.', 'Willkommen zurück, Sir. Darf ich Ihnen den Mantel abnehmen?', 'Sir. Das Haus ist bereit, der Kamin im Salon brennt.', 'Guten Abend, Sir. Ganz Vespera spricht von Ihnen, wenn ich das sagen darf.'];
+export const R_ROOM = {
   Salon: ['Der Kamin brennt, Sir. Das Grammophon spielt Ihre Lieblingsplatte.', 'Nehmen Sie Platz, Sir. Ich bringe Ihnen gern etwas.'],
   Herrenzimmer: ['Der zwanzigjährige Whisky ist eingetroffen, Sir.', 'Eine Partie Billard, Sir? Ich habe die Kugeln poliert.'],
   Speisesaal: ['Die Tafel ist für Sie gedeckt, Sir. Wie jeden Abend.', 'Der Koch empfiehlt heute Hummer, Sir.'],
@@ -208,8 +208,8 @@ const R_ROOM = {
   Gesindestube: ['Haltung, bitte! Der Herr ist im Raum.'],
   'Randolfs Zimmer': ['Oh. Mein bescheidenes Zimmer, Sir. Verzeihen Sie die Unordnung.'],
 };
-const R_BYE = ['Gute Nacht, Sir. Ich halte das Haus warm.', 'Gute Fahrt, Sir.', 'Kommen Sie gut zurück, Sir.'];
-const R_TK = ['Beeindruckend wie immer, Sir.', 'Sehr wohl, Sir. Ich halte Abstand.', 'Ich hole schon einmal den Besen, Sir.'];
+export const R_BYE = ['Gute Nacht, Sir. Ich halte das Haus warm.', 'Gute Fahrt, Sir.', 'Kommen Sie gut zurück, Sir.'];
+export const R_TK = ['Beeindruckend wie immer, Sir.', 'Sehr wohl, Sir. Ich halte Abstand.', 'Ich hole schon einmal den Besen, Sir.'];
 function rSay(s, d = 4) { if (lifeSay('Randolf', s, d)) { HS.sayT = 6; return true; } return false; }
 const pick = L => L[Math.floor(Math.random() * L.length)];
 // Brotkrumen: der Weg, den Alexander durchs Haus gegangen ist (Randolf folgt ihm darauf, nie quer durch Wände)
@@ -547,9 +547,9 @@ function villaPlan(R, s, V) {
 }
 
 /* ---------- Penthouse: Concierge Konrad, Barkeeper, Kellner auf der Terrasse, Pianist, Zimmermädchen ---------- */
-const K_GREET = ['Willkommen zu Hause, Herr Alexander. Die Suite ist bereit.', 'Guten Abend, Herr Alexander. Das Belmont ist ganz zu Ihren Diensten.', 'Herr Alexander. Der Pianist spielt, die Terrasse ist geheizt.'];
-const K_SAYS = ['Heute Abend tanzen dreihundert Gäste im Ballsaal, Herr Alexander. Alle fragen nach Ihnen.', 'Die Aurora Imperial liegt am Mast, Herr Alexander. Die Mannschaft steht bereit.', 'Der Pianist fragt, ob Sie einen Wunsch haben.', 'Ich habe Ihnen die Abendzeitung hingelegt. Sie sind wieder auf der Titelseite.', 'Der Kristall … ich habe niemanden in seine Nähe gelassen, Herr Alexander. Wie immer.', 'Die Terrasse ist geheizt, die Feuerschalen brennen.'];
-const PIANO_HIM = ['Ein Wunsch, Herr Alexander? Ich spiele, was Sie mögen.', 'Für Sie, Herr Alexander: etwas Ruhiges zum Abend.'];
+export const K_GREET = ['Willkommen zu Hause, Herr Alexander. Die Suite ist bereit.', 'Guten Abend, Herr Alexander. Das Belmont ist ganz zu Ihren Diensten.', 'Herr Alexander. Der Pianist spielt, die Terrasse ist geheizt.'];
+export const K_SAYS = ['Heute Abend tanzen dreihundert Gäste im Ballsaal, Herr Alexander. Alle fragen nach Ihnen.', 'Die Aurora Imperial liegt am Mast, Herr Alexander. Die Mannschaft steht bereit.', 'Der Pianist fragt, ob Sie einen Wunsch haben.', 'Ich habe Ihnen die Abendzeitung hingelegt. Sie sind wieder auf der Titelseite.', 'Der Kristall … ich habe niemanden in seine Nähe gelassen, Herr Alexander. Wie immer.', 'Die Terrasse ist geheizt, die Feuerschalen brennen.'];
+export const PIANO_HIM = ['Ein Wunsch, Herr Alexander? Ich spiele, was Sie mögen.', 'Für Sie, Herr Alexander: etwas Ruhiges zum Abend.'];
 export function buildPentStaff() {
   hookVilla();
   const F1 = PH.F1, C = HS.pc = new Crowd(['tux', 'waiter', 'dress'], 8);
