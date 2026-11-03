@@ -1,6 +1,7 @@
 import { shared, MOBILE, T, scene, camera, mulberry32, $, U } from './core.js';
 import { aweStep, aweEnd, talkLine, greetNow } from './awe.js';
 import { lifeStep, updateLife } from './life.js';
+import { updateGegner } from './gegner.js';   // V60
 import { personShare } from './people-model.js';
 import { MAT, HRIG } from './people-skeleton.js';
 import { FACTORIES, FACTORY_NAMES, FACTORY_LOOPS } from './shops.js';
@@ -313,6 +314,7 @@ export function updatePedestrians(dt, t) {
   for (const pd of peds) {
     const lp = pd.lp;
     if (pd.st === 5 || pd.st === 6 || pd.rag || pd.back) continue;
+    if (pd.st === 11) continue;   // V60: Gegner und ihre Polizisten bewegt gegner.js
     if (pd.st === 9) { aweStep(pd, dt); continue; }   // V52: steht und staunt über Alexander
     if (pd.st === 10) { lifeStep(pd, dt); continue; }   // V55: Kellner auf der Terrasse
     if (pd.st === 4) { pedCrowd.set(pd.a, pd.x, pd.y - (pd.yo || 0), pd.z, pd.yaw, pd.sc, pd.tilt || 0); continue; }
@@ -363,6 +365,7 @@ export function updatePedestrians(dt, t) {
     const [x, z, dirx, dirz] = loopRound(lp, pd.t, Math.sign(pd.v)), lat = pd.lat || 0;
     pedCrowd.set(pd.a, x + dirz * lat, lp.y, z - dirx * lat, Math.atan2(dirx, dirz), pd.sc);
   }
+  updateGegner(dt);   // V60: Anarchisten, Räuber, Festnahmen
   pedCrowd.flag();
 }
 

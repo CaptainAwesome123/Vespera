@@ -12,6 +12,7 @@ import { curtainMat, jetStreakMat } from './fountain.js';   // V41: Wasserschlei
 import { VILLA, deckY, TER, terrainHeight, ROAD_Z0, VIA, ROAD_W, terrainHeightRaw, terrainInfo, VALLEY_W, PORT_LOOPS, PORT_PEDS, LAND_HOOK } from './harbour.js';
 import { makeGlowPoints, buildCitizens } from './ragdoll.js';
 import { lifePeds, newsCorner } from './life.js';
+import { gegnerPeds } from './gegner.js';   // V60: Anarchisten, Räuber, Polizei für die Festnahme
 import { cars } from './airships.js';
 import { carDamageAttr, carCabin, carLoft, carSweep, fenderPath, carWheel } from './cars.js';
 import { CARM, CARM_PAINT, isModelCar, modelCarMeshes } from './carmodel.js';
@@ -2677,6 +2678,7 @@ export function buildPedestrians() {
   for (const b of blocks) { if (b.d > 520 || R() > 0.08) continue; const nb = { st: 4, x: b.x0 + 1.2, y: 0.22, z: b.z0 + 1.2, yaw: -Math.PI * 0.75, sc: 0.64, v: 0, kind: 'kid', act: 6.5 }; newsCorner(nb); peds.push(nb); }
   // V55: Kellner auf den Terrassen, Polizeistreifen, laufende Zeitungsjungen, Straßenmusiker mit Publikum (src/life.js)
   peds.push(...lifePeds(loops));
+  peds.push(...gegnerPeds());   // V60: Gegner (unsichtbar, bis etwas passiert; src/gegner.js)
   {
     const rw = mulberry32(1918), F = MOBILE ? 0.5 : 1;
     const at = (d, o, side, yaw, extra) => { const tx = d.nz * side, tz = -d.nx * side; return { st: 4, x: d.x + d.nx * o.n + tx * o.t, y: 0.22, z: d.z + d.nz * o.n + tz * o.t, yaw, sc: 0.93 + rw() * 0.12, v: 0, ...extra }; };
