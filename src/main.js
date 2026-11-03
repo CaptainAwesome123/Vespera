@@ -16,7 +16,7 @@ import { buildHarbor, setupReflection } from './water.js';
 import { planAccess, buildPort, portInteractions, VILLA } from './harbour.js';
 import { buildGround, buildVilla, planSerpentine, buildAccessRoad, buildSerpentine, flushInstances, buildMountains } from './serpentine.js';
 import { buildSky } from './sky.js';
-import { buildShafts, buildGroundFog, buildSearchlights, buildAirship } from './airships.js';
+import { buildGroundFog, buildAirship } from './airships.js';
 import { TRAM_LINES, buildCars, buildTrucks, buildTrams, buildParticles } from './traffic.js';
 import { buildVenues } from './venues.js';
 import { driveInteractions, venueInteractions } from './eating.js';
@@ -123,7 +123,7 @@ export async function build() {
   await step('buildMountains');
   if (!noLand) buildLandscape();   // V44: feines Klippennetz, Wasserfälle, Eissaum, Schollen, Schären
   await step('buildLandscape');
-  // V42: keine Lichtsäulen mehr aus den Kronen (Kanon 2026-11-01); buildShafts bleibt für den Fall, dass sie zurückkommen sollen
+  // V42: keine Lichtsäulen mehr aus den Kronen (Kanon 2026-11-01); V57: buildShafts und buildSearchlights entfernt
   buildGroundFog();
   await step('buildGroundFog');
   // V42: auch die vier Suchscheinwerfer des Belmont (Lichtstrahlen vom Gebäude) sind aus

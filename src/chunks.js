@@ -45,6 +45,12 @@ export function registerLayer(L) {
 export const layerByName = name => layers.find(l => l.name === name);
 
 function lodFor(L, dist) { let lod = 0; for (const d of L.lods) if (dist > d) lod++; return lod; }
+// V57: lodEdge = Detailstufe nach dem Abstand zum nächsten Punkt der Zelle (nicht zur Mitte). Dann darf die Grenze nah liegen,
+// ohne dass ein Stück direkt neben dem Spieler grob wird; lodHyst (m) verhindert Hin- und Herbauen an der Grenze.
+function edgeDist(L, cx, cz, cp) {
+  const x0 = cx * L.size, z0 = cz * L.size, dx = Math.max(x0 - cp.x, 0, cp.x - x0 - L.size), dz = Math.max(z0 - cp.z, 0, cp.z - z0 - L.size);
+  return Math.hypot(dx, dz, Math.max(0, cp.y));
+}
 function buildChunk(L, cx, cz, lod) {
   const key = chunkKey(cx, cz);
   const rec = L.chunks.get(key) || { cx, cz, obj: null, lod: -1 };
@@ -71,7 +77,7 @@ function wanted(L, cp) {
   const x0 = Math.floor((cp.x - r) / L.size), x1 = Math.floor((cp.x + r) / L.size), z0 = Math.floor((cp.z - r) / L.size), z1 = Math.floor((cp.z + r) / L.size);
   for (let cz = z0; cz <= z1; cz++) for (let cx = x0; cx <= x1; cx++) {
     const [mx, mz] = L.center(cx, cz), d = Math.hypot(cp.x - mx, cp.z - mz);
-    if (d < r) out.push({ cx, cz, d, lod: lodFor(L, d) });
+    if (d < r) out.push({ cx, cz, d, de: L.lodEdge ? edgeDist(L, cx, cz, cp) : d, lod: lodFor(L, L.lodEdge ? edgeDist(L, cx, cz, cp) : d) });
   }
   out.sort((a, b) => a.d - b.d);
   return out;
@@ -87,6 +93,7 @@ export function updateChunks(dt, { budgetMs = BUILD_BUDGET_MS, all = false } = {
     for (const w of want) {
       const key = chunkKey(w.cx, w.cz); keep.add(key);
       const rec = L.chunks.get(key);
+      if (rec && rec.lod >= 0 && rec.lod !== w.lod && L.lodHyst && lodFor(L, w.de + (rec.lod < w.lod ? -L.lodHyst : L.lodHyst)) === rec.lod) continue;
       if (rec && rec.lod === w.lod) continue;
       if (rec && rec.obj && L.setLod) { L.setLod(rec.obj, w.lod, rec.lod); rec.lod = w.lod; continue; }
       if (!all && performance.now() - t0 > budgetMs) { pending++; continue; }

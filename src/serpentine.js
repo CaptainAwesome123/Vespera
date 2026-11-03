@@ -1112,61 +1112,6 @@ export function crownFinsR(x, z, w, d, y, h, c, ry) {
   const cs = Math.cos(ry), sn = Math.sin(ry);
   for (let i = n0; i < neons.length; i++) { const n = neons[i], lx = n.x, lz = n.z; n.x = x + lx * cs + lz * sn; n.z = z - lx * sn + lz * cs; n.ry = ry; }
 }
-/* ---------- Feuerwerk über der Villa: aufsteigende Raketen, goldene, türkise und weiße Sterne, die langsam fallen ---------- */
-export const FW = { n: 1400, pts: null, p: null, v: null, life: null, col: null, rockets: [], t: 3, head: 0 };
-export function buildFireworks() {
-  const n = FW.n, g = new T.BufferGeometry();
-  FW.p = new Float32Array(n * 3); FW.v = new Float32Array(n * 3); FW.life = new Float32Array(n); FW.c0 = new Float32Array(n * 3);
-  FW.col = new Float32Array(n * 3);
-  for (let i = 0; i < n; i++) FW.p[i * 3 + 1] = -9999;
-  g.setAttribute('position', new T.BufferAttribute(FW.p, 3).setUsage(T.DynamicDrawUsage));
-  g.setAttribute('color', new T.BufferAttribute(FW.col, 3).setUsage(T.DynamicDrawUsage));
-  const m = new T.ShaderMaterial({
-    uniforms: { uScale: U.uScale }, transparent: true, depthWrite: false, blending: T.AdditiveBlending, vertexColors: true,
-    vertexShader: `uniform float uScale; varying vec3 vC; void main(){ vC = color; vec4 mv = modelViewMatrix * vec4(position, 1.0); gl_PointSize = clamp(2.6 * uScale / max(-mv.z, 1.0), 1.5, 40.0); gl_Position = projectionMatrix * mv; }`,
-    fragmentShader: `varying vec3 vC; void main(){ float r = length(gl_PointCoord - 0.5) * 2.0; if (r > 1.0) discard; gl_FragColor = vec4(vC * (pow(1.0 - r, 1.5) + exp(-r * r * 12.0)), 1.0); }`,
-  });
-  FW.pts = new T.Points(g, m); FW.pts.frustumCulled = false; FW.pts.renderOrder = 4; scene.add(FW.pts);
-}
-export const FW_COLS = [[1.6, 1.15, 0.45], [0.45, 1.5, 1.45], [1.6, 1.55, 1.4], [1.6, 0.55, 0.6], [1.3, 0.9, 1.6]];
-export function fwBurst(x, y, z) {
-  const c = pick(FW_COLS), c2 = Math.random() < 0.4 ? pick(FW_COLS) : c, k = 160 + Math.floor(Math.random() * 90), sp = 32 + Math.random() * 22, ring = Math.random() < 0.25;
-  for (let j = 0; j < k; j++) {
-    const i = FW.head; FW.head = (FW.head + 1) % FW.n;
-    let dx, dy, dz;
-    if (ring) { const a = j / k * Math.PI * 2; dx = Math.cos(a); dy = Math.sin(a) * 0.3; dz = Math.sin(a); }
-    else { const u = Math.random() * 2 - 1, a = Math.random() * Math.PI * 2, r = Math.sqrt(1 - u * u); dx = r * Math.cos(a); dy = u; dz = r * Math.sin(a); }
-    const s = sp * (0.85 + Math.random() * 0.3);
-    FW.p.set([x, y, z], i * 3); FW.v.set([dx * s, dy * s, dz * s], i * 3); FW.life[i] = 2.2 + Math.random() * 1.2;
-    FW.c0.set(j % 2 ? c : c2, i * 3);
-  }
-}
-export function updateFireworks(dt) {
-  if (!FW.pts) return;
-  const cp = camera.position, far = (cp.x - VILLA.x) ** 2 + (cp.z - VILLA.z) ** 2 > 4200 * 4200;
-  if (!far && (FW.t -= dt) <= 0) {
-    FW.t = 1.2 + Math.random() * (Math.random() < 0.2 ? 0.4 : 4);
-    const a = Math.random() * 6.28, r = Math.random() * 60;
-    FW.rockets.push({ x: VILLA.x + Math.cos(a) * r + VILLA.ux * 80, y: VILLA.y, z: VILLA.z + Math.sin(a) * r + VILLA.uz * 80, vy: 70 + Math.random() * 25, t: 1.4 + Math.random() * 0.6 });
-  }
-  for (let k = FW.rockets.length - 1; k >= 0; k--) {
-    const r = FW.rockets[k]; r.t -= dt; r.y += r.vy * dt; r.vy -= 18 * dt;
-    // Funkenschweif der Rakete
-    const i = FW.head; FW.head = (FW.head + 1) % FW.n; FW.p.set([r.x, r.y, r.z], i * 3); FW.v.set([0, -4, 0], i * 3); FW.life[i] = 0.6; FW.c0.set([1.4, 0.9, 0.4], i * 3);
-    if (r.t <= 0) { fwBurst(r.x, r.y, r.z); FW.rockets.splice(k, 1); }
-  }
-  const P = FW.p, V = FW.v, L = FW.life, C = FW.col, C0 = FW.c0, drag = Math.exp(-dt * 1.6);
-  for (let i = 0; i < FW.n; i++) {
-    if (L[i] <= 0) { if (P[i * 3 + 1] > -9000) { P[i * 3 + 1] = -9999; C[i * 3] = C[i * 3 + 1] = C[i * 3 + 2] = 0; } continue; }
-    L[i] -= dt;
-    V[i * 3] *= drag; V[i * 3 + 1] = V[i * 3 + 1] * drag - 9 * dt; V[i * 3 + 2] *= drag;
-    P[i * 3] += V[i * 3] * dt; P[i * 3 + 1] += V[i * 3 + 1] * dt; P[i * 3 + 2] += V[i * 3 + 2] * dt;
-    // funkeln und verglühen
-    const f = Math.min(1, L[i] / 1.2) * (0.75 + 0.25 * Math.sin(L[i] * 40 + i));
-    C[i * 3] = C0[i * 3] * f; C[i * 3 + 1] = C0[i * 3 + 1] * f; C[i * 3 + 2] = C0[i * 3 + 2] * f;
-  }
-  FW.pts.geometry.attributes.position.needsUpdate = true; FW.pts.geometry.attributes.color.needsUpdate = true;
-}
 export const VILLA_F = { cx: 14, cz: 16, rx: 8, rz: 5.6 };
 export function updateVilla(t) {
   const C = VILLA.crowd; if (!C) return;
@@ -2365,7 +2310,7 @@ export function buildParkedCars() {
   im.frustumCulled = imHi.frustumCulled = false; im.count = imHi.count = 0; scene.add(im, imHi);
   carDamageAttr(imHi); carDamageAttr(im);
   parkedCmp = lodCompactor(imHi, im, LOD_CAR2);
-  if (CARM.ready && model.some(Boolean)) { const M = modelCarMeshes(list.length); parkedModelCmp = lodCompactor(M.hi, M.lo, CARM.near2); }
+  if (CARM.ready && model.some(Boolean)) { const M = modelCarMeshes(list.length, true, true); parkedModelCmp = lodCompactor(M.hi, M.lo, CARM.near2, M.far, CARM.shadow2); }
 }
 export const parked = []; export let parkedCmp = null, parkedModelCmp = null; shared.parkedTimer = 0;
 export function updateParked(dt) {
@@ -2619,9 +2564,11 @@ export function turnHead(a, x, z) {
 }
 export const LOD_PERSON2 = 45 * 45, LOD_CAR2 = 90 * 90;
 // Zwei Detailstufen hinter einer Schnittstelle: put() entscheidet nach Abstand
-export function lodCompactor(hi, lo, near2) {
-  const H = compactor(hi), L = compactor(lo);
-  return { begin() { H.begin(); L.begin(); }, put(m, k, c, d2) { (d2 < near2 ? H : L).put(m, k, c); }, end() { H.end(); L.end(); } };
+// V57: optional eine dritte Stufe 'far': gleiches Netz wie lo, wirft aber keinen Schatten (die Mondschatten-Karte reicht nur
+// rund 150 m um den Blickpunkt; weiter weg kostete jeder Wagen in der Schattenkarte nur Rechenzeit)
+export function lodCompactor(hi, lo, near2, far = null, far2 = Infinity) {
+  const H = compactor(hi), L = compactor(lo), F = far ? compactor(far) : L;
+  return { begin() { H.begin(); L.begin(); if (far) F.begin(); }, put(m, k, c, d2) { (d2 < near2 ? H : d2 < far2 ? L : F).put(m, k, c); }, end() { H.end(); L.end(); if (far) F.end(); } };
 }
 export const _cc = new T.Color();
 export function compactor(im) {

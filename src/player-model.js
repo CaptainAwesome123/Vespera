@@ -87,7 +87,7 @@ function baseState(y, z, key, dt) {
   AN.fade = Math.max(0, AN.fade - dt / FADE_S);
 }
 function writeU(dt) {
-  const U = PL_U.value, H = POWERS.hero, D = POWERS.dip, TO = POWERS.takeoff, TK = POWERS.tk, f = AN.fade;
+  const U = PL_U.value, H = POWERS.hero, D = POWERS.dip, TO = POWERS.takeoff, TK = POWERS.tk, RC = !TK && POWERS.reach, f = AN.fade;   // V57: RC = Hand zum Kristall
   U[0].set(AN.py, AN.pz, f * f * (3 - 2 * f), AN.ph0);
   const vy = player.v.y;
   U[1].set(AN.airW, Math.max(-1, Math.min(1, vy / 7.2)), AN.fallW, AN.prepW);
@@ -97,12 +97,13 @@ function writeU(dt) {
   U[2].set(H ? H.t : 0, hw, dip, 0);
   // Telekinese
   const thrT = POWERS.tkThrowT, thr = thrT >= 0 ? Math.min(1, thrT / 0.5) : 0;
-  AN.tkW = ease(AN.tkW, TK || thr > 0 ? 1 : 0, TK ? 9 : 4, dt);
+  AN.tkW = ease(AN.tkW, TK || RC || thr > 0 ? 1 : 0, TK ? 9 : RC ? 3 : 4, dt);
+  if (RC) AN.heavy = ease(AN.heavy, 0, 6, dt);
   if (TK) AN.heavy = ease(AN.heavy, TK.kind === 'car' || TK.kind === 'ped' ? 1 : Math.max(0, Math.min(1, (TK.B.m - 25) / 80)), 6, dt);
   U[3].set(AN.tkW, AN.heavy, thr, TK ? Math.min(1, TK.t / 0.45) : 1);
-  if (TK) {
+  if (TK || RC) {
     // Richtung von der rechten Schulter zum Gehaltenen, in den Körperraum der Figur gedreht
-    const c = tkCenter(TK); _d.set(c.x, c.y, c.z).sub(PM.o).applyQuaternion(_qi.copy(PM.q).invert()).divideScalar(PM.sc);
+    const c = TK ? tkCenter(TK) : RC; _d.set(c.x, c.y, c.z).sub(PM.o).applyQuaternion(_qi.copy(PM.q).invert()).divideScalar(PM.sc);
     _d.x += 0.19; _d.y -= 1.38; if (_d.lengthSq() > 1e-6) _d.normalize(); else _d.set(0, 0, 1);
     U[4].set(_d.x, _d.y, _d.z, 0.12 + 0.55 * AN.heavy);
   }
@@ -145,7 +146,7 @@ export function updatePlayerModel(dt, on) {
   if (LOOSE.held) PM.dance = 0;
   const yaw0 = PM.yawB;
   if (sp > 0.6) { PM.dance = 0; const want = Math.atan2(vx, vz); let d = want - PM.yawB; d = Math.atan2(Math.sin(d), Math.cos(d)); PM.yawB += d * Math.min(1, dt * 10); }
-  else if (POWERS.tk) { PM.dance = 0; const c = tkCenter(POWERS.tk), want = Math.atan2(c.x - player.p.x, c.z - player.p.z); let d = want - PM.yawB; d = Math.atan2(Math.sin(d), Math.cos(d)); if (Math.abs(d) > 0.5 || AN.tkTurn) { AN.tkTurn = Math.abs(d) > 0.05; PM.yawB += d * Math.min(1, dt * 5); } }
+  else if (POWERS.tk || POWERS.reach) { PM.dance = 0; const c = POWERS.tk ? tkCenter(POWERS.tk) : POWERS.reach, want = Math.atan2(c.x - player.p.x, c.z - player.p.z); let d = want - PM.yawB; d = Math.atan2(Math.sin(d), Math.cos(d)); if (Math.abs(d) > 0.5 || AN.tkTurn) { AN.tkTurn = Math.abs(d) > 0.05; PM.yawB += d * Math.min(1, dt * 5); } }
   const st = { smile: 0.4 };
   const H = POWERS.hero;
   PM.air = player.onGround || H ? 0 : PM.air + dt;

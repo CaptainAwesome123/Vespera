@@ -40,7 +40,7 @@ import { DINE } from './venues.js';
 import { PM } from './player-model.js';
 import { ragLift } from './ragdoll.js';
 
-export const POWERS = { tk: null, shake: 0, fov0: 0, fovOn: false, invT: 0, trail: 0, beam: 0, landT: 0,
+export const POWERS = { tk: null, reach: null, shake: 0, fov0: 0, fovOn: false, invT: 0, trail: 0, beam: 0, landT: 0,
   // V35: Heldenlandung (kniet, steht auf), kleine Landung (federn), Abheben (in die Knie, dann hinauf), Wurf (ausholen, dann loslassen)
   hero: null, dip: null, takeoff: null, tkWind: 0, tkThrowT: -1 };
 const TK_RANGE = 120, _pd = new T.Vector3(), _pv = new T.Vector3(), _pt = new T.Vector3(), _ph = new T.Vector3(), _pr = new T.Vector3();

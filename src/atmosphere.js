@@ -281,4 +281,3 @@ export function updateAtmosphere(dt) {
   if ((A.sweepT -= dt) <= 0) { A.sweepT = 4; reflSweep(); fogAddScan(); }
   if ((A.hudT -= dt) <= 0) { A.hudT = 1; const el = $('wx'); if (el) el.textContent = W.name + ' · ' + moonName(A.phase); }
 }
-export function atmoState() { return { weather: ATMO.w.id, pinned: ATMO.pinned, ...ATMO.cur, wet: U.uWet.value, snowCover: U.uSnowCover.value, phase: ATMO.phase, moon: moonName(ATMO.phase), shadows: ATMO.shadows, streetRefl: U.uStreetRefl.value }; }

@@ -188,7 +188,12 @@ export function renderReflection() {
   // V25: sonst, wenn die Straßen nass sind und man unten in der Stadt steht, spiegelt sich die Stadt im Pflaster (Ebene auf Straßenhöhe)
   const street = !see && U.uWet.value > 0.2 && U.uSnowCover.value < 0.8 && cp.y > 0.3 && cp.y < 60 && U.uInside.value < 0.5 && landDist(cp.x, cp.z) > 0;
   U.uReflOn.value = see ? 1 : 0; U.uStreetRefl.value = street ? 1 : 0;
-  if (!see && !street) return;
+  if (!see && !street) { REFL.mode = 0; return; }
+  // V57: bei knapper Bildrate (REFL.half, performance.js) jedes zweite Bild das alte Spiegelbild mit seiner alten Matrix weiterverwenden;
+  // die Wasserfläche tastet es weiter richtig ab, nur die Spiegelung hinkt einen Bildschritt hinterher
+  const mode = see ? 1 : 2;
+  if (REFL.half && REFL.mode === mode && (REFL.skip2 = !REFL.skip2)) return;
+  REFL.mode = mode;
   const PY = see ? WATER_Y : 0;
   cam.updateMatrixWorld();
   V.rp.set(cp.x, PY, cp.z); V.cp.copy(cp);
