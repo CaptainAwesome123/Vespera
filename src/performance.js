@@ -32,6 +32,7 @@ import { PM, updatePlayerModel, thirdPersonCamera } from './player-model.js';
 import { ATMO, updateAtmosphere } from './atmosphere.js';
 import { updateLoose, updateSpawns } from './physics.js';
 import { updatePowers, powersCamera } from './powers.js';
+import { updateEnergy } from './energy.js';
 import { updateAwe } from './awe.js';
 
 /* =====================================================================
@@ -218,7 +219,7 @@ export function frame(now) {
   }
   updatePort(dt, t);
   if (playing) carryPlayer();
-  if (playing && !paused) { if (DRIVE.on) updateDrive(dt); else if (BOAT.on) updateBoatInput(dt); else if (IMP.st === 'helm') impHelmInput(dt); else updatePlayer(dt); updatePowers(dt, t); }   // V33: Alexanders Kräfte; V58: am Steuer der Aurora Imperial
+  if (playing && !paused) { if (DRIVE.on) updateDrive(dt); else if (BOAT.on) updateBoatInput(dt); else if (IMP.st === 'helm') impHelmInput(dt); else updatePlayer(dt); updatePowers(dt, t); updateEnergy(dt); }   // V33: Alexanders Kräfte; V58: am Steuer der Aurora Imperial
   if (playing) updateVehicleWorld(dt);
   if (playing) { updateSpawns(); updateLoose(dt); }   // V26: lose Dinge
   if (playing && !paused) updateBoat(dt);

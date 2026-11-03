@@ -112,6 +112,13 @@ export function startLab(params) {
     wurf: { act: 0, u: [[3, 1, 0, 0.25, 1], [4, 0.2, 0.1, 0.97, 0.1], [5, 0, 0, 0, 1]] }, sturz: { act: 0, u: [[1, 1, -1, 1, 0]] }, aufprallvor: { act: 0, u: [[1, 1, -1, 1, 1]] },
     sprung: { act: 0, u: [[1, 1, 0.8, 0, 0]] }, abheben: { act: 43, u: [[5, 0.25, 0, 0, 0]] }, start: { act: 43, u: [[5, 0.55, 0, 0, 0]] },
     schweben: { act: 43 }, flug: { act: 43.99, pitch: 1.5 }, bremsen: { act: 43.5, u: [[5, 0, 1, 0, 0]] },
+    // V59: Energieschub (energy.js): ausholen, Stoß rechts / links, aufladen mit beiden Händen, beidhändiger Stoß, im Flug
+    schubaus: { act: 0, u: [[3, 1, 0, 0, 1], [4, 0, 0.02, 1, 0.1], [5, 0, 0, 0, 1], [6, 0, -1, -0.45, 0], [7, 1, 0, 0.6, 0]] },
+    schub: { act: 0, u: [[3, 1, 0, 0, 1], [4, 0, 0.02, 1, 0.1], [5, 0, 0, 0, 1], [6, 0, -1, 0.3, 0], [7, 1, 1, -1, 0]] },
+    schublinks: { act: 0, u: [[3, 1, 0, 0, 1], [4, 0, 0.02, 1, 0.1], [5, 0, 0, 0, 1], [6, 0, 1, -0.3, 0], [7, 1, -1, 1, 0]] },
+    aufladen: { act: 0, u: [[3, 1, 0, 0, 1], [4, 0, 0.02, 1, 0.8], [5, 0, 0, 0, 1], [6, 0, -1, -0.45, 1], [7, 1, 0, 0, 1]] },
+    schubbeide: { act: 0, u: [[3, 1, 0, 0, 1], [4, 0, 0.02, 1, 0.3], [5, 0, 0, 0, 1], [6, 0, -1, 0.05, 1], [7, 1, 1, 1, 0.5]] },
+    schubflug: { act: 43, u: [[3, 1, 0, 0, 1], [4, 0, -0.1, 1, 0.1], [6, 0, -1, 0.3, 0], [7, 1, 1, -1, 0]] },
     fahren: { act: 32.5, y: 1.1 - 0.87 }, fahrenlinks: { act: 32.02, y: 1.1 - 0.87 }, fahrenrechts: { act: 32.98, y: 1.1 - 0.87 },   // V42: Alexander am Steuer (Sitz wie seatPerson: y = Wagen + 1,1 − 0,87·sc)
   };
   window.labPose = name => {

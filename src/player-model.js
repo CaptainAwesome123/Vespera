@@ -11,6 +11,7 @@
 import { T, scene, camera } from './core.js';
 import { MAT, PL_U } from './people-skeleton.js';
 import { POWERS, tkCenter } from './powers.js';
+import { BLAST } from './energy.js';
 import { personShare } from './people-model.js';
 import { MHP } from './people-mh.js';
 import { player } from './player.js';
@@ -101,14 +102,18 @@ function writeU(dt) {
   if (RC) AN.heavy = ease(AN.heavy, 0, 6, dt);
   if (TK) AN.heavy = ease(AN.heavy, TK.kind === 'car' || TK.kind === 'ped' ? 1 : Math.max(0, Math.min(1, (TK.B.m - 25) / 80)), 6, dt);
   U[3].set(AN.tkW, AN.heavy, thr, TK ? Math.min(1, TK.t / 0.45) : 1);
-  if (TK || RC) {
-    // Richtung von der rechten Schulter zum Gehaltenen, in den Körperraum der Figur gedreht
-    const c = TK ? tkCenter(TK) : RC; _d.set(c.x, c.y, c.z).sub(PM.o).applyQuaternion(_qi.copy(PM.q).invert()).divideScalar(PM.sc);
+  // V59: Energieschub (energy.js): eigene Handstellungen im Telekinese-Block des Shaders (uPl[7], uPl[6].yzw)
+  const BL = !TK && BLAST.w > 0.002 ? BLAST : null;
+  if (TK || RC || BL) {
+    // Richtung von der rechten Schulter zum Gehaltenen (beim Energieschub: zum Ziel), in den Körperraum der Figur gedreht
+    const c = TK ? tkCenter(TK) : BL ? BL.aim : RC; _d.set(c.x, c.y, c.z).sub(PM.o).applyQuaternion(_qi.copy(PM.q).invert()).divideScalar(PM.sc);
     _d.x += 0.19; _d.y -= 1.38; if (_d.lengthSq() > 1e-6) _d.normalize(); else _d.set(0, 0, 1);
-    U[4].set(_d.x, _d.y, _d.z, 0.12 + 0.55 * AN.heavy);
+    U[4].set(_d.x, _d.y, _d.z, BL ? 0.1 + 0.7 * BL.ch : 0.12 + 0.55 * AN.heavy);
   }
+  if (BL) U[3].set(BL.w, 0, 0, 1);
   U[5].set(TO ? Math.min(1, TO.t / 0.6) : 0, AN.brake, AN.boost, AN.brace);
-  U[6].set(Math.max(0, Math.min(1, (-vy - 10) / 40)), 0, 0, 0);
+  U[6].set(Math.max(0, Math.min(1, (-vy - 10) / 40)), BL ? BL.sx : 0, BL ? BL.tw : 0, BL ? BL.two : 0);
+  if (BL) U[7].set(1, BL.hR, BL.hL, BL.ch); else U[7].set(0, 0, 0, 0);
 }
 function heroWeight() { const H = POWERS.hero; return H ? (H.rise < 0 ? Math.min(1, H.t / 0.05) : 1 - sst(H.rise / 0.6)) : 0; }
 function sst(x) { x = Math.max(0, Math.min(1, x)); return x * x * (3 - 2 * x); }
@@ -146,6 +151,7 @@ export function updatePlayerModel(dt, on) {
   if (LOOSE.held) PM.dance = 0;
   const yaw0 = PM.yawB;
   if (sp > 0.6) { PM.dance = 0; const want = Math.atan2(vx, vz); let d = want - PM.yawB; d = Math.atan2(Math.sin(d), Math.cos(d)); PM.yawB += d * Math.min(1, dt * 10); }
+  else if (!POWERS.tk && BLAST.w > 0.01) { PM.dance = 0; const c = BLAST.aim, want = Math.atan2(c.x - player.p.x, c.z - player.p.z); let d = want - PM.yawB; d = Math.atan2(Math.sin(d), Math.cos(d)); PM.yawB += d * Math.min(1, dt * 16); }   // V59: zum Ziel des Energieschubs
   else if (POWERS.tk || POWERS.reach) { PM.dance = 0; const c = POWERS.tk ? tkCenter(POWERS.tk) : POWERS.reach, want = Math.atan2(c.x - player.p.x, c.z - player.p.z); let d = want - PM.yawB; d = Math.atan2(Math.sin(d), Math.cos(d)); if (Math.abs(d) > 0.5 || AN.tkTurn) { AN.tkTurn = Math.abs(d) > 0.05; PM.yawB += d * Math.min(1, dt * 5); } }
   const st = { smile: 0.4 };
   const H = POWERS.hero;
@@ -159,7 +165,8 @@ export function updatePlayerModel(dt, on) {
   AN.prepW = ease(AN.prepW, inAir && player.v.y < -14 && tti < 0.32 ? 1 : 0, 14, dt);
   if (!inAir) { AN.fallW = 0; AN.prepW = 0; }
   // im Stand mit Telekinese: fester Stand
-  AN.brace = ease(AN.brace, POWERS.tk && sp < 0.6 && !inAir && !H ? 1 : 0, 6, dt);
+  const bl = !POWERS.tk && BLAST.w > 0.01;   // V59: Energieschub im Stand: Ausfallschritt
+  AN.brace = ease(AN.brace, (POWERS.tk || bl) && sp < 0.6 && !inAir && !H ? 1 : 0, bl ? 16 : 6, dt);
   if (inAir) {
     // Grundhaltung bleibt stehen, wie sie war (der Sprung legt sich darüber)
     st.amp = AN.key === 'walk' || AN.key === 'run' ? AN.z : 0; st.phase = PM.phase; st.act = AN.key === 'walk' || AN.key === 'run' ? 1 : AN.y;
@@ -203,6 +210,7 @@ function flyPose(dt) {
   AN.boost = ease(AN.boost, Math.max(0, Math.min(1, (s3 - 45) / 80)), 3, dt);
   let want = hs > 1.5 ? Math.atan2(v.x, v.z) : player.yaw + Math.PI;
   if (POWERS.tk && hs < 4) { const c = tkCenter(POWERS.tk); want = Math.atan2(c.x - player.p.x, c.z - player.p.z); }
+  else if (BLAST.w > 0.01 && hs < 8) { const c = BLAST.aim; want = Math.atan2(c.x - player.p.x, c.z - player.p.z); }   // V59
   let d = want - PM.yawB; d = Math.atan2(Math.sin(d), Math.cos(d));
   const turn = d * Math.min(1, dt * (hs > 1.5 ? 5 : 2.5));
   PM.yawB += turn;

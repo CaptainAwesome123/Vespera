@@ -849,7 +849,7 @@ function kinHit(P, k) {
 export function updateLoose(dt) {
   const H0 = LOOSE.held;
   if (H0 && (player.fly || DRIVE.on || BOAT.on || DINE.seat || H0.stuck > 0.45)) { if (H0.stuck > 0.45) toast(H0.name + ' bleibt hängen'); drop(false); }
-  if (isTouch) { const el = $('tThrow'), want = !!LOOSE.held || !!LOOSE.tkAny; if (el.hidden === want) el.hidden = !want; }   // V33: auch für die Telekinese
+  if (isTouch) { const el = $('tThrow'), lab = LOOSE.held || LOOSE.tkAny ? 'WERFEN' : 'STOSS'; if (el.hidden) el.hidden = false; if (el.textContent !== lab) el.textContent = lab; }   // V33: auch für die Telekinese; V59: sonst Energieschub
   if (!paused) carryRides();   // V54: Dinge an Bord des Luftschiffs fahren mit
   if (paused || !LOOSE.bodies.length) { drawBatches(); return; }
   const t0 = performance.now();

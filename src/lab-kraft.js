@@ -19,6 +19,8 @@ import { kit, benchGeo, Bx } from './harbour.js';
 import { tearWrap, TEAR, tearStats } from './tear.js';
 import { trees } from './facade-shader.js';
 import { buildTrees, TREE_SETS, updateTreeLod } from './serpentine.js';
+import { energyLabFx, energyLabOrb } from './energy.js';
+import { buildFX, updateFX, FX } from './particles.js';
 
 export const KLAB = { crowd: null, t: null, bodies: [] };
 export function startKraftLab(params) {
@@ -96,11 +98,29 @@ export function startKraftLab(params) {
     reihe: [[-2.5, 1.4, -0.5], [-2.5, 0.6, Z + 3]], dinge: [[-6, 1.6, 2.5], [-6, 0.5, Z + 4.4]],
     staunen: [[0, 1.6, 4.8], [0, 1.1, 0]], staunenlinks: [[-2.2, 1.5, 3.2], [-2.2, 1.1, 0]], staunenrechts: [[2.4, 1.5, 3.2], [2.4, 1.0, 0]], hut: [[0.6, 1.65, 2.2], [0.6, 1.3, 0]], verbeugung: [[3.4, 1.3, 2.0], [1.8, 0.9, 0]],
     spieler: [[0.8, 1.6, 6.4], [0, 1.0, 4]], alles: [[0, 3.5, 9], [0, 0.8, -2]],
+    schub: [[5.5, 2.4, 7.5], [-0.5, 1.2, 1]], schubhinten: [[1.1, 2.0, 7.6], [0, 1.4, 0]], schubnah: [[2.6, 1.6, 5.6], [0, 1.2, 3.4]],
     reissen: [[RX + 4, 3.2, RZ + 11], [RX + 4, 2.2, RZ - 2]], reissennah: [[RX + 1.5, 1.8, RZ + 5.5], [RX + 2.5, 1.2, RZ + 1]], baum: [[RX - 2, 5, RZ + 7], [RX + 2, 5, RZ - 3]], baumseite: [[RX - 9, 2.5, RZ - 2], [RX + 2, 5.5, RZ - 2]],
   };
   KLAB.t = params.get('t') != null ? +params.get('t') : null;
   window.labView = name => { const v = V[name] || V.alles; camera.position.set(...v[0]); camera.lookAt(...v[1]); C.flag(); };
   window.labTime = t => { KLAB.t = t; };
+  // V59: Energieschub im Standbild: Pose (wie im Figuren-Labor) und die Lichter des Stoßes, Spieler bei (0,0,4) schaut nach -z
+  const SCHUB = {
+    stoss: { u: [[6, 0, -1, 0.3, 0], [7, 1, 1, -1, 0]], fx: 'right', o: [-0.19, 1.36] }, links: { u: [[6, 0, 1, -0.3, 0], [7, 1, -1, 1, 0]], fx: 'left', o: [0.19, 1.36] },
+    aufladen: { u: [[6, 0, -1, -0.45, 1], [7, 1, 0, 0, 1]], orb: 1 }, entladen: { u: [[6, 0, -1, 0.05, 1], [7, 1, 1, 1, 0.5]], fx: 'charged', o: [0, 1.36] },
+  };
+  window.labSchub = name => {
+    const S = SCHUB[name]; if (!S || !PM.mesh) return;
+    for (const v of PL_U.value) v.set(0, 0, 0, 0);
+    PL_U.value[3].set(1, 0, 0, 1); PL_U.value[4].set(0, 0.02, 1, S.orb ? 0.8 : 0.2); PL_U.value[5].set(0, 0, 0, 1);
+    for (const [i, x, y, z, w] of S.u) PL_U.value[i].set(x, y, z, w);
+    PM.place(0, 0, 4, Math.PI, { act: 0 });
+    if (!Object.keys(FX.sets).length) buildFX();
+    if (S.orb) energyLabOrb(new T.Vector3(0.16, 1.12, 3.7), 1);
+    if (S.fx) energyLabFx(new T.Vector3(-S.o[0], S.o[1], 4 - 0.85), new T.Vector3(0, 0.02, -1).normalize(), S.fx, 1, S.fx === 'charged' ? 0.1 : 0.07);
+    updateFX(0.03);
+  };
+  window.labPose = window.labSchub;   // tools/lab-shot.js: ansicht#schub
   window.labStats = () => ({ mov: MOV.list.length, taken: MOV.list.filter(e => e.taken).length, bodies: LOOSE.bodies.length, meshes: LOOSE.bodies.filter(b => b.mesh).length, tear: tearStats(), ranges: MOV.list.reduce((s, e) => s + e.ranges.length, 0) });
   window.labView(params.get('view') || 'alles');
   $('overlay').hidden = true;
