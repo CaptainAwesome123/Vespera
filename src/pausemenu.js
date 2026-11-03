@@ -88,6 +88,8 @@ function basis() {
     { k: ['Klick'], t: 'Werfen', d: 'Was Alexander in der Hand trägt' },
     { k: ['R'], t: 'Drehen', d: 'Getragenes drehen. Im Wagen: wieder auf die Räder stellen' },
     { k: ['1', '–', '0'], t: 'Bestellen', d: 'Bei offener Karte im Café, Restaurant oder an der Bar. Esc schließt die Karte' },
+    { k: ['U'], t: 'Zeitung lesen', d: 'Die neueste Ausgabe: deine Taten, gefasste Räuber, Neuigkeiten aus der Stadt' },
+    { k: ['E'], id: 'gala', t: 'Gala im Belmont', d: 'Bei Direktor Hartmann im Ballsaal: der Gala-Abend zu deinen Ehren beginnt' },
     { k: ['J'], t: 'Ärger in der Nähe', d: 'Sofort das nächste Ereignis: Überfall, Taschendieb, Bombe, Anarchisten' },
   ], { titel: 'Stadt und Leute', vorne: true });
   addTasten('imperial', [
@@ -115,7 +117,7 @@ function basis() {
 
 // Alte Liste in index.html: was hier noch fehlt (Zeile eines anderen Updates), unter „Weiteres“ zeigen
 const BEKANNT = new Set(['W A S D', 'Maus', 'Shift', 'Leertaste', 'F', 'C', 'linke Maus', 'rechte Maus', 'X', 'H', 'L', 'Z', 'V', 'G', 'N', 'K', 'P',
-  '1 – 8', 'E', 'Aurora Imperial', 'Klick', 'M', 'O', 'B', 'Esc', 'T', 'J', 'R', 'Tab', 'F1']);
+  '1 – 8', 'E', 'Aurora Imperial', 'Klick', 'M', 'O', 'B', 'Esc', 'T', 'J', 'R', 'U', 'Tab', 'F1']);
 function ausHtml() {
   const list = document.querySelector('#overlay .keys'); if (!list) return;
   const neu = [];
