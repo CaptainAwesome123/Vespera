@@ -1,19 +1,23 @@
 import { T, MOBILE, R, scene, camera, mergeGeos, geoView, canvasTex, mulberry32, $ } from './core.js';
 import { stdMat, ENV, addCollider } from './people-skeleton.js';
 import { buildAirship } from './airships.js';
-import { portMats, addPlatform, bx6, wallRun, wuv, spotPeds, pfLocal, VILLA, easeIO, TEAK, PLATE } from './harbour.js';
+import { portMats, addPlatform, bx6, wallRun, wuv, spotPeds, pfLocal, VILLA, easeIO, TEAK, PLATE, terrainHeight } from './harbour.js';
 import { roundBox, lathe, tube, FURN, placeFurn, FAN_TEX, MOV, movOn, movOff } from './entrances.js';
 import { cofferTex2, RUNNER_TEX, decoRugTex, damaskTex, veneerTex, tileTex, paintingTex } from './deco-tex.js';
 import { RIDES, rideOn, rideHome, spawnProp, dropBody, LOOSE } from './physics.js';
-import { wallpaperTex } from './serpentine.js';
+import { wallpaperTex, planVillaSite } from './serpentine.js';
 import { makeGlowPoints } from './ragdoll.js';
 import { wantTexture } from './assets.js';
 import { BEL } from './belmont.js';
 import { INTERACT } from './music.js';
-import { player } from './player.js';
+import { player, keys, touch } from './player.js';
 import { toast } from './boat.js';
 import { driveExit } from './driving.js';
-import { liftProfile } from './main.js';
+import { liftProfile, skyline } from './main.js';
+import { openChoice, DINE, standUp } from './venues.js';
+import { PM, toggleView } from './player-model.js';
+import { lifeSay } from './life.js';
+import { buildBordservice, updateBordservice } from './bordservice.js';
 
 /* =====================================================================
    V33: AURORA IMPERIAL – Alexanders privates Luftschiff
@@ -27,7 +31,7 @@ import { liftProfile } from './main.js';
    ===================================================================== */
 export const IMP = {
   g: null, pf: null, inner: null, farGlow: null, L: 250, R0: 26, st: 'cruise', s: 0.12, v: 9, b: null,
-  curve: null, len: 1, lift: null, D: null, rooms: [], room: null, cullT: 0, said: 0, cmdSaid: 0,
+  curve: null, len: 1, lift: null, D: null, rooms: [], room: null, cullT: 0, said: 0, cmdSaid: 0, hp: null,
 };
 export const IMP_CAPTAIN = ['Guten Abend, Sir. Die Aurora Imperial liegt ruhig in der Luft.', 'Wind aus Nordost, Sir, schwach. Sicht über der Stadt ausgezeichnet.', 'Die Motoren laufen auf halber Kraft, Sir. Wir kreuzen über Vespera.', 'Das Nordlicht steht heute hoch, Sir. Vom Salon aus sehen Sie es am besten.'];
 
@@ -565,7 +569,6 @@ export function buildImperial() {
     { lx: XF - 4, ly: fyB, lz: -2.08, lyaw: Math.PI, kind: 'police', col: NAVY, act: 33.5 },
     { lx: 42, ly: fyB, lz: 3.4, lyaw: 0, kind: 'police', col: NAVY, act: 28.4 },
     { lx: XF - 5.4, ly: fyB, lz: 0.9, lyaw: Math.PI / 2 - 0.25, kind: 'police', col: CAPT, act: 0.6 },
-    { lx: -13.1, ly: fyB, lz: 2.4, lyaw: -Math.PI / 2, kind: 'waiter', col: WHITE, act: 0.6 },
     { lx: -10.9, ly: fyB, lz: -3.6, lyaw: Math.PI / 2, kind: 'waiter', col: WHITE, act: 0.1 },
   );
 
@@ -684,8 +687,6 @@ export function buildImperial() {
   for (const [x, z] of [[35, -5.8], [43.5, 5.8], [27.5, -5.8]]) { fur(FURN.floorLamp(1.75), FMV, { lit: GL }, x, fyA, z); glow(x, fyA + 1.62, z, GL, 0.6); }
   chand(29, yR, 0, 0.9); chand(37, yR, 0, 1.0); chand(45, yR, 0, 0.9);
   spots.push(
-    { lx: 29.2, ly: fyA, lz: 5.6, lyaw: Math.PI, kind: 'waiter', col: WHITE, act: 0.6 },
-    { lx: 35.6, ly: fyA, lz: -0.6, lyaw: 0.6, kind: 'waiter', col: WHITE, act: 0.1 },
     { lx: 44.2, ly: fyA, lz: 6.25, lyaw: 0, kind: 'dress', col: MAID, act: 29.0 },
   );
 
@@ -837,23 +838,18 @@ export function buildImperial() {
   IMP.lift = liftProfile(u => { const q = IMP.curve.getPointAt(((u % 1) + 1) % 1); return [q.x, q.y, q.z]; }, 140, 45);
   impPose('cruise', 0, IMP._p); impApply(IMP._p);
   buildImperialCallPost();
+  impVillaMast();   // V58: Ankermast an der Villa, Rufsäule auf der untersten Terrasse
   impInteractions();
+  buildBordservice();   // V58: Stewards, Sitzplätze mit Bedienung
 }
 IMP._p = { x: 0, y: 0, z: 0, ry: 0 }; IMP._q = { x: 0, y: 0, z: 0, ry: 0 };
 
 // Rufsäule auf der Ballsaal-Terrasse des Belmont: Messingsäule mit türkisem Signallicht
-export function buildImperialCallPost() {
-  const K = impKit(), x = 5.2, z = 22.6, y = BEL.s2;
-  K.add('gold', lathe([[0.32, 0], [0.32, 0.12], [0.2, 0.2], [0.13, 0.3], [0.1, 1.0], [0.16, 1.1], [0.2, 1.18], [0.001, 1.2]], 16).translate(x, y, z));
-  K.add('lit', new T.SphereGeometry(0.17, 14, 10).translate(x, y + 1.38, z), [0.4, 1.5, 1.4]);
-  K.add('gold', new T.TorusGeometry(0.19, 0.02, 4, 18).rotateX(Math.PI / 2).translate(x, y + 1.38, z));
-  K.add('fan', new T.PlaneGeometry(0.5, 0.25).translate(x, y + 0.85, z + 0.12));
-  K.build(scene);
-  scene.add(makeGlowPoints([{ p: [x, y + 1.38, z], c: [0.4, 1.4, 1.3], s: 1.6, ph: 0, bl: 0 }]));
-  addCollider(x - 0.32, y, z - 0.32, x + 0.32, y + 1.3, z + 0.32);
-}
+export function buildImperialCallPost() { impCallPost(5.2, BEL.s2, 22.6); }
 
-/* ---------- Flug ---------- */
+/* ---------- Flug ----------
+   V58: Lagen des Schiffs: cruise (Schleife über der Stadt), moor (Ankermast des Belmont), moorV (Ankermast der Villa),
+   hold (in der Luft stehen), helm (Alexander steuert selbst), blend (unterwegs zwischen zwei Lagen). */
 export function impPose(kind, t, o) {
   const I = IMP;
   if (kind === 'moor') {
@@ -862,36 +858,85 @@ export function impPose(kind, t, o) {
     o.x = Math.cos(a) * d; o.y = BEL.mast - 2 + Math.sin(t * 0.35) * 0.3; o.z = Math.sin(a) * d; o.ry = Math.PI - a;
     return o;
   }
+  if (kind === 'moorV') {
+    // V58: am Ankermast der Villa: Bug am Mast (zum Haus), die Hülle hängt über dem Tal zur Stadt hin; kaum Schwojen
+    const m = VILLA.imast, ry = Math.atan2(VILLA.uz, -VILLA.ux) + Math.sin(t * 0.02) * 0.05, d = I.L / 2 + 3;
+    o.x = m.x - Math.cos(ry) * d; o.z = m.z + Math.sin(ry) * d; o.y = m.y - 2 + Math.sin(t * 0.35) * 0.3; o.ry = ry;
+    return o;
+  }
+  if (kind === 'hold') { const h = I.hp; o.x = h.x; o.y = h.y + Math.sin(t * 0.3) * 0.5; o.z = h.z; o.ry = h.ry; return o; }
   const s = I.s, p = I.curve.getPointAt(s), tg = I.curve.getTangentAt(s);
   o.x = p.x; o.y = p.y + I.lift(s) + Math.sin(t * 0.25) * 0.8; o.z = p.z; o.ry = Math.atan2(-tg.z, tg.x);
   return o;
 }
 export function impApply(o) { IMP.g.position.set(o.x, o.y, o.z); IMP.g.rotation.set(0, o.ry, 0); }
+const wrapA = a => { while (a > Math.PI) a -= Math.PI * 2; while (a < -Math.PI) a += Math.PI * 2; return a; };
+// Mindesthöhe der Schiffsmitte an einem Punkt: über Türmen (Gondel hängt 37 m unter der Mitte) und über dem Gelände
+export function impNeed(x, z, ry) {
+  const c = Math.cos(ry || 0), s = -Math.sin(ry || 0);
+  let n = Math.max(skyline(x, z, 40) + 45, terrainHeight(x, z) + 55);
+  for (const k of [-90, 90]) { const px = x + c * k, pz = z + s * k; n = Math.max(n, skyline(px, pz, 40) + 36, terrainHeight(px, pz) + 42); }
+  return n;
+}
 export function impBlend(to) {
-  const I = IMP, g = I.g;
+  const I = IMP, g = I.g, p = g.position;
+  if (to === 'hold') { I.hp = { x: p.x, y: p.y, z: p.z, ry: g.rotation.y }; I.st = 'hold'; I.b = null; return; }
   if (to === 'cruise') {
-    // nächsten Punkt der Schleife suchen und von dort weiterfliegen
-    let best = 0, bd = 1e18; for (let k = 0; k < 64; k++) { const q = I.curve.getPointAt(k / 64), d = (q.x - g.position.x) ** 2 + (q.z - g.position.z) ** 2; if (d < bd) { bd = d; best = k / 64; } }
-    I.s = best;
+    // nächsten Punkt der Schleife suchen und ein Stück voraus einfädeln
+    let best = 0, bd = 1e18; for (let k = 0; k < 64; k++) { const q = I.curve.getPointAt(k / 64), d = (q.x - p.x) ** 2 + (q.z - p.z) ** 2; if (d < bd) { bd = d; best = k / 64; } }
+    I.s = (best + Math.max(0.03, Math.min(0.25, (500 + Math.sqrt(bd) * 0.5) / I.len))) % 1;
   }
   impPose(to, 0, I._q);
-  const p = g.position, rS = Math.hypot(p.x, p.z), aS = Math.atan2(p.z, p.x), rT = Math.hypot(I._q.x, I._q.z);
-  let da = Math.atan2(I._q.z, I._q.x) - aS; while (da > Math.PI) da -= Math.PI * 2; while (da < -Math.PI) da += Math.PI * 2;
-  const dist = to === 'moor' ? Math.abs(da) * Math.max(rS, 300) + Math.abs(rS - rT) + Math.abs(p.y - I._q.y) : Math.hypot(I._q.x - p.x, I._q.y - p.y, I._q.z - p.z);
-  I.b = { t: 0, D: Math.min(150, Math.max(35, dist / 10)), to, x: p.x, y: p.y, z: p.z, ry: g.rotation.y, rS, aS };
+  const rS = Math.hypot(p.x, p.z), aS = Math.atan2(p.z, p.x), rT = Math.hypot(I._q.x, I._q.z);
+  if (to === 'moor') {
+    const da = wrapA(Math.atan2(I._q.z, I._q.x) - aS);
+    const dist = Math.abs(da) * Math.max(rS, 300) + Math.abs(rS - rT) + Math.abs(p.y - I._q.y);
+    const aT = Math.atan2(I._q.z, I._q.x), atArc = u => { const ea = easeIO(Math.min(1, u / 0.7)), er = easeIO(Math.max(0, (u - 0.3) / 0.7)), a = aS + da * ea, r = rS + (rT - rS) * er; return [Math.cos(a) * r, Math.sin(a) * r]; };
+    I.b = { t: 0, D: Math.min(150, Math.max(35, dist / 10)), to, kind: 'arc', x: p.x, y: p.y, z: p.z, ry: g.rotation.y, rS, aS, lift: impLiftPlan(atArc, p.y, I._q.y) };
+    I.st = 'blend'; return;
+  }
+  // V58: freie Fahrt von Lage zu Lage: erst (vom Mast) ein Stück achteraus, dann eine weiche Kurve (Hermite) zum Ziel,
+  // die Nase folgt dem Weg und steht am Ende in Zielrichtung; die Höhe hebt sich über Türme und Gelände
+  const q = I._q, ry0 = g.rotation.y, moored = I.st === 'moor' || I.st === 'moorV';
+  const f0 = [Math.cos(ry0), -Math.sin(ry0)], f1 = [Math.cos(q.ry), -Math.sin(q.ry)], back = moored ? 70 : 0;
+  const A = [p.x - f0[0] * back, p.y, p.z - f0[1] * back];
+  const dx = q.x - A[0], dz = q.z - A[2], L = Math.max(60, Math.hypot(dx, dz));
+  const m0 = [(f0[0] * 0.35 + dx / L * 0.65) * L * 0.45, (f0[1] * 0.35 + dz / L * 0.65) * L * 0.45], m1 = [f1[0] * L * 0.5, f1[1] * L * 0.5];
+  const H = (u, a, b, ma, mb) => { const u2 = u * u, u3 = u2 * u; return (2 * u3 - 3 * u2 + 1) * a + (u3 - 2 * u2 + u) * ma + (-2 * u3 + 3 * u2) * b + (u3 - u2) * mb; };
+  const at = u => [H(u, A[0], q.x, m0[0], m1[0]), H(u, A[2], q.z, m0[1], m1[1])];
+  // Höhe nach zurückgelegtem Weg (nicht nach Zeit), damit Steigen und Sinken gleichmäßig bleiben, wo der Weg sich krümmt
+  const cum = new Float32Array(LIFT_N + 1); for (let i = 1; i <= LIFT_N; i++) { const [ax, az] = at((i - 1) / LIFT_N), [bx, bz] = at(i / LIFT_N); cum[i] = cum[i - 1] + Math.hypot(bx - ax, bz - az); }
+  const sig = u => { const f = u * LIFT_N, i = Math.min(LIFT_N - 1, Math.floor(f)); return (cum[i] * (1 - (f - i)) + cum[i + 1] * (f - i)) / (cum[LIFT_N] || 1); };
+  const DB = moored ? 14 : 0, DH = Math.max(30, L / 12 + 10);
+  I.b = { t: 0, D: DB + DH, to, kind: 'path', DB, DH, A, q: { ...q }, ry0, f0, at, sig, lift: impLiftPlan(at, A[1], q.y), x: p.x, y: p.y, z: p.z };
   I.st = 'blend';
 }
+// Höhenbedarf entlang eines Wegs at(u) -> [x, z] (geglättet, an den Enden ausgeblendet): Zuschlag zur geraden Höhenlinie y0..y1
+const LIFT_N = 32;
+export function impLiftPlan(at, y0, y1) {
+  const N = LIFT_N, need = new Float32Array(N + 1), lift = new Float32Array(N + 1);
+  for (let i = 0; i <= N; i++) { const u = i / N, [x, z] = at(u), [x2, z2] = at(Math.min(1, u + 0.02)); need[i] = impNeed(x, z, Math.atan2(-(z2 - z), x2 - x)); }
+  for (let i = 0; i <= N; i++) { let m = 0; for (let k = -2; k <= 2; k++) m = Math.max(m, need[Math.max(0, Math.min(N, i + k))]); lift[i] = Math.max(0, m - (y0 + (y1 - y0) * i / N)); }
+  // Steigen und Sinken höchstens mit 0,3 (17°): Täler auffüllen, zu den Enden hin (Lage am Mast ist vorgegeben) abfallen lassen
+  const ds = new Float32Array(N), SL = 0.3; let dist = 0;
+  for (let i = 0; i < N; i++) { const [ax, az] = at(i / N), [bx, bz] = at((i + 1) / N); ds[i] = Math.hypot(bx - ax, bz - az); dist += ds[i]; }
+  for (let i = 1; i <= N; i++) lift[i] = Math.max(lift[i], lift[i - 1] - SL * ds[i - 1]);
+  for (let i = N - 1; i >= 0; i--) lift[i] = Math.max(lift[i], lift[i + 1] - SL * ds[i]);
+  let d0 = 0; for (let i = 0; i <= N; i++) { lift[i] = Math.min(lift[i], 0.6 * d0, SL * (dist - d0)); if (i < N) d0 += ds[i]; }   // am Anfang darf es steiler hinauf (Turm gleich voraus)
+  return lift;
+}
+const liftAt = (lift, u) => { const f = u * LIFT_N, i = Math.min(LIFT_N - 1, Math.floor(f)); return lift[i] * (1 - (f - i)) + lift[i + 1] * (f - i); };
 export function updateImperial(dt, t) {
   const I = IMP; if (!I.g) return;
   const o = I._p;
   if (I.st === 'cruise') { I.s = (I.s + I.v * dt / I.len) % 1; impApply(impPose('cruise', t, o)); }
-  else if (I.st === 'moor') impApply(impPose('moor', t, o));
+  else if (I.st === 'moor' || I.st === 'moorV' || I.st === 'hold') impApply(impPose(I.st, t, o));
+  else if (I.st === 'helm') { /* Alexander steuert (impHelmInput, aus performance.js) */ }
   else {
     const b = I.b; b.t += dt;
-    if (b.to === 'cruise') I.s = (I.s + I.v * dt / I.len * Math.min(1, b.t / b.D)) % 1;
-    impPose(b.to, t, o);
-    const u = Math.min(1, b.t / b.D), k = easeIO(u), wrapA = a => { while (a > Math.PI) a -= Math.PI * 2; while (a < -Math.PI) a += Math.PI * 2; return a; };
-    if (b.to === 'moor') {
+    if (b.kind === 'arc') {
+      impPose(b.to, t, o);
+      const u = Math.min(1, b.t / b.D), k = easeIO(u);
       // Anflug zum Belmont im Bogen um den Turm (erst herumfahren, dann gerade auf den Mast zu), nie quer über die Turmspitze
       const at = (q, out) => {
         const ea = easeIO(Math.min(1, q / 0.7)), er = easeIO(Math.max(0, (q - 0.3) / 0.7)), rT = Math.hypot(o.x, o.z), a = b.aS + wrapA(Math.atan2(o.z, o.x) - b.aS) * ea, r = b.rS + (rT - b.rS) * er;
@@ -900,14 +945,26 @@ export function updateImperial(dt, t) {
       const q0 = at(u, IMP._q), x0 = q0.x, z0 = q0.z, q1 = at(Math.min(1, u + 0.01), IMP._q), mv = Math.atan2(-(q1.z - z0), q1.x - x0);
       // Bug in Fahrtrichtung, zuletzt auf den Mast ausgerichtet
       const ky = u < 0.02 ? 0 : 1, kf = Math.min(1, Math.max(0, (u - 0.55) / 0.4)), yMove = b.ry + wrapA(mv - b.ry) * easeIO(Math.min(1, u / 0.15)) * ky;
-      o.ry = yMove + wrapA(o.ry - yMove) * easeIO(kf); o.x = x0; o.z = z0; o.y = b.y + (o.y - b.y) * k;
+      o.ry = yMove + wrapA(o.ry - yMove) * easeIO(kf); o.x = x0; o.z = z0; o.y = b.y + (o.y - b.y) * k + liftAt(b.lift, u);
     } else {
-      // Ablegen: ein Stück rückwärts vom Mast, dabei wenden (die Drehung ist vor der Fahrt fertig)
-      const dr = wrapA(o.ry - b.ry), kr = easeIO(Math.min(1, u / 0.6));
-      o.x = b.x + (o.x - b.x) * k; o.y = b.y + (o.y - b.y) * k; o.z = b.z + (o.z - b.z) * k; o.ry = b.ry + dr * kr;
+      impPose(b.to, t, o);   // Ziel (mit Schwojen und Wellen des Ziels)
+      if (b.t < b.DB) {
+        // vom Mast achteraus, Kurs bleibt
+        const k = easeIO(b.t / b.DB); o.x = b.x + (b.A[0] - b.x) * k; o.z = b.z + (b.A[2] - b.z) * k; o.y = b.y; o.ry = b.ry0;
+      } else {
+        const u = Math.min(1, (b.t - b.DB) / b.DH), ue = easeIO(u), [x, z] = b.at(ue), [x2, z2] = b.at(Math.min(1, ue + 0.004)), lf = liftAt(b.lift, ue);
+        const tang = Math.hypot(x2 - x, z2 - z) > 0.01 ? Math.atan2(-(z2 - z), x2 - x) : o.ry;
+        const kt = easeIO(Math.min(1, u / 0.22)), kf = easeIO(Math.max(0, (u - 0.8) / 0.2));
+        const head = b.ry0 + wrapA(tang - b.ry0) * kt;
+        o.ry = head + wrapA(o.ry - head) * kf; o.x = x; o.z = z; o.y = b.y + (o.y - b.y) * easeIO(b.sig(ue)) + lf;
+      }
     }
     impApply(o);
-    if (b.t >= b.D) { I.st = b.to; I.b = null; if (player.on === I.pf) toast(b.to === 'moor' ? 'Die Aurora Imperial hat am Ankermast des Belmont festgemacht' : 'Die Aurora Imperial kreuzt über Vespera'); }
+    if (b.t >= b.D) {
+      I.st = b.to; I.b = null;
+      if (b.to === 'hold') I.hp = { x: o.x, y: o.y, z: o.z, ry: o.ry };
+      if (player.on === I.pf) toast(b.to === 'moor' ? 'Die Aurora Imperial hat am Ankermast des Belmont festgemacht' : b.to === 'moorV' ? 'Die Aurora Imperial hat am Ankermast der Villa festgemacht' : 'Die Aurora Imperial kreuzt über Vespera');
+    }
   }
   // Inneres nur aus der Nähe; aus der Ferne leuchten die Fensterbänder
   if ((I.cullT -= dt) <= 0) {
@@ -923,6 +980,124 @@ export function updateImperial(dt, t) {
     const name = r ? r[0] : null;
     if (name !== I.room) { I.room = name; if (name) toast('Aurora Imperial · ' + name); }
   } else I.room = null;
+  updateBordservice(dt);   // V58: Stewards an Bord
+}
+
+/* ---------- V58: Alexander am Steuer ---------- */
+export const HELM = { v: 0, vy: 0, w: 0, cam: 'innen', camP: null, low: 0, hud: 0 };
+const KMH = v => Math.round(Math.abs(v) * 3.6);
+const COMPASS = a => ['N', 'NO', 'O', 'SO', 'S', 'SW', 'W', 'NW'][Math.round((((a % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2)) / (Math.PI / 4)) % 8];
+export function impTakeHelm() {
+  const I = IMP; if (!I.g || player.on !== I.pf) return;
+  if (DINE.seat) standUp();
+  I.st = 'helm'; I.b = null; HELM.v = HELM.vy = HELM.w = 0; HELM.cam = 'innen'; HELM.low = 0;
+  player.fly = false; player.yaw = I.g.rotation.y - Math.PI / 2; player.pitch = -0.02;
+  const h = $('helm'); if (h) h.hidden = false;
+  toast('Sie haben das Steuer · W/S Fahrt · A/D Ruder · Leertaste/C steigen, sinken · Shift volle Kraft · V Ansicht · E Steuer abgeben');
+}
+export function impLeaveHelm(to) {
+  const I = IMP; if (I.st !== 'helm') return;
+  const h = $('helm'); if (h) h.hidden = true;
+  if (HELM.cam === 'aussen') { HELM.cam = 'innen'; player.yaw = I.g.rotation.y - Math.PI / 2; player.pitch = 0; }
+  I.st = 'hold'; I.hp = { x: I.g.position.x, y: I.g.position.y, z: I.g.position.z, ry: I.g.rotation.y };
+  if (to && to !== 'hold') impBlend(to);
+}
+// jedes Bild statt updatePlayer: Alexander steht am Steuer, das Schiff folgt den Tasten (träge wie 250 m Schiff)
+export function impHelmInput(dt) {
+  const I = IMP, pf = I.pf, D = I.D;
+  if (player.fly || player.on !== pf) { impLeaveHelm('hold'); return; }
+  const c = Math.cos(pf.ry), s = Math.sin(pf.ry), lx = D.XF - 3.2;
+  player.p.set(pf.x + lx * c, pf.y + D.fyB, pf.z - lx * s); player.v.set(0, 0, 0); player.onGround = true; player.on = pf;
+  const fwd = (keys.KeyW || keys.ArrowUp ? 1 : 0) - (keys.KeyS || keys.ArrowDown ? 1 : 0) + touch.my;
+  const side = (keys.KeyD || keys.ArrowRight ? 1 : 0) - (keys.KeyA || keys.ArrowLeft ? 1 : 0) + touch.mx;
+  const up = (keys.Space ? 1 : 0) - (keys.KeyC || keys.KeyQ || keys.ControlLeft ? 1 : 0) + touch.up - touch.down;
+  const fast = keys.ShiftLeft || keys.ShiftRight, vMax = fast ? 48 : 26;
+  const vWant = fwd > 0 ? vMax * Math.min(1, fwd) : fwd < 0 ? 8 * Math.max(-1, fwd) : 0;
+  HELM.v += (vWant - HELM.v) * Math.min(1, dt * (Math.abs(vWant) > Math.abs(HELM.v) ? 0.3 : 0.5));
+  HELM.w += (-Math.max(-1, Math.min(1, side)) * 0.065 - HELM.w) * Math.min(1, dt * 0.9);
+  HELM.vy += (Math.max(-1, Math.min(1, up)) * 7 - HELM.vy) * Math.min(1, dt * 1.1);
+  const o = I._p, g = I.g; o.x = g.position.x; o.y = g.position.y; o.z = g.position.z; o.ry = g.rotation.y;
+  o.ry += HELM.w * dt * (0.4 + 0.6 * Math.min(1, Math.abs(HELM.v) / 12));   // Ruder wirkt erst mit Fahrt
+  o.x += Math.cos(o.ry) * HELM.v * dt; o.z -= Math.sin(o.ry) * HELM.v * dt; o.y += HELM.vy * dt;
+  // nicht in Türme, Berge oder den Himmel; nicht aus dem Krater hinaus
+  const need = impNeed(o.x, o.z, o.ry);
+  HELM.low = Math.max(0, HELM.low - dt);
+  if (o.y < need) { o.y += (need - o.y) * Math.min(1, dt * 1.8); if (HELM.vy < 0) HELM.vy = 0; HELM.low = 1.5; }
+  if (o.y > 1500) { o.y = 1500; HELM.vy = Math.min(0, HELM.vy); }
+  const r = Math.hypot(o.x, o.z); if (r > 2400) { o.x *= 2400 / r; o.z *= 2400 / r; HELM.v *= 0.5; HELM.low = 1.5; }
+  impApply(o);
+  if ((HELM.hud -= dt) <= 0) {
+    HELM.hud = 0.25; const h = $('helm');
+    if (h) h.innerHTML = `<b>${HELM.low > 0 ? 'Der Steuermann hält das Schiff frei' : 'Aurora Imperial'}</b> Fahrt ${KMH(HELM.v)} km/h${HELM.v < -0.5 ? ' achteraus' : ''} · Höhe ${Math.round(o.y)} m · Kurs ${COMPASS(Math.PI / 2 - o.ry)}${HELM.vy > 0.5 ? ' · steigt' : HELM.vy < -0.5 ? ' · sinkt' : ''}<br><kbd>W S</kbd> Fahrt <kbd>A D</kbd> Ruder <kbd>Leer C</kbd> Höhe <kbd>Shift</kbd> volle Kraft <kbd>V</kbd> Ansicht <kbd>E</kbd> Steuer abgeben`;
+  }
+}
+// V: Ich-Ansicht am Steuer, von hinten, Außenansicht des ganzen Schiffs
+export function impToggleCam() {
+  const I = IMP;
+  if (HELM.cam === 'aussen') { HELM.cam = 'innen'; if (PM.view === 'third') toggleView(); player.yaw = I.g.rotation.y - Math.PI / 2; player.pitch = 0; return 'Ich-Ansicht am Steuer'; }
+  if (PM.view !== 'third') { toggleView(); return 'Ansicht von hinten'; }
+  HELM.cam = 'aussen'; HELM.camP = null; player.yaw = I.g.rotation.y - Math.PI / 2; player.pitch = -0.22; return 'Außenansicht';
+}
+export function impHelmCamera(dt) {
+  const g = IMP.g, yaw = player.yaw, pitch = Math.max(-1.1, Math.min(0.6, player.pitch)), cp = Math.cos(pitch), dist = 285;
+  const fx = -Math.sin(yaw) * cp, fy = Math.sin(pitch), fz = -Math.cos(yaw) * cp;
+  const tx = g.position.x - fx * dist, ty = g.position.y - fy * dist + 12, tz = g.position.z - fz * dist;
+  if (!HELM.camP) HELM.camP = new T.Vector3(tx, ty, tz); else HELM.camP.lerp(new T.Vector3(tx, ty, tz), 1 - Math.exp(-dt * 5));
+  camera.position.copy(HELM.camP); camera.rotation.set(pitch, yaw, 0);
+}
+export const IMP_CAPT_OK = ['Sehr wohl, Sir.', 'Zu Befehl, Sir. Maschinen halbe Kraft.', 'Wird gemacht, Sir. Ruder liegt an.'];
+export function impCaptainMenu() {
+  const I = IMP, st = I.st, opts = [], acts = [];
+  const add = (l, f) => { opts.push(l); acts.push(f); };
+  const ok = (to, line) => () => { impBlend(to); lifeSay('Der Kapitän', line, 4); };
+  if (st === 'helm') {
+    add('Weiter selbst steuern', () => {});
+    add('Steuer abgeben: hier in der Luft bleiben', () => { impLeaveHelm('hold'); lifeSay('Der Kapitän', 'Ich übernehme, Sir. Wir halten die Position.', 4); });
+    add('Steuer abgeben: über Vespera kreuzen', () => { impLeaveHelm('cruise'); lifeSay('Der Kapitän', 'Ich übernehme, Sir. Wir kreuzen über der Stadt.', 4); });
+    add('Steuer abgeben: Kurs Belmont, festmachen', () => { impLeaveHelm('moor'); lifeSay('Der Kapitän', 'Ich übernehme, Sir. Kurs auf den Belmont.', 4); });
+    add('Steuer abgeben: Kurs Villa, festmachen', () => { impLeaveHelm('moorV'); lifeSay('Der Kapitän', 'Ich übernehme, Sir. Kurs auf Ihre Villa.', 4); });
+  } else {
+    add('Ich übernehme das Steuer', () => { impTakeHelm(); lifeSay('Der Kapitän', 'Das Schiff gehört Ihnen, Sir. Sachte mit dem Ruder, sie ist 250 Meter lang.', 5); });
+    if (st !== 'moor' && !(st === 'blend' && I.b.to === 'moor')) add('Kurs auf das Belmont, am Ankermast festmachen', ok('moor', 'Sehr wohl, Sir. Kurs auf den Belmont.'));
+    if (st !== 'moorV' && !(st === 'blend' && I.b.to === 'moorV')) add('Kurs auf die Villa, am Ankermast festmachen', ok('moorV', 'Sehr wohl, Sir. Kurs auf Ihre Villa am Berg.'));
+    if (st !== 'cruise' && !(st === 'blend' && I.b.to === 'cruise')) add('Über Vespera kreuzen', ok('cruise', 'Leinen los, Sir. Wir kreuzen über der Stadt.'));
+    if (st !== 'hold' && st !== 'moor' && st !== 'moorV') add('Hier in der Luft stehen bleiben', () => { impBlend('hold'); lifeSay('Der Kapitän', 'Maschinen stopp, Sir. Wir halten die Position.', 4); });
+    add('Wie steht es, Kapitän?', () => { I.said = (I.said + 1) % IMP_CAPTAIN.length; lifeSay('Der Kapitän', IMP_CAPTAIN[I.said], 5); });
+  }
+  openChoice('Kapitän der Aurora Imperial', opts, i => { if (acts[i]) acts[i](); });
+}
+
+/* ---------- V58: Ankermast der Villa (am Hang unter der untersten Terrasse, zur Stadt hin) und Rufsäule auf der Terrasse ---------- */
+export function impVillaMast() {
+  planVillaSite();
+  const cs = Math.cos(VILLA.ry), sn = Math.sin(VILLA.ry), W = (lx, lz) => [VILLA.x + lx * cs + lz * sn, VILLA.z - lx * sn + lz * cs];
+  const [mx, mz] = W(-62, 112), by = VILLA.y, base = Math.min(by - 20, terrainHeight(mx, mz) - 1), top = by + 8, H = top - base;
+  VILLA.imast = { x: mx, z: mz, y: top, base };
+  const K = impKit();
+  // Stahlgitter: vier geneigte Beine, Ringe, Diagonalen; oben Goldkrone mit Ring und rotem Licht
+  for (const [dx, dz] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) K.add('iron', new T.CylinderGeometry(0.22, 0.42, H, 6).translate(0, H / 2, 0).rotateZ(-dx * 2.6 / H).rotateX(dz * 2.6 / H).translate(mx + dx * 2.6, base, mz + dz * 2.6), [0.42, 0.42, 0.44]);
+  for (let y = 4; y < H - 2; y += 4) { const r = 2.6 + 2.2 * (1 - (y + 2) / H); K.add('iron', new T.TorusGeometry(r * 1.414, 0.09, 4, 4).rotateX(Math.PI / 2).rotateY(Math.PI / 4).translate(mx, base + y, mz), [0.42, 0.42, 0.44]); }
+  K.add('gold', new T.CylinderGeometry(1.6, 1.8, 0.7, 16).translate(mx, top - 0.35, mz));
+  K.add('gold', lathe([[1.0, 0], [1.2, 0.3], [0.7, 0.9], [0.55, 1.6], [0.001, 1.9]], 16).translate(mx, top, mz));
+  K.add('gold', new T.TorusGeometry(1.3, 0.12, 6, 24).rotateX(Math.PI / 2).translate(mx, top + 1.0, mz));
+  K.add('lit', new T.SphereGeometry(0.3, 12, 8).translate(mx, top + 2.2, mz), [1.6, 0.25, 0.15]);
+  for (let k = 0; k < 8; k++) { const a = k / 8 * Math.PI * 2; K.add('lit', new T.SphereGeometry(0.12, 8, 6).translate(mx + Math.cos(a) * 1.7, top - 0.1, mz + Math.sin(a) * 1.7), [1.5, 1.15, 0.7]); }
+  K.build(scene);
+  scene.add(makeGlowPoints([{ p: [mx, top + 2.2, mz], c: [1.6, 0.2, 0.12], s: 5, ph: 0, bl: 1 }, { p: [mx, top - 0.1, mz], c: [1.4, 1.0, 0.55], s: 4, ph: 0, bl: 0 }]));
+  addCollider(mx - 3, base, mz - 3, mx + 3, top + 1, mz + 3);
+  // Rufsäule auf der untersten Terrasse: von hier geht es an Bord (Zubringer, oder die Gangway, wenn das Schiff am Mast liegt)
+  const [px, pz] = W(-12, 87); VILLA.ipost = { x: px, y: by - 17, z: pz };
+  impCallPost(px, by - 17, pz);
+}
+export function impCallPost(x, y, z) {
+  const K = impKit();
+  K.add('gold', lathe([[0.32, 0], [0.32, 0.12], [0.2, 0.2], [0.13, 0.3], [0.1, 1.0], [0.16, 1.1], [0.2, 1.18], [0.001, 1.2]], 16).translate(x, y, z));
+  K.add('lit', new T.SphereGeometry(0.17, 14, 10).translate(x, y + 1.38, z), [0.4, 1.5, 1.4]);
+  K.add('gold', new T.TorusGeometry(0.19, 0.02, 4, 18).rotateX(Math.PI / 2).translate(x, y + 1.38, z));
+  K.add('fan', new T.PlaneGeometry(0.5, 0.25).translate(x, y + 0.85, z + 0.12));
+  K.build(scene);
+  scene.add(makeGlowPoints([{ p: [x, y + 1.38, z], c: [0.4, 1.4, 1.3], s: 1.6, ph: 0, bl: 0 }]));
+  addCollider(x - 0.32, y, z - 0.32, x + 0.32, y + 1.3, z + 0.32);
 }
 // An Bord und im geschlossenen Teil der Gondel: kein Regen, kein Bodennebel
 /* V54: lose Dinge an Bord: jeweils nur die in Alexanders Nähe (gleiches Deck, 22 m) liegen als Körper aus (ruhend, genau
@@ -957,7 +1132,7 @@ function impSpawnCheck() {
   else if (I.spawned && d2 > 420 * 420) { rideHome(I.pf); I.spawned = false; for (const it of I.items) { it.B = null; it.gone = false; } }
 }
 export function inImperial(p) {
-  const I = IMP; if (!I.pf || player.on !== I.pf) return false;
+  const I = IMP; if (!I.pf || player.on !== I.pf || (I.st === 'helm' && HELM.cam === 'aussen')) return false;   // V58: Außenansicht vom Steuer zählt als draußen
   const [lx, lz] = pfLocal(I.pf, p.x, p.z); return lx > I.D.XT && lx < I.D.XF && Math.abs(lz) < I.D.ZW;
 }
 // Ortswechsel mit Abblenden; der Zielpunkt wird erst im Moment des Sprungs aus der Lage des Schiffs berechnet
@@ -978,17 +1153,20 @@ export function impInteractions() {
   const I = IMP, D = I.D;
   const aboard = (p, x0, x1, z0, z1, y) => { if (player.on !== I.pf) return false; const q = impLocal(p); return q.lx > x0 && q.lx < x1 && q.lz > z0 && q.lz < z1 && Math.abs(q.ly - y) < 1.3; };
   const boardHall = () => impBoard(7, D.fyB, -4.6, Math.PI, 'An Bord der Aurora Imperial · Treppenhalle');
-  INTERACT.push({ test: p => Math.abs(p.x - 5.2) < 1.5 && Math.abs(p.z - 22.6) < 1.6 && Math.abs(p.y - BEL.s2) < 2, label: 'Aurora Imperial rufen · an Bord gehen', act: () => { boardHall(); } });
-  INTERACT.push({ test: p => { const m = VILLA.mast; return !!m && Math.hypot(p.x - m.x, p.z - m.z) < 6 && Math.abs(p.y - (m.y - 42)) < 3; }, label: 'Mit dem Zubringer zur Aurora Imperial', act: () => boardHall() });
-  INTERACT.push({ test: p => aboard(p, 5.6, 8.4, -6.95, -5.0, D.fyB), label: 'Von Bord gehen · Zubringer zur Belmont-Terrasse', act: () => impLeave([3.6, BEL.s2 + 0.1, 22.8], Math.PI, 'The Belmont · Ballsaal-Terrasse') });
-  INTERACT.push({ test: p => aboard(p, D.XA, D.XA + 2.6, -2, 2, D.fyB), label: 'Von Bord gehen · Zubringer zur Villa', act: () => { const m = VILLA.mast; if (m) impLeave([m.x + 5, m.y - 42 + 0.6, m.z + 5], player.yaw, 'Villa · Ankermast'); } });
+  const atBel = () => I.st === 'moor', atVilla = () => I.st === 'moorV';
+  // V58: liegt das Schiff am Mast, geht es über die Gangway an Bord; sonst holt der Zubringer ab
+  INTERACT.push({ test: p => Math.abs(p.x - 5.2) < 1.5 && Math.abs(p.z - 22.6) < 1.6 && Math.abs(p.y - BEL.s2) < 2, get label() { return atBel() ? 'Über die Gangway an Bord der Aurora Imperial' : 'Aurora Imperial rufen · der Zubringer bringt Sie an Bord'; }, act: boardHall });
+  INTERACT.push({ test: p => { const m = VILLA.mast; return !!m && Math.hypot(p.x - m.x, p.z - m.z) < 6 && Math.abs(p.y - (m.y - 42)) < 3; }, label: 'Mit dem Zubringer zur Aurora Imperial', act: boardHall });
+  INTERACT.push({ test: p => { const m = VILLA.ipost; return !!m && Math.hypot(p.x - m.x, p.z - m.z) < 2.2 && Math.abs(p.y - m.y) < 2; }, get label() { return atVilla() ? 'Über die Gangway an Bord der Aurora Imperial' : 'Aurora Imperial rufen · der Zubringer bringt Sie an Bord'; }, act: boardHall });
+  // von Bord: an der Halle (Backbordtür) oder vom Achterdeck; wohin, hängt davon ab, wo das Schiff liegt
+  const leaveBel = () => impLeave([3.6, BEL.s2 + 0.1, 22.8], Math.PI, 'The Belmont · Ballsaal-Terrasse');
+  const leaveVilla = () => { const m = VILLA.ipost; if (m) impLeave([m.x + 1.6, m.y + 0.05, m.z - 1.2], VILLA.ry + Math.PI, 'Villa · Terrasse'); };
+  INTERACT.push({ test: p => aboard(p, 5.6, 8.4, -6.95, -5.0, D.fyB), get label() { return atVilla() ? 'Von Bord gehen · Gangway zur Villa' : atBel() ? 'Von Bord gehen · Gangway zur Belmont-Terrasse' : 'Von Bord gehen · Zubringer zur Belmont-Terrasse'; }, act: () => atVilla() ? leaveVilla() : leaveBel() });
+  INTERACT.push({ test: p => aboard(p, D.XA, D.XA + 2.6, -2, 2, D.fyB), get label() { return atBel() ? 'Von Bord gehen · Zubringer zur Villa' : atVilla() ? 'Von Bord gehen · Gangway zur Villa' : 'Von Bord gehen · Zubringer zur Villa'; }, act: leaveVilla });
+  // Brücke: Kapitän (Kurs, Steuer) – am Steuer selbst: Steuer abgeben
   INTERACT.push({
-    test: p => aboard(p, D.XF - 7, D.XF - 1.2, -1.8, 2.2, D.fyB),
-    get label() { return I.st === 'cruise' ? 'Kapitän: am Ankermast des Belmont festmachen' : I.st === 'moor' ? 'Kapitän: ablegen und über Vespera kreuzen' : 'Mit dem Kapitän sprechen'; },
-    act: () => {
-      if (I.st === 'cruise') { impBlend('moor'); toast('Kapitän: „Sehr wohl, Sir. Kurs auf den Belmont.“'); }
-      else if (I.st === 'moor') { impBlend('cruise'); toast('Kapitän: „Leinen los. Wir kreuzen über der Stadt, Sir.“'); }
-      else { I.said = (I.said + 1) % IMP_CAPTAIN.length; toast('Kapitän: „' + IMP_CAPTAIN[I.said] + '“'); }
-    },
+    test: p => aboard(p, D.XF - 7, D.XF - 1.2, -2.6, 2.6, D.fyB),
+    get label() { return I.st === 'helm' ? 'Steuer abgeben · mit dem Kapitän sprechen' : 'Mit dem Kapitän sprechen · Kurs, Anlegen, selbst steuern'; },
+    act: impCaptainMenu,
   });
 }

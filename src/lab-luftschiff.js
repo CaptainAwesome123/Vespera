@@ -34,6 +34,7 @@ export async function startShipLab(params) {
     suite: [[3.3, A + 1.7, 5.8], [-8, A + 0.8, -1]], suite2: [[-11.2, A + 1.7, -5.4], [-4, A + 0.8, 1.5]], bad: [[3.5, A + 1.7, -3.4], [1, A + 0.7, -6.3]],
     bibliothek: [[12.8, A + 1.7, 5.5], [21, A + 1.0, -3]], bibliothek2: [[23.2, A + 1.7, -5.8], [14, A + 1.0, 3]],
     salon: [[25, A + 1.7, -5.5], [40, A + 1.0, 2.5]], salon2: [[49, A + 1.7, 5.8], [32, A + 1.0, -2]], bar: [[30, A + 1.7, 0.5], [29, A + 1.2, 6.5]],
+    steuer: [[D.XF - 3.2, B + 1.7, 0], [D.XF + 30, B - 2, 0]], steuerseite: [[D.XF - 6.5, B + 1.9, -4.5], [D.XF - 2, B + 1.0, 0.5]], sofa: [[31, A + 1.3, -3.6], [31, A + 0.9, 3]], tafel: [[-4.0, A - 3.9 + 1.25, 1.08], [-10, B + 0.9, 3.5]], bistro: [[-18.5, B + 1.25, 2.85], [-13, B + 1.0, 2.2]],
   };
   window.labView = name => { const v = V[name] || V.salon; camera.position.copy(W(...v[0])); camera.lookAt(W(...v[1])); player.p.copy(camera.position); player.p.y -= 1.6;
     const ins = v[0][1] > D.fyB - 0.5 && v[0][0] > D.XT && v[0][0] < D.XF && Math.abs(v[0][2]) < D.ZW;

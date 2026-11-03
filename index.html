@@ -99,6 +99,12 @@ kbd { font: 600 12px/1 var(--body); letter-spacing: 0.08em; color: var(--gold-hi
   font-size: 13px; color: var(--muted); letter-spacing: 0.06em; line-height: 1.8; max-width: calc(100% - 220px);
 }
 #hint kbd { font-size: 11px; padding: 3px 5px 1px; }
+#helm {
+  top: calc(16px + env(safe-area-inset-top, 0px)); left: 50%; transform: translateX(-50%); width: min(560px, calc(100% - 32px)); text-align: center;
+  font-size: 13px; letter-spacing: 0.08em; line-height: 1.9; color: var(--muted); background: var(--panel); border: 1px solid rgba(217,178,106,0.5); padding: 8px 14px 6px;
+}
+#helm b { font-family: var(--display); font-weight: 400; font-size: 15px; color: var(--gold-hi); letter-spacing: 0.14em; margin-right: 10px; }
+#helm kbd { font-size: 11px; padding: 3px 5px 1px; }
 #cross { left: 50%; top: 50%; width: 6px; height: 6px; margin: -3px 0 0 -3px; border: 1px solid rgba(246,220,154,0.7); transform: rotate(45deg); }
 #toast {
   left: 50%; bottom: calc(80px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%);
@@ -158,6 +164,7 @@ kbd { font: 600 12px/1 var(--body); letter-spacing: 0.08em; color: var(--gold-hi
 <div class="hud" id="hint"><kbd>WASD</kbd> gehen · <kbd>F</kbd> fliegen · <kbd>rechte Maus</kbd> Telekinese · <kbd>V</kbd> Ansicht · <kbd>N</kbd> Wetter · <kbd>1</kbd>–<kbd>0</kbd> Aussichtspunkte · <kbd>E</kbd> benutzen / ansprechen / aufheben · <kbd>Esc</kbd> Pause</div>
 <div class="hud" id="cross"></div>
 <div class="hud" id="toast"></div>
+<div class="hud" id="helm" hidden></div>
 <div class="hud" id="prompt"></div>
 <div id="fade"></div>
 <div id="menuCard" hidden></div>
@@ -204,6 +211,7 @@ kbd { font: 600 12px/1 var(--body); letter-spacing: 0.08em; color: var(--gold-hi
       <div><kbd>P</kbd><span>Leistungsanzeige: Bilder pro Sekunde, Zeichenaufrufe, Dreiecke (auch mit ?leistung)</span></div>
       <div><kbd>1 – 8</kbd><span>Aussichtspunkte</span></div>
       <div><kbd>E</kbd><span>Fahrstuhl, Türen, ansprechen; Dinge aufheben und ablegen</span></div>
+      <div><kbd>Aurora Imperial</kbd><span>Rufsäule auf der Belmont-Terrasse oder der untersten Villa-Terrasse: an Bord. Auf der Brücke (E beim Kapitän): Kurs Belmont, Kurs Villa, kreuzen, Position halten, oder selbst ans Steuer: <kbd>W S</kbd> Fahrt, <kbd>A D</kbd> Ruder, <kbd>Leertaste C</kbd> Höhe, <kbd>Shift</kbd> volle Kraft, <kbd>V</kbd> Außenansicht. Im Salon, Speisesalon und auf dem Achterdeck: Platz nehmen, bestellen, der Steward bringt es</span></div>
       <div><kbd>Klick</kbd><span>Getragenes werfen, <kbd>R</kbd> drehen</span></div>
       <div><kbd>M</kbd><span>Ton an und aus (Musik, Stadt, Wetter, Schritte; bleibt gespeichert)</span></div>
       <div><kbd>B</kbd><span>Leuchteffekt (Leistung)</span></div>
