@@ -27,7 +27,7 @@ import { DRIVE } from './eating.js';
 import { BOAT } from './boat.js';
 
 export const AWE = { sayT: 0, flyT: 0, tkT: 0, n: 0, lines: 0 };
-const SAY = {
+export const SAY = {
   takeoff: ['Seht nur, er hebt ab!', 'Da fliegt er! Alexander!', 'Meine Güte, er fliegt wirklich!', 'Hut ab, Herr Alexander!'],
   fly: ['Seht nur, Alexander fliegt!', 'Da oben! Das ist Alexander!', 'Guten Abend, Herr Alexander!', 'Unglaublich … er fliegt.'],
   land: ['Meine Güte!', 'Das war Alexander!', 'Haben Sie das gesehen?', 'Der Herr von Vespera persönlich.'],
@@ -49,7 +49,7 @@ export function attOf(pd) {
 const WHO = { worker: 'Ein Arbeiter', police: 'Ein Polizist', kid: 'Ein Junge', waiter: 'Ein Kellner', livery: 'Ein Portier', chauffeur: 'Ein Chauffeur', sailor: 'Ein Matrose' };
 export const whoOf = pd => pd.cit ? pd.cit.name : WHO[pd.a && pd.a.kind] || (pd.fem ? 'Eine Dame' : 'Ein Herr');
 // was man ruft, wenn er zu Fuß vorbeikommt
-const SAY_NEAR = {
+export const SAY_NEAR = {
   bew: ['Guten Abend, Herr Alexander!', 'Da ist er! Herr Alexander!', 'Herr Alexander! Was für eine Ehre!', 'Vespera dankt Ihnen, Herr Alexander!', 'Sehen Sie nur, er geht zu Fuß wie unsereins!'],
   kid: ['Mama, schau! Das ist Alexander!', 'Herr Alexander! Können Sie fliegen? Zeigen Sie’s mir!', 'Wenn ich groß bin, werd’ ich wie Alexander!'],
   neid: ['Na, wenn das nicht der Herr von Vespera ist …', 'Dem gehört die halbe Stadt.', 'Manche haben eben alles.', 'Penthouse, Villa, Luftschiff … und ich zahle Miete.'],
@@ -60,7 +60,7 @@ const SAY_NEAR = {
   dienst: ['Zu Diensten, Herr Alexander!', 'Sehr wohl, Herr Alexander.', 'Guten Abend, Herr Alexander. Beehren Sie uns?'],
 };
 // was die Nicht-Bewunderer rufen, wenn er seine Kräfte zeigt
-const SAY_POW = {
+export const SAY_POW = {
   neid: ['Natürlich kann er das auch noch.', 'Fliegen … als ob das Penthouse nicht reicht.', 'Angeben kann er, das muss man ihm lassen.'],
   skep: ['Und wer räumt das wieder auf? Wir.', 'Angeber.', 'Hoffentlich fällt das nicht auf uns.'],
   furcht: ['Um Himmels willen!', 'Weg hier, schnell!', 'Der ist kein Mensch …', 'Bitte nicht auf uns!'],

@@ -48,6 +48,8 @@ import './physics.js';
 import './powers.js';
 import './awe.js';
 import './audio.js';
+import './voice.js';     // V59: Stimmen (Sprachausgabe des Browsers)
+import './stimmen.js';   // V59: mehr Sätze und Reaktionen
 
 import { shared, $, renderer, scene, camera } from './core.js';
 import { layers, chunkStats } from './chunks.js';
