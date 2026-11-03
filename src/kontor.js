@@ -667,7 +667,7 @@ function ktInit() {
   if (window.vespera) window.vespera.kontor = { KT, BIZ, POSTS, GOODS, COS, PROJECTS, open: ktOpen, trade: ktTrade, price: ktPrice, newDay: ktNewDay, save: ktSave, reset: ktReset, postHere: ktPostHere, postPos };
   document.addEventListener('pointerlockchange', () => { if (KT.open && document.pointerLockElement) try { document.exitPointerLock(); } catch (e) { /* egal */ } });   // Maus bleibt frei, solange das Buch offen ist
   ktNewsBox();
-  try { window.dispatchEvent(new CustomEvent('vespera-tasten', { detail: { gruppe: 'Kontor und Aufgaben', tasten: [{ k: ['I'], t: 'Kontorbuch', d: 'Geld, Besitz, Handel, Börse, Stiftungen, Aufgaben (auch Klick aufs Vermögen oben rechts)' }, { k: ['E'], t: 'Handeln, Anliegen', d: 'an Handelsplätzen handeln, Bürgern mit goldenem Kreis helfen, Waren liefern' }] } })); } catch (e) { /* alt */ }
+  try { window.dispatchEvent(new CustomEvent('vespera-tasten', { detail: { gruppe: 'handel', titel: 'Kontor und Aufgaben', nach: 'stadt', tasten: [{ k: ['I'], t: 'Kontorbuch', d: 'Geld, Besitz, Handel, Börse, Stiftungen, Aufgaben (auch Klick aufs Vermögen oben rechts)' }, { k: ['E'], t: 'Handeln, Anliegen', d: 'an Handelsplätzen handeln, Bürgern mit goldenem Kreis helfen, Waren liefern' }] } })); } catch (e) { /* alt */ }
   window.addEventListener('beforeunload', () => { if (KT.dirty) ktSave(); });
   document.addEventListener('visibilitychange', () => { if (document.hidden && KT.dirty) ktSave(); });
 }
