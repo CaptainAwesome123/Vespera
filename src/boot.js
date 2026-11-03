@@ -51,6 +51,7 @@ import './audio.js';
 import './voice.js';     // V59: Stimmen (Sprachausgabe des Browsers)
 import './stimmen.js';   // V59: mehr Sätze und Reaktionen
 import './zeitung.js';   // V61: der Vespera-Kurier (Zeitung, Extrablätter, Rufe der Zeitungsjungen)
+import './pausemenu.js'; // V61: Pausenmenü mit Tastenübersicht (Tab / F1)
 
 import { shared, $, renderer, scene, camera } from './core.js';
 import { layers, chunkStats } from './chunks.js';
