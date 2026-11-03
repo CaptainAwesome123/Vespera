@@ -88,7 +88,7 @@ function basis() {
     { k: ['Klick'], t: 'Werfen', d: 'Was Alexander in der Hand trägt' },
     { k: ['R'], t: 'Drehen', d: 'Getragenes drehen. Im Wagen: wieder auf die Räder stellen' },
     { k: ['1', '–', '0'], t: 'Bestellen', d: 'Bei offener Karte im Café, Restaurant oder an der Bar. Esc schließt die Karte' },
-    { k: ['U'], t: 'Zeitung lesen', d: 'Die neueste Ausgabe: deine Taten, gefasste Räuber, Neuigkeiten aus der Stadt' },
+    { k: ['U'], t: 'Zeitung lesen', d: 'Der Vespera-Kurier: deine Taten, gefasste Räuber, Stadtereignisse. A D oder Pfeile blättern, U oder Esc schließt' },
     { k: ['E'], id: 'gala', t: 'Gala im Belmont', d: 'Bei Direktor Hartmann im Ballsaal: der Gala-Abend zu deinen Ehren beginnt' },
     { k: ['J'], t: 'Ärger in der Nähe', d: 'Sofort das nächste Ereignis: Überfall, Taschendieb, Bombe, Anarchisten' },
   ], { titel: 'Stadt und Leute', vorne: true });

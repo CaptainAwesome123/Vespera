@@ -14,6 +14,7 @@ import { addLight } from './performance.js';
 import { plazaMaterial } from './plaza.js';
 import { buildFountain } from './fountain.js';
 import { buildBelmontLuxe } from './belmont-luxe.js';
+import { galaPeople } from './gala.js';
 
 /* =====================================================================
    THE BELMONT — das Grand Hotel im Zentrum
@@ -737,6 +738,7 @@ export function buildBelmontInterior() {
   for (let k = 0; k < 6; k++) walkersIn.push({ a: anyone(0, P, 0, 0, 0), cx: k < 3 ? -23.5 : 23.5, cz: 22, rx: 1.2, rz: 12.5 + 0.5 * (k % 2), sp: (0.04 + 0.01 * k) * (k % 2 ? 1 : -1), ph: k * 2.1, lobby: true });
   for (let k = 0; k < 8; k++) walkersIn.push({ a: (k % 2 ? tux : gown)(0, P, 0, 0), cx: k < 4 ? -8 : 8, cz: 22, rx: 3 + k % 3, rz: 18 + 3 * (k % 2), sp: (0.03 + 0.008 * k) * (k % 3 ? 1 : -1), ph: k * 1.3, lobby: true });
   for (const w of walkersIn) { w.a.gait[1] = 5.2; w.a.gait[2] = 0.36; }
+  galaPeople(C, { P, S0, tux, gown, singer });   // V61: Gala zu Ehren von Alexander (Direktor, Bürgermeister, Extra-Paare)
   C.finish();
   for (const a of C.list) if (a.x !== undefined) C.set(a, a.x, a.y, a.z, a.yaw);
   C.flag();

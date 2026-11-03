@@ -177,6 +177,7 @@ export function updateAudio(dt) {
     const m = nearestMusic(p);
     if (m && m.d < 32) { const v = 0.6 * Math.pow(1 - m.d / 32, 1.4); if (v > jz) { jz = v; cut = 5200 - m.d * 110; pub = m.s.type === 'organ' ? 'organ' : true; } }
   }
+  if (inBall || inLobby) jz *= 1 - (SND.galaHush || 0);   // V61: während der Reden der Gala schweigt die Band
   if (jz > 0.4 && soundMuted() && !bandHint && playing) { bandHint = true; toast('Die Band spielt · M schaltet den Ton ein'); }
   if (!audio) return;
   if (audio.pub !== pub) { audio.pub = pub; audio.next = 0; }
