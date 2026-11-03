@@ -19,6 +19,7 @@ import { updateCars, updateTrucks, updateTrams } from './traffic.js';
 import { player, updatePlayer, EYE } from './player.js';
 import { updateVenues } from './venues.js';
 import { updateOrte } from './orte.js';
+import { updateGala } from './gala.js';
 import { DRIVE, updateCarScenes, updateCarReturns } from './eating.js';
 import { updateDrive, updateVehicleWorld, driveCamera } from './driving.js';
 import { updateWind, WIND, windName } from './wind.js';
@@ -255,6 +256,7 @@ export function frame(now) {
   hemi.intensity = (0.9 + 0.12 * U.uSnowCover.value) * (1 - 0.72 * U.uInside.value); moonLight.intensity = ATMO.moonI * (1 - U.uInside.value);
   const nearBel = !playing || (Math.abs(camera.position.x) < 70 && Math.abs(camera.position.z) < 75 && camera.position.y < 45);
   if (interiorCrowd) interiorCrowd.show(nearBel);
+  updateGala(dt);   // V61: Gala im Ballsaal, Feuerwerk über dem Belmont (vor updateInterior: Randpaare, Redner)
   updateInterior(t, nearBel);
   updateBelmontDoor(dt);
   updatePenthouse(dt); updateCrystal(dt); crystalAura(dt);   // V57: der Meteoritenkristall lebt
