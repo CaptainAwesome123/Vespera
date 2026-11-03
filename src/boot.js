@@ -50,6 +50,7 @@ import './awe.js';
 import './audio.js';
 import './voice.js';     // V59: Stimmen (Sprachausgabe des Browsers)
 import './stimmen.js';   // V59: mehr Sätze und Reaktionen
+import './pausemenu.js'; // V61: Pausenmenü mit Tastenübersicht (Tab / F1)
 
 import { shared, $, renderer, scene, camera } from './core.js';
 import { layers, chunkStats } from './chunks.js';
