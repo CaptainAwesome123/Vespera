@@ -41,6 +41,9 @@ let fails = 0; const ok = (c, m) => { console.log((c ? 'OK   ' : 'FEHLER ') + m)
     out.fall = Z.ZEITUNG.pending.map(i => i.titel + ' [' + i.prio + ']');
     // eine Tat: Automobil mit Telekinese gehoben
     PW.POWERS.tk = { kind: 'car', B: {} }; for (let i = 0; i < 8; i++) Z.zeitungTick(0.25); PW.POWERS.tk = null; Z.zeitungTick(0.25);
+    // Gala im Belmont (gala.js): Rede 1, Ende
+    for (const phase of ['einzug', 'rede', 'toast', 'ende']) window.dispatchEvent(new CustomEvent('vespera-gala', { detail: { phase, rede: phase === 'einzug' ? -1 : 1, n: 1 } }));
+    out.gala = Z.ZEITUNG.pending.filter(i => i.quelle === 'gala').map(i => i.titel + ' [' + i.prio + ']');
     // Extrablatt nach ein paar Sekunden
     for (let i = 0; i < 60; i++) Z.zeitungTick(0.25);
     const ed = Z.ZEITUNG.archive[Z.ZEITUNG.archive.length - 1];
@@ -53,8 +56,9 @@ let fails = 0; const ok = (c, m) => { console.log((c ? 'OK   ' : 'FEHLER ') + m)
   ok(r.api, 'window.vespera.zeitung vorhanden');
   ok(r.pend === 2, 'Meldung über Schnittstelle und Ereignis angekommen');
   ok(r.fall.some(t => /Räuber|Überfall/.test(t)), 'Überfall mit Festnahme wird zur Meldung');
+  ok(r.gala.length === 1 && /9/.test(r.gala[0]), 'Gala-Ende wird zur Extrablatt-Meldung');
   ok(r.extra === true, 'Extrablatt gedruckt');
-  ok(/Räuber|Überfall/.test(r.lead), 'Überfall auf der Titelseite');
+  ok(/Gala|Stern|Belmont/.test(r.lead) && r.items.some(t => /Räuber|Überfall/.test(t)), 'Gala auf der Titelseite (prio 9), Überfall darunter');
   ok(r.items.some(t => /Automobil/.test(t)), 'gehobenes Automobil in der Zeitung');
   ok(r.kaesten.includes('Börse'), 'Kasten am Rand');
   ok(r.headAfter[0].startsWith('Extrablatt'), 'Zeitungsjungen rufen das Extrablatt aus');
