@@ -15,6 +15,8 @@
    - powers.js / kraefte.js / energy.js: Automobil oder Passant mit
      Telekinese gehoben, etwas ausgerissen, Heldenlandung, Flug über der
      Stadt, Schockwelle, Levitation, Energieschub.
+   - gala.js (Ereignis 'vespera-gala'): nach der Gala ein Extrablatt mit
+     der gewählten Rede und dem Foto vom Goldenen Stern oder Feuerwerk.
    - atmosphere.js: Wetter und Mondphase; dazu Stadtnachrichten, Klatsch
      und Anzeigen.
    Zur Tat gehört ein Foto: ein kleines Graustufenbild aus dem Spielbild
@@ -251,6 +253,33 @@ function ztFallSchluss() {
   const it = zeitungMeldung({ titel: ztFill(ztPick(V.t), o), text, rubrik: V.rubrik, prio: V.prio, ort: C.ort, quelle: 'gegner' });
   if (it && C.item) { if (C.item.foto) it.foto = C.item.foto; else setTimeout(() => { if (C.item.foto) it.foto = C.item.foto; }, 400); }
 }
+
+/* ---------- Gala im Belmont (gala.js feuert window 'vespera-gala' mit { phase, rede, n }) ---------- */
+const ZT_REDE = [
+  'In seiner Rede dankte Herr Alexander den Bürgern: „Diese Stadt gehört allen, die sie jeden Abend zum Leuchten bringen.“',
+  'Herr Alexander sprach von seiner Vision: neue Türme, neue Linien, ein Vespera, von dem die ganze Welt spricht. Der Saal hing an seinen Lippen.',
+  'Herr Alexander fasste sich kurz: „Danke. Und jetzt: tanzen!“ Der Saal lachte und applaudierte stehend.',
+  'Herr Alexander zeigte sich großzügig und versprach der Stadt Geschenke. Die Kapelle spielte einen Tusch, die Gäste jubelten.',
+];
+const ZT_GALA = { rede: -1, foto: null, champ: false };
+function ztGala(d) {
+  const ph = d && d.phase, G = ZT_GALA;
+  if (ph === 'einzug') { G.rede = -1; G.foto = null; G.champ = false; }
+  else if (ph === 'rede') G.rede = d.rede;
+  else if (ph === 'stern' || ph === 'feuerwerk') { const it = { foto: null }; ztSnap(it); setTimeout(() => { if (it.foto) G.foto = it.foto; }, 400); }
+  else if (ph === 'champagner' && !G.champ) {
+    G.champ = true;
+    zeitungMeldung({ titel: 'Champagner für alle im Belmont', text: 'Auf Kosten von Herrn Alexander ließ der Oberkellner im großen Ballsaal für jeden Gast ein Glas einschenken. Die Kapelle spielte dazu einen Tusch.', rubrik: 'Gesellschaft', prio: 4, ort: 'The Belmont', quelle: 'gala' });
+  } else if (ph === 'ende') {
+    const r = d.rede != null && d.rede >= 0 ? d.rede : G.rede, n = d.n | 0;
+    const text = 'Glanzvoller Abend im großen Ballsaal des Belmont: Direktor Hartmann und Bürgermeister von Arnim ehrten Herrn Alexander, der Stadtrat verlieh ihm den Goldenen Stern von Vespera. ' +
+      (ZT_REDE[r] || 'Herr Alexander hörte die Reden mit einem stillen Lächeln an und hob nur das Glas.') +
+      ' Nach dem Toast eröffnete ein Paar den Ehrenwalzer, Goldregen fiel von der Decke, und über dem Belmont stiegen Feuerwerk in Türkis und Gold in den Polarhimmel.' + (n > 1 ? ' Es war bereits die ' + n + '. Gala zu seinen Ehren.' : '');
+    const it = zeitungMeldung({ titel: ztPick(['Gala im Belmont: Vespera feiert Alexander', 'Goldener Stern für den Herrn von Vespera', 'Feuerwerk über dem Belmont: die Gala des Jahres']), text, rubrik: 'Gesellschaft', prio: 9, ort: 'The Belmont', extra: true, ruf: 'Extrablatt! Gala im Belmont! Goldener Stern für Alexander!', quelle: 'gala' });
+    if (it && G.foto) it.foto = G.foto;
+  }
+}
+if (typeof window !== 'undefined') window.addEventListener('vespera-gala', e => { try { ztGala(e.detail); } catch (er) { console.warn('Zeitung/Gala:', er); } });
 
 /* ---------- Beobachten: Alexanders Kräfte ---------- */
 function ztTat(art, o = {}, snap = true) {
