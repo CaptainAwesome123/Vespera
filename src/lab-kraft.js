@@ -19,7 +19,7 @@ import { kit, benchGeo, Bx } from './harbour.js';
 import { tearWrap, TEAR, tearStats } from './tear.js';
 import { trees } from './facade-shader.js';
 import { buildTrees, TREE_SETS, updateTreeLod } from './serpentine.js';
-import { energyLabFx, energyLabOrb } from './energy.js';
+import { energyLabFx, energyLabOrb, energyLabClear } from './energy.js';
 import { buildFX, updateFX, FX } from './particles.js';
 
 export const KLAB = { crowd: null, t: null, bodies: [] };
@@ -116,6 +116,7 @@ export function startKraftLab(params) {
     for (const [i, x, y, z, w] of S.u) PL_U.value[i].set(x, y, z, w);
     PM.place(0, 0, 4, Math.PI, { act: 0 });
     if (!Object.keys(FX.sets).length) buildFX();
+    energyLabClear();
     if (S.orb) energyLabOrb(new T.Vector3(0.16, 1.12, 3.7), 1);
     if (S.fx) energyLabFx(new T.Vector3(-S.o[0], S.o[1], 4 - 0.85), new T.Vector3(0, 0.02, -1).normalize(), S.fx, 1, S.fx === 'charged' ? 0.1 : 0.07);
     updateFX(0.03);

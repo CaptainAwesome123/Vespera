@@ -300,7 +300,7 @@ function beam(o, d, range, cone, k, life = 0.45) {
 function ring(o, d, R, life, k) {
   let S = FXS.rings.find(r => !r.on);
   if (!S) {
-    if (!FXS.ringGeo) FXS.ringGeo = new T.RingGeometry(0.72, 1, 48);
+    if (!FXS.ringGeo) FXS.ringGeo = new T.RingGeometry(0.88, 1, 56);
     const m = new T.Mesh(FXS.ringGeo, new T.MeshBasicMaterial({ color: TEAL, transparent: true, depthWrite: false, blending: T.AdditiveBlending, side: T.DoubleSide }));
     m.frustumCulled = false; m.renderOrder = 5; m.visible = false; m.userData.noRefl = true; scene.add(m); S = { m }; FXS.rings.push(S);
   }
@@ -317,9 +317,9 @@ function blastFx(o, d, power, range, cone, kind, hits) {
   const big = kind === 'charged';
   beam(o, d, range, cone, Math.min(1.6, 0.55 + 0.22 * power), big ? 0.6 : 0.4);
   if (big || kind === 'both') beam(o, d, range * 0.55, cone * 0.45, 0.9, 0.3);
-  ring(o, d, 1.2 + 0.5 * power, 0.28, 1);
-  _v.copy(o).addScaledVector(d, Math.min(range * 0.3, 10)); ring(_v, d, 2 + 1.2 * power, 0.4, 0.7);
-  if (big) { _v.copy(o).addScaledVector(d, Math.min(range * 0.6, 26)); ring(_v, d, 4 + 2 * power, 0.55, 0.5); }
+  ring(o, d, 0.6 + 0.25 * power, 0.25, 0.9);
+  _v.copy(o).addScaledVector(d, Math.min(range * 0.3, 9)); ring(_v, d, 1.1 + 0.55 * power, 0.38, 0.55);
+  if (big) { _v.copy(o).addScaledVector(d, Math.min(range * 0.6, 24)); ring(_v, d, 2 + 1.1 * power, 0.5, 0.4); }
   // Funken entlang des Strahls, schnell davon
   const n = Math.round(14 + 12 * power);
   for (let i = 0; i < n; i++) {
@@ -356,7 +356,7 @@ function updateFx(dt) {
     const grow = 1 - Math.pow(1 - Math.min(1, E.t / 0.14), 3), L = Math.max(0.5, E.range * grow), R = 0.25 + L * E.cone;
     const fade = Math.pow(1 - u, 1.6) * E.k;
     E.outer.scale.set(R, L, R); E.core.scale.set(R * 0.4, L * 0.92, R * 0.4);
-    E.outer.material.opacity = 0.75 * fade; E.core.material.opacity = Math.min(1, 1.1 * fade);
+    E.outer.material.opacity = 0.55 * fade; E.core.material.opacity = Math.min(1, 1.1 * fade);
     E.outer.material.map.offset.y -= dt * 2.6; E.core.material.map.offset.y -= dt * 4.1;
   }
   for (const S of FXS.rings) {
@@ -364,7 +364,7 @@ function updateFx(dt) {
     S.t += dt; const u = S.t / S.life;
     if (u >= 1) { S.on = false; S.m.visible = false; continue; }
     S.m.scale.setScalar(0.2 + S.R * (1 - Math.pow(1 - u, 2.4)));
-    S.m.material.opacity = 0.9 * S.k * Math.pow(1 - u, 1.5);
+    S.m.material.opacity = 0.7 * S.k * Math.pow(1 - u, 1.5);
   }
 }
 
@@ -485,6 +485,7 @@ function updateOrb(dt) {
 }
 
 // für Konsole, Tests und Labor
+export function energyLabClear() { for (const E of FXS.beams) { E.on = false; E.outer.visible = E.core.visible = false; } for (const S of FXS.rings) { S.on = false; S.m.visible = false; } if (FXS.orb) FXS.orb.visible = FXS.halo.visible = false; }
 export function energyLabFx(o, d, kind = 'charged', c = 1, t = 0.08) {
   const power = kind === 'charged' ? 2 + 3 * c : kind === 'both' ? 1.7 : 1, range = kind === 'charged' ? 40 + 45 * c : 32, cone = kind === 'charged' ? 0.2 + 0.16 * c : 0.12;
   blastFx(o, d, power, range, cone, kind, []);
