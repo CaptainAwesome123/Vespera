@@ -42,9 +42,11 @@ import { DRIVE } from './eating.js';
 import { DINE } from './venues.js';
 import { WATER_Y } from './dance.js';
 import { SND, sndBurst, sndTone, sndClip } from './audio.js';
+import { UNTER } from './unter-hook.js';   // V61: Verstecke unter der Stadt
 
 export const GEGNER = { list: [], ev: null, nextT: 75, on: true, cycle: 0, proj: [], fires: [], arrests: [], bombs: [], scorch: [], hud: null, sayT: 0, hitT: 0, heroSeen: null,
-  stats: { gefasst: 0, entkommen: 0, entschaerft: 0, explodiert: 0, ereignisse: 0 } };
+  stats: { gefasst: 0, entkommen: 0, entschaerft: 0, explodiert: 0, ereignisse: 0 },
+  hooks: [], spotHook: null, block: false };   // V61: hooks = weitere Abläufe je Bild (anfuehrer.js, verstecke.js); spotHook = Auftauchorte unter der Stadt
 const GST = 11;   // Zustand in peds: wird von gegner.js bewegt (updatePedestrians lässt ihn aus)
 const HALF_PI = Math.PI / 2;
 const gegWrap = a => Math.atan2(Math.sin(a), Math.cos(a));
@@ -76,7 +78,7 @@ const GSAY = {
   bombeWeg: ['Er hat die Bombe weggeworfen! Wir sind gerettet!', 'Hoch in den Himmel! Was für ein Mann!', 'Ins Wasser damit! Bravo!', 'Puh … das war knapp.'],
   bombeKnall: ['Mein Gott! Ist jemand verletzt?', 'Die Fenster! Alles voller Scherben!', 'Diese verdammten Anarchisten!'],
 };
-const GWHO = { raeuber: 'Ein Räuber', dieb: 'Ein Taschendieb', anarchist: 'Ein Anarchist', anfuehrer: 'Der Anführer', polizei: 'Ein Polizist' };
+const GWHO = { raeuber: 'Ein Räuber', dieb: 'Ein Taschendieb', anarchist: 'Ein Anarchist', anfuehrer: 'Der Anführer', polizei: 'Ein Polizist', boss: 'Der Rote Kasimir' };
 
 // Sprechblase (dieselbe wie bei allen anderen Leuten). Ein Ereignis 'vespera-say' geht mit, damit eine Sprachausgabe mitlesen kann.
 export function gegnerSay(who, text, prio = 1, x, z) {
@@ -89,6 +91,13 @@ export function gegnerSay(who, text, prio = 1, x, z) {
   return true;
 }
 const gegLine = k => gegPick(GSAY[k]);
+// V61: Bescheid an andere Teile des Spiels (Zeitung, Belohnungen, Verstecke): window-Ereignis 'vespera-gegner' { was, role, boss, x, z }
+// was: 'besiegt' (liegt am Boden), 'gefasst' (Polizei führt ab), 'versteck' (ausgehoben), 'boss' (Anführer gefasst), 'entschaerft', 'knall'
+export function gegFire(was, pd, x, z, extra) {
+  const d = { was, role: pd && pd.gg ? pd.gg.role : null, boss: !!(pd && pd.gg && pd.gg.boss), x, z, ...(extra || {}) };
+  for (const f of GEGNER.listen || []) { try { f(d); } catch (e) { /* weiter */ } }
+  try { window.dispatchEvent(new CustomEvent('vespera-gegner', { detail: d })); } catch (e) { /* ältere Browser */ }
+}
 
 /* ---------- Figuren: werden in buildPedestrians vor dem Crowd-Aufbau angelegt ---------- */
 export function gegnerPeds() {
@@ -101,10 +110,12 @@ export function gegnerPeds() {
     if (col) pd.col = col;
     out.push(pd); GEGNER.list.push(pd); return pd;
   };
-  for (let i = 0; i < Math.round(5 * F); i++) mk('raeuber', i % 2 ? 'dbl' : 'coat', DARK[i % DARK.length]);
-  const AK = ['worker', 'coat', 'jacket', 'worker', 'braces', 'coat', 'worker'];
-  for (let i = 0; i < Math.round(7 * F); i++) mk('anarchist', AK[i], AK[i] === 'coat' ? DARK[(i + 2) % DARK.length] : WORKWEAR[i % WORKWEAR.length]);
-  for (let i = 0; i < Math.round(4 * F); i++) mk('polizei', 'police');
+  // V61: mehr Leute für Razzien, Aufstand und Bankraub; dazu der Anführer der Bande (Der Rote Kasimir, anfuehrer.js)
+  for (let i = 0; i < Math.round(6 * F); i++) mk('raeuber', i % 2 ? 'dbl' : 'coat', DARK[i % DARK.length]);
+  const AK = ['worker', 'coat', 'jacket', 'worker', 'braces', 'coat', 'worker', 'jacket', 'braces', 'worker', 'coat'];
+  for (let i = 0; i < Math.round(11 * F); i++) mk('anarchist', AK[i], AK[i] === 'coat' ? DARK[(i + 2) % DARK.length] : WORKWEAR[i % WORKWEAR.length]);
+  for (let i = 0; i < Math.round(6 * F); i++) mk('polizei', 'police');
+  const boss = mk('boss', 'dbl', [0.3, 0.045, 0.04]); boss.sc = 1.09;   // langer ochsenblutroter Zweireiher, einen halben Kopf größer
   return out;
 }
 
@@ -166,13 +177,15 @@ const gegFree = role => GEGNER.list.filter(pd => pd.gg.role === role && pd.gg.s 
 
 function gegSpawn(pd, x, y, z, yaw) {
   const G = pd.gg;
-  Object.assign(G, { s: 'hold', x, y, z, yaw, t: 0, tilt: 0, lie: null, held: false, ev: null, arrest: null, stuck: 0, cd: 1 + Math.random() * 2, gm: null, fall: null, follow: null, said: 0, shots: 0 });
+  Object.assign(G, { s: 'hold', x, y, z, yaw, t: 0, tilt: 0, lie: null, held: false, ev: null, arrest: null, stuck: 0, cd: 1 + Math.random() * 2, gm: null, fall: null, follow: null, said: 0, shots: 0,
+    ai: null, anchor: null, tough: false, hp: 0, recover: 0, onUp: null, lead: false, gun: false, noShoot: false, spd: 0, limp: false, want: 0, boss: false, fl: null });   // V61: nichts vom letzten Einsatz mitnehmen
   pd.st = GST; pd.back = null; gegAct(pd, 0.6); gegPlace(pd);
 }
 function gegOff(pd) { const G = pd.gg; G.s = 'off'; G.ev = null; G.arrest = null; G.follow = null; if (pd.rag) ragFree(pd.rag); pd.back = null; pd.st = GST; if (pd.a) pd.a.on = false; }
 
 // Ort zum Auftauchen: Gehweg oder Straße auf Bodenhöhe, frei, möglichst nicht mitten im Blickfeld
 function gegSpot(cx, cz, rMin, rMax, hide) {
+  if (GEGNER.spotHook) { const s = GEGNER.spotHook(cx, cz, rMin, rMax); if (s !== undefined) return s; }   // V61: unter der Stadt: am Einstieg des Verstecks
   const f = camera.getWorldDirection(_gd), cp = camera.position;
   for (let i = 0; i < 40; i++) {
     const an = Math.random() * 6.2832, r = rMin + Math.random() * (rMax - rMin), x = cx + Math.sin(an) * r, z = cz + Math.cos(an) * r;
@@ -212,7 +225,15 @@ function gegDefeat(pd, how) {
   const was = G.s; G.s = 'down'; G.t = 0; G.follow = null;
   if (!G.fall && !pd.rag) G.fall = { t: 0, yaw: G.yaw };
   const [x, z] = gegPos(pd);
-  if (Math.random() < 0.7) gegnerSay(GWHO[G.lead ? 'anfuehrer' : G.role] || 'Ein Gauner', gegLine(G.role === 'anarchist' && Math.random() < 0.5 ? 'besiegtAnar' : 'besiegt'), 1, x, z);
+  if (G.hp > 1) {   // V61: der Anführer ist zäh: er rappelt sich wieder auf, bis seine Kraft verbraucht ist
+    G.hp--; G.recover = 2.4 + Math.random() * 0.8; G.was = was === 'getup' || was === 'down' ? 'fight' : was;
+    const E = G.ev; if (E && E.onDown) E.onDown(pd, how, was);
+    GEGNER.cheerT = 0.6; GEGNER.cheerX = x; GEGNER.cheerZ = z;
+    return;
+  }
+  G.hp = 0; G.recover = 0;
+  gegFire('besiegt', pd, x, z);
+  if (!G.boss && Math.random() < 0.7) gegnerSay(GWHO[G.lead ? 'anfuehrer' : G.role] || 'Ein Gauner', gegLine(G.role === 'anarchist' && Math.random() < 0.5 ? 'besiegtAnar' : 'besiegt'), 1, x, z);
   const E = G.ev; if (E && E.onDown) E.onDown(pd, how, was);
   if (G.arrest) { G.arrest.ph = 'wait'; G.arrest.t = 0.6; }
   else { const A = { crook: pd, ph: 'wait', t: 0, cops: [] }; G.arrest = A; GEGNER.arrests.push(A); }
@@ -288,7 +309,7 @@ function gegUpdateProj(dt) {
     }
     const gy = gegGround(pr.x.x, pr.x.z, pr.x.y);
     const wall = gegBlocked(pr.x.x, pr.x.z, pr.x.y - 1.0, 0.05);
-    if ((gy !== null && pr.x.y <= gy + 0.06) || pr.x.y < WATER_Y || wall || pr.t > 5) {
+    if ((gy !== null && pr.x.y <= gy + 0.06) || (pr.x.y < WATER_Y && gy === null) || wall || pr.t > 5) {   // V61: unter der Stadt liegt der Boden tiefer als das Wasser
       if (pr.kind === 'bottle') gegShatter(pr.x.x, Math.max(gy ?? WATER_Y, pr.x.y), pr.x.z, gy !== null && !wall);
       else { fxEmit('dust', pr.x.x, (gy ?? pr.x.y) + 0.05, pr.x.z, 0, 0.5, 0, 3, 0.15, 0.5); gegSnd('stone', pr.x.x, pr.x.z, 0.5); }
       pr.on = false; pr.bounced = false; pr.m.visible = false;
@@ -396,22 +417,38 @@ function gegBombEnd(bm, how) {
     gegnerSay('Ein Passant', gegLine('bombeWeg'), 2); aweBurst('throw', 40);
     return;
   }
-  bm.result = 'knall'; GEGNER.stats.explodiert++;
+  bm.result = 'knall'; GEGNER.stats.explodiert++; gegFire('knall', null, x, z);
   gegScorch(x, gy ?? y, z);
+  gegBlastAround(x, y, z, 9, 1);
+  toast(dP < 6 ? 'Die Bombe explodiert in Alexanders Händen · er steht da, ohne einen Kratzer' : 'Die Bombe ist explodiert · zum Glück nur Schrecken und Scherben');
+  gegnerSay('Ein Passant', gegLine('bombeKnall'), 2, x, z);
+}
+// Druckwelle: Leute im Umkreis R fallen um (Gegner zählen als getroffen), lose Dinge fliegen. k = Wucht
+export function gegBlastAround(x, y, z, R = 9, k = 1, skip = null) {
   for (const pd of peds) {
-    if (!pd.a || !pd.a.on || pd.rag || pd.sit) continue;
+    if (!pd.a || !pd.a.on || pd.rag || pd.sit || pd === skip) continue;
     const e = pd.a.m.elements, dx = e[12] - x, dz = e[14] - z, d = Math.hypot(dx, dz);
-    if (d > 9 || Math.abs(e[13] - y) > 4) continue;
-    const f = (1 - d / 9) * 9 + 2; if (pd.gg && pd.gg.role !== 'polizei') gegKnock(pd, dx / (d || 1) * f, dz / (d || 1) * f, x, z); else knockDown(pd, dx / (d || 1) * f, dz / (d || 1) * f, x, z);
+    if (d > R || Math.abs(e[13] - y) > 4) continue;
+    const f = ((1 - d / R) * 9 + 2) * k; if (pd.gg && pd.gg.role !== 'polizei') { if (pd.gg.s !== 'off' && pd.gg.s !== 'down') gegKnock(pd, dx / (d || 1) * f, dz / (d || 1) * f, x, z); } else knockDown(pd, dx / (d || 1) * f || 0.01, dz / (d || 1) * f || 0.01, x, z);
   }
   for (const Bd of LOOSE.bodies) {
     if (Bd === LOOSE.tk || Bd === LOOSE.held) continue;
-    const dx = Bd.x.x - x, dz = Bd.x.z - z, d = Math.hypot(dx, dz); if (d > 10 || Math.abs(Bd.x.y - y) > 4) continue;
-    const f = (1 - d / 10) * 12 / Math.sqrt(Math.max(0.5, Bd.m) / 2);
+    const dx = Bd.x.x - x, dz = Bd.x.z - z, d = Math.hypot(dx, dz); if (d > R + 1 || Math.abs(Bd.x.y - y) > 4) continue;
+    const f = (1 - d / (R + 1)) * 12 * k / Math.sqrt(Math.max(0.5, Bd.m) / 2);
     Bd.awake = true; Bd.still = 0; Bd.v.x += dx / (d || 1) * f; Bd.v.z += dz / (d || 1) * f; Bd.v.y += f * 0.6;
   }
-  toast(dP < 6 ? 'Die Bombe explodiert in Alexanders Händen · er steht da, ohne einen Kratzer' : 'Die Bombe ist explodiert · zum Glück nur Schrecken und Scherben');
-  gegnerSay('Ein Passant', gegLine('bombeKnall'), 2, x, z);
+}
+// Feuerball, Funken, Rauch, Knall und Wackeln (ohne Licht); für Bomben, Dynamit, Höllenmaschine
+export function gegFireball(x, y, z, k = 1, dust = true) {
+  fxEmit('ember', x, y, z, 0, 2, 0, Math.round(40 * k), 1.2 * k, 1.6);
+  fxEmit('spark', x, y, z, 0, 3, 0, Math.round(40 * k), 0.6 * k, 1.5);
+  fxEmit('black', x, y + 0.5, z, 0, 1.2, 0, Math.round(10 * k), 1.2 * k, 1.4);
+  fxEmit('smoke', x, y + 0.3, z, 0, 0.8, 0, Math.round(8 * k), 1.5 * k, 1.2);
+  if (dust) fxEmit('dust', x, y + 0.2, z, 0, 1, 0, Math.round(12 * k), 2 * k, 1.3);
+  gegSnd('boom', x, z, Math.min(1.2, 0.5 + 0.5 * k));
+  const dP = Math.hypot(x - player.p.x, y - player.p.y, z - player.p.z);
+  POWERS.shake = Math.min(1.6, (POWERS.shake || 0) + Math.max(0, 1 - dP / 70) * 1.1 * Math.min(1.3, k));
+  return dP;
 }
 // Rußfleck am Boden (verblasst nach einer Weile)
 let SCORCH_TEX = null;
@@ -428,10 +465,11 @@ function gegScorch(x, y, z) {
 }
 
 /* ---------- Ereignisse ---------- */
-const EV_TYPES = ['raub', 'dieb', 'bombe', 'angriff'];
+export const EV_TYPES = ['raub', 'dieb', 'bombe', 'angriff'];   // V61: anfuehrer.js hängt seine Ereignisse an
 function gegCanStart() {
   const p = player.p;
   if (DRIVE.on || BOAT.on || DINE.seat || p.y > 45 || Math.hypot(p.x, p.z) > 980) return false;
+  if (GEGNER.block || (UNTER.test && UNTER.test(p))) return false;   // V61: unter der Stadt (Versteck) passiert oben nichts Neues
   return !!pedCrowd;
 }
 // Opfer: ein gehender Passant in 18 bis 50 m (nicht in Begleitung, kein Bewohner, kein Kind, kein Polizist)
@@ -458,10 +496,20 @@ function gegUnfreeze(v) {
   const g = v.a.gait; g[1] = S.g1; g[2] = S.g2; v.a.gv = (v.a.gv | 0) + 1; v.tilt = 0;
   v.ggSave = null; return true;
 }
+// V61: weitere Ereignisse (anfuehrer.js: Aufstand mit Barrikade, Bombenserie, Bankraub): { make() -> E, w Gewicht, ok() möglich? }
+export const EV_EXTRA = {};
+function gegPickType() {
+  const L = [['raub', 2], ['dieb', 1], ['bombe', 1], ['angriff', 2]];
+  for (const k in EV_EXTRA) { const X = EV_EXTRA[k]; if (!X.ok || X.ok()) L.push([k, typeof X.w === 'function' ? X.w() : X.w]); }
+  let S = 0; for (const [, w] of L) S += w; let r = Math.random() * S;
+  for (const [k, w] of L) if ((r -= w) <= 0) return k;
+  return 'raub';
+}
 export function gegnerStart(type) {
   if (GEGNER.ev || !gegCanStart()) return false;
-  type = type || gegPick(['raub', 'raub', 'dieb', 'bombe', 'angriff', 'angriff']);
-  const E = type === 'raub' ? evRaub() : type === 'dieb' ? evDieb() : type === 'bombe' ? evBombe() : evAngriff();
+  type = type || gegPickType();
+  const X = EV_EXTRA[type];
+  const E = X ? (X.ok && !X.ok() ? null : X.make()) : type === 'raub' ? evRaub() : type === 'dieb' ? evDieb() : type === 'bombe' ? evBombe() : evAngriff();
   if (!E) return false;
   E.type = type; E.t = 0; GEGNER.ev = E; GEGNER.stats.ereignisse++;
   return true;
@@ -704,9 +752,9 @@ function gegUpdateArrests(dt) {
       if (A.cops.some(c => c.gg.s === 'cop')) { A.ph = 'come'; A.t = 0; continue; }   // die Polizisten sind schon da
       const free = gegFree('polizei');
       if (free.length) {
-        const want = Math.min(free.length, Math.random() < 0.6 ? 2 : 1), s0 = gegSpot(cx, cz, 22, 32, true);
+        const want = Math.min(free.length, Math.random() < 0.6 ? 2 : 1), s0 = gegSpot(cx, cz, 22, 32, true) || gegSpot(cx, cz, 6, 45, false);   // V61: eng bebaut (Bank, Gassen): auch näher
         if (s0) {
-          A.cops = free.slice(0, want); A.from = s0;
+          A.cops = free.slice(0, want); A.from = s0; A.under = !!s0.under;
           A.cops.forEach((c, j) => { gegSpawn(c, s0.x + j * 0.9, s0.y, s0.z + j * 0.4, Math.atan2(cx - s0.x, cz - s0.z)); c.gg.s = 'cop'; c.gg.arrest = A; c.gg.side = j ? -1 : 1; });
           A.ph = 'come'; A.t = 0; gegSnd('whistle', s0.x, s0.z, 1);
           continue;
@@ -756,9 +804,9 @@ function gegUpdateArrests(dt) {
         // abführen: weg von Alexander (oder zurück, woher die Polizei kam)
         const from = A.from || { x: G.x + (G.x - player.p.x), z: G.z + (G.z - player.p.z) };
         const dx = from.x - G.x, dz = from.z - G.z, L = Math.hypot(dx, dz) || 1;
-        A.go = { x: G.x + dx / L * 40, z: G.z + dz / L * 40 };
+        A.go = A.under ? { x: from.x, z: from.z } : { x: G.x + dx / L * 40, z: G.z + dz / L * 40 };   // V61: im Versteck zur Leiter
         if (A.solo) { G.s = 'flee'; G.spd = 1.6; G.noShoot = true; G.limp = true; GEGNER.arrests.splice(i, 1); G.arrest = null; }
-        else GEGNER.stats.gefasst++;
+        else { GEGNER.stats.gefasst++; gegFire('gefasst', C, G.x, G.z); }
       }
       continue;
     }
@@ -799,7 +847,16 @@ function gegStepOne(pd, dt) {
   }
   if (pd.back) return;   // Polizist nach dem Aufstehen (ragdoll.js führt ihn zurück)
   if (pd.st !== GST) { pd.st = GST; G.gm = null; }
+  if (G.s === 'getup') {   // V61: der Anführer steht wieder auf (um die Füße hochgeklappt) und kämpft weiter
+    G.t += dt; const k = Math.min(1, G.t / 0.8), e = k * k * (3 - 2 * k);
+    G.tilt = -HALF_PI * (1 - e);
+    if (G.lie) { G.x = G.lie.x; G.z = G.lie.z; G.y = G.lie.y; G.yaw = G.lie.yaw; }
+    pedCrowd.set(a, G.x, G.y + 0.13 * (1 - e), G.z, G.yaw, pd.sc, G.tilt);
+    if (k >= 1) { G.tilt = 0; G.lie = null; G.s = G.was || 'fight'; G.cd = 0.5; G.gm = null; if (G.onUp) G.onUp(pd); }
+    return;
+  }
   if (G.s === 'down') {
+    if (G.recover > 0 && G.lie && !G.fall && (G.recover -= dt) <= 0) { G.s = 'getup'; G.t = 0; gegAct(pd, 13.1); return; }
     // ohne Puppe umgefallen: kippt nach hinten um, liegt dann
     if (G.fall) {
       const F = G.fall; F.t += dt; const k = Math.min(1, F.t / 0.45);
@@ -820,6 +877,7 @@ function gegStepOne(pd, dt) {
   gegContact(pd, dt);
   if (pd.rag || G.s === 'down') return;
   const dAlex = Math.hypot(G.x - p.x, G.z - p.z);
+  if (G.ai && G.s === 'fight') { G.ai(pd, dt, dAlex); gegPlace(pd); return; }   // V61: eigener Kampf (der Anführer, anfuehrer.js)
   if (G.s === 'flee') {
     G.fleeT = (G.fleeT || 0) + dt;
     // weg von Alexander, alle halbe Sekunde ein neues Ziel; festgefahren: andere Richtung
@@ -845,7 +903,10 @@ function gegStepOne(pd, dt) {
   if (G.s === 'fight') {
     const up = p.y - G.y, far = dAlex > (G.want || 12) + 3, close = dAlex < 6;
     if (dAlex > 90) { gegOff(pd); return; }
-    if (far) { gegGait(pd, 'run', 3.8); gegStep(pd, p.x, p.z, 3.8, dt); }
+    const An = G.anchor, dA = An ? Math.hypot(G.x - An.x, G.z - An.z) : 0;   // V61: hinter der Barrikade bleiben (Aufstand), im Versteck beim Platz
+    if (An && dA > An.r && !(An.loose && dAlex < An.loose)) { gegGait(pd, 'run', 3.6); gegStep(pd, An.x, An.z, 3.6, dt); }
+    else if (An && !close) { gegFace(pd, p.x, p.z, dt); if (G.gm !== 'stand') gegAct(pd, G.gun ? 12.3 : 13.1); }
+    else if (far) { gegGait(pd, 'run', 3.8); gegStep(pd, p.x, p.z, 3.8, dt); }
     else if (close) { const ax = G.x - p.x, az = G.z - p.z, L = Math.hypot(ax, az) || 1; gegGait(pd, 'walk', 1.6); gegStep(pd, G.x + ax / L * 3, G.z + az / L * 3, 1.6, dt); gegFace(pd, p.x, p.z, dt); }
     else { gegFace(pd, p.x, p.z, dt); if (G.gm !== 'stand') gegAct(pd, G.gun ? 12.3 : 13.1); }
     G.cd -= dt;
@@ -868,6 +929,7 @@ function gegContact(pd, dt) {
   const sp = Math.hypot(player.v.x, player.v.z, player.fly ? player.v.y : 0);
   if (d > (player.fly ? 1.3 : 0.9) || Math.abs(dy) > 1.8) return;
   if (sp < (player.fly ? 5 : 2.2)) return;
+  if (G.tough && sp < 15) return;   // V61: den Anführer wirft man nicht im Vorbeigehen um
   const k = Math.min(1, sp / 20), ux = player.v.x / (sp || 1), uz = player.v.z / (sp || 1);
   gegKnock(pd, ux * (5 + 10 * k), uz * (5 + 10 * k), p.x, p.z);
   POWERS.shake = Math.min(1, (POWERS.shake || 0) + 0.15);
@@ -907,6 +969,7 @@ export function updateGegner(dt) {
   gegUpdateProj(dt); gegUpdateBombs(dt); gegUpdateFires(dt); gegUpdatePanic(dt);
   if (GEGNER.thaw.length) GEGNER.thaw = GEGNER.thaw.filter(v => !gegUnfreeze(v));
   for (const S of GEGNER.scorch) if (S.visible) { S.t += dt; if (S.t > 40) S.material.opacity = Math.max(0, 0.9 * (1 - (S.t - 40) / 15)); if (S.t > 55) S.visible = false; }
+  for (const f of GEGNER.hooks) f(dt);   // V61: Anführer, Verstecke
   const E = GEGNER.ev;
   if (E) { E.t += dt; E.step(dt); }
   for (const pd of GEGNER.list) gegStepOne(pd, dt);
@@ -922,9 +985,16 @@ export function updateGegner(dt) {
 
 // Taste J: sofort das nächste Ereignis (zum Ausprobieren), der Reihe nach Überfall, Taschendieb, Bombe, Angriff
 if (typeof window !== 'undefined') window.addEventListener('keydown', e => {
-  if (e.code !== 'KeyJ' || e.repeat || !pedCrowd) return;
+  if (e.code !== 'KeyJ' || e.repeat || !pedCrowd || e.shiftKey) return;   // V61: Umschalt+J gehört den Verstecken
   if (GEGNER.ev) { toast('Es ist schon etwas los: ' + GEGNER.ev.label); return; }
-  for (let i = 0; i < 4; i++) { const t = EV_TYPES[GEGNER.cycle++ % 4]; if (gegnerStart(t)) { toast('Ärger in der Nähe: ' + GEGNER.ev.label); return; } }
+  if (UNTER.test && UNTER.test(player.p)) { toast('Unter der Stadt: erst wieder hinaufsteigen'); return; }
+  for (let i = 0; i < EV_TYPES.length; i++) { const t = EV_TYPES[GEGNER.cycle++ % EV_TYPES.length]; if (gegnerStart(t)) { toast('Ärger in der Nähe: ' + GEGNER.ev.label); return; } }
   toast('Hier ist gerade niemand für einen Überfall (auf die Straße gehen)');
 });
 Object.assign(GEGNER, { start: gegnerStart, treffer: gegnerTreffer, say: gegnerSay });
+GEGNER.listen = [];
+// V61: Werkzeug für anfuehrer.js und verstecke.js (dieselben Bewegungen, Würfe, Festnahmen wie oben)
+export const GEG = { GST, HALF_PI, pick: gegPick, wrap: gegWrap, line: gegLine, GSAY, GWHO, spawn: gegSpawn, off: gegOff, step: gegStep, gait: gegGait, act: gegAct,
+  place: gegPlace, face: gegFace, pos: gegPos, dist: gegDist, free: gegFree, spot: gegSpot, blocked: gegBlocked, ground: gegGround, knock: gegKnock,
+  throwAt: gegThrow, shot: gegShot, snd: gegSnd, panic: gegPanic, hitAlex: gegHitAlex, plantBomb: gegPlantBomb, scorch: gegScorch, end: gegEnd, fire: gegFire,
+  fires: () => GEGNER.fires, shatter: gegShatter };

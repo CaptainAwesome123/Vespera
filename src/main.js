@@ -33,6 +33,7 @@ import { buildImperial, IMP } from './imperial.js';
 import { buildCarLights } from './carlight.js';
 import { buildSquareGround, setupWorkerLayer } from './workers.js';
 import { planLandscape, buildLandscape } from './landscape.js';   // V44: Klippenring, Wasserfälle, Gletscher, Eis
+import './verstecke.js';   // V61: Verstecke der Anarchisten unter der Stadt, der Rote Kasimir, Aufstand, Bombenserie, Bankraub (anfuehrer.js)
 
 /* =====================================================================
    AUFBAU UND SPIELSCHLEIFE

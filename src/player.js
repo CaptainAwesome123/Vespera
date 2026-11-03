@@ -12,6 +12,7 @@ import { peds, turnHead } from './serpentine.js';
 import { knockDown } from './ragdoll.js';
 import { toast } from './boat.js';
 import { landed, flightBump, heroLock, takeoffHold } from './powers.js';
+import { UNTER } from './unter-hook.js';   // V61: Verstecke unter der Stadt
 
 /* =====================================================================
    SPIELER: Gehen mit Schwerkraft, Fliegen frei im Raum
@@ -48,6 +49,7 @@ export function collide(p, flying) {
     p.x += ddx * cs + ddz * sn; p.z += -ddx * sn + ddz * cs; p.y = _lp.y;
   }
   const g0 = resolveBoxes(p, near, flying);
+  if (UNTER.test && UNTER.test(p)) { collideOn = null; return g0; }   // V61: unter der Stadt zählen nur die Quader des Verstecks (Boden, Wände, Decke)
   const onLand = onIsland(p.x, p.z, -0.3);
   let ground = onLand ? (canalIce(p.x, p.z, p.y) ?? 0) : WATER_Y + 0.2;   // V58: im Kanal steht man auf dem Eis
   const rd = roadHeightAt(p.x, p.z, p.y);
@@ -111,7 +113,7 @@ export function updatePlayer(dt) {
     if (hit > 0.05 && sp0 > 30) { player.v.multiplyScalar(0.3); flightBump(sp0); }
     // Landung: nahe am Boden und sinkend (C oder Sinkflug), nicht im schnellen Vorwärtsflug
     const hsp = Math.hypot(player.v.x, player.v.z);
-    if (player.p.y - g < 0.45 && (down || touch.down || vy0 < -3) && hsp < 14 && (g > WATER_Y + 0.4 || canalIce(player.p.x, player.p.z, player.p.y) !== null)) {
+    if (player.p.y - g < 0.45 && (down || touch.down || vy0 < -3) && hsp < 14 && (g > WATER_Y + 0.4 || canalIce(player.p.x, player.p.z, player.p.y) !== null || (UNTER.test && UNTER.test(player.p)))) {
       player.p.y = g; player.fly = false; player.onGround = true; player.v.y = 0;
       landed(-vy0);   // V35: aus dem Sinkflug weich, aus dem Sturzflug als Heldenlandung
     }
