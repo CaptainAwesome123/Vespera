@@ -29,6 +29,13 @@ export const MENU = {
   restaurant: { title: 'Restaurant Aurora', items: [
     ['Champagner', 'drink', 'coupe'], ['Rotwein', 'drink', 'wine'], ['Kaffee', 'drink', 'cup'], ['Consommé', 'food', 'soup'],
     ['Austern', 'food', 'oysters'], ['Filet mit Gemüse', 'food', 'steak'], ['Hummer', 'food', 'lobster'], ['Schokoladentorte', 'food', 'cake']] },
+  // V58: Kaffeehaus im Park und das Varieté-Theater (Sekt, Pralinen und Programm am Platz)
+  cafe: { title: 'Café Kranich', items: [
+    ['Mokka', 'drink', 'cup'], ['Melange', 'drink', 'cup'], ['Heiße Schokolade', 'drink', 'cup'], ['Eiskaffee', 'drink', 'highball'],
+    ['Sachertorte', 'food', 'cake'], ['Apfelstrudel', 'food', 'cake'], ['Croissant', 'food', 'sandwich'], ['Pralinen', 'food', 'nuts']] },
+  theater: { title: 'Varieté Metropol', items: [
+    ['Sekt', 'drink', 'coupe'], ['Champagner', 'drink', 'coupe'], ['Limonade', 'drink', 'highball'], ['Cognac', 'drink', 'tumbler'],
+    ['Pralinen', 'food', 'nuts'], ['Petits Fours', 'food', 'cake'], ['Programmheft', 'food', 'programm']] },
 };
 export const DINE = { seat: null, venue: null, order: null, item: null, sips: 0, anim: 0, menuOpen: false, waitT: 0 };
 
@@ -80,6 +87,7 @@ export function dishModel(type) {
     case 'steak': plate(); fill = new T.Group(); g.add(fill); fill.add(new T.Mesh(roundBox(0.11, 0.03, 0.08, 0.012).translate(-0.02, 0.03, 0), M.meat)); for (let k = 0; k < 5; k++) fill.add(new T.Mesh(new T.CylinderGeometry(0.008, 0.008, 0.06, 6).rotateZ(Math.PI / 2).translate(0.07, 0.022, -0.03 + k * 0.015), M.green)); break;
     case 'lobster': plate(); fill = new T.Group(); g.add(fill); fill.add(new T.Mesh(new T.CapsuleGeometry(0.025, 0.14, 4, 10).rotateZ(Math.PI / 2).translate(0, 0.035, 0), M.lobster)); for (const s of [-1, 1]) fill.add(new T.Mesh(new T.SphereGeometry(0.022, 8, 6).scale(1.4, 0.7, 1).translate(0.1, 0.03, s * 0.045), M.lobster)); break;
     case 'cake': plate(); fill = add(new T.CylinderGeometry(0.07, 0.07, 0.06, 16, 1, false, 0, 1.0).translate(0, 0.045, 0), M.cake); break;
+    case 'programm': fill = add(roundBox(0.14, 0.012, 0.2, 0.004).translate(0, 0.006, 0), M.china); add(new T.BoxGeometry(0.1, 0.002, 0.03).translate(0, 0.013, 0.05), M.gold); break;   // V58: Programmheft
     case 'nuts': fill = add(lathe([[0, 0], [0.04, 0], [0.07, 0.035], [0.068, 0.037], [0, 0.006]], 18), M.gold); add(new T.SphereGeometry(0.055, 12, 6, 0, Math.PI * 2, 0, 1.1).scale(1, 0.35, 1).translate(0, 0.012, 0), M.bread); break;
     default: plate(); fill = new T.Group(); g.add(fill); for (const s of [-1, 1]) fill.add(new T.Mesh(new T.BoxGeometry(0.08, 0.05, 0.08).rotateY(0.785).translate(s * 0.045, 0.04, 0), M.bread));
   }
@@ -88,16 +96,17 @@ export function dishModel(type) {
 }
 
 export function venue(o) {
+  const rr = o.rng || R, pk = a => a[Math.floor(rr() * a.length)], cafe = !!o.cafe;   // V58: eigener Zufall (Café), Kaffeehaus-Variante des Restaurants
   const { x, z, w, d, kind } = o, x0 = x - w / 2, x1 = x + w / 2, z0 = z - d / 2, z1 = z + d / 2, F = 0.3, H = 5.2, bar = kind === 'bar';
   const K = kit(bar ? workMats() : null), V = { ...o, x0, x1, z0, z1, F, seats: [], tables: [], waiters: [], station: null, staff: [], peds: [] };
   VENUES.push(V);
   // Boden: Parkett in der Bar, Teppich im Restaurant; vor der Tür eine Stufe
   // V46: Kneipe mit Dielenboden aus dunklem Holz
-  K.add(bar ? 'plank' : 'carpet', Bx(w, F, d, x, F / 2, z, bar ? 2.2 : 3), bar ? [0.5, 0.36, 0.26] : [0.75, 0.45, 0.45]);
+  K.add(bar ? 'plank' : cafe ? 'tile' : 'carpet', Bx(w, F, d, x, F / 2, z, bar ? 2.2 : cafe ? 1.6 : 3), bar ? [0.5, 0.36, 0.26] : cafe ? [0.9, 0.86, 0.78] : [0.75, 0.45, 0.45]);   // V58: Kaffeehaus mit Fliesenboden
   addCollider(x0, 0, z0, x1, F, z1);
   // Wände mit hohen Fenstern; Eingang mittig zur Stadt, zum See hin fast ganz verglast
   const cols = [];
-  const outC = bar ? [0.95, 0.88, 0.84] : [0.88, 0.84, 0.74], inK = bar ? 'inWood' : 'paint', inC = bar ? [0.62, 0.42, 0.28] : [0.32, 0.5, 0.5];
+  const outC = bar ? [0.95, 0.88, 0.84] : cafe ? [0.92, 0.88, 0.78] : [0.88, 0.84, 0.74], inK = bar || cafe ? 'inWood' : 'paint', inC = bar ? [0.62, 0.42, 0.28] : cafe ? [0.8, 0.66, 0.46] : [0.32, 0.5, 0.5];   // V58: Café innen helles Holz
   const wo = { outK: bar ? 'brick' : 'stone', outC, inK, inC, th: 0.36, sill: bar ? 1.0 : 0.6, head: H - 0.9, win: bar ? 1.6 : 2.2, post: 0.6 };
   wallRun(K, cols, x0, z1, x1, z1, F, H, { ...wo, doors: [[w / 2 - 1.3, w / 2 + 1.3]] });
   wallRun(K, cols, x1, z1, x1, z0, F, H, wo);
@@ -113,9 +122,9 @@ export function venue(o) {
   K.add('gold', Bx(w + 0.8, 0.12, d + 0.8, x, F + H + 0.02, z, 1));
   for (const [ww, hh] of [[10, 1.4], [6, 2.6], [2.6, 3.6]]) K.add('stone', Bx(ww, hh, 0.7, x, F + H + 0.6 + hh / 2, z1 - 0.2, 2), outC);
   K.add('gold', Bx(10.1, 0.1, 0.75, x, F + H + 2.0, z1 - 0.2, 1)); K.add('gold', Bx(6.1, 0.1, 0.75, x, F + H + 3.2, z1 - 0.2, 1));
-  const sign = nameplate(o.name, 9.2, 1.3, bar ? '#f2b45a' : '#f6dc9a');
+  const sign = nameplate(o.name, 9.2, 1.3, bar ? '#f2b45a' : cafe ? '#f8e2b0' : '#f6dc9a');
   sign.position.set(x, F + H + 1.25, z1 + 0.16); scene.add(sign);
-  addNeon(x, F + H + 1.25, z1 + 0.12, 9.6, 0.04, 0.04, NEON.gold); addNeon(x, F + H + 0.56, z1 + 0.12, 9.6, 0.04, 0.04, bar ? NEON.amber : NEON.teal);
+  addNeon(x, F + H + 1.25, z1 + 0.12, 9.6, 0.04, 0.04, NEON.gold); addNeon(x, F + H + 0.56, z1 + 0.12, 9.6, 0.04, 0.04, bar ? NEON.amber : cafe ? NEON.pearl : NEON.teal);
   // Vordach über der Tür, Pilaster, Laternen
   K.add('gold', Bx(4.2, 0.14, 2.2, x, F + 2.95, z1 + 1.1, 1)); K.add('iron', Bx(4.0, 0.06, 2.0, x, F + 2.86, z1 + 1.1, 1));
   for (const s of [-1, 1]) { K.add('stone', Bx(0.6, H, 0.5, x + s * 1.75, F + H / 2, z1 + 0.1, 1), outC.map(v => v * 0.9)); lamps.push({ x: x + s * 3.4, z: z1 + 1.6, h: 3.6 }); }
@@ -130,7 +139,7 @@ export function venue(o) {
     addGlow(u, F + H - 1.25, z, [1.4, 0.95, 0.5], 1.3); addLight(0xffb070, 2.2, 16, 1.6, u, F + H - 1.6, z);
   }
   const FMk = bar ? { up: 'leather', frame: 'iron', wood: 'varnish', lamp: 'lit', cloth: 'cloth' } : { up: 'leather', frame: 'gold', wood: 'varnish', lamp: 'lit', cloth: 'cloth' };
-  const upC = bar ? [0.2, 0.26, 0.17] : [0.1, 0.3, 0.32];
+  const upC = bar ? [0.2, 0.26, 0.17] : cafe ? [0.42, 0.22, 0.12] : [0.1, 0.3, 0.32];   // V58: Café: braunes Leder
   const fadd = (k, g) => K.add(k, g, k === 'leather' ? upC : k === 'lit' ? [1.6, 1.05, 0.55] : k === 'cloth' ? [0.94, 0.92, 0.86] : [1, 1, 1]);
   // Theke an der Westwand: Mahagoni, Messinglauf, Spiegel, Flaschenregal, Hocker
   const cx = x0 + 2.4, cz0 = z0 + 2.2, cz1 = z1 - 3.4;
@@ -144,16 +153,16 @@ export function venue(o) {
     K.add('varnish', Bx(0.35, 0.04, cz1 - cz0, x0 + 0.38, F + sy - 0.05, (cz0 + cz1) / 2, 1), [0.5, 0.26, 0.14]);
     for (let u = cz0 + 0.15; u < cz1 - 0.1; u += 0.13) {
       // V23: echte Flaschen (Kenney, CC0) zwischen den gezeichneten
-      if (R() < 0.55) { ware(pick(bar ? ['wine-red', 'wine-white', 'bottle', 'bottle-large', 'soda-bottle'] : ['wine-red', 'wine-white', 'wine-red']), x0 + 0.38, F + sy - 0.03, u, R); continue; }
-      const c = pick([[0.5, 1.0, 0.4], [1.4, 0.8, 0.3], [0.4, 0.8, 1.2], [1.2, 0.3, 0.3], [1.3, 1.2, 0.8], [0.9, 0.5, 0.2]]), hh = 0.2 + R() * 0.12;
+      if (rr() < 0.55) { ware(pk(bar ? ['wine-red', 'wine-white', 'bottle', 'bottle-large', 'soda-bottle'] : cafe ? ['cup-saucer', 'glass-wine', 'soda-bottle', 'cup-saucer', 'bottle'] : ['wine-red', 'wine-white', 'wine-red']), x0 + 0.38, F + sy - 0.03, u, rr); continue; }
+      const c = pk([[0.5, 1.0, 0.4], [1.4, 0.8, 0.3], [0.4, 0.8, 1.2], [1.2, 0.3, 0.3], [1.3, 1.2, 0.8], [0.9, 0.5, 0.2]]), hh = 0.2 + rr() * 0.12;
       K.add('lit', lathe([[0.03, 0], [0.032, hh * 0.65], [0.012, hh * 0.85], [0.011, hh]], 8).translate(x0 + 0.38, F + sy - 0.03, u), c.map(v => v * 0.6));
     }
   }
   addLight(0xffa860, 1.6, 9, 1.8, x0 + 1.2, F + 2.6, (cz0 + cz1) / 2);
   // auf der Theke: Gläser, Flaschen, im Restaurant Brotkorb und Obstschale
-  for (let u = cz0 + 0.5; u < cz1 - 0.4; u += 0.7 + R() * 0.6) ware(pick(bar ? ['bottle', 'bottle-large', 'soda-bottle', 'bottle'] : ['glass-wine', 'wine-white', 'cake', 'pie']), cx - 0.12 + R() * 0.2, F + 1.125, u, R);
-  if (!bar) for (let i = 0; i < 5; i++) ware(pick(['apple', 'orange', 'pear']), cx + (R() - 0.5) * 0.18, F + 1.125, cz1 - 0.6 + (R() - 0.5) * 0.18, R);
-  for (let u = cz0 + 0.6; u < cz1 - 0.3; u += 1.1) { tearWrap('hocker:' + vid(V) + ':' + u.toFixed(1), { name: 'Barhocker', m: 8, stuff: 'wood', seat: true }, () => placeFurn(FURN.barStool(), FMk, fadd, cx + 1.05, F, u)); if (bar && R() < 0.5) V.seats.push({ x: cx + 1.05, z: u, y: F + 0.89, yaw: -Math.PI / 2, tx: cx + 0.3, tz: u, ty: F + 1.12, stool: true }); }
+  for (let u = cz0 + 0.5; u < cz1 - 0.4; u += 0.7 + rr() * 0.6) ware(pk(bar ? ['bottle', 'bottle-large', 'soda-bottle', 'bottle'] : cafe ? ['cake', 'pie', 'cupcake', 'croissant', 'muffin', 'cake', 'cup-saucer'] : ['glass-wine', 'wine-white', 'cake', 'pie']), cx - 0.12 + rr() * 0.2, F + 1.125, u, rr);
+  if (!bar) for (let i = 0; i < 5; i++) ware(pk(['apple', 'orange', 'pear']), cx + (rr() - 0.5) * 0.18, F + 1.125, cz1 - 0.6 + (rr() - 0.5) * 0.18, rr);
+  for (let u = cz0 + 0.6; u < cz1 - 0.3; u += 1.1) { tearWrap('hocker:' + vid(V) + ':' + u.toFixed(1), { name: 'Barhocker', m: 8, stuff: 'wood', seat: true }, () => placeFurn(FURN.barStool(), FMk, fadd, cx + 1.05, F, u)); if (bar && rr() < 0.5) V.seats.push({ x: cx + 1.05, z: u, y: F + 0.89, yaw: -Math.PI / 2, tx: cx + 0.3, tz: u, ty: F + 1.12, stool: true }); }
   V.station = { x: cx + 1.4, z: cz1 + 0.9 };
   // Barkeeper hinter der Theke
   V.staff.push({ st: 4, x: cx - 0.95, y: F, z: (cz0 + cz1) / 2, yaw: Math.PI / 2, sc: 1, v: 0, kind: 'waiter', col: bar ? [0.82, 0.8, 0.74] : [0.92, 0.9, 0.85], act: 13.3, bartender: true, z0: cz0 + 0.6, z1: cz1 - 0.6 });
@@ -173,8 +182,9 @@ export function venue(o) {
     K.add('lit', new T.SphereGeometry(0.012, 6, 4).scale(1, 1.8, 1).translate(tx, F + 0.89, rz), [1.8, 1.2, 0.5]); addGlow(tx, F + 0.9, rz, [1.3, 0.75, 0.35], 0.35, Math.random(), 0);
     if (!bar) K.add('gold', lathe([[0.03, 0], [0.012, 0.03], [0.008, 0.16], [0.02, 0.2]], 8).translate(tx + 0.18, F + 0.76, rz + 0.1));
     tearEnd();
-    if (!bar) { ware(pick(['wine-red', 'wine-white']), tx - 0.16, F + 0.76, rz - 0.12, R); if (R() < 0.6) ware(pick(['bread', 'loaf']), tx + 0.05, F + 0.76, rz - 0.22, R, 0); }
-    else if (R() < 0.45) ware('bottle', tx - 0.14, F + 0.76, rz + 0.1, R);
+    if (cafe) { if (rr() < 0.5) ware(pk(['cupcake', 'croissant', 'muffin']), tx - 0.16, F + 0.76, rz - 0.12, rr); }
+    else if (!bar) { ware(pk(['wine-red', 'wine-white']), tx - 0.16, F + 0.76, rz - 0.12, rr); if (rr() < 0.6) ware(pk(['bread', 'loaf']), tx + 0.05, F + 0.76, rz - 0.22, rr, 0); }
+    else if (rr() < 0.45) ware('bottle', tx - 0.14, F + 0.76, rz + 0.1, rr);
     const n = bar ? 3 : 4, seatsHere = [];
     for (let k = 0; k < n; k++) {
       const a = (k / n) * Math.PI * 2 + (bar ? 0.5 : Math.PI / 4), sx = tx + Math.sin(a) * (tr + 0.32), sz = rz + Math.cos(a) * (tr + 0.32);
@@ -206,28 +216,28 @@ export function venue(o) {
   if (!bar) {
     K.add('stone', Bx(w, 0.25, 5, x, 0.125, z0 - 2.5, 3), [0.82, 0.8, 0.76]); addCollider(x0, 0, z0 - 5, x1, 0.25, z0);
     for (let tx = x0 + 2.5; tx < x1 - 1; tx += 4.2) { tearWrap('terrasse:' + vid(V) + ':' + tx.toFixed(1), { name: 'Tisch', m: 18, stuff: 'wood' }, () => placeFurn(FURN.roundTable(0.42, 0.74, true), FMk, fadd, tx, 0.25, z0 - 2.4)); for (const s of [-1, 1]) tearWrap('terrstuhl:' + vid(V) + ':' + tx.toFixed(1) + s, { name: 'Bistrostuhl', m: 6, stuff: 'wood', seat: true }, () => placeFurn(FURN.bistroChair(), FMk, fadd, tx + s * 0.75, 0.25, z0 - 2.4, s > 0 ? -Math.PI / 2 : Math.PI / 2)); addCollider(tx - 0.3, 0, z0 - 2.7, tx + 0.3, 1.0, z0 - 2.1); addGlow(tx, 0.98, z0 - 2.4, [1.3, 0.75, 0.35], 0.4, Math.random(), 0);
-      for (const s of [-1, 1]) if (R() < 0.6) VENUE_PEDS.push({ st: 4, x: tx + s * 0.75, y: 0.75, z: z0 - 2.4, yaw: s > 0 ? -Math.PI / 2 : Math.PI / 2, sc: 0.94 + R() * 0.12, v: 0, sit: true, act: pick([10.4, 11.4, 7.8]) }); }
+      for (const s of [-1, 1]) if (rr() < 0.6) VENUE_PEDS.push({ st: 4, x: tx + s * 0.75, y: 0.75, z: z0 - 2.4, yaw: s > 0 ? -Math.PI / 2 : Math.PI / 2, sc: 0.94 + rr() * 0.12, v: 0, sit: true, act: pk([10.4, 11.4, 7.8]) }); }
   }
   K.build(scene);
   // Gäste: etwa zwei Drittel der Plätze besetzt, mit Teller oder Glas vor sich
   const dishes = [];
   for (const s of V.seats) {
-    if (R() > (s.stool ? 0.55 : 0.68)) continue;
-    const r0 = R(), kind = bar ? pick(['worker', 'worker', 'coat', 'suit', 'chauffeur', 'worker', 'sailor', 'coat', 'lady', 'dress']) : pick(['tux', 'gown', 'suit', 'lady', 'gown', 'dress']);
-    const eat = !s.stool && !bar ? r0 < 0.6 : r0 < 0.25;
-    const pd = { st: 4, x: s.x, y: s.y, z: s.z, yaw: s.yaw, sc: 0.94 + R() * 0.12, v: 0, sit: true, kind, act: eat ? 10 + 0.3 + R() * 0.4 : (R() < 0.5 ? 11.4 : 7.8), seat: s, dineT: R() * 20 };
-    if (bar && kind === 'worker') pd.col = pick(R() < 0.5 ? SHIRTS : WORKWEAR);
+    if (rr() > (s.stool ? 0.55 : 0.68)) continue;
+    const r0 = rr(), kind = bar ? pk(['worker', 'worker', 'coat', 'suit', 'chauffeur', 'worker', 'sailor', 'coat', 'lady', 'dress']) : cafe ? pk(['coat', 'suit', 'lady', 'dress', 'flapper', 'dbl', 'lady', 'furcoat']) : pk(['tux', 'gown', 'suit', 'lady', 'gown', 'dress']);
+    const eat = !s.stool && !bar ? r0 < (cafe ? 0.45 : 0.6) : r0 < 0.25;
+    const pd = { st: 4, x: s.x, y: s.y, z: s.z, yaw: s.yaw, sc: 0.94 + rr() * 0.12, v: 0, sit: true, kind, act: eat ? 10 + 0.3 + rr() * 0.4 : (rr() < 0.5 ? 11.4 : 7.8), seat: s, dineT: rr() * 20 };
+    if (bar && kind === 'worker') pd.col = pk(rr() < 0.5 ? SHIRTS : WORKWEAR);
     s.taken = pd; V.peds.push(pd); VENUE_PEDS.push(pd); 
-    const dm = dishModel(eat ? pick(bar ? ['soup', 'nuts', 'sandwich'] : ['steak', 'soup', 'lobster', 'cake', 'oysters']) : pick(bar ? ['beer', 'beer', 'beerDark', 'tumbler', 'schnaps'] : ['coupe', 'wine']));
+    const dm = dishModel(eat ? pk(bar ? ['soup', 'nuts', 'sandwich'] : cafe ? ['cake', 'cake', 'sandwich'] : ['steak', 'soup', 'lobster', 'cake', 'oysters']) : pk(bar ? ['beer', 'beer', 'beerDark', 'tumbler', 'schnaps'] : cafe ? ['cup', 'cup', 'cup', 'highball'] : ['coupe', 'wine']));
     dm.position.set(s.tx, s.ty, s.tz); dm.rotation.y = s.yaw; dishes.push(dm); pd.dish = dm;
-    if (eat && !bar) { const gl = dishModel(pick(['wine', 'coupe'])); gl.position.set(s.tx + Math.cos(s.yaw) * 0.18, s.ty, s.tz - Math.sin(s.yaw) * 0.18); dishes.push(gl); }
+    if (eat && !bar) { const gl = dishModel(cafe ? 'cup' : pk(['wine', 'coupe'])); gl.position.set(s.tx + Math.cos(s.yaw) * 0.18, s.ty, s.tz - Math.sin(s.yaw) * 0.18); dishes.push(gl); }
   }
   // Geschirr nur in der Nähe zeigen (viele kleine Teile)
   V.dishes = new T.Group(); for (const dm of dishes) V.dishes.add(dm); scene.add(V.dishes); V.dishes.visible = false;
   for (const p of V.staff) VENUE_PEDS.push(p);
   // Kellner: weiße Jacke, gehen zwischen Station und Tischen
   for (let k = 0; k < (bar ? 1 : 2); k++) {
-    const wt = { st: 4, x: V.station.x, y: F, z: V.station.z, yaw: 0, sc: 1, v: 0, kind: 'waiter', col: bar ? [0.86, 0.82, 0.74] : [0.94, 0.92, 0.87], act: 12.5, waiter: true, path: [], wait: 2 + k * 4, carry: null, target: null };
+    const wt = { st: 4, x: V.station.x, y: F, z: V.station.z, yaw: 0, sc: 1, v: 0, kind: 'waiter', col: bar ? [0.86, 0.82, 0.74] : cafe ? [0.16, 0.14, 0.14] : [0.94, 0.92, 0.87], act: 12.5, waiter: true, path: [], wait: 2 + k * 4, carry: null, target: null };
     V.waiters.push(wt); VENUE_PEDS.push(wt);
   }
   return V;
@@ -362,6 +372,7 @@ export function pubStage(K, V, FMk, fadd) {
 }
 // Weg eines Kellners durch die Gänge: erst in den Gang zwischen den Tischreihen, dann zum Tisch
 export function waiterPath(V, from, to) {
+  if (V.pathFn) return V.pathFn(from, to);   // V58: Theater: Gänge zwischen den Sitzreihen
   const lane = to.z + (to.z < (V.z0 + V.z1) / 2 ? 1.6 : -1.6), cx = V.x0 + 4.6;
   const pts = [[from.x, from.z]];
   if (Math.abs(from.x - cx) > 0.5) pts.push([cx, from.z]);
@@ -380,7 +391,7 @@ export function updateVenues(dt) {
     V.dishes.visible = near;
     if (!near && DINE.venue !== V) continue;
     // Gäste wechseln zwischen essen, trinken und reden
-    updateGuestFlow(V, dt);
+    if (!V.still) updateGuestFlow(V, dt);   // V58: im Theater bleibt das Publikum sitzen
     for (const pd of V.peds) {
       if (pd.g || !pd.seat || (pd.dineT -= dt) > 0 || !pd.a) continue;
       pd.dineT = 6 + Math.random() * 14;
@@ -436,8 +447,8 @@ export function freeSeatNear(p) {
 }
 export function sitDown(V, s) {
   DINE.seat = s; DINE.venue = V; s.taken = 'player'; DINE.order = null; DINE.item = null;
-  player.p.set(s.x, s.y + 0.75 - EYE, s.z); player.v.set(0, 0, 0); player.yaw = s.yaw + Math.PI; player.pitch = -0.32;
-  toast('Platz genommen · E bestellen · W aufstehen');
+  player.p.set(s.x, s.y + 0.75 - EYE, s.z); player.v.set(0, 0, 0); player.yaw = s.yaw + Math.PI; player.pitch = s.pitch ?? -0.32;   // V58: im Theater Blick zur Bühne
+  toast(V.sitHint || 'Platz genommen · E bestellen · W aufstehen');
 }
 export function standUp() {
   const s = DINE.seat; if (!s) return;

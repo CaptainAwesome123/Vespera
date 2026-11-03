@@ -20,6 +20,7 @@ import { buildSky } from './sky.js';
 import { buildGroundFog, buildAirship } from './airships.js';
 import { TRAM_LINES, buildCars, buildTrucks, buildTrams, buildParticles } from './traffic.js';
 import { buildVenues } from './venues.js';
+import { buildOrte } from './orte.js';
 import { driveInteractions, venueInteractions } from './eating.js';
 import { buildMap, boatInteractions } from './boat.js';
 import { buildInteractions } from './music.js';
@@ -89,6 +90,8 @@ export async function build() {
   await step('buildShoreV16');
   buildVenues();
   await step('buildVenues');
+  buildOrte();   // V58: Varieté Metropol, Vespera-Bank, Café Kranich (eigener Zufall, auf Parkblöcken)
+  await step('buildOrte');
   buildGround();
   await step('buildGround');
   buildWaterPeople();   // V58: Eisläufer, Zuschauer, Hafenarbeiter, Angler (eigene kleine Menge)

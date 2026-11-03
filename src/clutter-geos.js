@@ -169,6 +169,12 @@ export function clutterGeos() {
     bottlecrate: () => { const P = [C(box(0.42, 0.04, 0.3, 0, -0.12), [0.5, 0.38, 0.22])]; for (const z of [-0.14, 0.14]) P.push(C(box(0.42, 0.18, 0.02, 0, -0.05, z), [0.55, 0.42, 0.25])); for (const x of [-0.2, 0.2]) P.push(C(box(0.02, 0.24, 0.3, x, -0.02, 0), [0.5, 0.38, 0.22]));
       for (let i = 0; i < 4; i++) for (let j = 0; j < 3; j++) P.push(C(lathe([[0, -0.1], [0.03, -0.1], [0.03, 0.03], [0.012, 0.08], [0.012, 0.12], [0, 0.12]], 7).translate(-0.135 + i * 0.09, 0, -0.09 + j * 0.09), [0.28, 0.14, 0.04]));
       return mergeColored(P); },
+    // V58: Goldbarren der Vespera-Bank (Trapezform mit Prägung) und Münzsack mit Kordel
+    goldbar: () => { const g = box(0.25, 0.07, 0.1); const p = g.attributes.position; for (let i = 0; i < p.count; i++) if (p.getY(i) > 0) { p.setX(i, p.getX(i) * 0.88); p.setZ(i, p.getZ(i) * 0.84); } g.computeVertexNormals();
+      return mergeColored([C(g, [0.95, 0.72, 0.28]), C(box(0.12, 0.004, 0.04, 0, 0.036), [0.7, 0.5, 0.18])]); },
+    coinsack: () => { const P = [C(lathe([[0.02, -0.17], [0.15, -0.16], [0.17, -0.05], [0.14, 0.08], [0.07, 0.14], [0.06, 0.17], [0.0, 0.17]], 12), [0.5, 0.42, 0.3]), C(tor(0.065, 0.012, 4, 10).translate(0, 0.12, 0), [0.3, 0.2, 0.1])];
+      for (let k = 0; k < 5; k++) P.push(C(ball(0.02, Math.cos(k * 1.26) * 0.05, 0.16, Math.sin(k * 1.26) * 0.05, 6, 4), [0.9, 0.72, 0.3]));
+      return mergeColored(P); },
   };
 }
 
@@ -210,5 +216,7 @@ export function clutterKinds() {
     chessboard: { name: 'Schachbrett', kind: 'box', he: [0.2, 0.04, 0.2], m: 1.5, stuff: 'wood', small: true },
     statuette: { name: 'Bronzefigur', kind: 'box', he: [0.07, 0.25, 0.07], m: 4, stuff: 'metal', small: true },
     bottlecrate: { name: 'Bierkasten', kind: 'box', he: [0.21, 0.14, 0.15], m: 14, stuff: 'wood', small: false },
+    goldbar: { name: 'Goldbarren', kind: 'box', he: [0.125, 0.035, 0.05], m: 12.4, stuff: 'metal', small: true },   // V58
+    coinsack: { name: 'Geldsack', kind: 'cyl', he: [0.17, 0.17, 0.17], m: 22, stuff: 'leather', small: false },
   };
 }

@@ -8,6 +8,7 @@ import { toast } from './boat.js';
 import { playing, paused, isTouch } from './input.js';
 import { SND, audioCtx, audioBus, toggleSound, soundMuted, updateSound } from './audio.js';
 import { VENUES } from './venues.js';
+import { ORTE, inOrt } from './orte.js';
 import { nearestMusic } from './life.js';
 
 /* =====================================================================
@@ -163,6 +164,13 @@ export function updateAudio(dt) {
     const dDoor = Math.hypot(p.x - (PV.x0 + PV.x1) / 2, p.z - PV.z1);
     if (inPub) { const d = Math.hypot(p.x - (PV.x1 - 1.5), p.z - (PV.z1 - 3)); jz = Math.min(0.85, 0.3 + 6 / (5 + d)); cut = 5200; pub = true; }
     else if (dDoor < 28 && p.y < 12) { jz = 0.2 * (1 - dDoor / 28); cut = 700; pub = true; }
+  }
+  // V58: im Varieté Metropol spielt die Kapelle im Graben (Jazzband), gedämpft im Foyer und vor der Tür
+  const TH = ORTE.theater;
+  if (TH && !inBall && !inLobby && p.y < 20) {
+    const ort = inOrt(p.x, p.z, p.y);
+    if (ort === 'theater') { const inH = TH.inHall(p.x, p.z, p.y), d = Math.hypot(p.x - (TH.x1 - 9), p.z - TH.z); if (inH) { jz = Math.min(0.9, 0.35 + 8 / (6 + d)); cut = 8000; } else { jz = 0.3; cut = 1200; } pub = false; }
+    else { const dDoor = Math.hypot(p.x - TH.x0, p.z - TH.z); if (dDoor < 26) { const v = 0.18 * (1 - dDoor / 26); if (v > jz) { jz = v; cut = 700; pub = false; } } }
   }
   // V55: Straßenmusik (Leierkasten, Klavier) in der Nähe, wenn sonst nichts lauter spielt
   if (!inBall && !inLobby && p.y < 20) {
