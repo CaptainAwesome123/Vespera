@@ -41,7 +41,7 @@ export const SHOP_KINDS = [
   { k: 'bar', w: 1.0, names: ['BAR AZUR', 'COCKTAIL-SALON', 'ZUR GOLDENEN NACHT'], ware: 'einen Gin Fizz', col: [0.06, 0.1, 0.26] },
 ];
 export const SHOP_SAY = {
-  hut: ['Der steht Ihnen ausgezeichnet. Fünf Mark, mit Hutschachtel.', 'Ein Homburg für den Herrn? Oder lieber etwas Verwegenes?'],
+  hut: ['Der steht Ihnen ausgezeichnet. Fünf Lumen, mit Hutschachtel.', 'Ein Homburg für den Herrn? Oder lieber etwas Verwegenes?'],
   buch: ['Frisch aus der Druckerei. Lesen Sie es nicht in einer Nacht, es lohnt sich.', 'Die Erstausgabe habe ich hinten im Regal, wenn Sie Zeit haben.'],
   deli: ['Der Käse kommt von den Almen über dem Tunnel. Probieren Sie!', 'Oliven, Schinken, ein Glas Wein dazu? Ich packe es Ihnen ein.'],
   tabak: ['Handgerollt, aus der Kiste von heute Morgen.', 'Die Abendausgabe ist gerade gekommen. Der Belmont-Ball ist auf Seite eins.'],
@@ -49,7 +49,7 @@ export const SHOP_SAY = {
   blumen: ['Weiße Rosen, heute Nacht frisch aus dem Gewächshaus.', 'Für den Ballsaal nehmen die Herrschaften meist Lilien.'],
   apotheke: ['Dreimal täglich, und nicht mit Champagner einnehmen.', 'Kölnisch Wasser, das Beste gegen die Tanznacht danach.'],
   mode: ['Seide aus Lyon, geschnitten nach dem neuesten Pariser Heft.', 'Dazu die langen Handschuhe, dann ist das Ensemble vollkommen.'],
-  platten: ['Hören Sie, das Orchester vom Brass Lantern! Gestern aufgenommen.', 'Der Foxtrott läuft in jedem Salon der Stadt. Zwei Mark fünfzig.'],
+  platten: ['Hören Sie, das Orchester vom Brass Lantern! Gestern aufgenommen.', 'Der Foxtrott läuft in jedem Salon der Stadt. Zwei Lumen fünfzig.'],
   spiel: ['Aufziehen, loslassen, und sie fährt bis zur Tür.', 'Zinnsoldaten, handbemalt. Die Kinder lieben die Luftschiffer.'],
   schneider: ['Zweireiher, schmale Schulter. In einer Woche sitzt er wie angegossen.', 'Den Stoff habe ich extra aus dem Hafen holen lassen.'],
   friseur: ['Nehmen Sie Platz, heißes Tuch, dann die Klinge.', 'Pomade? Heute Abend will doch jeder glänzen.'],

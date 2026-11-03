@@ -1,5 +1,6 @@
 /* =====================================================================
    V61 · DAS KONTOR: WIRTSCHAFT UND HANDEL
+   Währung: der LUMEN (Lm), 100 Funken; Goldmünzen mit Sonnenfächer und Kristall.
    Alexander ist der reichste Mann von Vespera. Das Kontorbuch (Taste I oder ein
    Klick auf das Vermögen oben rechts) führt sein Geld, seinen Besitz, sein Lager,
    seine Aktien, seine Stiftungen und seine Aufgaben (aufgaben.js).
@@ -215,7 +216,7 @@ function ktNewsBox() {
 function ktChanged(why) { KT.dirty = true; for (const f of KT.hooks) try { f(why); } catch (e) { console.warn('Kontor:', e); } if (KT.open) ktRender(); ktHud(true); }
 
 /* ---------- Hilfen ---------- */
-export const fmM = n => (n < 0 ? '−' : '') + Math.round(Math.abs(n)).toLocaleString('de-DE') + ' Mark';
+export const fmM = n => (n < 0 ? '−' : '') + Math.round(Math.abs(n)).toLocaleString('de-DE') + ' Lumen';
 const fmN = n => Math.round(n).toLocaleString('de-DE');
 const fmP = n => (n >= 100 ? Math.round(n).toLocaleString('de-DE') : n.toFixed(n < 10 ? 2 : 1).replace('.', ','));
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
