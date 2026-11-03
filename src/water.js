@@ -228,7 +228,7 @@ export function buildHarborWaterMat() {
     uniforms: U,
     vertexShader: WATER_VERT,
     fragmentShader: `uniform float uTime; uniform vec3 uFogColor; uniform float uFogDensity; uniform vec3 uMoonDir; uniform vec3 uCam; uniform vec3 uTeal;
-      uniform sampler2D uRefl; uniform mat4 uReflMat; uniform float uReflOn; uniform vec4 uWake[4]; uniform float uWakeL[4]; uniform vec4 uWind;
+      uniform sampler2D uRefl; uniform mat4 uReflMat; uniform float uReflOn; uniform vec4 uWake[4]; uniform float uWakeL[4]; uniform vec4 uWind; uniform vec4 uCanal;
       varying vec3 vW; varying float vD; varying vec2 vGG; varying float vJ; varying float vH;
       ${WATER_COMMON}
       ${LAND_GLSL()}
@@ -241,6 +241,7 @@ export function buildHarborWaterMat() {
       }
       void main(){
         vec2 p = vW.xz;
+        if (abs(p.x - uCanal.x) < uCanal.y && p.y > uCanal.z && p.y < uCanal.w) discard;   // V58: der Kanal liegt tiefer als das Hafenwasser
         float far = smoothstep(120.0, 1400.0, vD), aa = clamp(1.0 - fwidth(p.x) * 0.9, 0.0, 1.0);
         vec2 g = waveGrad(p, uTime, 1.0) * mix(0.5 + uWind.z * 0.05, 0.35, far) + vGG / 0.35;
         g += ripple(p, uTime) * 0.05 * aa;

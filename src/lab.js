@@ -24,6 +24,7 @@ export function startLab(params) {
   if (params.get('lab') === 'kram') { import('./lab-kram.js').then(L => L.startKramLab(params)); return; }   // V53: die vielen neuen losen Dinge
   if (params.get('lab') === 'leben') { import('./lab-leben.js').then(L => L.startLifeLab(params)); return; }   // V55: Straßenmusik, Kellner, Haltungen zu Alexander
   if (params.get('lab') === 'kraft') { import('./lab-kraft.js').then(L => L.startKraftLab(params)); return; }   // V52: Telekinese-Möbel und staunende Leute
+  if (params.get('lab') === 'wasser') { import('./lab-wasser.js').then(L => L.startWaterLab(params)); return; }   // V58: gefrorener Kanal, Güterkai, Boote
   if (params.get('lab') === 'landschaft') { import('./lab-landschaft.js').then(L => L.startLandscapeLab(params)); return; }   // V44: Landschafts-Labor
   buildEnv(); getMats();
   scene.fog.density = 0.0002;

@@ -15,6 +15,7 @@ import { toast } from './boat.js';
 import { INTERACT, travel } from './music.js';
 import { liftProfile } from './main.js';
 import { updateImperial } from './imperial.js';
+import { updateWaterLife, assignWakes, WATER } from './wasser.js';
 
 /* =====================================================================
    HAFEN: Kaipromenade, Jachthafen mit begehbaren Booten, Fähre und Luftschiffhafen
@@ -566,7 +567,7 @@ export function placeVessel(b, x, z, ry, kind = 'moored') {
 /* ---------- Bau: Kai, Jachthafen, Fähranleger, Luftschiffhafen ---------- */
 export const PIER_Y = -0.95, MARINA_X = [-400, -300, -200], FERRY_X = -110;
 export const AP = { x: 620, z: 637.5, fy: 34, tx: 0, tz: 0 };
-export const QUAY_GAPS = [[-401.7, -398.3], [-301.7, -298.3], [-201.7, -198.3], [-112.2, -107.8], [600, 616]];
+export const QUAY_GAPS = [[-401.7, -398.3], [-301.7, -298.3], [-201.7, -198.3], [-112.2, -107.8], [600, 616], [-607.5, -592.5], [298.3, 301.7]];   // V58: Güterkai und Anleger der Wassertaxis
 export function buildPort() {
   const K = kit(), z1 = QUAY.z1;
   // Kaimauer: Granitbelag, Kantensteine, eiserne Reling mit Goldhandlauf und Lichtband, Poller, Leitern
@@ -667,7 +668,7 @@ export function buildPort() {
   FERRY.curve = new T.CubicBezierCurve3(A, A.clone().add(new T.Vector3(0, 0, 230)), Bp.clone().add(new T.Vector3(0, 0, 230)), Bp);
   FERRY.len = FERRY.curve.getLength();
   // Kleine Motorboote, die draußen in der Bucht Kreise ziehen
-  for (let k = 0; k < 3; k++) { const b = boatRunabout(rr); b.g.position.set(0, WATER_Y, 900); scene.add(b.g); CRUISERS.push({ g: b.g, body: b.body, c: [[-150, 980], [420, 1100], [-620, 860]][k], r: [[260, 120], [200, 140], [180, 90]][k], w: [0.032, -0.04, 0.05][k], ph: k * 2 }); }
+  for (let k = 0; k < 3; k++) { const b = boatRunabout(rr); b.g.position.set(0, WATER_Y, 900); scene.add(b.g); CRUISERS.push({ g: b.g, body: b.body, c: [[-150, 980], [420, 1100], [-640, 990]][k], r: [[260, 120], [200, 140], [170, 80]][k], w: [0.032, -0.04, 0.05][k], ph: k * 2 }); }   // V58: das dritte weiter draußen (innen fährt jetzt der Schlepper)
 
   buildAirport();
   // Spaziergänger auf der Promenade und auf den Stegen
@@ -680,7 +681,7 @@ export function buildPort() {
   for (const px of MARINA_X) grp(px + 8, 651.5, PIER_Y, 3);
   grp(FERRY_X, 585, PIER_Y, 3); grp(FERRY_X + 0.5, z1 - 9, 0.25, 4);
 }
-export const PORT_LOOPS = [], CRUISERS = [];
+export const PORT_LOOPS = [], CRUISERS = [], WAKE_C = [];
 export const FERRY = { s: 0, dir: 1, wait: 25, v: 0, curve: null, len: 1, g: null };
 
 /* ---------- Ufer der Stadtinsel: Kaimauer aus Granit, Brüstung mit Goldlicht, Laternen; Lücke nur für den Viadukt ---------- */
@@ -846,7 +847,7 @@ export function updatePort(dt, t) {
     if (v.kind !== 'moored' || !v.g.visible) continue;
     bobVessel(v, t);
   }
-  const W = U.uWake.value;
+  const W = U.uWake.value; WAKE_C.length = 0;
   // Fähre
   const F = FERRY;
   if (F.g) {
@@ -867,8 +868,10 @@ export function updatePort(dt, t) {
     const a = c.ph + t * c.w, x = c.c[0] + Math.cos(a) * c.r[0], z = c.c[1] + Math.sin(a) * c.r[1];
     const dx = -Math.sin(a) * c.r[0] * Math.sign(c.w), dz = Math.cos(a) * c.r[1] * Math.sign(c.w), sp = Math.hypot(dx, dz) * Math.abs(c.w);
     c.g.position.set(x, WATER_Y + 0.05 + waterH(x, z) * 0.8, z); c.g.rotation.y = Math.atan2(-dz, dx); c.body.rotation.z = 0.05; c.body.rotation.x = Math.sin(t * 2.1 + i) * 0.015 + 0.04 * Math.sign(c.w);
-    W[i + 1].set(x, z, Math.atan2(dz, dx), sp);
+    WAKE_C.push([x, z, Math.atan2(dz, dx), sp, 8.4]);
   });
+  updateWaterLife(dt, t);   // V58: Schlepper, Lastkahn, Wassertaxis, Ruderboote, Kran, Eisläufer
+  assignWakes([...WAKE_C, ...WATER.wakes]); WAKE_C.length = 0;
   updateZeppelin(dt, t);
   updateImperial(dt, t);   // V33
   for (const pf of PLATFORMS) pfRead(pf);

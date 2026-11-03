@@ -1,4 +1,5 @@
 import { primeChunks } from './chunks.js';
+import { buildWaterLife, buildWaterPeople, waterInteractions } from './wasser.js';
 import { setupStreetLayers } from './props.js';
 import { setupDecoLayers } from './deco.js';
 import { planClutter, setupClutterLayer, indexLamps } from './clutter.js';
@@ -80,6 +81,8 @@ export async function build() {
   await step('buildHarbor');
   buildPort();
   await step('buildPort');
+  buildWaterLife();   // V58: gefrorener Kanal, Güterkai mit Kran, Schlepper, Wassertaxis, Fischer- und Ruderboote
+  await step('buildWaterLife');
   buildImperial();   // V33: Alexanders Aurora Imperial (vor buildSerpentine, damit die Besatzung in die Menge kommt)
   await step('buildImperial');
   buildShoreV16();
@@ -88,6 +91,8 @@ export async function build() {
   await step('buildVenues');
   buildGround();
   await step('buildGround');
+  buildWaterPeople();   // V58: Eisläufer, Zuschauer, Hafenarbeiter, Angler (eigene kleine Menge)
+  await step('buildWaterPeople');
   buildSquareGround();   // V46: Kopfsteinpflaster auf dem Kneipenplatz im Arbeiterviertel
   buildSigns();
   await step('buildSigns');
@@ -134,6 +139,7 @@ export async function build() {
   buildInteractions();
   await step('buildInteractions');
   portInteractions();
+  waterInteractions();   // V58
   await step('portInteractions');
   driveInteractions();
   await step('driveInteractions');
