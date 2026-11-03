@@ -154,9 +154,10 @@ function buildTheater(b, rr) {
     DOORS.push({ x: X0 - 0.6, z: cz, nx: -1, nz: 0, kind: 'hotel' });   // Grüppchen vor der Tür, Leute gehen hinein wie in ein Hotel
   }
   // ---- Foyer: Teppich, Stuckdecke, Kronleuchter, Kasse, Garderobe, Sektbar, Spiegel, Palmen, Treppe
-  K.add('carpet', Bx(xT - X0 - 0.6, 0.04, Z1 - Z0 - 1, (X0 + xT) / 2, F + 0.02, cz, 3), [0.7, 0.35, 0.35]);
+  K.add('carpet', Bx(xT - X0 - 0.6, 0.04, Z1 - Z0 - 1, (X0 + xT) / 2, F + 0.02, cz, 1.6), [0.7, 0.35, 0.35]);
   K.add('ceil', Bx(xT - X0 - 0.4, 0.2, Z1 - Z0 - 0.6, (X0 + xT) / 2, F + HF - 0.1, cz), [1, 1, 1]);
   for (const k of [0, 1]) K.add('gold', Bx(xT - X0 - 0.8 - k * 1.4, 0.06, Z1 - Z0 - 1.2 - k * 1.4, (X0 + xT) / 2, F + HF - 0.24 - k * 0.05, cz, 1));
+  addLight(0xffe0c0, 1.6, 20, 1.4, (X0 + xF) / 2, F + HF - 2.2, cz, true);   // Foyer-Grundlicht (Stuckdecke war im Labor schwarz)
   chandelier(K, (X0 + xF) / 2, F + HF - 1.4, cz, 1.2); chandelier(K, (X0 + xF) / 2, F + HF - 1.4, cz - 9, 0.8); chandelier(K, (X0 + xF) / 2, F + HF - 1.4, cz + 9, 0.8);
   for (const zz of [Z0 + 0.3, Z1 - 0.3]) for (let x = X0 + 2; x < xT - 1; x += 3.5) sconce(K, x, F + 2.6, zz, 0, zz < cz ? 1 : -1);
   // Kasse (Nordseite neben dem Eingang): Kabine mit Fenster, Schild, Kassiererin
