@@ -1,7 +1,5 @@
 import { shared, mulberry32, canvasTex, T, R, scene, U, MOBILE, LOW, bakeGroup } from './core.js';
 import { stdMat, MAT } from './people-skeleton.js';
-import { shafts } from './facade-shader.js';
-import { BEL } from './belmont.js';
 import { texSet } from './serpentine.js';
 import { makeGlowPoints } from './ragdoll.js';
 
@@ -159,29 +157,6 @@ export function buildAirship(L, R0, adIndex, beam, opts = {}) {
   return grp;
 }
 
-/* ---------- Lichtsäulen: Lichtkegel, die aus den Kronen in den Himmel steigen ---------- */
-export function buildShafts() {
-  const n = shafts.length; if (!n) return;
-  const geo = new T.PlaneGeometry(1, 1).translate(0, 0.5, 0);
-  const g2 = geo.clone().rotateY(Math.PI / 2);
-  const col = new Float32Array(n * 3);
-  for (const g of [geo, g2]) {
-    const im = new T.InstancedMesh(g, new T.ShaderMaterial({
-      uniforms: U, transparent: true, depthWrite: false, blending: T.AdditiveBlending, side: T.DoubleSide,
-      vertexShader: `attribute vec3 aCol; varying vec2 vUv; varying vec3 vC; varying float vD;
-        void main(){ vUv = uv; vC = aCol; vec4 mv = modelViewMatrix*instanceMatrix*vec4(position,1.0); vD = -mv.z; gl_Position = projectionMatrix*mv; }`,
-      fragmentShader: `uniform float uTime; uniform float uFogDensity; uniform float uMist; uniform float uCloud; varying vec2 vUv; varying vec3 vC; varying float vD;
-        void main(){ float x = abs(vUv.x - 0.5)*2.0; float a = pow(1.0 - x, 2.2) * pow(1.0 - vUv.y, 1.7) * (0.85 + 0.15*sin(uTime*0.7 + vUv.y*9.0));
-          // V25: im Dunst stehen die Säulen kräftiger; unter einer Wolkendecke enden sie früher
-          a *= (0.75 + 0.35 * min(uMist, 2.0)) * (1.0 - uCloud * 0.5 * smoothstep(0.35, 0.8, vUv.y));
-          a *= exp(-uFogDensity*uFogDensity*vD*vD*0.6); gl_FragColor = vec4(vC * a * 0.22, 1.0); }`,
-    }), n);
-    const m = new T.Matrix4();
-    shafts.forEach((s, i) => { m.makeScale(s.w, s.h, s.w).setPosition(s.x, s.y, s.z); im.setMatrixAt(i, m); col.set(s.c, i * 3); });
-    g.setAttribute('aCol', new T.InstancedBufferAttribute(col, 3));
-    im.frustumCulled = false; im.renderOrder = 2; scene.add(im);
-  }
-}
 export const GROUND_FOG = [];
 export function buildGroundFog() {
   const mat = new T.ShaderMaterial({
@@ -287,15 +262,6 @@ export function updateBeamSpots() {
     s.m.rotation.y = Math.atan2(_bd.x, _bd.z); s.m.scale.set(r * 2, 1, r * 2 * Math.min(k, 2.5));
   }
 }
-export const searchlights = [];
-export function buildSearchlights() {
-  for (let i = 0; i < 4; i++) {
-    const piv = new T.Group(); piv.position.set((i % 2 ? 1 : -1) * 8, BEL.s5 + 1, (i < 2 ? 1 : -1) * 8);
-    const b = makeBeam(1100, 46, 0.055); piv.add(b);
-    scene.add(piv); searchlights.push({ piv, ph: i * Math.PI / 2, tilt: 0.35 + 0.08 * i });
-  }
-}
-
 /* ---------- Automobile ---------- */
 export const cars = [];
 shared.carMesh = undefined; shared.carMeshHi = undefined; shared.carLights = undefined; shared.carCmp = undefined;

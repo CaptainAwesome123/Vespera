@@ -280,6 +280,19 @@ Außenhaut, Garten, Terrassen und das Fest.
 - *Messen:* `tools/profile.js` misst ohne Zeichnen Ladezeit, JS-Zeit je Bild mit den teuersten Funktionen,
   Objekte im Blickfeld mit Dreiecken und JS-Speicher an festen Aussichtspunkten.
 
+**V57: Leistung nach den großen Updates.** Gleiche Inhalte, weniger Arbeit je Bild.
+- *Leistungsanzeige:* Taste `P` oder `?leistung` zeigt Bilder pro Sekunde, Bildzeit, Auflösungsstufe und für jeden
+  Durchgang (Bild, Spiegelbild, Mondschatten) Zeichenaufrufe und Dreiecke (`PERF` in `performance.js`).
+- *Laternen:* feine Kandelaber nur noch bis 130 m, gemessen bis zum nächsten Zellrand (`lodEdge`, `lodHyst` in
+  `chunks.js`); vorher galt 330 m ab Zellmitte, also bis über 500 m (rund eine Million Dreiecke je Bild).
+- *Schatten:* Pierce Arrows weiter als 210 m werfen keinen Mondschatten mehr (dritte Stufe in `lodCompactor`);
+  die Schattenkarte reicht ohnehin nur rund 150 m um den Blickpunkt.
+- *Ampeln:* die 246 Masten werden nur noch bis zur Nebelgrenze gezeichnet (`cullTrafficMasts`, `traffic.js`).
+- *Nebel:* Kleinkram (`clutter`) und Gassen im Arbeiterviertel (`arbeiter`) verschwinden im dichten Nebel wie Möbel.
+- *Auflösung:* am PC Start mit der echten Bildschirmauflösung statt 1,3-fach, Stufe tiefer schon unter 49 Bildern
+  pro Sekunde (vorher 42). Bei knapper Bildrate entsteht das Spiegelbild nur jedes zweite Bild (`REFL.half`).
+- *Aufgeräumt:* Feuerwerk, Lichtsäulen aus den Kronen und Suchscheinwerfer des Belmont (seit V33/V42 aus) entfernt.
+
 Große Modelle: Draco/Meshopt sind noch nicht eingebunden; KTX2 braucht die Transcoder-Dateien vom CDN
 (`THREE_CDN` in `assets.js`). Die Einzeldatei bettet `assets/` als Daten-URLs ein; ab einigen MB lohnt sich das
 nicht mehr, dann bleibt das Artefakt ohne die großen Dateien und nur GitHub Pages zeigt sie.

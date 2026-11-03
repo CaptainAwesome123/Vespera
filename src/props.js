@@ -16,9 +16,10 @@ import { manifest, loadManifest, prepareModels, instanceModel, bakeModel, applyT
 import { STREET } from './serpentine.js';
 import { paintMat, ENV } from './people-skeleton.js';
 import { decoLampGeo, decoLampMats } from './decolamp.js';
+import { REFL } from './water.js';
 
 export const PROPS_CELL = 250, PROPS_RADIUS = 700, PROPS_LOD_FAR = 260;
-export const STREET_CELL = 250, STREET_LOD = 330;              // Zellgröße und Entfernung, ab der nur noch die einfache Form steht
+export const STREET_CELL = 250, STREET_LOD = 330, LAMP_LOD = 130;              // Zellgröße und Entfernung, ab der nur noch die einfache Form steht
 export const props = { placements: [], ready: false, baked: {}, mat: null };
 
 // Modelle je Verwendung: Name im Manifest, Farben je Materialname, Zielhöhe in Metern
@@ -41,7 +42,10 @@ function instanced(geo, mat, list, place, colored) {
 export function setupStreetLayers() {
   const LP = STREET.lampParts; if (!LP) return;
   registerLayer({
-    name: 'lamps', size: STREET_CELL, radius: cam => 400 + Math.max(0, cam.position.y) * 1.5, lods: [STREET_LOD],
+    // V57: feine Kandelaber (1 656 Dreiecke) nur bis LAMP_LOD m, gemessen bis zum nächsten Rand der Zelle; dahinter die schlichte Form.
+    // Kanneluren, Finnen und Rippen sind ab rund 100 m schmaler als ein Bildpunkt. Vorher galt die Grenze ab der Zellmitte
+    // (330 m), also bis über 500 m: rund eine Million Dreiecke Laternen je Bild, im Spiegelbild noch einmal.
+    name: 'lamps', size: STREET_CELL, radius: cam => 400 + Math.max(0, cam.position.y) * 1.5, lods: [LAMP_LOD], lodEdge: true, lodHyst: 20,
     build(cx, cz, lod) {
       const here = STREET.lamps.filter(l => !l.taken && inCell(l, cx, cz, STREET_CELL)); if (!here.length) return null;
       for (const l of here) l._ims = [];   // V53: Telekinese nimmt Laternen heraus (beide Netze)
@@ -53,6 +57,8 @@ export function setupStreetLayers() {
         g.add(instanced(G.metal, M.metal, list, (l, i, im) => { im.setMatrixAt(i, _pm.makeTranslation(l.x, l.y, l.z)); l._ims.push([im, i]); }));
         g.add(instanced(G.glass, M.glass, list, (l, i, im) => { im.setMatrixAt(i, _pm.makeTranslation(l.x, l.y, l.z)); l._ims.push([im, i]); }));
       }
+      // V57: die Zelle wechselt jetzt öfter die Detailstufe; gleich ins Spiegelbild aufnehmen (sonst erst beim nächsten reflSweep nach bis zu 4 s)
+      if (REFL.rt) { g.traverse(o => o.layers.enable(1)); g.userData.reflSeen = true; }
       return g;
     },
     dispose() { /* Geometrien gehören den Vorlagen */ },

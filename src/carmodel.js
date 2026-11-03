@@ -16,6 +16,7 @@ import { resolveAsset } from './assets.js';
 
 export const CARM = {
   ready: false, share: 0.4,                  // Anteil der Pierce Arrows in Verkehr und Parkreihen
+  shadow2: 210 * 210,                        // V57: bis hierhin werfen die Wagen Mondschatten (Schattenkarte: 300 m um den Blickpunkt)
   near2: 70 * 70,                            // bis 70 m die volle Fassung (27 000 Dreiecke), dahinter die ferne (4 300)
   geoHi: null, geoBody: null, geoWheel: null, geoLo: null, mat: null,
   // Maße aus der Datei (extras.car); Werte hier nur, bis sie geladen ist
@@ -71,9 +72,11 @@ export function loadCarModel() {
   return loading;
 }
 // Instanzen für einen Satz Wagen: nah (mit Rädern), fern (vereinfacht); gleiche Instanzfarben wie die eigenen Autos
-export function modelCarMeshes(n, wheels = true) {
+// V57: withFar = dritte Stufe ohne Schatten für Wagen jenseits von CARM.shadow2 (siehe lodCompactor in serpentine.js)
+export function modelCarMeshes(n, wheels = true, withFar = false) {
   if (!CARM.mat) CARM.mat = carModelMat(...CARM.tex);   // erst beim Aufbau: dann gibt es die Umgebungskarte ENV
   const hi = new T.InstancedMesh(wheels ? CARM.geoHi : CARM.geoBody, CARM.mat, n), lo = new T.InstancedMesh(CARM.geoLo, CARM.mat, n), c = new T.Color(1, 1, 1);
-  for (const im of [hi, lo]) { im.setColorAt(0, c); im.count = 0; im.instanceMatrix.setUsage(T.DynamicDrawUsage); im.frustumCulled = false; im.castShadow = true; scene.add(im); }
-  return { hi, lo };
+  const far = withFar ? new T.InstancedMesh(CARM.geoLo, CARM.mat, n) : null;
+  for (const im of [hi, lo, far]) { if (!im) continue; im.setColorAt(0, c); im.count = 0; im.instanceMatrix.setUsage(T.DynamicDrawUsage); im.frustumCulled = false; im.castShadow = im !== far; scene.add(im); }
+  return { hi, lo, far };
 }
