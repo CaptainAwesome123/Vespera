@@ -4,6 +4,7 @@ import { skipDepthResolve } from './depth.js';
 import { updateIndustry, updateShops } from './shops.js';
 import { inBelmont, interiorCrowd, updateBelmontDoor } from './belmont.js';
 import { inPenthouse, updatePenthouse } from './penthouse.js';
+import { updatePentStaff } from './haushalt.js';
 import { WATER_Y, updateInterior } from './dance.js';
 import { REFL, updateWaves, harborWater, renderReflection } from './water.js';
 import { updatePort, carryPlayer, VILLA, terrainHeight } from './harbour.js';
@@ -208,6 +209,7 @@ export function frame(now) {
   updateInterior(t, nearBel);
   updateBelmontDoor(dt);
   updatePenthouse(dt);
+  updatePentStaff(dt);   // V57
   const nearVilla = Math.hypot(camera.position.x - VILLA.x, camera.position.z - VILLA.z) < 650;
   if (VILLA.crowd) VILLA.crowd.show(nearVilla);
   if (nearVilla) updateVilla(t); else updateVillaZones(false);
