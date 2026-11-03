@@ -52,6 +52,7 @@ import './voice.js';     // V59: Stimmen (Sprachausgabe des Browsers)
 import './stimmen.js';   // V59: mehr Sätze und Reaktionen
 import './zeitung.js';   // V61: der Vespera-Kurier (Zeitung, Extrablätter, Rufe der Zeitungsjungen)
 import './pausemenu.js'; // V61: Pausenmenü mit Tastenübersicht (Tab / F1)
+import './handy.js';     // V61: Touch-Steuerung und Leistung fürs Handy
 
 import { shared, $, renderer, scene, camera } from './core.js';
 import { layers, chunkStats } from './chunks.js';
@@ -87,7 +88,7 @@ export async function start(data) {
   setupProps().catch(e => console.warn('Requisiten:', e));
   await precompile();
   $('enter').disabled = false;
-  $('loading').textContent = isTouch ? 'Links ziehen zum Gehen, rechts zum Umsehen.' : 'Klicke, um die Maus zu fangen. Esc gibt sie frei.';
+  $('loading').textContent = isTouch ? 'Links ziehen zum Gehen, rechts zum Umsehen. Rechts unten: Stoß, Kraft und Fliegen.' : 'Klicke, um die Maus zu fangen. Esc gibt sie frei.';
   requestAnimationFrame(t => { shared.last = t; frame(t); });
 }
 // V36: alle Shader der Szene (auch die verborgene Spielerfigur für die Ansicht von hinten, Innenräume usw.) schon hinter dem
