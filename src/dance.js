@@ -61,7 +61,7 @@ export function addNeonArc(x, y, z, r) {
 export function updateInterior(t, near) {
   if (!interiorCrowd || !near) return;
   const C = interiorCrowd, P = BI.P;
-  for (const c of dancers) placeCouple(C, c, t, BALLROOM_F, 0, 0, P);
+  for (const c of dancers) if (!c.off) placeCouple(C, c, t, BALLROOM_F, 0, 0, P);   // V61: beim Ehrenwalzer stehen die anderen Paare am Rand (gala.js)
   swayers.forEach((a, i) => C.set(a, a.x, a.y, a.z, a.yaw + Math.sin(t * 2.2 + i) * 0.12, 1, Math.sin(t * 4.4 + i * 1.7) * 0.05));
   for (const w of walkersIn) {
     const a = w.ph + t * w.sp, x = w.cx + Math.cos(a) * w.rx, z = w.cz + Math.sin(a) * w.rz;

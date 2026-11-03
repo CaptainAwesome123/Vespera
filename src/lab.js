@@ -18,6 +18,7 @@ export function startLab(params) {
   if (params.get('lab') === 'villa') { import('./lab-villa.js').then(L => L.startVillaLab(params)); return; }   // V41: Villa-Labor
   if (params.get('lab') === 'strassen') { import('./lab-strassen.js').then(L => L.startRoadsLab(params)); return; }   // V42: Straßen-Labor
   if (params.get('lab') === 'arbeiter') { import('./lab-arbeiter.js').then(L => L.startWorkersLab(params)); return; }   // V46: Arbeiterviertel und Brass Lantern
+  if (params.get('lab') === 'gala') { import('./lab-gala.js').then(L => L.startGalaLab(params)); return; }   // V61: Gala im Ballsaal und Feuerwerk
   if (params.get('lab') === 'belmont') { import('./lab-belmont.js').then(L => L.startBelmontLab(params)); return; }   // V51: Lobby und Ballsaal
   if (params.get('lab') === 'luftschiff') { import('./lab-luftschiff.js').then(L => L.startShipLab(params)); return; }   // V54: Aurora Imperial innen
   if (params.get('lab') === 'wetter') { import('./lab-wetter.js').then(L => L.startWeatherLab(params)); return; }   // V54: Polarlicht, Schneesturm, Eisblumen, nasse Straßen

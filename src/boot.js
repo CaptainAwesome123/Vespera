@@ -50,6 +50,7 @@ import './awe.js';
 import './audio.js';
 import './voice.js';     // V59: Stimmen (Sprachausgabe des Browsers)
 import './stimmen.js';   // V59: mehr Sätze und Reaktionen
+import './zeitung.js';   // V61: der Vespera-Kurier (Zeitung, Extrablätter, Rufe der Zeitungsjungen)
 import './handy.js';     // V61: Touch-Steuerung und Leistung fürs Handy
 
 import { shared, $, renderer, scene, camera } from './core.js';
