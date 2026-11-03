@@ -58,7 +58,7 @@ let fails = 0; const ok = (c, m) => { console.log((c ? 'OK   ' : 'FEHLER ') + m)
   ok(r.fall.some(t => /Räuber|Überfall/.test(t)), 'Überfall mit Festnahme wird zur Meldung');
   ok(r.gala.length === 1 && /9/.test(r.gala[0]), 'Gala-Ende wird zur Extrablatt-Meldung');
   ok(r.extra === true, 'Extrablatt gedruckt');
-  ok(/Räuber|Überfall/.test(r.lead), 'Überfall auf der Titelseite');
+  ok(/Gala|Stern|Belmont/.test(r.lead) && r.items.some(t => /Räuber|Überfall/.test(t)), 'Gala auf der Titelseite (prio 9), Überfall darunter');
   ok(r.items.some(t => /Automobil/.test(t)), 'gehobenes Automobil in der Zeitung');
   ok(r.kaesten.includes('Börse'), 'Kasten am Rand');
   ok(r.headAfter[0].startsWith('Extrablatt'), 'Zeitungsjungen rufen das Extrablatt aus');
