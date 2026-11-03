@@ -1,4 +1,5 @@
 import { shared, T, scene, camera } from './core.js';
+import { UNTER } from './unter-hook.js';
 import { MAT, mergeColored, nearBoxes } from './people-skeleton.js';
 import { onIsland, curbHeight, maskAt, elevatedHeightAt, canalIce } from './island.js';
 import { WATER_Y } from './dance.js';
@@ -35,6 +36,7 @@ export const tireF = (al, C, Fm) => { if (Fm < 1) return 0; const B = C / (1.45 
 export function engineT(rpm) { const k = Math.max(0, Math.min(1, (rpm - VP.idle) / (VP.red - VP.idle))); return 275 * (0.6 + 0.55 * Math.sin(Math.PI * (0.25 + k * 0.6))); }
 // Boden unter einem Punkt: Viadukt/Tunnel, Bürgersteig, Insel; außerhalb der Insel Wasser (null)
 export function groundAt(x, z, y) {
+  if (UNTER.ground && y < -6) { const u = UNTER.ground(x, z, y); if (u) return u; }   // V61: Boden der Verstecke unter der Stadt
   const rd = roadHeightAt(x, z, y + 1);
   if (rd.y > -1e8) return { y: rd.y, mu: 1, road: true, via: true };
   const ev = elevatedHeightAt(x, z, y + 1); if (ev && ev.y > 0.3) return { y: ev.y, mu: 1, road: true, elev: true, ax: ev.ax, at: ev.at };   // V42: Hochstraße und Rampen
