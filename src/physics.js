@@ -598,7 +598,7 @@ export function cullBodies(dt) {
   if ((cullT -= dt) > 0 || LOOSE.bodies.length < MAX_BODIES * 0.6) return; cullT = 3;
   const p = player.p; let relay = false;
   for (const B of LOOSE.bodies.slice()) {
-    if (B.awake || B.pf || B === LOOSE.held || B === LOOSE.tk || (B.x.x - p.x) ** 2 + (B.x.z - p.z) ** 2 < 320 * 320) continue;   // V54: an Bord räumt das Luftschiff selbst auf
+    if (B.awake || B.pf || B.lev || B === LOOSE.held || B === LOOSE.tk || (B.x.x - p.x) ** 2 + (B.x.z - p.z) ** 2 < 320 * 320) continue;   // V54: an Bord räumt das Luftschiff selbst auf
     if (B.furn) { if (B.x0 && B.x.distanceTo(B.x0) < 1.5) furnRestore(B); }
     else if (B.street) { if (B.x0 && B.x.distanceTo(B.x0) < 1.5) streetRestore(B); }
     else if (B.lamp) { if (B.x0 && B.x.distanceTo(B.x0) < 1.5) lampRestore(B); }
@@ -856,7 +856,7 @@ export function updateLoose(dt) {
   dt = Math.min(dt, 1 / 30);
   cullBodies(dt);
   const cp = camera.position, H = LOOSE.held;
-  const act = LOOSE.bodies.filter(B => { const far = (B.x.x - cp.x) ** 2 + (B.x.z - cp.z) ** 2 > 160 * 160; return !far && (B.awake || B === H || B === LOOSE.tk); });
+  const act = LOOSE.bodies.filter(B => { const far = (B.x.x - cp.x) ** 2 + (B.x.z - cp.z) ** 2 > 160 * 160; return !far && (B.awake || B === H || B === LOOSE.tk || B.lev); });
   // Wecken: der Spieler, Wagen und Fußgänger in der Nähe schlafender Dinge
   gatherKinematic(player.p.x, player.p.z, 30);
   for (const B of LOOSE.bodies) if (!B.awake) for (const k of KIN) {
@@ -876,6 +876,7 @@ export function updateLoose(dt) {
       B.v0.copy(B.v); B.w0.copy(B.w); B.xp.copy(B.x); B.qp.copy(B.q);
       if (B === H) holdDrive(B, target, h);
       else if (B === LOOSE.tk && LOOSE.tkTarget) tkDrive(B, LOOSE.tkTarget, h);
+      else if (B.lev) tkDrive(B, B.lev, h);   // V59: Levitation, kreist um Alexander (kraefte.js)
       else {
         B.v.y -= G * h;
         // Wasser: Auftrieb und Dämpfung (Holz und Papier schwimmen, Glas sinkt langsam)
@@ -926,7 +927,7 @@ export function updateLoose(dt) {
   }
   // Schlafen, Herunterfallen aus der Welt
   for (const B of act) {
-    if (B === H || B === LOOSE.tk) { B.still = 0; continue; }
+    if (B === H || B === LOOSE.tk || B.lev) { B.still = 0; continue; }
     // ruhig: bewegt sich kaum noch von der Stelle (kleines Zittern im Stapel zählt nicht)
     const calm = B.v.lengthSq() < 0.06 && B.w.lengthSq() < 0.4;
     if (calm) { if (!B.anchor) { B.anchor = B.x.clone(); B.anchorQ = B.q.clone(); B.still = 0; } B.still += dt; if (B.x.distanceTo(B.anchor) > 0.012 || B.q.angleTo(B.anchorQ) > 0.03) { B.anchor = null; B.still = 0; } }
