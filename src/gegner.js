@@ -17,7 +17,7 @@
    Wer am Boden liegt, ist besiegt: die Polizei kommt angelaufen, liest ihn
    auf und führt ihn ab. Die Leute klatschen, das Opfer bedankt sich.
    Oben in der Mitte zeigt ein Hinweis, wo etwas los ist (Richtung, Abstand,
-   Zündschnur). Taste O: sofort das nächste Ereignis (zum Ausprobieren);
+   Zündschnur). Taste J: sofort das nächste Ereignis (zum Ausprobieren);
    ?gegner=aus schaltet die Gegner ab.
    Schonend für die Grafikkarte: die Figuren sind normale Passanten aus dem
    vorhandenen Bestand (keine neuen Shader, keine neuen Lichter), die Würfe
@@ -920,9 +920,9 @@ export function updateGegner(dt) {
   gegHud();
 }
 
-// Taste O: sofort das nächste Ereignis (zum Ausprobieren), der Reihe nach Überfall, Taschendieb, Bombe, Angriff
+// Taste J: sofort das nächste Ereignis (zum Ausprobieren), der Reihe nach Überfall, Taschendieb, Bombe, Angriff
 if (typeof window !== 'undefined') window.addEventListener('keydown', e => {
-  if (e.code !== 'KeyO' || e.repeat || !pedCrowd) return;
+  if (e.code !== 'KeyJ' || e.repeat || !pedCrowd) return;
   if (GEGNER.ev) { toast('Es ist schon etwas los: ' + GEGNER.ev.label); return; }
   for (let i = 0; i < 4; i++) { const t = EV_TYPES[GEGNER.cycle++ % 4]; if (gegnerStart(t)) { toast('Ärger in der Nähe: ' + GEGNER.ev.label); return; } }
   toast('Hier ist gerade niemand für einen Überfall (auf die Straße gehen)');
