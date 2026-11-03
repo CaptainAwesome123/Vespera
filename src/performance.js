@@ -206,7 +206,7 @@ export function hudSet(id, v, html = false) { if (HUD_LAST[id] === v) return; HU
 export let hudTimer = 0, elapsed = 0; shared.last = performance.now();
 export function frame(now) {
   const raw = (now - shared.last) / 1000, rdt = Math.min(0.05, raw); shared.last = now;
-  // V59: Zeitlupe (Taste Z): die Welt läuft mit dt, Alexander selbst (Bewegung, Kräfte, Kamera) mit der echten Zeit rdt
+  // V60: Zeitlupe (Taste Z): die Welt läuft mit dt, Alexander selbst (Bewegung, Kräfte, Kamera) mit der echten Zeit rdt
   const dt = rdt * KRAEFTE.timeK; elapsed += dt;
   adaptResolution(raw, now);
   const t = elapsed;
@@ -222,7 +222,7 @@ export function frame(now) {
   updatePort(dt, t);
   if (playing) carryPlayer();
   if (playing && !paused) { if (DRIVE.on) updateDrive(rdt); else if (BOAT.on) updateBoatInput(rdt); else if (IMP.st === 'helm') impHelmInput(rdt); else updatePlayer(rdt); updatePowers(rdt, t); }   // V33: Alexanders Kräfte; V58: am Steuer der Aurora Imperial
-  if (playing && !paused) updateKraefte(rdt, t);   // V59: Schockwelle, Schild, Levitation, Zeitlupe
+  if (playing && !paused) updateKraefte(rdt, t);   // V60: Schockwelle, Schild, Levitation, Zeitlupe
   if (playing) updateVehicleWorld(dt);
   if (playing) { updateSpawns(); updateLoose(dt); }   // V26: lose Dinge
   if (playing && !paused) updateBoat(dt);

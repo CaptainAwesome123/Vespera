@@ -1,5 +1,5 @@
 /* =====================================================================
-   V59 · WEITERE KRÄFTE ALEXANDERS
+   V60 · WEITERE KRÄFTE ALEXANDERS
    Der Kristall im Penthouse hat Alexander mehr gegeben als Flug, Telekinese
    und Unverwundbarkeit. Alles leuchtet im Türkis des Kristalls.
    - X  Schockwelle: am Boden schlägt er die Faust aufs Pflaster (Heldenlandung),

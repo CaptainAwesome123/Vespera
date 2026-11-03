@@ -56,7 +56,7 @@ window.addEventListener('keydown', e => {
   if (paused) return;
   if (e.code === 'KeyF') toggleFlight();   // V33: Alexander fliegt
   if (e.code === 'Space' && !e.repeat && !player.fly && !player.onGround && !DRIVE.on) startFlight();   // im Sprung noch einmal: abheben
-  if (!DRIVE.on) kraefteKey(e);   // V59: X Schockwelle, H Schild, L Levitation, Z Zeitlupe (kraefte.js)
+  if (!DRIVE.on) kraefteKey(e);   // V60: X Schockwelle, H Schild, L Levitation, Z Zeitlupe (kraefte.js)
   if (e.code === 'KeyT') tkToggle();   // Telekinese (auch rechte Maustaste)
   if (e.code === 'KeyM') toggleMusic();
   if (e.code === 'KeyE' && activeUse) activeUse.act();

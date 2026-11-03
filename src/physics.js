@@ -876,7 +876,7 @@ export function updateLoose(dt) {
       B.v0.copy(B.v); B.w0.copy(B.w); B.xp.copy(B.x); B.qp.copy(B.q);
       if (B === H) holdDrive(B, target, h);
       else if (B === LOOSE.tk && LOOSE.tkTarget) tkDrive(B, LOOSE.tkTarget, h);
-      else if (B.lev) tkDrive(B, B.lev, h);   // V59: Levitation, kreist um Alexander (kraefte.js)
+      else if (B.lev) tkDrive(B, B.lev, h);   // V60: Levitation, kreist um Alexander (kraefte.js)
       else {
         B.v.y -= G * h;
         // Wasser: Auftrieb und Dämpfung (Holz und Papier schwimmen, Glas sinkt langsam)
