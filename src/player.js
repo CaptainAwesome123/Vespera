@@ -1,6 +1,6 @@
 import { T } from './core.js';
 import { nearBoxes } from './people-skeleton.js';
-import { onIsland, QUAY, ISL, elevatedHeightAt } from './island.js';
+import { onIsland, QUAY, ISL, elevatedHeightAt, canalIce } from './island.js';
 import { WATER_Y } from './dance.js';
 import { PLATFORMS, VILLA, roadHeightAt, terrainHeight } from './harbour.js';
 import { villaRoadAt } from './serpentine.js';
@@ -49,7 +49,7 @@ export function collide(p, flying) {
   }
   const g0 = resolveBoxes(p, near, flying);
   const onLand = onIsland(p.x, p.z, -0.3);
-  let ground = onLand ? 0 : WATER_Y + 0.2;
+  let ground = onLand ? (canalIce(p.x, p.z, p.y) ?? 0) : WATER_Y + 0.2;   // V58: im Kanal steht man auf dem Eis
   const rd = roadHeightAt(p.x, p.z, p.y);
   if (rd.tunnel) ground = rd.y;
   // V28: im Keller der Villa zählt der Hang nicht. V40: auch Vorfahrt und Serpentine nicht: in der Schwimmhalle unter dem Ballsaal
@@ -111,7 +111,7 @@ export function updatePlayer(dt) {
     if (hit > 0.05 && sp0 > 30) { player.v.multiplyScalar(0.3); flightBump(sp0); }
     // Landung: nahe am Boden und sinkend (C oder Sinkflug), nicht im schnellen Vorwärtsflug
     const hsp = Math.hypot(player.v.x, player.v.z);
-    if (player.p.y - g < 0.45 && (down || touch.down || vy0 < -3) && hsp < 14 && g > WATER_Y + 0.4) {
+    if (player.p.y - g < 0.45 && (down || touch.down || vy0 < -3) && hsp < 14 && (g > WATER_Y + 0.4 || canalIce(player.p.x, player.p.z, player.p.y) !== null)) {
       player.p.y = g; player.fly = false; player.onGround = true; player.v.y = 0;
       landed(-vy0);   // V35: aus dem Sinkflug weich, aus dem Sturzflug als Heldenlandung
     }
@@ -125,7 +125,9 @@ export function updatePlayer(dt) {
     // V35: nach der Heldenlandung kniet er kurz; wer losgehen will, lässt ihn früher aufstehen
     const lk = heroLock(Math.abs(fwd) + Math.abs(side) > 0.1 || !!keys.Space);
     const sp = ((H && !H.small) ? (fast ? 4.2 : 3.4) - heavy * 1.2 : fast ? 13 : 5.2) * (1 - lk);
-    const k = 1 - Math.exp(-dt * (player.onGround ? 10 : 2));
+    // V58: auf dem Eis des Kanals gleitet man: Schwung baut sich langsam auf und ab
+    const onIce = player.onGround && player.p.y < -2 && canalIce(player.p.x, player.p.z, player.p.y) !== null;
+    const k = 1 - Math.exp(-dt * (player.onGround ? (onIce ? 1.5 : 10) : 2));
     player.v.x += (_w.x * sp - player.v.x) * k;
     player.v.z += (_w.z * sp - player.v.z) * k;
     player.v.y = Math.max(player.v.y - 22 * dt, -70);

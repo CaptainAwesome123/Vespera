@@ -1,6 +1,6 @@
 import { shared, T, scene, camera } from './core.js';
 import { MAT, mergeColored, nearBoxes } from './people-skeleton.js';
-import { onIsland, curbHeight, maskAt, elevatedHeightAt } from './island.js';
+import { onIsland, curbHeight, maskAt, elevatedHeightAt, canalIce } from './island.js';
 import { WATER_Y } from './dance.js';
 import { waterSplash } from './water.js';
 import { roadHeightAt, terrainHeight } from './harbour.js';
@@ -44,6 +44,7 @@ export function groundAt(x, z, y) {
     if (SERP.on) { const th = terrainHeight(x, z); if (th > WATER_Y + 0.3) return { y: th, mu: 0.7, grass: true, hill: true }; }
     return null;
   }
+  const ci = canalIce(x, z, y); if (ci !== null) return { y: ci, mu: 0.12, road: false, ice: true };   // V58: Eis im Kanal
   const c = curbHeight(x, z);
   if (c > 0) return { y: c, mu: 0.92, road: false };
   const m = maskAt(x, z);

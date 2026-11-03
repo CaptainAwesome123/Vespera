@@ -1,7 +1,7 @@
 import { shared, U, T, camera, $ } from './core.js';
 import { nearBoxes } from './people-skeleton.js';
 import { segs } from './facade-shader.js';
-import { landDist, inRect, PLAZA, COAST, NET, OUTER, obbCorners, blocks, MEDIAN } from './island.js';
+import { landDist, inRect, PLAZA, COAST, NET, OUTER, obbCorners, blocks, MEDIAN, CANAL } from './island.js';
 import { inBelmont } from './belmont.js';
 import { PH, inPenthouse, onPentTerrace } from './penthouse.js';
 import { WATER_Y } from './dance.js';
@@ -233,6 +233,7 @@ export function buildMap() {
   g.fillStyle = '#4a3f58'; for (const h of OUTER.plots) { g.beginPath(); obbCorners(h).forEach(([x, z], k) => k ? g.lineTo(X(x), Z(z)) : g.moveTo(X(x), Z(z))); g.closePath(); g.fill(); }
   g.strokeStyle = '#5a5040'; g.lineWidth = 2; for (const P of OUTER.paths) { g.beginPath(); P.forEach(([x, z], k) => k ? g.lineTo(X(x), Z(z)) : g.moveTo(X(x), Z(z))); g.stroke(); }
   for (const b of blocks) { g.fillStyle = b.park ? '#1d3a30' : '#3b3348'; g.fillRect(X(b.x0), Z(b.z0), (b.x1 - b.x0) * s, (b.z1 - b.z0) * s); }
+  if (CANAL.on) { g.fillStyle = '#5f8a94'; g.fillRect(X(CANAL.x - CANAL.hw), Z(CANAL.zA), CANAL.hw * 2 * s, (CANAL.zB - CANAL.zA) * s); }   // V58: Eiskanal
   g.fillStyle = '#5a4a62';
   for (const sg of segs) if (sg.y0 < 1 && sg.flood === 0) g.fillRect(X(sg.x - sg.w / 2), Z(sg.z - sg.d / 2), sg.w * s, sg.d * s);
   g.fillStyle = '#4a3c2a'; g.fillRect(X(PLAZA.x0), Z(PLAZA.z0), 198 * s, 266 * s);

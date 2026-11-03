@@ -3,7 +3,7 @@ import { planDeco } from './deco.js';
 import { personGeoHi, personShare, HQ } from './people-model.js';
 import { stdMat, MAT, addCollider, glowTex, paintMat, mergeColored, PAINT, personLook } from './people-skeleton.js';
 import { lamps, trees, addGlow, NEON, addNeon, addSeg, shafts, spires, neons, segs, dedupeSegs, facadeMat, glowPts, roofs, curbs } from './facade-shader.js';
-import { buildGroundMask, groundGrass, COAST, ISL, buildSidewalks, blocks, inRect, PLAZA, MEDIAN, BRIDGE_LOOPS } from './island.js';
+import { buildGroundMask, groundGrass, COAST, ISL, buildSidewalks, blocks, inRect, PLAZA, MEDIAN, BRIDGE_LOOPS, CANAL, rectPath } from './island.js';
 import { IB, FACTORY_LOOPS, FACTORY_IDLERS } from './shops.js';
 import { makeSignTex, FAN_TEX, lathe, crownFins, caps, domes, DOORS, TERRACE, CLOCKS } from './entrances.js';
 import { WATER_Y, setDance, placeCouple } from './dance.js';
@@ -1638,6 +1638,7 @@ export function buildGround() {
   buildGroundMask(); groundGrass(roadMat);
   cob.map.repeat.set(1, 1); cob.rough.repeat.set(1, 1); cob.normal.repeat.set(1, 1);
   const shp = new T.Shape(COAST.map(([x, z]) => { const dx = x - ISL.cx, dz = z - ISL.cz, L = Math.hypot(dx, dz) || 1; return new T.Vector2(x + dx / L * 1.2, -(z + (z > ISL.quay - 1 ? 1.2 : dz / L * 1.2))); }));
+  for (const o of CANAL.open) shp.holes.push(rectPath(CANAL.x - CANAL.hw, o.z0, CANAL.x + CANAL.hw, o.z1));   // V58: offener Kanal
   const gg = new T.ShapeGeometry(shp).rotateX(-Math.PI / 2);
   { const p = gg.attributes.position, uv = gg.attributes.uv; for (let i = 0; i < p.count; i++) uv.setXY(i, p.getX(i) / 5, p.getZ(i) / 5); }
   const g = new T.Mesh(gg, roadMat); g.frustumCulled = false; scene.add(g); STREET.ground = g;

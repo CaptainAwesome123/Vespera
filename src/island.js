@@ -1,7 +1,7 @@
 import { shared, pick, R, rand, mulberry32, MOBILE, T, U, mergeGeos, scene } from './core.js';
 import { decoOuterDoor } from './deco.js';
 import { addCollider, stdMat } from './people-skeleton.js';
-import { STONES, addSeg, lamps, trees, addNeon, addGlow, NEON } from './facade-shader.js';
+import { STONES, addSeg, lamps, trees, addNeon, addGlow, NEON, curbs } from './facade-shader.js';
 import { BRICK, isFactoryZone, snapArrays, buildBlock, buildFactory } from './shops.js';
 import { pickW, DOORS } from './entrances.js';
 import { WATER_Y } from './dance.js';
@@ -467,6 +467,8 @@ export function groundGrass(mat) {
 
 /* ---------- Bürgersteige mit gerundeten Ecken (Radius 5 m) und gebogene Gehwege an der Ringstraße ---------- */
 export const CURB_R = 5, WALKS = [], WALK_HASH = new Map();
+// V58: Rechteck als Loch (XY-System mit y = -z wie roundRectShape)
+export function rectPath(x0, z0, x1, z1) { const p = new T.Path(); p.moveTo(x0, -z0); p.lineTo(x0, -z1); p.lineTo(x1, -z1); p.lineTo(x1, -z0); p.closePath(); return p; }
 export function roundRectShape(x0, z0, x1, z1, r) {
   // Form im XY-System mit y = -z, damit nach dem Drehen +z nach Süden zeigt
   const s = new T.Shape(), a = x0, b = -z1, c = x1, d = -z0;
@@ -501,6 +503,7 @@ export function buildSidewalks() {
   const geos = [];
   for (const b of blocks) {
     const sh = roundRectShape(b.x0, b.z0, b.x1, b.z1, CURB_R);
+    if (b.canal) { const o = CANAL.open.find(q => q.b === b); if (o) sh.holes.push(rectPath(CANAL.x - CANAL.hw, o.z0, CANAL.x + CANAL.hw, o.z1)); }   // V58: offener Kanal
     const g = new T.ExtrudeGeometry(sh, { depth: 0.22, bevelEnabled: false, curveSegments: 5 }).rotateX(-Math.PI / 2);
     const n = g.attributes.position.count, a = new Float32Array(n * 4);
     for (let i = 0; i < n; i++) a.set([(b.x0 + b.x1) / 2, (b.z0 + b.z1) / 2, (b.x1 - b.x0) / 2, (b.z1 - b.z0) / 2], i * 4);
@@ -627,14 +630,54 @@ export function buildCity() {
   cand.slice(0, 28).forEach(b => b.tier = 'landmark');
   cand.filter(b => !b.tier).slice(0, 70).forEach(b => b.tier = 'mid');
   const rf = mulberry32(8128); let fi = 0;
+  planCanal();   // V58
   for (const b of blocks) {
     if (isFactoryZone(b) && rf() < 0.7) {
       // normaler Aufbau ohne Wirkung (gleiche Zufallsfolge), dann die Fabrik an seiner Stelle
       const snap = snapArrays(); shared.SINK = true; buildBlock(b); shared.SINK = false;
       for (const [a, n] of snap) a.length = n;
       b.factory = true; b.worker = true; buildFactory(b, rf, fi++);
+    } else if (b.canal) {
+      // V58: Block wird zum Kanal: normaler Aufbau ohne Wirkung (gleiche Zufallsfolge), dann nur Bordstein und Laternen; den Rest baut wasser.js
+      const snap = snapArrays(); shared.SINK = true; buildBlock(b); shared.SINK = false;
+      for (const [a, n] of snap) a.length = n;
+      canalBlockBase(b);
     } else buildBlock(b);
   }
+}
+
+/* ---------- V58 · GEFRORENER KANAL: eine Spalte von vier Blöcken im Osten (x um 495), unter den Querstraßen in Gewölben weiter ---------- */
+U.uCanal = { value: new T.Vector4(0, -1, 0, 0) };   // V58: Hafenwasser-Shader spart den Kanal aus
+export const CANAL = { x: 495, hw: 10, ice: -2.8, blocks: [], open: [], tun: [], zA: 0, zB: 0, on: false };
+export function planCanal() {
+  CANAL.blocks = blocks.filter(b => Math.abs((b.x0 + b.x1) / 2 - CANAL.x) < 6 && b.z0 > 140 && b.z1 < 420 && !b.park).sort((a, b) => a.z0 - b.z0);
+  if (CANAL.blocks.length < 2) { CANAL.blocks = []; return; }
+  for (const b of CANAL.blocks) b.canal = true;
+  const SW = 4.5, B = CANAL.blocks;
+  CANAL.open = B.map(b => ({ z0: b.z0 + SW, z1: b.z1 - SW, b }));
+  CANAL.tun = [{ z0: B[0].z0 + SW - 9, z1: B[0].z0 + SW, end: -1 }];
+  for (let k = 1; k < B.length; k++) CANAL.tun.push({ z0: B[k - 1].z1 - SW, z1: B[k].z0 + SW });
+  CANAL.tun.push({ z0: B[B.length - 1].z1 - SW, z1: B[B.length - 1].z1 - SW + 9, end: 1 });
+  CANAL.zA = CANAL.tun[0].z0; CANAL.zB = CANAL.tun[CANAL.tun.length - 1].z1; CANAL.on = true;
+  U.uCanal.value.set(CANAL.x, CANAL.hw + 0.7, CANAL.zA - 0.5, CANAL.zB + 0.5);
+}
+// Eishöhe unter (x, z), wenn dort Kanal ist: offen immer, in den Gewölben nur unterhalb der Straße (sonst null)
+export function canalIce(x, z, y = 0) {
+  if (!CANAL.on || Math.abs(x - CANAL.x) > CANAL.hw || z < CANAL.zA || z > CANAL.zB) return null;
+  for (const o of CANAL.open) if (z > o.z0 && z < o.z1) return CANAL.ice;
+  return y < -0.8 ? CANAL.ice : null;
+}
+function canalBlockBase(b) {
+  const per = [[b.x0 + 1, b.z0 + 1, b.x1 - 1, b.z0 + 1], [b.x1 - 1, b.z0 + 1, b.x1 - 1, b.z1 - 1], [b.x1 - 1, b.z1 - 1, b.x0 + 1, b.z1 - 1], [b.x0 + 1, b.z1 - 1, b.x0 + 1, b.z0 + 1]];
+  for (const [ax, az, bx, bz] of per) {
+    curbs.push({ ax, az, bx, bz, cx: (b.x0 + b.x1) / 2, cz: (b.z0 + b.z1) / 2 });
+    const L = Math.hypot(bx - ax, bz - az), n = Math.max(1, Math.round(L / 24));
+    for (let k = 0; k < n; k++) { const t = (k + 0.5) / n, x = ax + (bx - ax) * t; if (Math.abs(x - CANAL.x) < CANAL.hw + 1.5) continue; lamps.push({ x, z: az + (bz - az) * t, h: 4.8 }); }
+  }
+  // Boden: Gehweg und Kai als Quader bis unter das Eis (Wand zum Kanal); über den Gewölben nur die Platte
+  const cx = CANAL.x, hw = CANAL.hw;
+  addCollider(b.x0, -3.6, b.z0, cx - hw, 0.22, b.z1); addCollider(cx + hw, -3.6, b.z0, b.x1, 0.22, b.z1);
+  addCollider(cx - hw, -0.3, b.z0, cx + hw, 0.22, b.z0 + 4.5); addCollider(cx - hw, -0.3, b.z1 - 4.5, cx + hw, 0.22, b.z1);
 }
 
 // Hochstraßen auf Pfeilern, mit Laternen und eigenem Verkehr
