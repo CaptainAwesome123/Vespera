@@ -9,6 +9,7 @@ import { addLight } from './performance.js';
 import { BEL, boxW, marbleTex } from './belmont.js';
 import { inlayFloorTex, travertineTex, decoRugTex, damaskTex, veneerTex, onyxTex, cofferTex2, booksTex, tileTex, mosaicTex, glowRoomTex, paintingTex, RUNNER_TEX } from './deco-tex.js';
 import { SPAWNS } from './physics.js';
+import { buildCrystal } from './crystal.js';
 
 /* =====================================================================
    V33 · ALEXANDERS PENTHOUSE-SUITE IM BELMONT (250 m, in der Turmstufe über der Terrasse)
@@ -632,9 +633,9 @@ export function buildPenthouse() {
     const x = 0, z = 1.8;
     put('dark', CYL(0.5, 0.55, 1.05, x, F1 + 0.525, z, 8)); put('gold', CYL(0.57, 0.57, 0.04, x, F1 + 1.07, z, 8)); put('gold', CYL(0.6, 0.55, 0.06, x, F1 + 0.03, z, 8));
     put('white', CYL(0.46, 0.46, 0.03, x, F1 + 1.105, z, 24));
-    for (const [dx, dz, h, a] of [[0, 0, 0.62, 0], [0.12, -0.08, 0.42, 0.4], [-0.1, 0.1, 0.34, -0.5], [0.05, 0.14, 0.26, 0.9]]) put('meteor', new T.OctahedronGeometry(0.11, 0).scale(1, h / 0.11, 1).rotateZ(a * 0.3).rotateY(a).translate(x + dx, F1 + 1.12 + h * 0.55, z + dz));
     put('stone', new T.DodecahedronGeometry(0.17, 0).scale(1.3, 0.5, 1.1).translate(x, F1 + 1.17, z));
-    put('glass', lathe([[0, 0.9], [0.2, 0.88], [0.38, 0.75], [0.45, 0.45], [0.45, 0]], 24).translate(x, F1 + 1.12, z));
+    // V57: Kristall und Glasglocke sind beweglich (schweben, leuchten, die Glocke hebt sich beim Berühren): src/crystal.js
+    buildCrystal(inner, M, x, F1 + 1.12, z, F1, TOP - 0.06);
     glow(x, F1 + 1.5, z, [0.4, 1.4, 1.25], 2.4); glow(x, F1 + 0.5, z + 0.56, [0.3, 1.0, 0.9], 0.8);
     put('gold', BOX(0.3, 0.12, 0.01, x, F1 + 0.8, z + 0.56)); 
     col(x - 0.56, F1, z - 0.56, x + 0.56, F1 + 2.0, z + 0.56);
