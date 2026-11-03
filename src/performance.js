@@ -11,7 +11,7 @@ import { REFL, updateWaves, harborWater, renderReflection } from './water.js';
 import { updatePort, carryPlayer, VILLA, terrainHeight } from './harbour.js';
 import { updateVilla, updateParked, updateLampLod, updateTreeLod } from './serpentine.js';
 import { inVillaHouse, updateVillaZones } from './villa.js';
-import { inImperial } from './imperial.js';
+import { inImperial, IMP, HELM, impHelmInput, impHelmCamera } from './imperial.js';
 import { updatePedestrians, CLOCK, citizenNear, citizenDoing } from './ragdoll.js';
 import { updateBeamSpots } from './airships.js';
 import { updateCarLights } from './carlight.js';
@@ -217,12 +217,13 @@ export function frame(now) {
   }
   updatePort(dt, t);
   if (playing) carryPlayer();
-  if (playing && !paused) { if (DRIVE.on) updateDrive(dt); else if (BOAT.on) updateBoatInput(dt); else updatePlayer(dt); updatePowers(dt, t); }   // V33: Alexanders Kräfte
+  if (playing && !paused) { if (DRIVE.on) updateDrive(dt); else if (BOAT.on) updateBoatInput(dt); else if (IMP.st === 'helm') impHelmInput(dt); else updatePlayer(dt); updatePowers(dt, t); }   // V33: Alexanders Kräfte; V58: am Steuer der Aurora Imperial
   if (playing) updateVehicleWorld(dt);
   if (playing) { updateSpawns(); updateLoose(dt); }   // V26: lose Dinge
   if (playing && !paused) updateBoat(dt);
   if (playing && DRIVE.on) driveCamera();
   else if (playing && BOAT.on) boatCamera();
+  else if (playing && IMP.st === 'helm' && HELM.cam === 'aussen') impHelmCamera(dt);   // V58: Außenansicht des Schiffs vom Steuer aus
   else if (playing && PM.mesh && PM.view === 'third' && !DINE.seat) thirdPersonCamera(dt);   // V33: auch im Flug von hinten
   else if (playing) {
     camera.position.set(player.p.x, player.p.y + (player.fly ? 0.8 : EYE), player.p.z);

@@ -11,6 +11,7 @@ import { cycleWeather } from './atmosphere.js';
 import { LOOSE, drop, rotateHeld } from './physics.js';
 import { POWERS, toggleFlight, startFlight, tkToggle, tkGrab, tkRelease, tkDistance } from './powers.js';
 import { togglePerf } from './performance.js';
+import { IMP, impToggleCam } from './imperial.js';
 
 /* =====================================================================
    EINGABE
@@ -62,7 +63,7 @@ window.addEventListener('keydown', e => {
   if (e.code === 'KeyK') toggleQuality();   // V38: Qualitätsstufe
   if (e.code === 'KeyP') toast(togglePerf() ? 'Leistungsanzeige an' : 'Leistungsanzeige aus');   // V57
   if (e.code === 'KeyR' && LOOSE.held) rotateHeld();
-  if (e.code === 'KeyV') toast(toggleView() === 'third' ? 'Ansicht von hinten' : 'Ich-Ansicht');
+  if (e.code === 'KeyV') toast(IMP.st === 'helm' ? impToggleCam() : toggleView() === 'third' ? 'Ansicht von hinten' : 'Ich-Ansicht');   // V58: am Steuer auch die Außenansicht
   if (e.code === 'KeyG') { if (PM.view !== 'third') toggleView(); const d = toggleDance(); toast(d === 1 ? 'Charleston' : d === 2 ? 'Langsamer Tanz' : 'Tanz aus'); }
   if (VIEWS[e.code]) goView(e.code);
   if (e.code === 'Space' || e.code.startsWith('Arrow')) e.preventDefault();

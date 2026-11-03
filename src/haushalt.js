@@ -59,7 +59,7 @@ function mk(a, C, zone, o = {}) {
 }
 // Tablett mit zwei Champagnerschalen (eine Geometrie für alle)
 let trayGeo = null;
-function trayMesh() {
+export function trayMesh() {
   if (!trayGeo) {
     const P = [[new T.CylinderGeometry(0.2, 0.19, 0.015, 20), [0.82, 0.82, 0.84]], [new T.TorusGeometry(0.2, 0.008, 4, 24).rotateX(Math.PI / 2).translate(0, 0.008, 0), [0.75, 0.56, 0.26]]];
     for (const dx of [-0.07, 0.07]) P.push([new T.CylinderGeometry(0.006, 0.03, 0.01, 8).translate(dx, 0.012, 0), [0.85, 0.9, 0.9]], [new T.CylinderGeometry(0.004, 0.004, 0.09, 6).translate(dx, 0.06, 0), [0.85, 0.9, 0.9]], [new T.CylinderGeometry(0.05, 0.012, 0.035, 12).translate(dx, 0.12, 0), [0.92, 0.82, 0.45]]);
