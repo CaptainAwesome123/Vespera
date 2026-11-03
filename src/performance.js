@@ -33,6 +33,7 @@ import { ATMO, updateAtmosphere } from './atmosphere.js';
 import { updateLoose, updateSpawns } from './physics.js';
 import { updatePowers, powersCamera } from './powers.js';
 import { KRAEFTE, updateKraefte } from './kraefte.js';
+import { updateEnergy } from './energy.js';
 import { updateAwe } from './awe.js';
 
 /* =====================================================================
@@ -221,7 +222,7 @@ export function frame(now) {
   }
   updatePort(dt, t);
   if (playing) carryPlayer();
-  if (playing && !paused) { if (DRIVE.on) updateDrive(rdt); else if (BOAT.on) updateBoatInput(rdt); else if (IMP.st === 'helm') impHelmInput(rdt); else updatePlayer(rdt); updatePowers(rdt, t); }   // V33: Alexanders Kräfte; V58: am Steuer der Aurora Imperial
+  if (playing && !paused) { if (DRIVE.on) updateDrive(rdt); else if (BOAT.on) updateBoatInput(rdt); else if (IMP.st === 'helm') impHelmInput(rdt); else updatePlayer(rdt); updatePowers(rdt, t); updateEnergy(rdt); }   // V33: Alexanders Kräfte; V58: am Steuer der Aurora Imperial; V59: Energieschub
   if (playing && !paused) updateKraefte(rdt, t);   // V60: Schockwelle, Schild, Levitation, Zeitlupe
   if (playing) updateVehicleWorld(dt);
   if (playing) { updateSpawns(); updateLoose(dt); }   // V26: lose Dinge

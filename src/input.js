@@ -11,6 +11,7 @@ import { PM, toggleView, toggleDance, zoomView } from './player-model.js';
 import { cycleWeather } from './atmosphere.js';
 import { LOOSE, drop, rotateHeld } from './physics.js';
 import { POWERS, toggleFlight, startFlight, tkToggle, tkGrab, tkRelease, tkDistance } from './powers.js';
+import { blastDown, blastUp, blastTap } from './energy.js';
 import { togglePerf } from './performance.js';
 import { IMP, impToggleCam } from './imperial.js';
 
@@ -34,10 +35,11 @@ canvas.addEventListener('mousedown', e => {
   if (e.button === 2) { if (!paused && (locked || isTouch) && !POWERS.tk) tkGrab(); return; }
   if (locked && POWERS.tk && !paused) { tkRelease(true); return; }
   if (locked && LOOSE.held && !paused) { drop(true); return; }   // V26: Getragenes werfen
+  if (locked && !paused && e.button === 0 && IMP.st !== 'helm' && blastDown()) return;   // V59: Energieschub (Klick = Stoß, halten = aufladen)
   if (!locked && !isTouch) tryLock();
   dragging = true;
 });
-window.addEventListener('mouseup', e => { dragging = false; if (e.button === 2 && POWERS.tk && !isTouch) tkRelease(false); });   // V54: loslassen = fallen lassen
+window.addEventListener('mouseup', e => { dragging = false; if (e.button === 2 && POWERS.tk && !isTouch) tkRelease(false); if (e.button === 0) blastUp(); });   // V54: loslassen = fallen lassen
 canvas.addEventListener('contextmenu', e => e.preventDefault());
 export function tryLock() { try { const r = canvas.requestPointerLock(); if (r && r.catch) r.catch(() => {}); } catch {} }
 document.addEventListener('pointerlockchange', () => {
@@ -131,7 +133,7 @@ export const endTouch = e => {
 canvas.addEventListener('touchend', endTouch); canvas.addEventListener('touchcancel', endTouch);
 $('tWx').addEventListener('click', cycleWeather);
 $('tUse').addEventListener('click', () => { if (activeUse) activeUse.act(); });
-$('tThrow').addEventListener('click', () => { if (POWERS.tk) tkRelease(true); else drop(true); });
+$('tThrow').addEventListener('click', () => { if (POWERS.tk) tkRelease(true); else if (LOOSE.held) drop(true); else blastTap(); });   // V59: sonst Energieschub
 $('tTk').addEventListener('click', () => tkToggle());
 $('tView').addEventListener('click', () => toast(toggleView() === 'third' ? 'Ansicht von hinten' : 'Ich-Ansicht'));
 window.addEventListener('wheel', e => { if (!playing) return; if (POWERS.tk) tkDistance(-e.deltaY); else if (PM.view === 'third') zoomView(e.deltaY); }, { passive: true });

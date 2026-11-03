@@ -33,6 +33,7 @@ export const SAY = {
   land: ['Meine Güte!', 'Das war Alexander!', 'Haben Sie das gesehen?', 'Der Herr von Vespera persönlich.'],
   tk: ['Es schwebt! Es schwebt einfach!', 'Haben Sie das gesehen? Ganz ohne Hände!', 'Das kann nur Alexander.', 'Mein Gott, der Wagen fliegt!', 'Unglaublich, Herr Alexander!'],
   throw: ['Bravo!', 'Haben Sie das gesehen?', 'Was für eine Kraft!', 'Bravo, Herr Alexander!'],
+  blast: ['Meine Güte, was für eine Kraft!', 'Haben Sie das gesehen? Einfach weggestoßen!', 'Vorsicht! Alexander!', 'Das Licht … wie der Kristall!', 'Gott bewahre, wer ihm im Weg steht.'],   // V59: Energieschub
 };
 /* ---------- V55: Haltung zu Alexander ---------- */
 // bew = bewundert ihn, neid = neidisch, skep = skeptisch, furcht = fürchtet ihn, resp = Respekt, dienst = Personal und Polizei
@@ -97,6 +98,7 @@ function pickAct(kind, fem) {
   if (kind === 'fly' || kind === 'takeoff') return fem ? (r < 0.2 ? 8.2 : 1.3) : (r < 0.35 ? 16.3 : r < 0.5 ? 8.2 : r < 0.62 ? 5.3 : 1.3);
   if (kind === 'land') return r < 0.4 ? 8.2 : r < 0.6 ? 9.3 : (!fem && r < 0.75 ? 5.3 : 1.3);
   if (kind === 'throw') return r < 0.5 ? 9.3 : r < 0.8 ? 8.2 : 1.3;
+  if (kind === 'blast') return r < 0.5 ? 8.2 : r < 0.62 ? 9.3 : 1.3;   // V59: Energieschub: staunen, wenige klatschen
   return fem ? (r < 0.3 ? 8.2 : r < 0.45 ? 9.3 : 1.3) : (r < 0.25 ? 8.2 : r < 0.45 ? 9.3 : r < 0.6 ? 5.3 : 1.3);   // tk
 }
 const wrapA = a => Math.atan2(Math.sin(a), Math.cos(a));
@@ -146,7 +148,7 @@ export function aweBurst(kind, R, k = 0.9) {
     if (!mob || Math.random() > k) { pd.awCool = 3; AWE.smiles.push(pd); continue; }
     const act = pickActAtt(kind, pd), man = !pd.fem, fear = att === 'furcht';
     const bow = act > 1.2 && act < 1.4 && man && (att === 'bew' || att === 'resp' || att === 'dienst') ? (kind === 'land' && Math.random() < 0.5 ? 0.3 + Math.random() * 0.3 : kind !== 'fly' && Math.random() < 0.15 ? 0.6 : 0) : 0;
-    startAwe(pd, { act: bow ? 1.3 : act, dur: 3.2 + Math.random() * 3, bow, keep: mob === 'keep', duck: fear ? 0.14 : 0, shift: fear && kind !== 'fly' && kind !== 'takeoff' ? 1.0 : 0, away: att === 'neid' && Math.random() < 0.5 ? 1.6 : 0, lean: att === 'skep' ? 0.05 : 0 });
+    startAwe(pd, { act: bow ? 1.3 : act, dur: 3.2 + Math.random() * 3, bow, keep: mob === 'keep', duck: fear || (kind === 'blast' && Math.random() < 0.3) ? 0.14 : 0, shift: (fear || kind === 'blast') && kind !== 'fly' && kind !== 'takeoff' ? 1.0 : 0, away: att === 'neid' && Math.random() < 0.5 ? 1.6 : 0, lean: att === 'skep' ? 0.05 : 0 });
     n++;
     if (d2 < nd) { nd = d2; nearest = pd; }
   }

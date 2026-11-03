@@ -15,7 +15,7 @@ import { nearBoxes } from './people-skeleton.js';
    jedes Körperteil ist ein eigenes Netz aus dem feinen Modell und folgt
    seinen zwei Punkten. Danach steht die Figur auf, schimpft und geht weiter.
    ===================================================================== */
-export const RAG = { pool: [], max: MOBILE ? 2 : 4, sub: {}, live: [] };
+export const RAG = { pool: [], max: MOBILE ? 3 : 6, sub: {}, live: [] };
 // Gelenke im Modell (Mann / Frau), passend zur Geometrie aus personBuild
 export function ragJoints(fem) {
   const R = HRIG[fem ? 'f' : 'm'];

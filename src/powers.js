@@ -39,6 +39,7 @@ import { DRIVE } from './eating.js';
 import { DINE } from './venues.js';
 import { PM } from './player-model.js';
 import { ragLift } from './ragdoll.js';
+import { throwPulse } from './energy.js';
 
 export const POWERS = { tk: null, reach: null, shake: 0, fov0: 0, fovOn: false, invT: 0, trail: 0, beam: 0, landT: 0,
   // V35: Heldenlandung (kniet, steht auf), kleine Landung (federn), Abheben (in die Knie, dann hinauf), Wurf (ausholen, dann loslassen)
@@ -148,7 +149,7 @@ function crackTex() {
   });
   return CRACKS.tex;
 }
-function groundCrack(x, y, z, R, k) {
+export function groundCrack(x, y, z, R, k) {
   if (!CRACKS.geo) CRACKS.geo = new T.PlaneGeometry(2, 2).rotateX(-Math.PI / 2);
   let C = CRACKS.list.length >= 3 ? CRACKS.list.shift() : null;
   if (!C) {
@@ -160,7 +161,7 @@ function groundCrack(x, y, z, R, k) {
   CRACKS.list.push(C);
 }
 // Druckwelle: ein flacher heller Ring, der rasch über den Boden läuft und verblasst
-function shockRing(x, y, z, R, life) {
+export function shockRing(x, y, z, R, life) {
   let S = CRACKS.rings.find(r => !r.m.visible);
   if (!S) {
     const m = new T.Mesh(new T.RingGeometry(0.82, 1, 64).rotateX(-Math.PI / 2), new T.MeshBasicMaterial({ color: 0xbff8f2, transparent: true, depthWrite: false, blending: T.AdditiveBlending, side: T.DoubleSide }));
@@ -198,7 +199,7 @@ export function flightBump(sp) {
 }
 
 /* ---------- Telekinese ---------- */
-function tkAim() {
+export function tkAim() {
   const o = camera.position, d = camera.getWorldDirection(_pd);
   let best = null, bt = TK_RANGE;
   const test = (x, y, z, r, hit) => {
@@ -261,7 +262,7 @@ export function tkRelease(throwIt) {
   tkLetGo(false);
 }
 // V54: Ausreißen: Staub und Schnee am Fuß des Stücks, ein Ruck, ein Knacken; der Körper bekommt einen kleinen Schubs nach oben
-function tearFx(B, k) {
+export function tearFx(B, k) {
   const x = B.x.x, y = B.x.y - B.he.y * B.sc, z = B.x.z, n = Math.round(8 + 10 * k);
   fxEmit('dust', x, y + 0.2, z, 0, 1.2, 0, n, 1.2 * k, 0.9);
   for (let i = 0; i < n; i++) { const a = i / n * Math.PI * 2, s = 2 + 3 * k; fxEmit('snowburst', x + Math.cos(a) * 0.4 * k, y + 0.1, z + Math.sin(a) * 0.4 * k, Math.cos(a) * s, 1 + Math.random() * 2, Math.sin(a) * s, 1, 0.25, 0.7); }
@@ -288,7 +289,7 @@ function tkLetGo(throwIt) {
     const B = H.B; B.tk = false; B.still = 0;
     if (throwIt) { B.vx = d.x * 32; B.vz = d.z * 32; B.vy = d.y * 32 + 4; B.w = (Math.random() - 0.5) * 3; B.air = true; }
   }
-  if (throwIt) { const c = tkCenter(H); fxEmit('crystal', c.x, c.y, c.z, d.x * 6, d.y * 6, d.z * 6, 16, 0.8); aweBurst('throw', 30); }   // V52: Applaus
+  if (throwIt) { const c = tkCenter(H); fxEmit('crystal', c.x, c.y, c.z, d.x * 6, d.y * 6, d.z * 6, 16, 0.8); throwPulse(c, d, H.kind === 'car' ? 1.6 : H.kind === 'ped' ? 0.5 : 1); aweBurst('throw', 30); }   // V52: Applaus; V59: türkiser Stoß
 }
 export function tkToggle() { if (POWERS.tk) tkRelease(false); else tkGrab(); }
 export function tkDistance(dy) { const H = POWERS.tk; if (H) H.dist = Math.max(H.kind === 'car' ? 6 : H.kind === 'ped' ? 2.2 : Math.max(1.8, H.B.r * H.B.sc * 1.3 + 0.6), Math.min(H.kind === 'ped' ? 40 : 60, H.dist * (dy > 0 ? 1.12 : 1 / 1.12))); }

@@ -601,7 +601,9 @@ void humanPose(float fem, float gs, float elder) {
 // ---------- V35: Alexanders eigene Bewegungen über der Grundhaltung (nur die Spielerfigur) ----------
 // uPl[1] Luft (Gewicht, Steigen -1..1, langer Sturz, kurz vor dem Aufprall), uPl[2] Landung (Zeit seit Aufprall, Heldenlandung, Federn),
 // uPl[3] Telekinese (Gewicht, schwer, Wurf 0..1, Zugriff 0..1), uPl[4] Richtung zum Gehaltenen im Körperraum + Anstrengung,
-// uPl[5] Flug (Abheben 0..1, Bremsen, Schnellflug, breiter Stand), uPl[6] Fahrtwind im Sturz
+// uPl[5] Flug (Abheben 0..1, Bremsen, Schnellflug, breiter Stand), uPl[6] Fahrtwind im Sturz,
+// V59: Energieschub (energy.js) im Telekinese-Block: uPl[7] (an, rechte Hand, linke Hand, Aufladen), uPl[6].yzw (Ausfallschritt, Drehung, beidhändig)
+#ifdef HUM_PLAYER
 void playerPose(float fem) {
   float ankH = mix(0.09, rAnk, hMH), hx = hHx;
   // ---------- Sprung und Sturz ----------
@@ -656,18 +658,21 @@ void playerPose(float fem) {
     HPose b = poseGet();
     vec3 d = uPl[4].xyz; d.z = max(d.z, -0.15); d = normalize(d + vec3(0.0, 0.0, 1e-4));
     float heavy = uPl[3].y, thr = uPl[3].z, grab = uPl[3].w, eff = uPl[4].w, brace = uPl[5].w;
+    // V59: Energieschub: je Hand -1 an der Hüfte, 0 ausgeholt, 1 gestoßen; ext = wie weit er sich hineinlegt
+    float pm = uPl[7].x, two = uPl[6].w, hR = uPl[7].y, hL = uPl[7].z, ch = uPl[7].w, ext = max(max(hR, hL), 0.0) * pm;
     float yaw = atan(d.x, d.z), pit = asin(clamp(d.y, -1.0, 1.0));
     float tr = eff * (sin(uTime * 31.0) + 0.6 * sin(uTime * 47.0 + 1.0));   // Zittern vor Anstrengung
     // im Stand: fester, breiter Stand, bei Schwerem tiefer
     if (brace > 0.001) {
       HPose b2 = poseGet();
-      pvO = vec3(0.0, -0.05 - 0.05 * heavy, 0.0); pvP = 0.04; pvR = 0.0; pvY = 0.18;
-      legsTo(vec3(-hx - 0.1, ankH, -0.18), vec3(hx + 0.09, ankH, 0.2));
-      anF = vec2(knF.x - thP.x + pvP, knF.y - thP.y + pvP); thY = vec2(0.1, 0.0);
+      float sx = uPl[6].y;   // V59: Ausfallschritt, der Fuß gegenüber der stoßenden Hand vorn
+      pvO = vec3(0.0, -0.05 - 0.05 * heavy - pm * (0.03 + 0.05 * two + 0.04 * ch), 0.07 * ext); pvP = 0.04 + 0.08 * ext; pvR = 0.0; pvY = 0.18 * (1.0 - pm);
+      legsTo(mix(vec3(-hx - 0.1, ankH, -0.18), vec3(-hx - 0.08, ankH, 0.02 + 0.3 * sx), pm), mix(vec3(hx + 0.09, ankH, 0.2), vec3(hx + 0.08, ankH, 0.02 - 0.3 * sx), pm));
+      anF = vec2(knF.x - thP.x + pvP, knF.y - thP.y + pvP); thY = vec2(0.1, 0.1 * pm);
       poseOver(b2, brace);
     }
     // Oberkörper und Kopf zum Gehaltenen
-    spY = clamp(yaw * 0.35, -0.5, 0.5) - pvY * brace; spP = mix(spP, 0.05 + 0.1 * heavy, 0.8); spR = 0.0;
+    spY = clamp(yaw * 0.35, -0.5, 0.5) - pvY * brace + pm * uPl[6].z; spP = mix(spP, 0.05 + 0.1 * heavy, 0.8) + pm * (0.1 * ext - 0.05 * two * (1.0 - ext)); spR = 0.0;
     nkY = clamp(yaw - spY - pvY, -1.1, 1.1); nkP = clamp(-pit * 0.8 - spP - pvP, -0.8, 0.6); nkR = 0.0;
     // Zugriff: die Hand stößt nach vorn und spreizt sich; Wurf: weit ausholen, dann mit der ganzen Schulter nach vorn
     float g1 = clamp(grab, 0.0, 1.0), reach = mix(0.3, 0.58, smoothstep(0.0, 0.35, g1)) + 0.08 * sin(3.14159 * smoothstep(0.25, 0.9, g1));
@@ -675,15 +680,28 @@ void playerPose(float fem) {
     spY += -0.45 * wu + 0.3 * st;
     vec3 S = fromTorso(vec3(-rShX, rTop, rShZ)), Hr = S + d * reach + vec3(0.004, 0.006, 0.0) * tr;
     Hr = mix(Hr, fromTorso(vec3(-0.34, rTop + 0.22, -0.2)), wu); Hr = mix(Hr, S + d * 0.7, st);
-    armTo(-1.0, toTorso(Hr), 0.2 + 0.3 * heavy);
     fgC.x = mix(mix(1.3, 0.02, smoothstep(0.05, 0.3, g1)) + 0.05 * tr, 1.3, wu); fgP.x = 0.0; wrF.x = mix(-0.45, 0.2, wu);
     // linke Hand: bei Leichtem zwei Finger an die Schläfe, bei Schwerem (Wagen, Menschen) beide Hände zum Ziel
-    vec3 Hl = mix(vec3(0.15, rHeadC - 0.01, rHeadZ + 0.1), toTorso(fromTorso(vec3(rShX, rTop, rShZ)) + normalize(d + vec3(0.2, -0.06, 0.0)) * (reach - 0.04) + vec3(-0.004, 0.006, 0.0) * tr), heavy);
-    armTo(1.0, Hl, mix(0.9, 0.3, heavy)); fgP.y = 1.0 - heavy; fgC.y = mix(0.9, 0.1 + 0.06 * tr, heavy); wrF.y = mix(0.2, -0.4, heavy);
+    vec3 Sl = fromTorso(vec3(rShX, rTop, rShZ));
+    vec3 Hl = mix(vec3(0.15, rHeadC - 0.01, rHeadZ + 0.1), toTorso(Sl + normalize(d + vec3(0.2, -0.06, 0.0)) * (reach - 0.04) + vec3(-0.004, 0.006, 0.0) * tr), heavy);
+    fgP.y = 1.0 - heavy; fgC.y = mix(0.9, 0.1 + 0.06 * tr, heavy); wrF.y = mix(0.2, -0.4, heavy);
+    // V59: Energieschub: ausgeholt an der Schulter (beidhändig: Hände an der rechten Hüfte, als hielten sie eine Kugel), gestoßen die
+    // offene Handfläche zum Ziel, die andere Hand zieht zur Hüfte zurück
+    if (pm > 0.5) {
+      vec3 Wr = mix(fromTorso(vec3(-0.27, rTop - 0.1, -0.14)), fromTorso(vec3(-0.2, rWaist + 0.1, 0.13)), two);
+      vec3 Wl = mix(fromTorso(vec3(0.27, rTop - 0.1, -0.14)), fromTorso(vec3(-0.1, rWaist + 0.27, 0.15)), two);
+      vec3 Fr = S + d * 0.64 + vec3(0.09 * two, 0.0, 0.0), Fl = Sl + d * 0.64 - vec3(0.09 * two, 0.0, 0.0);
+      Hr = (hR < 0.0 ? mix(Wr, fromTorso(vec3(-0.24, rWaist + 0.02, -0.06)), -hR) : mix(Wr, Fr, hR)) + vec3(0.004, 0.006, 0.0) * tr;
+      Hl = toTorso((hL < 0.0 ? mix(Wl, fromTorso(vec3(0.24, rWaist + 0.02, -0.06)), -hL) : mix(Wl, Fl, hL)) + vec3(-0.004, 0.006, 0.0) * tr);
+      vec2 hv = vec2(hR, hL), ho = clamp(hv, 0.0, 1.0);
+      fgC = mix(mix(vec2(mix(0.85, 0.5, two)), vec2(0.03), ho), vec2(1.15), clamp(-hv, 0.0, 1.0)); wrF = mix(vec2(0.15 * (1.0 - two)), vec2(-0.6), ho); fgP = vec2(0.0);
+    }
+    armTo(-1.0, toTorso(Hr), mix(0.2 + 0.3 * heavy, 0.3, pm)); armTo(1.0, Hl, mix(mix(0.9, 0.3, heavy), 0.3, pm));
     jawO = 0.0;
     poseOver(b, tkW);
   }
 }
+#endif
 // Drehung eines Arms (Oberarm-Winkel gewichtet)
 vec3 armRot(vec3 v, float sd, float ap, float aa, float at, float w) { return rX(rZ(rY(v, -sd * at * w), sd * aa * w), -ap * w); }
 // Pose auf einen Punkt (und seine Normale) anwenden; L Glied, piv Drehpunkthöhe, sk Schwungart, sw Gewicht, op Variante
