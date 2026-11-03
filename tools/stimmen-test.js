@@ -46,7 +46,7 @@ let fails = 0; const ok = (c, m) => { console.log((c ? 'OK   ' : 'FEHLER ') + m)
     out.toast = sp[0];
     sp.length = 0; V.VOICE.last = ''; C.$('toast').textContent = 'Leuchteffekt an'; await wait(60);
     out.toastPlain = sp.length;
-    // stumm: L-Taste und Ton aus
+    // stumm: O-Taste und Ton aus
     V.toggleVoices(); sp.length = 0; V.VOICE.last = ''; C.shared.sayTimer = 0; L.lifeSay('Konrad', 'Noch etwas, Herr Alexander?', 3); await wait(60);
     out.muted = sp.length; V.toggleVoices();
     // belauschte Wechselrede: Runde aus zwei Figuren der Labor-Menge neben Alexander
@@ -84,7 +84,7 @@ let fails = 0; const ok = (c, m) => { console.log((c ? 'OK   ' : 'FEHLER ') + m)
   ok(r.bubble && /Konrad|Sehr wohl/.test(r.bubble.text) && /Stefan/.test(r.bubble.voice), 'Sprechblase wird gesprochen (Konrad)');
   ok(r.toast && /Haus ist ruhig/.test(r.toast.text), 'Randolf-Zitat im Hinweis wird gesprochen');
   ok(r.toastPlain === 0, 'Normale Hinweise werden nicht vorgelesen');
-  ok(r.muted === 0, 'L schaltet Stimmen stumm');
+  ok(r.muted === 0, 'O schaltet Stimmen stumm');
   ok(r.dialog.length >= 2 && r.dialog[0][1] !== r.dialog[1][1], 'Wechselrede: zwei Sätze, Dame und Herr mit verschiedenen Stimmen ' + JSON.stringify(r.dialog));
   ok(r.lift.length >= 2, 'Hochgehobener spricht beim Schweben und beim Aufstehen: ' + JSON.stringify(r.lift));
   ok(r.counts.near > 70 && r.counts.talk > 45, 'Mehr Sätze: ' + JSON.stringify(r.counts));

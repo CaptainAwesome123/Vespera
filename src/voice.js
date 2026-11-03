@@ -16,7 +16,7 @@
    Vorname oder Bezeichnung („Eine Dame“, „Ein Arbeiter“), jede benannte
    Person behält ihre Stimme (Tonhöhe und Tempo aus dem Namen), Randolf
    spricht tief und gemessen, Kinder hoch, Ängstliche schnell, Rufe lauter.
-   L schaltet die Stimmen an und aus (gespeichert); M (ganzer Ton) und die
+   O schaltet die Stimmen an und aus (gespeichert); M (ganzer Ton) und die
    Pause schalten sie mit stumm.
    ===================================================================== */
 import { $ } from './core.js';
@@ -151,7 +151,7 @@ function watch() {
   if (tst) new MutationObserver(readToast).observe(tst, { childList: true, subtree: true, characterData: true });
   // Pause, Ton aus, Blase verschwunden: verstummen
   setInterval(() => { if (VOICE.speaking && !voiceReady()) hush(); }, 300);
-  window.addEventListener('keydown', e => { if (e.code === 'KeyL' && !e.repeat && !e.ctrlKey && !e.metaKey && !e.altKey && document.activeElement?.tagName !== 'INPUT') toggleVoices(); });
+  window.addEventListener('keydown', e => { if (e.code === 'KeyO' && !e.repeat && !e.ctrlKey && !e.metaKey && !e.altKey && document.activeElement?.tagName !== 'INPUT') toggleVoices(); });
   window.addEventListener('pagehide', hush);
 }
 watch();
