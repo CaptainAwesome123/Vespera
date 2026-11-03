@@ -50,6 +50,8 @@ import './awe.js';
 import './audio.js';
 import './voice.js';     // V59: Stimmen (Sprachausgabe des Browsers)
 import './stimmen.js';   // V59: mehr Sätze und Reaktionen
+import './kontor.js';    // V61: Wirtschaft, Handel, Börse, Besitz (Taste I)
+import './aufgaben.js';  // V61: Aufgaben von Bürgern, Randolf, Bürgermeister, Bank
 
 import { shared, $, renderer, scene, camera } from './core.js';
 import { layers, chunkStats } from './chunks.js';
