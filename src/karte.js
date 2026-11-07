@@ -354,6 +354,7 @@ function kaLivePoints() {
       if (pr && pr.pt && Number.isFinite(pr.pt.x)) L.push({ cat: 'aufgaben', icon: 'aufgabe', n: q.title, sub: pr.txt, x: pr.pt.x, z: pr.pt.z, track: KT.s.q.track === q.id });
     }
   }
+  if (KARTE.live) for (const f of KARTE.live) { try { L.push(...f()); } catch (e) { /* Anbieter gerade im Umbau */ } }   // V63: weitere Punkte (Wetterereignisse)
   return L;
 }
 
