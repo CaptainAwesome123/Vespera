@@ -229,6 +229,7 @@ function fire() {
   const cone = kind === 'charged' ? 0.2 + 0.16 * c : kind === 'both' ? 0.17 : 0.12;
   const hits = energyPush(B.o, B.dir, { power, range, cone, rad0: kind === 'charged' ? 1.2 : 0.8, fixed: kind === 'charged' ? 1 + Math.round(3 * c) : 1, aimed: a, kind });
   B.stats.shots++; B.stats.last = { kind, power, range, hits: hits.length };
+  if (B.onHits) try { B.onHits(hits, kind, power); } catch (e) { /* V62: ruf.js */ }
   blastFx(B.o, B.dir, power, range, cone, kind, hits);
   blastSound(kind, power, hits);
   POWERS.shake = Math.min(1.6, POWERS.shake + 0.1 + 0.12 * power);
