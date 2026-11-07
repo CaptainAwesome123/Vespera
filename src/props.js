@@ -39,6 +39,28 @@ function instanced(geo, mat, list, place, colored) {
   im.frustumCulled = false; if (colored) im.instanceColor.needsUpdate = true;
   return im;
 }
+// V69: schwacher Lichtkegel unter jeder nahen Laterne (im Nebel sichtbar), ein offener Kegel je Höhe, addiert, ohne Schatten.
+// Oben hell, zum Boden und zum Rand hin weich auslaufend; dicht vor der Kamera ausgeblendet. Nur in der nahen Stufe (bis LAMP_LOD).
+const CONE = { mat: null, geo: new Map() };
+function coneMat() {
+  return CONE.mat ||= new T.ShaderMaterial({
+    uniforms: { uFogDensity: U.uFogDensity },
+    vertexShader: `varying float vT; varying float vE; varying float vD;
+      void main(){ vec4 wp = modelMatrix * instanceMatrix * vec4(position, 1.0); vT = uv.y;
+        vec3 nw = normalize(mat3(modelMatrix * instanceMatrix) * normal); vec3 vd = normalize(cameraPosition - wp.xyz);
+        vE = abs(dot(nw, vd)); vD = length(cameraPosition - wp.xyz);
+        gl_Position = projectionMatrix * viewMatrix * wp; }`,
+    fragmentShader: `uniform float uFogDensity; varying float vT; varying float vE; varying float vD;
+      void main(){ float a = pow(vT, 1.6) * smoothstep(0.0, 0.6, vE) * smoothstep(1.5, 7.0, vD) * clamp(0.6 + uFogDensity * 500.0, 0.6, 2.0) * 0.07;
+        gl_FragColor = vec4(vec3(1.0, 0.7, 0.38) * a, 1.0); }`,
+    transparent: true, depthWrite: false, blending: T.AdditiveBlending, side: T.DoubleSide,
+  });
+}
+function coneGeo(h) {
+  if (CONE.geo.has(h)) return CONE.geo.get(h);
+  const top = h - 0.55, g = new T.CylinderGeometry(0.18, 3.0, top, 18, 1, true).translate(0, top / 2, 0);   // uv.y: 1 oben, 0 unten
+  CONE.geo.set(h, g); return g;
+}
 export function setupStreetLayers() {
   const LP = STREET.lampParts; if (!LP) return;
   registerLayer({
@@ -56,9 +78,10 @@ export function setupStreetLayers() {
         const G = decoLampGeo(h, lod);
         g.add(instanced(G.metal, M.metal, list, (l, i, im) => { im.setMatrixAt(i, _pm.makeTranslation(l.x, l.y, l.z)); l._ims.push([im, i]); }));
         g.add(instanced(G.glass, M.glass, list, (l, i, im) => { im.setMatrixAt(i, _pm.makeTranslation(l.x, l.y, l.z)); l._ims.push([im, i]); }));
+        if (lod === 0) { const c = instanced(coneGeo(h), coneMat(), list, (l, i, im) => { im.setMatrixAt(i, _pm.makeTranslation(l.x, l.y, l.z)); l._ims.push([im, i]); }); c.renderOrder = 3; c.userData.noRefl = true; g.add(c); }
       }
       // V57: die Zelle wechselt jetzt öfter die Detailstufe; gleich ins Spiegelbild aufnehmen (sonst erst beim nächsten reflSweep nach bis zu 4 s)
-      if (REFL.rt) { g.traverse(o => o.layers.enable(1)); g.userData.reflSeen = true; }
+      if (REFL.rt) { g.traverse(o => { if (!o.userData.noRefl) o.layers.enable(1); }); g.userData.reflSeen = true; }
       return g;
     },
     dispose() { /* Geometrien gehören den Vorlagen */ },

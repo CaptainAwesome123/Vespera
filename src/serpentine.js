@@ -1203,7 +1203,7 @@ export function buildMountains() {
         // V44: Eis- und Schneebänder in den Steilwänden (gefrorene Klippen der Polarnacht), den Schichten folgend
         float bands = smoothstep(0.66, 0.86, vnoise(vec2(vW.y*0.16 + fbm(vW.xz*0.01)*5.0, (vW.x + vW.z)*0.02))) * smoothstep(0.35, 0.75, steep) * smoothstep(0.0, 8.0, vW.y);
         snow = max(snow, bands * 0.75 * clamp(0.5 + uSnowCover, 0.0, 1.0));
-        vec3 snowCol = vec3(0.16, 0.2, 0.27) + vec3(0.55, 0.62, 0.78)*pow(moon, 1.4) + uTeal*0.06;
+        vec3 snowCol = vec3(0.15, 0.19, 0.26) + vec3(0.42, 0.49, 0.63)*pow(moon, 1.4) + uTeal*0.06;   // V69: Mondseite weniger grell (blendete als weißer Fleck)
         snowCol += vec3(0.07, 0.26, 0.14) * uAurora * 0.45 * max(n.y, 0.0);   // V44: Polarlicht schimmert auf dem Schnee
         snow *= 1.0 - 0.55 * gIce;   // auf dem Gletscher weht der Schnee ab, das Eis bleibt sichtbar
         vec3 col = mix(rock, snowCol, snow);
@@ -1212,6 +1212,8 @@ export function buildMountains() {
         float face = max(dot(n, toCity), 0.0);
         col += uTeal * 0.32 * face * exp(-max(vW.y + 180.0, 0.0)/420.0);
         col += vec3(0.9, 0.6, 0.3) * 0.22 * exp(-distance(vW, uVilla)/110.0);
+        // V69: Tiefenstaffelung: ferne Hänge werden bläulich und flacher, nahe bleiben kräftig
+        col = mix(col, uFogColor * 1.8 + vec3(0.015, 0.025, 0.04), smoothstep(1200.0, 5200.0, vD) * 0.4);
         float fogF = vespFog(vD, vW.y, uCam.y, uFogDensity, 0.07);
         vec3 fogCol = mix(uFogColor*1.35, uFogColor*0.5, smoothstep(0.0, 900.0, vW.y));
         gl_FragColor = vec4(mix(col, fogCol, clamp(fogF, 0.0, 1.0)), 1.0);
