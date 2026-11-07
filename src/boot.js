@@ -58,6 +58,8 @@ import './aufgaben.js';  // V61: Aufgaben von Bürgern, Randolf, Bürgermeister,
 import './inventar.js';  // V62: Inventar (Umschalt+I): Taschen, Schlüssel, Medaillen, Zuhause
 import './ruf.js';       // V62: Ruf und Ansehen (Taste Ö)
 import './karte.js';     // V62: Stadtkarte (Taste Y), Wegpunkt, Kompassring, Schnellreise im Flug
+import './nebenfiguren.js'; // V63: Nebenfiguren mit eigener Geschichte (Gespräche mit E, Bekanntschaften im Ruf-Buch)
+import './wetterlage.js'; // V63: Wetterereignisse (Schneesturm, Nordlichtnacht, Eisgang, Frostnebel, Meteoritenschauer)
 import './bahn.js';      // V63: Straßenbahn und Hochbahn: Linien, Haltestellen, mitfahren (E, V), Schnellfahrt
 
 import { shared, $, renderer, scene, camera } from './core.js';

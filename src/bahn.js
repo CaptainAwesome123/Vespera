@@ -581,6 +581,8 @@ function bhMove(v, dt) {
     }
     if (gap < 1e8) vt = Math.min(vt, brake(gap - 1.5, 2.2));
   }
+  if (v.wlMul) vt *= v.wlMul;   // V63 Wetter (wetterlage.js): Schneesturm bremst, Schneewehe hält fest
+  if (v.wlStuck) vt = 0;
   v.v += Math.max(-2.6 * dt, Math.min(1.0 * dt, vt - v.v)); if (v.v < 0) v.v = 0;
   v.s = (v.s + v.v * dt) % L;
 }

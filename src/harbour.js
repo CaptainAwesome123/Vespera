@@ -1,4 +1,4 @@
-import { U, T, mulberry32, canvasTex, mergeGeos, geoView, pick, R, scene, camera, fogHideDist } from './core.js';
+import { U, T, mulberry32, canvasTex, mergeGeos, geoView, pick, R, scene, camera, fogHideDist, shared } from './core.js';
 import { tearTag, tearWrap } from './tear.js';
 import { wantTexture } from './assets.js';
 import { stdMat, ENV, addCollider } from './people-skeleton.js';
@@ -853,7 +853,7 @@ export function updatePort(dt, t) {
   if (F.g) {
     if (F.wait > 0) { F.wait -= dt; F.v = 0; }
     else {
-      const rem = (F.dir > 0 ? 1 - F.s : F.s) * F.len, vt = Math.min(7.5, Math.sqrt(2 * 0.35 * Math.max(rem, 0)) + 0.25);
+      const rem = (F.dir > 0 ? 1 - F.s : F.s) * F.len, vt = Math.min(7.5 * (shared.wxBoat || 1), Math.sqrt(2 * 0.35 * Math.max(rem, 0)) + 0.25);   // V63: bei Eisgang und Sturm langsamer
       F.v += Math.max(-0.6 * dt, Math.min(0.35 * dt, vt - F.v));
       F.s += F.dir * F.v * dt / F.len;
       if (F.s >= 1 || F.s <= 0) { F.s = Math.max(0, Math.min(1, F.s)); F.dir = -F.dir; F.wait = 40; F.v = 0; }

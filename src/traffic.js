@@ -105,12 +105,13 @@ export function spawnTraffic(n) {
   }
 }
 // Abstand zum Vordermann auf demselben Weg (Spur + Bogen), sonst auf der nächsten Spur
+// V63: ausgeblendete Wagen (Wetterereignis, car.gone) zählen nicht als Vordermann
 export function leaderGap(car) {
   const L = car.lane; let best = 1e9, bv = 0;
-  for (const o of L.cars) if (o !== car && o.s > car.s && o.s - car.s < best) { best = o.s - car.s; bv = o.v; }
+  for (const o of L.cars) if (o !== car && !o.gone && o.s > car.s && o.s - car.s < best) { best = o.s - car.s; bv = o.v; }
   if (best > 1e8 && car.next) {
     const rest = L.len + (car.turn ? car.turn.len : 0) - car.s;
-    for (const o of car.next.cars) if (o.s + rest < best) { best = o.s + rest; bv = o.v; }
+    for (const o of car.next.cars) if (!o.gone && o.s + rest < best) { best = o.s + rest; bv = o.v; }
   }
   return [best - 5.2, bv];
 }

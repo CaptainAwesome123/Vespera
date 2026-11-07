@@ -53,6 +53,9 @@ const CAST = {
   'Der Kapitän': [false, 0.72, 0.9, 1], 'Der Steward': [false, 1.02, 1.0, 0.85], 'Der Conférencier': [false, 1.08, 1.08, 1],
   'Der Kellner': [false, 1.0, 1.02, 0.85], 'Der Barkeeper': [false, 0.84, 0.98, 0.9], 'Der Wirt': [false, 0.8, 0.98, 0.95],
   'Die Wirtin': [true, 1.0, 1.02, 0.95], 'Die Sängerin': [true, 1.1, 1.0, 0.9], 'Der Portier': [false, 0.9, 0.96, 0.9],
+  // V63: Nebenfiguren
+  'Josephine Lafleur': [true, 1.12, 0.96, 0.95], 'Polizeipräsident Brenner': [false, 0.74, 0.92, 1], 'Viktor von Hallstein': [false, 0.86, 0.9, 0.95],
+  'Margot Wendt': [true, 1.04, 1.1, 1], 'Hannes Kröger': [false, 0.7, 0.98, 1], 'Kapitän Ahrens': [false, 0.72, 0.9, 1],
   'Ein Zeitungsjunge': [false, 1.55, 1.12, 1], 'Der Leierkastenmann': [false, 0.82, 0.95, 0.95], 'Der Bankdirektor': [false, 0.86, 0.92, 0.9],
 };
 const FEM_WORD = /\b(eine|die)\b|dame|frau|fräulein|mädchen|zimmermädchen|wirtin|sängerin|tänzerin|köchin|mama|großmutter|witwe|gattin|serviererin|verkäuferin/i;
