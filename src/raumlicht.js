@@ -218,3 +218,22 @@ export function roughTex(W, H, o = {}) {
   const t = new T.CanvasTexture(c); t.encoding = T.LinearEncoding;
   return t;
 }
+
+// ---------- V70: Samtschein für Polster und Vorhänge ----------
+// Samt leuchtet an den Rändern, wo der Blick flach über den Flor streift. Eine Zeile im Standard-Shader (kein Zweig):
+// Eigenleuchten + Farbe * (1 - N·V)^3 * Stärke, mal etwas Umgebungslicht. Ein Programm für alle Samtstoffe (Cache-Schlüssel).
+export function addSheen(mat, k = 0.5) {
+  if (!mat || mat.userData.sheen) return mat;
+  mat.userData.sheen = k;
+  const prev = mat.onBeforeCompile;
+  mat.onBeforeCompile = (sh, r) => {
+    if (prev) prev(sh, r);
+    sh.uniforms.uSheen = { value: k };
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform float uSheen;')
+      .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n  totalEmissiveRadiance += (diffuseColor.rgb * 1.5 + 0.03) * uSheen * pow(1.0 - abs(dot(normalize(vNormal), normalize(vViewPosition))), 3.0);');
+  };
+  const key = mat.customProgramCacheKey ? mat.customProgramCacheKey.bind(mat) : () => '';
+  mat.customProgramCacheKey = () => key() + '|sheen';
+  mat.needsUpdate = true;
+  return mat;
+}

@@ -15,7 +15,7 @@ import { plazaMaterial } from './plaza.js';
 import { buildFountain } from './fountain.js';
 import { buildBelmontLuxe } from './belmont-luxe.js';
 import { galaPeople } from './gala.js';
-import { shadeBegin, shadeEnd, shadeRoom, shadeQuad, shadeEdge, shadeWall, shadeDisc, shadeColumn, lightPool, roughTex } from './raumlicht.js';
+import { shadeBegin, shadeEnd, shadeRoom, shadeQuad, shadeEdge, shadeWall, shadeDisc, shadeColumn, lightPool, roughTex, addSheen } from './raumlicht.js';
 
 /* =====================================================================
    THE BELMONT — das Grand Hotel im Zentrum
@@ -363,6 +363,7 @@ export function buildBelmontInterior() {
     runner: stdMat({ map: RUNNER_TEX(), color: 0xffffff, roughness: 0.95, envI: 0.1 }),
     bass: stdMat({ color: 0x5a2a12, roughness: 0.3, envI: 0.6 }),
   };
+  addSheen(M.velvet, 0.55); addSheen(M.velvetBlue, 0.55);   // V70: Samtschein
 
   // ---------- Böden ----------
   const lobbyFloor = canvasTex(2048, 1110, (g, W, H) => {
@@ -883,7 +884,7 @@ function buildBallroomDeco({ P, G1, G2, BALL_H, S0, tables, put, col, glow, M })
     mural: new T.MeshBasicMaterial({ map: muralTex(5), color: new T.Color(0.95, 0.92, 0.88) }),
     // V65: Spiegel mit eigenem Silberschein (rein metallisch spiegelten sie nur die dunkle Umgebung und standen als schwarze Tafeln im Raum)
     mirror: stdMat({ color: 0xaab4ba, metalness: 0.65, roughness: 0.1, envI: 1.5, emissive: 0x2c3438 }),
-    curtain: stdMat({ color: 0x5a0d16, roughness: 0.85, envI: 0.15, side: T.DoubleSide }),
+    curtain: addSheen(stdMat({ color: 0x5a0d16, roughness: 0.85, envI: 0.15, side: T.DoubleSide }), 0.5),   // V70: Samtschein
     damask: stdMat({ map: damaskTex('#123c3e', '#1d5356'), roughness: 0.55, metalness: 0.15, envI: 0.4 }),
     bloom: stdMat({ color: 0xf2e6e0, roughness: 0.7, envI: 0.2, emissive: 0x2a1a18 }),
     rose: stdMat({ color: 0x9a1828, roughness: 0.7, envI: 0.2, emissive: 0x200408 }),

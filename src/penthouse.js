@@ -6,7 +6,7 @@ import { FURN, placeFurn, roundBox, lathe, tube, movOn, movOff } from './entranc
 import { poolWaterMat } from './water.js';
 import { player } from './player.js';
 import { addLight } from './performance.js';
-import { shadeBegin, shadeEnd, shadeRoom, shadeQuad, shadeEdge, shadeWall, shadeColumn, shadeDisc, lightPool, wallWash, lightBand, roughTex } from './raumlicht.js';
+import { shadeBegin, shadeEnd, shadeRoom, shadeQuad, shadeEdge, shadeWall, shadeColumn, shadeDisc, lightPool, wallWash, lightBand, roughTex, addSheen } from './raumlicht.js';
 import { BEL, boxW, marbleTex } from './belmont.js';
 import { inlayFloorTex, travertineTex, decoRugTex, damaskTex, veneerTex, onyxTex, cofferTex2, booksTex, tileTex, mosaicTex, glowRoomTex, paintingTex, RUNNER_TEX } from './deco-tex.js';
 import { SPAWNS } from './physics.js';
@@ -166,6 +166,7 @@ export function buildPenthouse() {
     const far = new T.Mesh(new T.BoxGeometry(38.4, TOP - F1 - 0.4, 38.4), new T.MeshBasicMaterial({ map: t, color: new T.Color(0.9, 0.78, 0.62), transparent: true, opacity: 0.75, depthWrite: false }));
     far.position.set(0, (F1 + TOP) / 2, 0); far.renderOrder = 1; scene.add(far); PH.far = far; }
 
+  for (const k of ['velvet', 'champ', 'cream', 'bordeaux']) addSheen(M[k], 0.5);   // V70: Samtschein für Polster und Vorhänge
   /* ================= Böden, Decken, Galerie, Kern ================= */
   const st = PH.stair, HX = 2.75, hz0 = st.z - 2.75, hz1 = st.z + 2.75;
   put('floor1', rectXZ(-W, W, -W, W, F1 + 0.02, [-20, -20, 40, 40]));
@@ -365,7 +366,16 @@ export function buildPenthouse() {
   // ---------- Küche ----------
   {
     const y = F1, H = 0.92;
-    const counter = (x0, x1, z0, z1) => { const w = x1 - x0, d = z1 - z0, x = (x0 + x1) / 2, z = (z0 + z1) / 2; put('cab', boxW(w, H - 0.06, d, x, y + (H - 0.06) / 2, z, 1)); put('dark', boxW(w + 0.04, 0.06, d + 0.04, x, y + H - 0.03, z, 1.5)); put('lacquer', BOX(w - 0.04, 0.1, d - 0.04, x, y + 0.05, z)); col(x0, y, z0, x1, y + H, z1); };
+    const counter = (x0, x1, z0, z1) => { const w = x1 - x0, d = z1 - z0, x = (x0 + x1) / 2, z = (z0 + z1) / 2; put('cab', boxW(w, H - 0.06, d, x, y + (H - 0.06) / 2, z, 1)); put('dark', boxW(w + 0.04, 0.06, d + 0.04, x, y + H - 0.03, z, 1.5)); put('lacquer', BOX(w - 0.04, 0.1, d - 0.04, x, y + 0.05, z)); col(x0, y, z0, x1, y + H, z1);
+      // V70: Fugen zwischen den Schranktüren und eine Schubladenfuge, dazu Raumschatten am Sockel
+      const ax = w >= d, L = ax ? w : d;
+      for (const sd of [-1, 1]) {
+        const f = ax ? z + sd * (d / 2 + 0.004) : x + sd * (w / 2 + 0.004);
+        for (let k = 0.6; k < L - 0.1; k += 0.6) put('lacquer', ax ? BOX(0.014, H - 0.2, 0.01, x0 + k, y + 0.1 + (H - 0.2) / 2, f) : BOX(0.01, H - 0.2, 0.014, f, y + 0.1 + (H - 0.2) / 2, z0 + k));
+        put('lacquer', ax ? BOX(w - 0.06, 0.012, 0.01, x, y + H - 0.24, f) : BOX(0.01, 0.012, d - 0.06, f, y + H - 0.24, z));
+        if (ax) shadeEdge(x0, z + sd * (d / 2 + 0.01), x1, z + sd * (d / 2 + 0.01), y + 0.05, 0, sd, 0.5, 0.4); else shadeEdge(x + sd * (w / 2 + 0.01), z0, x + sd * (w / 2 + 0.01), z1, y + 0.05, sd, 0, 0.5, 0.4);
+      }
+    };
     counter(-19.7, -8.3, -19.75, -19.05); counter(-19.75, -19.05, -19.05, -12.4);
     for (let x = -19.2; x < -8.4; x += 0.6) put('gold', BOX(0.16, 0.025, 0.03, x + 0.3, y + 0.72, -19.03));
     for (let z = -18.6; z < -12.5; z += 0.6) put('gold', BOX(0.03, 0.025, 0.16, -19.03, y + 0.72, z + 0.3));

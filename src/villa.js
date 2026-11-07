@@ -6,7 +6,7 @@ import { VILLA } from './harbour.js';
 import { movOn, movOff, FURN, placeFurn, lathe, FAN_TEX } from './entrances.js';
 import { worldUV, wallpaperTex, texSet, roundBoxGeo } from './serpentine.js';
 import { addLight } from './performance.js';
-import { shadeBegin, shadeEnd, shadeEdge, shadeWall } from './raumlicht.js';
+import { shadeBegin, shadeEnd, shadeEdge, shadeWall, addSheen } from './raumlicht.js';
 import { INTERACT } from './music.js';
 import { toast } from './boat.js';
 import { player } from './player.js';
@@ -270,6 +270,7 @@ export function buildVillaRooms(ctx) {
   const { W, V, G, colL, pl, by, ry, M } = ctx;
   VR.by = by; VR.cs = Math.cos(ry); VR.sn = Math.sin(ry);
   const mats = VR.mats = villaMats(M);
+  addSheen(mats.sofa, 0.5); addSheen(mats.velvet, 0.4);   // V70: Samtschein
   const B = {};
   // Geometrie lokal setzen; die Weltlage kommt beim Zusammenbau je Netz dazu
   const A = (zone, mat, g, lx = 0, y = 0, lz = 0, a = 0) => { if (a) g.rotateY(a); g.translate(lx, y, lz); (B[zone + '|' + mat] ||= []).push(g); return g; };

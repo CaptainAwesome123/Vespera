@@ -18,7 +18,7 @@ import { openChoice, DINE, standUp } from './venues.js';
 import { PM, toggleView } from './player-model.js';
 import { lifeSay } from './life.js';
 import { buildBordservice, updateBordservice } from './bordservice.js';
-import { shadeBegin, shadeEnd } from './raumlicht.js';
+import { shadeBegin, shadeEnd, addSheen } from './raumlicht.js';
 
 /* =====================================================================
    V33: AURORA IMPERIAL – Alexanders privates Luftschiff
@@ -174,7 +174,7 @@ export function impMats() {
     tile: P.tile,
     ceil: P.ceil,
     leather: impSelfLit(vc({ roughness: 0.42, envI: 0.6 }), 0.28),
-    velvet: impSelfLit(vc({ roughness: 0.95, envI: 0.15, side: T.DoubleSide }), 0.42),
+    velvet: addSheen(impSelfLit(vc({ roughness: 0.95, envI: 0.15, side: T.DoubleSide }), 0.42), 0.45),   // V70: Samtschein
     linen: impSelfLit(vc({ roughness: 0.92, envI: 0.15, side: T.DoubleSide }), 0.45),
     enamel: impSelfLit(vc({ roughness: 0.3, envI: 0.7 }), 0.3),
     lacquer: impSelfLit(vc({ color: 0x08080a, roughness: 0.1, envI: 1.6 }), 0.04),
