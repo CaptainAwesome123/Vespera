@@ -278,10 +278,8 @@ export function markPos(el, left, top) {
 // V64: Leinwand nach dem Hochladen freigeben. Eine fertig gezeichnete Leinwand liegt sonst ein zweites Mal im Speicher (in Chrome
 // mit Grafikbeschleunigung sogar im Grafikspeicher), obwohl die Grafikkarte längst ihre eigene Kopie hat. Nur für Texturen, die nie
 // neu gezeichnet und nicht geklont werden (Schilder, Bodenstoffe aus texSet); ein Verlust der Grafik wird nicht wiederhergestellt.
-export const FREE_UP = new Set();
 export function freeAfterUpload(t) {
-  FREE_UP.add(t);
-  t.onUpdate = () => { const c = t.image; if (c && c.getContext) { c.width = c.height = 1; } t.onUpdate = null; FREE_UP.delete(t); };
+  t.onUpdate = () => { const c = t.image; if (c && c.getContext) { c.width = c.height = 1; } t.onUpdate = null; };
   return t;
 }
 // Texturen werden mit doppelter Auflösung gezeichnet, solange sie nicht zu groß werden (scharfe Schrift und Böden)

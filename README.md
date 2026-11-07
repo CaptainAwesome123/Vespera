@@ -305,8 +305,7 @@ Außenhaut, Garten, Terrassen und das Fest.
   Belmont-Halle als ein Netz, Münzen der Medaillen nur bis 160 m (der Schein bleibt), feste Lichterketten an Booten und
   Schiffen (`makeGlowPoints`) werden außerhalb des Blickfelds nicht gezeichnet.
 - *Speicher:* Leinwände der Leucht- und Ladenschilder und der Bodenstoffe (`texSet`) werden nach dem Hochladen freigegeben
-  (`freeAfterUpload`, `core.js`); am PC kommen sie gleich hinter dem Startbild auf die Grafikkarte (`uploadStatic`,
-  `boot.js`), statt erst beim ersten Anblick (kein Stocken mehr im Flug).
+  (`freeAfterUpload`, `core.js`, jetzt auch am PC); die Grafikkarte behält ihre eigene Kopie.
 - *Laden:* `sharpen` ohne innere Kanalschleife (gleiches Ergebnis, rund 40 % schneller), Leinwände zum Auslesen mit
   `willReadFrequently`, Bildschirmmarken (Aufgaben, Bekanntschaften, Wegpunkt) setzen Stil nur bei Änderung (`markPos`).
 
