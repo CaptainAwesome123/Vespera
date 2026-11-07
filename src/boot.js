@@ -59,6 +59,7 @@ import './inventar.js';  // V62: Inventar (Umschalt+I): Taschen, Schlüssel, Med
 import './ruf.js';       // V62: Ruf und Ansehen (Taste Ö)
 import './karte.js';     // V62: Stadtkarte (Taste Y), Wegpunkt, Kompassring, Schnellreise im Flug
 import './nebenfiguren.js'; // V63: Nebenfiguren mit eigener Geschichte (Gespräche mit E, Bekanntschaften im Ruf-Buch)
+import './wetterlage.js'; // V63: Wetterereignisse (Schneesturm, Nordlichtnacht, Eisgang, Frostnebel, Meteoritenschauer)
 
 import { shared, $, renderer, scene, camera } from './core.js';
 import { layers, chunkStats } from './chunks.js';

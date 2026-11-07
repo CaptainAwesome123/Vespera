@@ -12,7 +12,7 @@
    Alles mit eigenem Zufall (mulberry32): die übrige Stadt bleibt, wie sie war. Keine neuen Shader außer dem Eis
    (Standardmaterial mit gemalter Textur); Menschen in einer eigenen kleinen Menge (Crowd) mit den bekannten Posen.
    ===================================================================== */
-import { T, scene, camera, U, mulberry32, MOBILE, canvasTex, FOGVIS } from './core.js';
+import { T, scene, camera, U, mulberry32, MOBILE, canvasTex, FOGVIS, shared } from './core.js';
 import { stdMat, addCollider } from './people-skeleton.js';
 import { addGlow, addSeg, lamps, trees, roofs } from './facade-shader.js';
 import { kit, Bx, wuv, benchGeo, hullShape, rubRail, deckBoxes, railing, nameplate, PLATFORMS, VESSELS, addPlatform, PORT_PEDS, bx6, PIER_Y, FERRY, pfLocal, terrainHeight } from './harbour.js';
@@ -698,7 +698,7 @@ export function updateWaterLife(dt, t) {
     let rem = ((tgtS - X.s) % R0.len + R0.len) % R0.len;
     if (X.wait > 0) { X.wait -= dt; X.sp = 0; }
     else {
-      let vt = Math.min(5.5, Math.sqrt(2 * 0.35 * rem) + 0.15);
+      let vt = Math.min(5.5 * (shared.wxBoat || 1), Math.sqrt(2 * 0.35 * rem) + 0.15);   // V63: Eisgang, Sturm: vorsichtig
       const [ah] = R0.at(X.s + 22);
       if (FERRY.g && FERRY.v > 0.2 && Math.hypot(FERRY.g.position.x - ah.x, FERRY.g.position.z - ah.z) < 34) vt = 0;   // Vorfahrt für die Fähre
       X.sp += Math.max(-0.8 * dt, Math.min(0.5 * dt, vt - X.sp));
