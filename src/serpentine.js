@@ -1,4 +1,4 @@
-import { shared, canvasTex, mulberry32, T, mergeGeos, scene, MOBILE, U, pick, R, rand, camera, ANISO, FOG_GLSL, FOGVIS, snowy } from './core.js';
+import { shared, canvasTex, freeAfterUpload, mulberry32, T, mergeGeos, scene, MOBILE, U, pick, R, rand, camera, ANISO, FOG_GLSL, FOGVIS, snowy } from './core.js';
 import { planDeco } from './deco.js';
 import { personGeoHi, personShare, HQ } from './people-model.js';
 import { stdMat, MAT, addCollider, glowTex, paintMat, mergeColored, PAINT, personLook } from './people-skeleton.js';
@@ -1060,7 +1060,10 @@ export function buildVilla() {
   colL(bx0 - 6, by, bz0 - 0.85, bx0 + 6, by + 1.0, bz0 + 0.85);
   for (let k = 0; k < 4; k++) { const lx = bx0 - 4.5 + k * 3; put('gold', lathe([[0.1, 0], [0.03, 0.05], [0.025, 0.35], [0.12, 0.38], [0.03, 0.4], [0.03, 0.55]], 10), lx, by + 0.99, bz0 - 0.4); for (const e of [-1, 0, 1]) { put('lamp', new T.CylinderGeometry(0.015, 0.015, 0.1, 6), lx + e * 0.1, by + 1.6, bz0 - 0.4); G(lx + e * 0.1, by + 1.68, bz0 - 0.4, [1.4, 0.85, 0.4], 0.3); } }
   const dishes = ['lobster', 'oysters', 'cake', 'steak', 'oysters', 'sandwich', 'lobster', 'cake', 'soup'];
-  dishes.forEach((d, k) => { const dm = dishModel(d), [x, z] = W(bx0 - 5.4 + k * 1.35, bz0 + 0.25); dm.position.set(x, by + 1.0, z); dm.scale.setScalar(1.6); dm.rotation.y = ry; scene.add(dm); });
+  // V64: das Büfett (rund 55 kleine Netze) in einer Gruppe, die nur in der Nähe der Villa gezeichnet wird (performance.js);
+  // vorher kostete es aus der ganzen Stadt 55 Zeichenaufrufe für Teller, die zwei Kilometer weit weg nicht einmal ein Bildpunkt sind
+  const buffet = VILLA.buffet = new T.Group(); scene.add(buffet);
+  dishes.forEach((d, k) => { const dm = dishModel(d), [x, z] = W(bx0 - 5.4 + k * 1.35, bz0 + 0.25); dm.position.set(x, by + 1.0, z); dm.scale.setScalar(1.6); dm.rotation.y = ry; buffet.add(dm); });
   {
     const tx = 25, tz = 7;
     put('gold', lathe([[0.5, 0], [0.12, 0.08], [0.08, 0.9], [0.55, 0.95], [0.55, 1.0], [0, 1.0]], 20), tx, by, tz);
@@ -1068,7 +1071,7 @@ export function buildVilla() {
     const levels = [[0, 4], [0.14, 3], [0.28, 2], [0.42, 1]];
     for (const [dy, n] of levels) for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
       if (n > 1 && i > 0 && i < n - 1 && j > 0 && j < n - 1) continue;
-      const dm = dishModel('coupe'), [x, z] = W(tx + (i - (n - 1) / 2) * 0.115, tz + (j - (n - 1) / 2) * 0.115); dm.position.set(x, by + 1.0 + dy, z); scene.add(dm);
+      const dm = dishModel('coupe'), [x, z] = W(tx + (i - (n - 1) / 2) * 0.115, tz + (j - (n - 1) / 2) * 0.115); dm.position.set(x, by + 1.0 + dy, z); buffet.add(dm);
     }
     G(tx, by + 1.3, tz, [1.3, 1.1, 0.6], 1.2);
   }
@@ -1343,13 +1346,13 @@ export function sharpen(g, N, k) {
       h[i] = src[im4] + src[i] + src[ip4]; h[i + 1] = src[im4 + 1] + src[i + 1] + src[ip4 + 1]; h[i + 2] = src[im4 + 2] + src[i + 2] + src[ip4 + 2];
     }
   }
+  // V64: die drei Farbkanäle ausgeschrieben statt innerer Schleife (gleiche Rechnung, gleiches Ergebnis, schneller beim Laden)
   for (let y = 0; y < N; y++) {
-    const r = y * R, rm = (y === 0 ? N - 1 : y - 1) * R, rp = (y === N - 1 ? 0 : y + 1) * R;
-    for (let x = 0; x < R; x += 4) {
-      for (let c = 0; c < 3; c++) {
-        const i = r + x + c, v = src[i];
-        d[i] = v + k * (v - (h[rm + x + c] + h[i] + h[rp + x + c]) / 9);
-      }
+    const r = y * R, rm = (y === 0 ? N - 1 : y - 1) * R - r, rp = (y === N - 1 ? 0 : y + 1) * R - r;
+    for (let i = r, e = r + R; i < e; i += 4) {
+      let v = src[i]; d[i] = v + k * (v - (h[rm + i] + h[i] + h[rp + i]) / 9);
+      v = src[i + 1]; d[i + 1] = v + k * (v - (h[rm + i + 1] + h[i + 1] + h[rp + i + 1]) / 9);
+      v = src[i + 2]; d[i + 2] = v + k * (v - (h[rm + i + 2] + h[i + 2] + h[rp + i + 2]) / 9);
     }
   }
   g.putImageData(im, 0, 0);
@@ -1358,8 +1361,10 @@ export function texSet(W, draw, strength = 2.2, S = 0) {
   // am PC feiner: kleine Kacheln dreifach, große zweieinhalbfach aufgelöst (S = 0); S fest vorgegeben gilt nur am PC
   if (MOBILE) S = 1; else if (!S) S = W <= 256 ? 3 : 2.5;
   const N = W * S;
-  const mk = () => { const c = document.createElement('canvas'); c.width = c.height = N; const g = c.getContext('2d'); g.scale(S, S); return [c, g]; };
-  const [c, g] = mk(), [r, gr] = mk(), [, gh] = mk();
+  // V64: Leinwände, die danach ausgelesen werden (Farbe zum Schärfen, Höhe für die Normalenkarte), gleich im Arbeitsspeicher anlegen;
+  // mit Grafikbeschleunigung musste Chrome sonst jedes Bild erst von der Grafikkarte zurückholen
+  const mk = rd => { const c = document.createElement('canvas'); c.width = c.height = N; const g = c.getContext('2d', rd ? { willReadFrequently: true } : undefined); g.scale(S, S); return [c, g]; };
+  const [c, g] = mk(!MOBILE), [r, gr] = mk(false), [, gh] = mk(true);
   draw(g, gr, gh, W);
   if (!MOBILE) sharpen(g, N, 0.5);
   const hd = gh.getImageData(0, 0, N, N).data, nc = document.createElement('canvas'); nc.width = nc.height = N;
@@ -1376,7 +1381,7 @@ export function texSet(W, draw, strength = 2.2, S = 0) {
   }
   nctx.putImageData(out, 0, 0);
   const map = new T.CanvasTexture(c), rough = new T.CanvasTexture(r), normal = new T.CanvasTexture(nc);
-  for (const t of [map, rough, normal]) { t.wrapS = t.wrapT = T.RepeatWrapping; t.anisotropy = ANISO; if (MOBILE) t.onUpdate = () => { t.image.width = t.image.height = 1; t.onUpdate = null; }; }
+  for (const t of [map, rough, normal]) { t.wrapS = t.wrapT = T.RepeatWrapping; t.anisotropy = ANISO; freeAfterUpload(t); }   // V64: auch am PC (vorher nur am Handy)
   return { map, rough, normal };
 }
 // Gehwegplatten: Betonplatten mit Fugen, Körnung, Rissen, Flecken und nassen Stellen
@@ -2357,10 +2362,14 @@ export function carGeo() {
   return mergeColored(parts);
 }
 // Figuren schauen nach +z. Weiß = Instanzfarbe (Mantel, Kleid, Livree)
-export function personGeo(kind) {
+// V64: coarse = Fernstufe (ab 140 m, dort ist eine Figur nur noch wenige Bildpunkte hoch): halb so viele Segmente an Rümpfen,
+// Armen und Köpfen, rund 60 % weniger Dreiecke. picks: dieselben Zufallswahlen (Haarfarbe) wie das Netz der mittleren Stufe,
+// damit beim Wechsel der Stufe nichts umspringt.
+export function personGeo(kind, coarse = false, picks = null) {
   const P = []; let LB = [0, 0]; const push0 = P.push.bind(P); P.push = e => push0([e[0], e[1], LB[0], LB[1]]);
-  const cyl = (rt, rb, h, x, y, z, c, seg = 8) => P.push([new T.CylinderGeometry(rt, rb, h, seg).translate(x, y + h / 2, z), c]);
-  const sph = (r, x, y, z, c, sy = 1) => P.push([new T.SphereGeometry(r, 10, 8).scale(1, sy, 1).translate(x, y, z), c]);
+  const rec = [], rnd = () => { const v = picks && picks.length > rec.length ? picks[rec.length] : Math.random(); rec.push(v); return v; };
+  const cyl = (rt, rb, h, x, y, z, c, seg = 8) => P.push([new T.CylinderGeometry(rt, rb, h, coarse ? Math.max(4, Math.round(seg * 0.55)) : seg).translate(x, y + h / 2, z), c]);
+  const sph = (r, x, y, z, c, sy = 1) => P.push([new T.SphereGeometry(r, coarse ? 6 : 10, coarse ? 4 : 8).scale(1, sy, 1).translate(x, y, z), c]);
   const box = (w, h, d, x, y, z, c) => P.push([new T.BoxGeometry(w, h, d).translate(x, y, z), c]);
   const male = kind !== 'lady' && kind !== 'gown' && kind !== 'dress' && kind !== 'furcoat' && kind !== 'flapper';
   if (male) {
@@ -2377,7 +2386,7 @@ export function personGeo(kind) {
     if (kind === 'coat') { cyl(0.21, 0.21, 0.02, 0, 1.69, 0, COL.dark, 14); cyl(0.11, 0.12, 0.13, 0, 1.7, 0, COL.dark, 12); }
     else if (kind === 'livery') { sph(0.112, 0, 1.66, -0.01, COL.hair, 0.8); cyl(0.11, 0.115, 0.1, 0, 1.71, 0, PAINT, 12); }
     else if (kind === 'worker') sph(0.118, 0, 1.69, 0.01, [0.2, 0.18, 0.15], 0.5);
-    else sph(0.115, 0, 1.665, -0.015, Math.random() < 0.5 ? COL.hair : COL.blond, 0.78);
+    else sph(0.115, 0, 1.665, -0.015, rnd() < 0.5 ? COL.hair : COL.blond, 0.78);
   } else {
     const gown = kind === 'gown';
     for (const sx of [-0.085, 0.085]) { LB = [sx < 0 ? 1 : 2, 0.88]; cyl(0.06, 0.035, 0.84, sx, 0.02, 0, [0.55, 0.42, 0.34]); } LB = [0, 0];
@@ -2387,10 +2396,10 @@ export function personGeo(kind) {
     for (const sx of [-0.2, 0.2]) { LB = [sx < 0 ? 3 : 4, 1.4]; cyl(0.04, 0.035, 0.58, sx, 0.84, 0, gown ? COL.skin : PAINT); } LB = [0, 0];
     cyl(0.045, 0.05, 0.09, 0, 1.43, 0, COL.skin);
     sph(0.1, 0, 1.6, 0, COL.skin, 1.12);
-    if (gown) { sph(0.112, 0, 1.635, -0.02, Math.random() < 0.4 ? COL.blond : COL.hair, 0.85); box(0.05, 0.05, 0.02, 0.07, 1.7, 0.06, COL.gold); }
+    if (gown) { sph(0.112, 0, 1.635, -0.02, rnd() < 0.4 ? COL.blond : COL.hair, 0.85); box(0.05, 0.05, 0.02, 0.07, 1.7, 0.06, COL.gold); }
     else { sph(0.125, 0, 1.66, -0.01, COL.dark, 0.7); cyl(0.17, 0.17, 0.015, 0, 1.63, 0, COL.dark, 14); }
   }
-  return mergeColored(P);
+  const g = mergeColored(P); g.userData.picks = rec; return g;
 }
 
 // Feine Modelle für die Nähe (unter etwa 60 m bei Personen, 130 m bei Autos)
@@ -2481,16 +2490,17 @@ export function carGeoHi(opts = {}) {
 }
 // Ein Menschen-Satz: mehrere Kleidungsarten, jede eine InstancedMesh mit Farben pro Person
 export class Crowd {
-  constructor(kinds, max) { this.nr = {}; this.hi = {}; this.lo = {}; this.list = []; this.max = max; this.kinds = kinds; this.vis = true; this.far = 320; }
+  constructor(kinds, max) { this.nr = {}; this.hi = {}; this.lo = {}; this.fa = {}; this.list = []; this.max = max; this.kinds = kinds; this.vis = true; this.far = 320; }
   // Statur: jede Figur etwas schmaler oder kräftiger
   add(kind, color, face) { const fem = kind === 'lady' || kind === 'gown' || kind === 'dress' || kind === 'furcoat' || kind === 'flapper'; this.list.push({ kind, color, m: new T.Matrix4(), on: false, bw: fem ? 0.86 + Math.random() * 0.22 : 0.86 + Math.random() * 0.32, gait: [Math.random() * 6.28, 0, 0, face ?? personLook(kind)], live: [0, -9, 0, 1] }); return this.list[this.list.length - 1]; }
   finish() {
     for (const k of this.kinds) {
       const n = this.list.filter(a => a.kind === k).length;
       if (!n) continue;
-      for (const [store, geo] of [[this.nr, personShare(k, MOBILE ? 1 : 2)], [this.hi, personShare(k, 1)], [this.lo, personGeo(k)]]) {
+      const lo = personGeo(k);
+      for (const [store, geo] of [[this.nr, personShare(k, MOBILE ? 1 : 2)], [this.hi, personShare(k, 1)], [this.lo, lo], [this.fa, personGeo(k, true, lo.userData.picks)]]) {
         geo.setAttribute('aGait', new T.InstancedBufferAttribute(new Float32Array(n * 4), 4));
-        if (store !== this.lo) geo.setAttribute('aLive', new T.InstancedBufferAttribute(new Float32Array(n * 4).fill(1), 4));
+        if (store !== this.lo && store !== this.fa) geo.setAttribute('aLive', new T.InstancedBufferAttribute(new Float32Array(n * 4).fill(1), 4));
         const im = new T.InstancedMesh(geo, MAT.cloth, n); im.count = 0; for (let j = 0; j < n; j++) im.setColorAt(j, new T.Color(1, 1, 1));
         im.instanceMatrix.setUsage(T.DynamicDrawUsage); im.frustumCulled = false; scene.add(im);
         store[k] = compactor(im); store[k].im = im;
@@ -2522,7 +2532,7 @@ export class Crowd {
     if (!this.vis) return;
     // V34: in der Höhe wächst der Radius nur noch mit dem halben Höhenabstand (aus 250 m waren tausende Figuren von 2 bis 3 Pixeln im Bild)
     const cp = camera.position, far2 = Math.min(this.far + Math.max(0, cp.y) * 0.5, FOGVIS.ped, FOGVIS.cap) ** 2;
-    for (const k in this.hi) { this.nr[k].begin(); this.hi[k].begin(); this.lo[k].begin(); }
+    for (const k in this.hi) { this.nr[k].begin(); this.hi[k].begin(); this.lo[k].begin(); this.fa[k].begin(); }
     glances(this);
     for (const a of this.list) {
       if (!a.on) continue;
@@ -2530,11 +2540,11 @@ export class Crowd {
       if (d2 < 900 && NEAR.length < 64) NEAR.push(a);
       if (d2 < HQ.near2) this.nr[a.kind].put(a.m, a, a.color, a.gait);
       else if (d2 < LOD_PERSON2) this.hi[a.kind].put(a.m, a, a.color, a.gait);
-      else if (d2 < far2) this.lo[a.kind].put(a.m, a, a.color, a.gait);
+      else if (d2 < far2) (d2 < LOD_PERSON_FAR2 ? this.lo : this.fa)[a.kind].put(a.m, a, a.color, a.gait);
     }
-    for (const k in this.hi) { this.nr[k].end(); this.hi[k].end(); this.lo[k].end(); for (const st of [this.nr, this.hi, this.lo]) st[k].im.visible = st[k].n > 0; }
+    for (const k in this.hi) { this.nr[k].end(); this.hi[k].end(); this.lo[k].end(); this.fa[k].end(); for (const st of [this.nr, this.hi, this.lo, this.fa]) st[k].im.visible = st[k].n > 0; }
   }
-  show(v) { this.vis = v; for (const k in this.hi) { this.nr[k].im.visible = v; this.hi[k].im.visible = v; this.lo[k].im.visible = v; } }
+  show(v) { this.vis = v; for (const k in this.hi) { this.nr[k].im.visible = v; this.hi[k].im.visible = v; this.lo[k].im.visible = v; this.fa[k].im.visible = v; } }
 }
 // V24: Köpfe drehen sich zu Vorübergehenden (aus der Liste naher Figuren des letzten Bildes)
 const NEAR = [];
@@ -2564,7 +2574,7 @@ export function turnHead(a, x, z) {
   if (Math.abs(d) > 1.9) return;   // hinter sich schaut niemand
   a.live[0] = Math.max(-1.05, Math.min(1.05, d)); a.live[1] = U.uTime.value; a.gv = (a.gv | 0) + 1;
 }
-export const LOD_PERSON2 = 45 * 45, LOD_CAR2 = 90 * 90;
+export const LOD_PERSON2 = 45 * 45, LOD_CAR2 = 90 * 90, LOD_PERSON_FAR2 = 140 * 140;   // V64: Fernstufe der Menschen
 // Zwei Detailstufen hinter einer Schnittstelle: put() entscheidet nach Abstand
 // V57: optional eine dritte Stufe 'far': gleiches Netz wie lo, wirft aber keinen Schatten (die Mondschatten-Karte reicht nur
 // rund 150 m um den Blickpunkt; weiter weg kostete jeder Wagen in der Schattenkarte nur Rechenzeit)

@@ -23,7 +23,7 @@
    Stadtkarte (Y): Ebene „Bekanntschaften“ mit allen Figuren.
    Keine neuen Shader, keine neuen Modelle: nur HTML und vorhandene Figuren.
    ===================================================================== */
-import { $, shared, T, camera } from './core.js';
+import { $, shared, T, camera, markPos } from './core.js';
 import { player } from './player.js';
 import { playing, paused, isTouch, tryLock } from './input.js';
 import { toast } from './boat.js';
@@ -751,14 +751,13 @@ function nfMarkStep() {
     const el = NF.marks[mi] || (NF.marks[mi] = (() => { const e = document.createElement('div'); e.className = 'ktMk giver'; e.innerHTML = '<span></span><b></b>'; e.hidden = true; document.body.append(e); return e; })());
     mi++;
     NF._v.set(P.x, P.y + (NF_FIG[id].home === 'belmont' ? 2.3 : 2.2), P.z).project(nfCam());
-    if (NF._v.z > 1 || Math.abs(NF._v.x) > 1.05 || Math.abs(NF._v.y) > 1.05) { el.hidden = true; continue; }
-    el.hidden = false;
-    el.style.left = ((NF._v.x + 1) / 2 * innerWidth).toFixed(0) + 'px'; el.style.top = ((1 - NF._v.y) / 2 * innerHeight).toFixed(0) + 'px';
+    if (NF._v.z > 1 || Math.abs(NF._v.x) > 1.05 || Math.abs(NF._v.y) > 1.05) { if (!el.hidden) el.hidden = true; continue; }
+    markPos(el, (NF._v.x + 1) / 2 * innerWidth, (1 - NF._v.y) / 2 * innerHeight);   // V64: nur bei Änderung
     const txt = (S.met ? NF_FIG[id].kurz : '?') + (d > 10 ? ' · ' + Math.round(d) + ' m' : ''), sym = ready ? '!' : '✦';
     if (el._t !== txt + sym) { el._t = txt + sym; el.querySelector('b').textContent = txt; el.querySelector('span').textContent = sym; }
-    el.style.opacity = ready ? 1 : 0.7;
+    if (el._op !== ready) { el._op = ready; el.style.opacity = ready ? 1 : 0.7; }
   }
-  for (let i = mi; i < NF.marks.length; i++) NF.marks[i].hidden = true;
+  for (let i = mi; i < NF.marks.length; i++) if (!NF.marks[i].hidden) NF.marks[i].hidden = true;
 }
 const nfCam = () => camera;
 function nfKarte(L, lay) {

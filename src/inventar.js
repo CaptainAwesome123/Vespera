@@ -281,8 +281,9 @@ function invMedStep(dt, t) {
   const v = invState(), p = player.p;
   for (const o of INV.med) {
     if (!o.g.visible) continue;
-    const dx = o.g.position.x - p.x, dz = o.g.position.z - p.z;
-    if (dx * dx + dz * dz > 160 * 160) continue;
+    const dx = o.g.position.x - p.x, dz = o.g.position.z - p.z, far = dx * dx + dz * dz > 160 * 160;
+    if (o.m.visible === far) o.m.visible = !far;   // V64: die Münze selbst nur aus der Nähe zeichnen; der Schein bleibt von weitem sichtbar
+    if (far) continue;
     o.m.rotation.y = t * 1.6 + o.ph;
     o.g.position.y += Math.sin(t * 2 + o.ph) * 0.002;
     if (dx * dx + dz * dz < 1.6 * 1.6 && Math.abs(o.g.position.y - 1.0 - p.y) < 2) invCollect(o, v);

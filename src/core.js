@@ -267,6 +267,21 @@ export function bakeGroup(grp) {
   for (const o of rm) if (o.parent) o.parent.remove(o);
   for (const [mat, list] of by) grp.add(new T.Mesh(mergeGeos(list), mat));
 }
+// V64: Bildschirmmarken (Aufgaben, Bekanntschaften, Wetter) nur anfassen, wenn sich Lage oder Sichtbarkeit wirklich ändern;
+// jede Änderung am Stil lässt den Browser Stil und Lage der Seite neu rechnen, und das lief vorher in jedem Bild für jede Marke
+export function markPos(el, left, top) {
+  if (el.hidden) el.hidden = false;
+  const l = left.toFixed(0), t = top.toFixed(0);
+  if (el._ml !== l) { el._ml = l; el.style.left = l + 'px'; }
+  if (el._mt !== t) { el._mt = t; el.style.top = t + 'px'; }
+}
+// V64: Leinwand nach dem Hochladen freigeben. Eine fertig gezeichnete Leinwand liegt sonst ein zweites Mal im Speicher (in Chrome
+// mit Grafikbeschleunigung sogar im Grafikspeicher), obwohl die Grafikkarte längst ihre eigene Kopie hat. Nur für Texturen, die nie
+// neu gezeichnet und nicht geklont werden (Schilder, Bodenstoffe aus texSet); ein Verlust der Grafik wird nicht wiederhergestellt.
+export function freeAfterUpload(t) {
+  t.onUpdate = () => { const c = t.image; if (c && c.getContext) { c.width = c.height = 1; } t.onUpdate = null; };
+  return t;
+}
 // Texturen werden mit doppelter Auflösung gezeichnet, solange sie nicht zu groß werden (scharfe Schrift und Böden)
 export function canvasTex(w, h, draw) {
   // V34: höchstens doppelte Auflösung und nur für kleine Leinwände. Vorher bis dreifach (512² wurde 1536²) und große Böden doppelt

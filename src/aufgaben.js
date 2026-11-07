@@ -16,7 +16,7 @@
    Gespeichert mit dem Kontor (KT.s.q). Nur HTML, keine 3D-Teile außer der Kiste
    oder dem Koffer zum Tragen (physics.spawnProp, vorhandenes Material).
    ===================================================================== */
-import { T, camera, $ } from './core.js';
+import { T, camera, $, markPos } from './core.js';
 import { player } from './player.js';
 import { playing, paused } from './input.js';
 import { toast } from './boat.js';
@@ -374,9 +374,9 @@ function markEl(i) {
 function showMark(i, pt, text, giver) {
   const el = markEl(i);
   _pv.set(pt.x, pt.y, pt.z).project(camera);
-  if (_pv.z > 1 || _pv.z < -1 || Math.abs(_pv.x) > 1.05 || Math.abs(_pv.y) > 1.05) { el.hidden = true; return; }
-  el.hidden = false; el.classList.toggle('giver', !!giver);
-  el.style.left = ((_pv.x + 1) / 2 * innerWidth).toFixed(0) + 'px'; el.style.top = ((1 - _pv.y) / 2 * innerHeight).toFixed(0) + 'px';
+  if (_pv.z > 1 || _pv.z < -1 || Math.abs(_pv.x) > 1.05 || Math.abs(_pv.y) > 1.05) { if (!el.hidden) el.hidden = true; return; }
+  if (el._g !== !!giver) { el._g = !!giver; el.classList.toggle('giver', !!giver); }
+  markPos(el, (_pv.x + 1) / 2 * innerWidth, (1 - _pv.y) / 2 * innerHeight);   // V64
   if (el._t !== text) { el._t = text; el.querySelector('b').textContent = text; el.querySelector('span').textContent = giver ? '!' : ''; }
 }
 function hudStep() {

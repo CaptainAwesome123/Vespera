@@ -871,7 +871,7 @@ function kaHud() {
 const _kav = new T.Vector3();
 function kaWorldMark() {
   const wp = KARTE.s.wp, show = wp && playing && !paused && !KARTE.open;
-  if (!show) { if (KARTE.mk) KARTE.mk.hidden = true; return; }
+  if (!show) { if (KARTE.mk && !KARTE.mk.hidden) KARTE.mk.hidden = true; return; }
   if (!KARTE.mk) { kaCss(); const d = KARTE.mk = document.createElement('div'); d.className = 'kaMk'; d.innerHTML = '<span></span><b></b>'; document.body.append(d); }
   const d = Math.hypot(wp.x - player.p.x, wp.z - player.p.z);
   if (d < 22) { toast('Wegpunkt erreicht'); kaSetWp(null); KARTE.mk.hidden = true; return; }
@@ -879,8 +879,10 @@ function kaWorldMark() {
   _kav.set(wp.x, y + Math.min(60, d * 0.04), wp.z).project(camera);
   const el = KARTE.mk;
   if (_kav.z > 1 || _kav.z < -1 || Math.abs(_kav.x) > 1.05 || Math.abs(_kav.y) > 1.05) { el.hidden = true; return; }
-  el.hidden = false;
-  el.style.left = ((_kav.x + 1) / 2 * innerWidth).toFixed(0) + 'px'; el.style.top = ((1 - _kav.y) / 2 * innerHeight).toFixed(0) + 'px';
+  if (el.hidden) el.hidden = false;
+  // V64: Lage nur schreiben, wenn sie sich ändert (jede Änderung lässt den Browser Stil und Lage neu rechnen)
+  const L = ((_kav.x + 1) / 2 * innerWidth).toFixed(0) + 'px', Tp = ((1 - _kav.y) / 2 * innerHeight).toFixed(0) + 'px';
+  if (el._l !== L) { el._l = L; el.style.left = L; } if (el._tp !== Tp) { el._tp = Tp; el.style.top = Tp; }
   const t = (wp.n && wp.n !== 'Wegpunkt' ? wp.n + ' · ' : '') + kaFmtD(d);
   if (el._t !== t) { el._t = t; el.querySelector('b').textContent = t; }
 }

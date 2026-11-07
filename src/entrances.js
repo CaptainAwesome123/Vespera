@@ -1,4 +1,4 @@
-import { T, mergeGeos, scene, pick, R, rand, mulberry32, canvasTex } from './core.js';
+import { T, mergeGeos, scene, pick, R, rand, mulberry32, canvasTex, freeAfterUpload } from './core.js';
 import { stdMat, MAT, addCollider } from './people-skeleton.js';
 import { addGlow, addSeg, addNeon, NEON, STONES, RIBS, spires, towers, roofs, neonPool, shafts, steamPts, segs, neons } from './facade-shader.js';
 import { BR_SPOTS } from './island.js';
@@ -399,6 +399,7 @@ export function makeSignTex(word, color, vertical) {
     if (vertical) chars.forEach((ch, i) => g.fillText(ch, W / 2, 30 + 104 * i + 56));
     else g.fillText(word, W / 2, H / 2 + 6);
   });
+  freeAfterUpload(t);   // V64: Leuchtschilder werden nie neu gezeichnet (zusammen rund 300 MB Leinwände)
   return signTex[key] = { t, W, H };
 }
 // V23: Schilder bekommen einen freien Platz an der Fassade. Früher hingen sie an fester Stelle und Portale, Pilaster,

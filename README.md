@@ -293,6 +293,22 @@ Außenhaut, Garten, Terrassen und das Fest.
   pro Sekunde (vorher 42). Bei knapper Bildrate entsteht das Spiegelbild nur jedes zweite Bild (`REFL.half`).
 - *Aufgeräumt:* Feuerwerk, Lichtsäulen aus den Kronen und Suchscheinwerfer des Belmont (seit V33/V42 aus) entfernt.
 
+**V64: Leistungsrunde nach V57 bis V63.** Gleiche Inhalte, weniger Arbeit je Bild, weniger Speicher.
+- *Fehler im Startbild:* die Straßenbahn (V63) legte im Startbild und in der Pause jedes Bild drei neue Hindernisse für den
+  Verkehr an, ohne die alten zu entfernen; nach einer Minute im Menü prüfte jeder Wagen über 20 000 davon (25 ms je Bild und
+  steigend). `bahnObstacles` (`bahn.js`) ersetzt jetzt nur noch die eigenen Einträge.
+- *Menge in der Ferne:* vierte Stufe `fa` in `Crowd` (`serpentine.js`) ab 140 m (`LOD_PERSON_FAR2`) mit halb so vielen
+  Segmenten (`personGeo(kind, true)`, rund 320 statt 790 Dreiecke je Figur, gleiche Haarfarbe wie die mittlere Stufe).
+- *Blockabfragen:* `blockAt` (`island.js`) sucht über ein 64-m-Raster statt durch alle Blöcke (gleiches Ergebnis, geprüft
+  an 200 000 Zufallspunkten); läuft jedes Bild tausendfach für Bordsteinhöhe und Laub.
+- *Zeichenaufrufe:* Büfett der Villa (34 Teller und Gläser) nur noch bis 220 m (`VILLA.buffet`), die Sonnenfächer in der
+  Belmont-Halle als ein Netz, Münzen der Medaillen nur bis 160 m (der Schein bleibt), feste Lichterketten an Booten und
+  Schiffen (`makeGlowPoints`) werden außerhalb des Blickfelds nicht gezeichnet.
+- *Speicher:* Leinwände der Leucht- und Ladenschilder und der Bodenstoffe (`texSet`) werden nach dem Hochladen freigegeben
+  (`freeAfterUpload`, `core.js`, jetzt auch am PC); die Grafikkarte behält ihre eigene Kopie.
+- *Laden:* `sharpen` ohne innere Kanalschleife (gleiches Ergebnis, rund 40 % schneller), Leinwände zum Auslesen mit
+  `willReadFrequently`, Bildschirmmarken (Aufgaben, Bekanntschaften, Wegpunkt) setzen Stil nur bei Änderung (`markPos`).
+
 Große Modelle: Draco/Meshopt sind noch nicht eingebunden; KTX2 braucht die Transcoder-Dateien vom CDN
 (`THREE_CDN` in `assets.js`). Die Einzeldatei bettet `assets/` als Daten-URLs ein; ab einigen MB lohnt sich das
 nicht mehr, dann bleibt das Artefakt ohne die großen Dateien und nur GitHub Pages zeigt sie.

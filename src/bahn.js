@@ -639,11 +639,17 @@ export function updateBahn(dt) {
   bhCrowdUpdate(dt);
 }
 // Autos halten hinter der Straßenbahn (nach dem Zurücksetzen der Hindernisse in updateVehicles)
+// V64: die eigenen Einträge des letzten Bildes erst entfernen. Im Startbild und in der Pause leert updateVehicles die Liste nicht;
+// dort kamen vorher jedes Bild neue dazu (nach einer Minute im Menü über 20 000, der Verkehr prüfte jeden für jeden Wagen: 25 ms je Bild
+// und mehr). Die Einträge werden wiederverwendet statt jedes Bild neu angelegt.
+const BH_OB = [];
 export function bahnObstacles() {
   if (!BAHN.built) return;
+  if (BH_OB.length) { let w = 0; for (let i = 0; i < OBSTACLES.length; i++) { const o = OBSTACLES[i]; if (!o.bahn) OBSTACLES[w++] = o; } OBSTACLES.length = w; }
+  let n = 0;
   for (const v of BAHN.veh) {
     if (v.kind !== 'tram') continue; const c = v.cars[0], fx = Math.cos(c.ry), fz = -Math.sin(c.ry);
-    for (const k of [-4.6, 0, 4.6]) OBSTACLES.push({ x: c.x + fx * k, z: c.z + fz * k, y: 0, r: 1.3, v: v.v });
+    for (const k of [-4.6, 0, 4.6]) { const o = BH_OB[n] || (BH_OB[n] = { x: 0, z: 0, y: 0, r: 1.3, v: 0, bahn: true }); n++; o.x = c.x + fx * k; o.z = c.z + fz * k; o.v = v.v; OBSTACLES.push(o); }
   }
 }
 

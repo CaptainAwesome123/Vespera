@@ -631,5 +631,8 @@ export function makeGlowPoints(list, dynamic = false) {
   geo.setAttribute('position', pa); geo.setAttribute('color', new T.BufferAttribute(col, 3));
   geo.setAttribute('size', new T.BufferAttribute(size, 1)); geo.setAttribute('phase', new T.BufferAttribute(ph, 1)); geo.setAttribute('blink', new T.BufferAttribute(bl, 1));
   const p = new T.Points(geo, glowMat); p.frustumCulled = false; p.renderOrder = 2;
+  // V64: feste Lichterketten (Boote, Schiffe, Lampen) werden außerhalb des Blickfelds nicht mehr gezeichnet; die Kugel um die Punkte
+  // ist um den größten Lichtschein erweitert, damit am Bildrand nichts vorzeitig verschwindet. Bewegte Listen bleiben immer an.
+  if (!dynamic && n) { geo.computeBoundingSphere(); geo.boundingSphere.radius += Math.max(...size) * 1.5 + 2; p.frustumCulled = true; }
   return p;
 }

@@ -163,7 +163,7 @@ export function setupReflection() {
   REFL.cam.layers.set(1);
   // Was sich spiegeln soll: alles außer Kleinkram (Figuren, Autos, Möbel, Partikel); Wasser selbst nie
   const skip = REFL.skip = new Set();
-  for (const c of [pedCrowd, interiorCrowd, VILLA.crowd]) if (c) for (const k in c.hi) { skip.add(c.hi[k].im); skip.add(c.lo[k].im); }
+  for (const c of [pedCrowd, interiorCrowd, VILLA.crowd]) if (c) for (const k in c.hi) { skip.add(c.hi[k].im); skip.add(c.lo[k].im); if (c.fa && c.fa[k]) skip.add(c.fa[k].im); }
   scene.traverse(o => { if (!skip.has(o) && o !== harborWater && !o.userData.noRefl) o.layers.enable(1); });
 }
 // V25: Laternen und Stadtmobiliar kommen später als Chunks dazu: alle paar Sekunden ins Spiegelbild aufnehmen (Ladeneinrichtung nicht, die sieht man draußen kaum)
