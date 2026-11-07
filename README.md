@@ -293,6 +293,27 @@ Außenhaut, Garten, Terrassen und das Fest.
   pro Sekunde (vorher 42). Bei knapper Bildrate entsteht das Spiegelbild nur jedes zweite Bild (`REFL.half`).
 - *Aufgeräumt:* Feuerwerk, Lichtsäulen aus den Kronen und Suchscheinwerfer des Belmont (seit V33/V42 aus) entfernt.
 
+**V67 bis V70: Grafik-Update aus dem Spielvideo** (Vorschlag „Vespera Grafik-Update“, ohne die teure Stufe „Ultra“).
+Regel wie immer: keine großen neuen Shader, keine Verzweigungen im Menschen-Shader, lieber beim Laden rechnen.
+- *V67 Licht innen* (`src/raumlicht.js`): weiche Flecken aus einem kleinen Bildatlas, beim Laden je Raumgruppe in zwei Netze
+  gefasst (Schatten normal gemischt, Licht addiert). Kontaktschatten unter allen Möbeln aus `placeFurn` (bewegliche Möbel:
+  der Fleck gehört zum Stück und verschwindet beim Anheben mit, `furnHide`), dunklere Boden- und Deckenkanten an den Wänden
+  (Belmont, Penthouse über `wall()`, Villa über `wall()` je Geschoss), Säulenfüße, Tische, Tresen, Bühne, weiche Dunkelheit
+  unter den Galerien; warme Lichtflecken unter Kronleuchtern und auf Tischtüchern, Lichtfächer an den Penthouse-Leuchten,
+  Lichtvouten unter der Salondecke. Böden mit Rauheitskarte (`roughTex`) statt spiegelglatt: keine grellen Lichtellipsen.
+  Teppichläufer auf beiden Galerien, größere Galerie-Wandleuchten, Sonnenfächer weniger überstrahlt. Tonkurve (`bloom.js`):
+  in Belmont und Penthouse etwas heller belichtet und die tiefsten Schatten leicht angehoben (`U.uInside`).
+- *V68 Fassaden*: Fensterblöcke (3 Fenster x 2 Geschosse) haben eine eigene Belegung, nah und fern gleich (dunkle
+  Wohnungen, helle, einzelne kühl beleuchtete Büros), die Türme sind keine gleichförmigen Raster mehr. Belmont-Vordach von
+  unten beleuchtet (Kassetten mit Sonnenfächer), Glühbirnenkante rundum, Lichtfleck auf dem Pflaster. Goldleisten der
+  Kronen mit Glanzverlauf (oben heller, Seiten matter, `serpentine.js` Neon-Shader).
+- *V69 Atmosphäre*: aufgewirbelter Schnee bläulich und dünn statt grauer Flecken, weiche Teilchen dicht vor der Kamera
+  ausgeblendet. Schwache Lichtkegel unter den nahen Laternen (bis 130 m, ein Netz je Zelle, `props.js`). Schnee auf der
+  Mondseite der Berge weniger grell, ferne Hänge bläulich gestaffelt.
+- *V70 Menschen und Möbel*: Samtschein an den Rändern von Polstern und Vorhängen (`addSheen`, eine Zeile im Standard-
+  Shader) in Belmont, Penthouse, Villa und Luftschiff; sechs weitere Abendkleidfarben; Fugen und Schubladen an den
+  Küchenschränken des Penthouse.
+
 **V66: Kanon Alexander.** Alexander ist kein strahlender Held, sondern ein reicher Kapitalist, der seine Stadt aufbaut:
 nicht böse, aber auch kein Heiliger. Die Leute bewundern, fürchten, beneiden oder hassen ihn; der Widerstand hat Gründe.
 Nur Texte und Daten, keine Shader, keine Modelle. Der Kanon steht in `vespera-spiel/kanon.md`.
