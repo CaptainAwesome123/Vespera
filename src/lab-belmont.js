@@ -41,6 +41,9 @@ export async function startBelmontLab(params) {
     ballsaal: [[0, P, -8], [0, 6, -40]], ballhoch: [[0, 16.7 + 1.7, -12], [0, 4, -36]], buehne: [[0, P, -24], [0, 5, -46]], band: [[-4, P + 1.3, -37], [-2, 2.8, -45]],
     tische: [[-14, P, -20], [-27, 1.2, -32]], bar: [[-40.2, P, -15], [-44.5, 1.4, -27]], tisch: [[-17.5, P, -23], [-23, 0.9, -30]], treppe: [[26, P, -44], [36, 4, -20]], galerie: [[38, 8.0 + 1.7, -16], [0, 5, -32]],
     tanz: [[10, P, -20], [0, 1.4, -28]], spiegel: [[34, P, -30], [48, 3.5, -30]],
+    // V65: Treppe zur zweiten Galerie, Tische der ersten Galerie, VIP-Logen
+    galerietreppe: [[30, 8.0 + 1.7, -11.5], [8, 13, -7.5]], treppenpodest: [[0, 16.0 + 1.7, -11.5], [16, 11, -7.5]], galerietische: [[42, 8.0 + 1.7, -14], [45, 8.4, -34]],
+    logen: [[38, 16.0 + 1.7, -11], [44, 17, -40]], logeinnen: [[46.8, 16.0 + 1.7, -33], [41, 16.6, -27]], logenvonunten: [[18, P, -30], [44, 17, -30]],
   };
   window.labView = name => { const v = V[name] || V.lobby; camera.position.set(...v[0]); camera.lookAt(...v[1]); player.p.copy(camera.position); player.p.y -= 1.6; relight(); };
   const LABB = { t: params.get('t') != null ? +params.get('t') : null };

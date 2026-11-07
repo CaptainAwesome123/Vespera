@@ -79,7 +79,8 @@ export function buildPenthouse() {
     crystal: new T.MeshBasicMaterial({ color: new T.Color(1.25, 1.18, 1.05) }),
     bottles: new T.MeshBasicMaterial({ color: new T.Color(0.85, 0.5, 0.2) }),
     bottlesG: new T.MeshBasicMaterial({ color: new T.Color(0.25, 0.55, 0.3) }),
-    mirror: stdMat({ color: 0xc9d0d4, metalness: 1, roughness: 0.04, envI: 1.4 }),
+    // V65: Spiegel mit eigenem Silberschein (rein metallisch spiegelten sie nur die dunkle Umgebung und standen als schwarze Tafeln im Raum)
+    mirror: stdMat({ color: 0xaab4ba, metalness: 0.65, roughness: 0.1, envI: 1.5, emissive: 0x2c3438 }),
     tile: stdMat({ map: tileTex(), roughness: 0.2, envI: 0.8 }),
     cab: stdMat({ color: 0xece4d4, roughness: 0.3, envI: 0.6 }),
     iron: stdMat({ color: 0x141416, roughness: 0.5, metalness: 0.6, envI: 0.5 }),
@@ -223,8 +224,12 @@ export function buildPenthouse() {
     col(Math.min(x0, x1) - 0.1, y, Math.min(z0, z1) - 0.1, Math.max(x0, x1) + 0.1, y + h + 0.05, Math.max(z0, z1) + 0.1);
   };
   rail(-5, -0.55, 5, -0.55, F2);
-  rail(-HX, hz0, HX, hz0, F2); rail(-HX, hz1, HX, hz1, F2); rail(-HX, hz0, -HX, hz1, F2);
-  rail(HX, hz0, HX, st.z - 1.4, F2); rail(HX, st.z + 1.4, HX, hz1, F2);
+  // V65: oben endet die Treppe nach Norden. Dort liegt jetzt ein Austrittspodest über dem ganzen Nordostviertel des Treppenauges,
+  // und das Geländer davor ist offen: man geht geradeaus auf die Galerie weiter. Vorher endete das Podest nach 1,5 m an einer Lücke,
+  // wer der Treppe weiter folgte, fiel durchs Treppenauge zurück in den Salon (im Video mehrmals).
+  rail(-HX, hz0, 0, hz0, F2); rail(-HX, hz1, HX, hz1, F2); rail(-HX, hz0, -HX, hz1, F2);
+  rail(0, hz0, 0, st.z - 0.62, F2);
+  rail(HX, st.z + 1.4, HX, hz1, F2);
 
   /* ================= Wendeltreppe (eineinviertel Umdrehungen, Mittelsäule, Goldgeländer) ================= */
   {
@@ -250,8 +255,13 @@ export function buildPenthouse() {
       for (const rr of [1.3, 1.8, 2.3]) { const x = cx + Math.sin(a) * rr, z = cz + Math.cos(a) * rr; col(x - 0.28, y1 - 0.3, z - 0.28, x + 0.28, y1, z + 0.28); }
       if (a > 0.2 && a < turn - 0.6 && Math.round(a / step) % 2 === 0) { const x = cx + Math.sin(a) * 2.78, z = cz + Math.cos(a) * 2.78; col(x - 0.12, y1, z - 0.12, x + 0.12, y1 + 1.1, z + 0.12); }
     }
-    // Austrittspodest oben: verbindet das Treppenende mit der Galerie (sonst Lücke bis zur Deckenkante)
-    col(cx + 1.0, F2 - 0.25, cz - 1.45, cx + HX + 0.2, F2, cz + 0.3);
+    // Austrittspodest oben (V65): Nordostviertel des Treppenauges auf Galeriehöhe, nach Norden und Osten offen
+    col(cx, F2 - 0.3, hz0 - 0.1, cx + HX + 0.2, F2, cz + 0.3);
+    put('floor2', rectXZ(cx, HX, hz0, cz, F2 + 0.01, F2F));
+    put('coffer', rectXZ(cx, HX, hz0, cz, F2 - 0.3, null, true, 2.5));
+    put('lacquer', BOX(HX - cx - 0.62, 0.3, 0.1, (cx + 0.62 + HX) / 2, F2 - 0.15, cz - 0.05));
+    put('gold', BOX(HX - cx - 0.62, 0.05, 0.14, (cx + 0.62 + HX) / 2, F2 - 0.02, cz - 0.05));
+    put('lacquer', BOX(0.1, 0.3, cz - 0.62 - hz0, cx + 0.05, F2 - 0.15, (hz0 + cz - 0.62) / 2));
   }
 
   /* ================= Möbel ================= */

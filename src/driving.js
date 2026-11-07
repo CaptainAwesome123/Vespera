@@ -1,7 +1,7 @@
 import { shared, T, scene, camera } from './core.js';
 import { UNTER } from './unter-hook.js';
 import { MAT, mergeColored, nearBoxes } from './people-skeleton.js';
-import { onIsland, curbHeight, maskAt, elevatedHeightAt, canalIce } from './island.js';
+import { onIsland, curbHeight, maskAt, canalIce } from './island.js';
 import { WATER_Y } from './dance.js';
 import { waterSplash } from './water.js';
 import { roadHeightAt, terrainHeight } from './harbour.js';
@@ -39,7 +39,6 @@ export function groundAt(x, z, y) {
   if (UNTER.ground && y < -6) { const u = UNTER.ground(x, z, y); if (u) return u; }   // V61: Boden der Verstecke unter der Stadt
   const rd = roadHeightAt(x, z, y + 1);
   if (rd.y > -1e8) return { y: rd.y, mu: 1, road: true, via: true };
-  const ev = elevatedHeightAt(x, z, y + 1); if (ev && ev.y > 0.3) return { y: ev.y, mu: 1, road: true, elev: true, ax: ev.ax, at: ev.at };   // V42: Hochstraße und Rampen
   if (typeof villaRoadAt === 'function') { const v = villaRoadAt(x, z, y); if (v) return v; }
   if (!onIsland(x, z, -0.4)) {
     // am Berg: Gelände (Bankett, Wiese, Fels)
@@ -368,7 +367,7 @@ export function collideBody(B) {
   for (const car of cars) {
     if (car.graph || car.wx === undefined) continue;
     if ((car.wx - B.x) ** 2 + (car.wz - B.z) ** 2 > 9 || Math.abs((car.wy || 0) - B.y) > 2) continue;
-    // Hochstraße und Viadukt: einfacher Abstand, diese Wagen bleiben auf der Schiene
+    // Viadukt: einfacher Abstand, diese Wagen bleiben auf der Schiene
     const dx = B.x - car.wx, dz = B.z - car.wz, d = Math.hypot(dx, dz) || 1;
     B.x += dx / d * (3 - d) * 0.5; B.z += dz / d * (3 - d) * 0.5;
     const j = impulse(B, null, dx / d, dz / d, car.wx + dx / d * 1.5, car.wz + dz / d * 1.5, 0.2); if (j > 0) crashDamage(B, car.wx + dx / d * 1.5, car.wz + dz / d * 1.5, j, 0);
@@ -411,9 +410,8 @@ export function updateVehicles(dt) {
       B.x += B.vx * h; B.z += B.vz * h; B.h += B.w * h;
       // nicht über die Brüstung des Viadukts
       const g2 = groundAt(B.x, B.z, B.y);
-      if (g && (g.via || g.elev) && (!g2 || (!g2.via && !g2.elev && !g2.serp && g2.y < g.y - 2))) {
+      if (g && g.via && (!g2 || (!g2.via && !g2.serp && g2.y < g.y - 2))) {
         B.x = ox; B.z = oz; let nx = Math.sign(-B.x) || 1, nz = 0;
-        if (g.elev) { if (g.ax) { nx = 0; nz = Math.sign(g.at - B.z) || 1; } else nx = Math.sign(g.at - B.x) || 1; }   // V42: Hochstraße: zur Deckmitte hin
         const j = impulse(B, null, nx, nz, B.x - nx * B.hw, B.z - nz * B.hw, 0.15); if (j > 0) crashDamage(B, B.x - nx * B.hw, B.z - nz * B.hw, j, 4);
         if (nx) B.vx = nx * Math.abs(B.vx) * 0.2; if (nz) B.vz = nz * Math.abs(B.vz) * 0.2;
       }

@@ -273,7 +273,8 @@ export function updateRagdolls(dt) {
     if (bk.t < 2.6) { pedCrowd.set(pd.a, bk.x, bk.y, bk.z, bk.yaw, pd.sc); continue; }
     let tx, tz, ty;
     if (pd.st === 4) { tx = pd.x; tz = pd.z; ty = pd.y - (pd.yo || 0); }
-    else { const P = loopPos(pd.lp, pd.t); tx = P[0]; tz = P[1]; ty = pd.lp.y; }
+    else if (pd.lp && pd.lp.segs) { const P = loopPos(pd.lp, pd.t); tx = P[0]; tz = P[1]; ty = pd.lp.y; }
+    else { pd.st = 4; pd.x = tx = bk.x; pd.z = tz = bk.z; pd.y = ty = bk.y; pd.yo = 0; pd.yaw = bk.yaw; }   // V65: ohne Runde (z. B. Gruppe an der Ecke) bleibt man stehen, wo man aufgestanden ist (vorher JS-Fehler, das Bild stand)
     const dx = tx - bk.x, dz = tz - bk.z, d = Math.hypot(dx, dz);
     if (!bk.walk) { bk.walk = true; const g = pd.a.gait; g[1] = pd.gw ? pd.gw[0] : 5; g[2] = pd.gw ? pd.gw[1] || 0.36 : 0.36; pd.a.gv = (pd.a.gv | 0) + 1; }
     const st = Math.min(d, 1.25 * dt);
@@ -318,6 +319,7 @@ export function updatePedestrians(dt, t) {
     if (pd.st === 9) { aweStep(pd, dt); continue; }   // V52: steht und staunt über Alexander
     if (pd.st === 10) { lifeStep(pd, dt); continue; }   // V55: Kellner auf der Terrasse
     if (pd.st === 4) { pedCrowd.set(pd.a, pd.x, pd.y - (pd.yo || 0), pd.z, pd.yaw, pd.sc, pd.tilt || 0); continue; }
+    if (!lp || !lp.segs) { if (pd.x !== undefined) pedCrowd.set(pd.a, pd.x, pd.y - (pd.yo || 0), pd.z, pd.yaw, pd.sc, pd.tilt || 0); continue; }   // V65: Schutz wie oben
     if (pd.st === 7) {
       // Begegnung: Hand geben, reden und zuhören im Wechsel, lachen, zum Abschied winken
       if (pd.lead) {

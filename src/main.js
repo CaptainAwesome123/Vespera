@@ -7,7 +7,7 @@ import { initDriveState } from './driving.js';
 import { R } from './core.js';
 import { buildEnv, getMats } from './people-skeleton.js';
 import { segs } from './facade-shader.js';
-import { buildCity, buildNetwork, NET, buildOuter, buildShoreV16, buildBridges, buildElevated } from './island.js';
+import { buildCity, buildNetwork, NET, buildOuter, buildShoreV16, buildBridges } from './island.js';
 import { finishShops, buildIndustry } from './shops.js';
 import { buildTerraces, buildSigns } from './entrances.js';
 import { buildBelmont, buildBelmontInterior, buildBelmontDoor, BEL } from './belmont.js';
@@ -100,8 +100,6 @@ export async function build() {
   await step('buildSigns');
   buildBridges();
   await step('buildBridges');
-  buildElevated();
-  await step('buildElevated');
   buildVilla();
   await step('buildVilla');
   buildPentStaff();   // V57: Concierge, Barkeeper, Kellner und Pianist im Penthouse (die Villa belebt haushalt.js beim ersten Bild)

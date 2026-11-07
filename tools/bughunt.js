@@ -34,7 +34,7 @@ const [,, url = 'http://localhost:8765/', out = 'out/bugs.json'] = process.argv;
     const V0 = HB.VILLA, VR = VL.VR, vl = (lx, lz, ly) => ({ x: V0.x + lx * VR.cs + lz * VR.sn, z: V0.z - lx * VR.sn + lz * VR.cs, y: VR.by + ly });   // villaLocal rückwärts
     const spots = [
       ['platz', 0, 0.26, 120], ['lobby', 44.4, BM.BI.P, 22], ['lobby-mitte', 0, BM.BI.P, 10], ['ballsaal', 30, BM.BI.P, -12], ['ballsaal-mitte', 0, BM.BI.P, -20],
-      ['galerie1', 40, BM.BI.G1, 0], ['galerie2', 40, BM.BI.G2, 0],
+      ['galerie1', 40, BM.BI.G1, 0], ['galerie2', 40, BM.BI.G2, 0], ['galerie2-podest', 0, BM.BI.G2, -8], ['loge', 43.4, BM.BI.G2, -27.5],
       ['ph-foyer', 0, PH.PH.F1, -14.4], ['ph-salon', 0, PH.PH.F1, 6], ['ph-kueche', -12, PH.PH.F1, -12], ['ph-bar', 12, PH.PH.F1, -12], ['ph-bad', -11, PH.PH.F2, -10], ['ph-schlaf', 11, PH.PH.F2, -10], ['ph-bibliothek', 0, PH.PH.F2, -12],
       ['terrasse-sued', 0, PH.PH.F1, 30], ['terrasse-ost', 28, PH.PH.F1, 0], ['terrasse-west', -28, PH.PH.F1, 0],
       ['hafen', 60, 0.26, 520], ['laden', -330, 0.26, -380], ['arbeiter', 300, 0.26, -600], ['viadukt', 0, 30, 900],
@@ -56,6 +56,10 @@ const [,, url = 'http://localhost:8765/', out = 'out/bugs.json'] = process.argv;
     await walk('brunnen-ecke', -14, 0.26, 86, -Math.PI / 4 + Math.PI);
     // 3) Treppen: Wendeltreppe Penthouse (Mitte 0,-4, r 2,55), große Treppe Ballsaal (Lage aus den Kollisionsquadern geschätzt)
     await walk('ph-wendeltreppe', 2.2, PH.PH.F1, -4 - 1.3, Math.PI, 7000);
+    // V65: Treppen von der ersten zur zweiten Galerie des Ballsaals (an der Trennwand, zur Mitte hin steigend), Austritt oben im Penthouse
+    await walk('ball-treppe-ost', 22, BM.BI.G1, -7.7, Math.PI / 2, 7000); await walk('ball-treppe-west', -22, BM.BI.G1, -7.7, -Math.PI / 2, 7000);
+    await walk('ball-loge-gang', 47.1, BM.BI.G2, -14, 0, 5000);
+    await walk('ph-podest-nord', 1.8, PH.PH.F2, -4.3, 0, 2500);
     // 4) Aktionen
     const act = async (nm, fn) => { try { const r = await fn(); out.actions.push({ nm, ok: true, r }); } catch (e) { out.actions.push({ nm, ok: false, err: String(e).slice(0, 200) }); } };
     put(0, 0.56, 120, 0); await wait(300);
