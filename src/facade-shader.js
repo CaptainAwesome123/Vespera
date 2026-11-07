@@ -211,11 +211,16 @@ void main(){
   // V38: Bürohäuser (Stil 1) leuchten etagenweise, einzelne Fenster gehen alle paar Minuten an oder aus
   float hFloor = mix(h, hash(vec2(cell.y, seed*2.1 + faceId)), 0.55 * step(0.5, style) * step(style, 1.5));
   float tgl = step(0.93, hash(cell + vec2(seed, floor(uTime/41.0 + h*5.0))));
-  float lit = abs(step(1.0 - dens, hFloor) - tgl);
+  // V68: Fensterblöcke (3 Fenster x 2 Geschosse) mit eigener Belegung: ganze Wohnungen dunkel, andere hell, einige kühl beleuchtet.
+  // Gilt nah (je Fenster) und fern (Mittelfarbe) gleich, damit die Türme nicht mehr als gleichförmige Raster erscheinen.
+  float bh = hash(floor(vec2(ux / 3.0, vy / 2.0)) + vec2(seed*1.7 + faceId*3.1, 5.0));
+  float bDens = mix(dens, clamp(dens * mix(0.35, 0.75 + 0.5*fract(bh*7.3), step(0.2, bh)), 0.0, 1.0), step(style, 1.5));   // hohe Bogenfenster (Stil 2) bleiben voll
+  float lit = abs(step(1.0 - bDens, hFloor) - tgl);
   float t2 = hash(cell.yx*1.31 + vec2(seed, faceId));
   vec3 warm = mix(vec3(1.0, 0.52, 0.2), vec3(1.0, 0.78, 0.5), t2);
   if (t2 > 0.96) warm = vec3(0.75, 0.9, 1.0);
   if (t2 < 0.05) warm = vec3(1.0, 0.95, 0.85);
+  warm = mix(warm, vec3(0.78, 0.9, 1.0), step(0.93, bh) * step(style, 1.5));   // V68: einzelne Blöcke kühl (Büros, Neonlicht)
   if (style > 1.5) warm = vec3(1.0, 0.8, 0.5);
   warm *= mix(vec3(1.0), vec3(0.92, 0.74, 0.55), brick);   // V38: im Arbeiterviertel gelbrotes Glühlicht, in der Elite helles Champagner
   float bright = (0.38 + 0.45*h) * (0.72 + 0.4*g.y) * (1.0 - 0.2*brick);
@@ -477,7 +482,9 @@ void main(){
   }
 
   float aa = smoothstep(0.08, 0.28, px) * (1.0 - ground);
-  vec3 avgWin = mix(glass, vec3(1.0, 0.62, 0.3)*0.75, dens);
+  // V68: Blockmuster bleibt sichtbar, solange ein Block mindestens etwa 2 Bildpunkte groß ist, darunter die alte Mittelfarbe
+  float bkF = 1.0 - smoothstep(0.3, 0.7, max(fw.x / 3.0, fw.y / 2.0));
+  vec3 avgWin = mix(glass, mix(vec3(1.0, 0.62, 0.3), vec3(0.75, 0.85, 0.95), step(0.93, bh) * step(style, 1.5) * bkF)*0.75, mix(dens, bDens, bkF));
   if (style > 1.5) avgWin = mix(glass, vec3(1.0, 0.8, 0.5)*1.2, dens) * 0.8;   // V33: hohe Bogenfenster leuchten heller (gleicher Eindruck nah und fern)
   avgWin = mix(avgWin, iceTint + avgWin*0.6, uIce*0.34);   // V54: Eisblumen in der Ferne als Schleier (wie nah gemittelt)
   vec3 avg = mix(wall, avgWin, wx*wy*(1.0 - pier*0.25));

@@ -1812,17 +1812,19 @@ export function flushInstances() {
   const neonMat = new T.MeshBasicMaterial({ color: 0xd2d2d2, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -3 });
   neonMat.onBeforeCompile = sh => {
     sh.uniforms.uScale = U.uScale;
-    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nuniform float uScale; varying float vDim;').replace('#include <project_vertex>', `
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nuniform float uScale; varying float vDim; varying float vShade;').replace('#include <project_vertex>', `
   vec3 sc = vec3(length(instanceMatrix[0].xyz), length(instanceMatrix[1].xyz), length(instanceMatrix[2].xyz));
   vec4 c0 = modelViewMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0);
   vec3 grow = max(vec3(1.0), (max(-c0.z, 1.0) / uScale * 1.6) / sc);
   float mx = max(sc.x, max(sc.y, sc.z)); grow = mix(grow, vec3(1.0), step(mx, sc));
   vDim = 1.0 / max(grow.x, max(grow.y, grow.z));
+  // V68: Goldleisten mit Glanzverlauf (oben heller) und matteren Seitenflächen statt gleichmäßig gelber Klötze
+  vShade = mix(1.0, 0.74 + 0.46 * (position.y + 0.5), step(2.5, sc.y) * step(sc.y, 30.0)) * (1.0 - 0.2 * abs(normal.x));
   vec4 mvPosition = modelViewMatrix * instanceMatrix * vec4(transformed * grow, 1.0);
   gl_Position = projectionMatrix * vec4(mvPosition.xyz * 0.9995, 1.0);`);
-    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vDim;').replace('#include <color_fragment>', '#include <color_fragment>\n  diffuseColor.rgb *= vDim;');
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vDim; varying float vShade;').replace('#include <color_fragment>', '#include <color_fragment>\n  diffuseColor.rgb *= vDim * vShade;');
   };
-  neonMat.customProgramCacheKey = () => 'neonPull40';
+  neonMat.customProgramCacheKey = () => 'neonPull68';
   const nm = new T.InstancedMesh(box, neonMat, neons.length);
   const col = new T.Color();
   neons.forEach((n, i) => { if (n.ry || n.rz) m.compose(_p.set(n.x, n.y, n.z), _q.setFromEuler(_e.set(0, n.ry || 0, n.rz || 0)), _s.set(n.sx, n.sy, n.sz)); else m.makeScale(n.sx, n.sy, n.sz).setPosition(n.x, n.y, n.z); nm.setMatrixAt(i, m); nm.setColorAt(i, col.setRGB(n.c[0], n.c[1], n.c[2])); });

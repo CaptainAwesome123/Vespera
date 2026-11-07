@@ -136,6 +136,22 @@ export function buildBelmont() {
   addNeon(0, 9.2, 50.12, 16.6, 0.3, 0.3, NEON.gold);
   addSeg({ x: 0, z: 61, w: 26, d: 14, y0: 11.5, y1: 12.6, tint: [0.5, 0.42, 0.3], seed: 530, style: 0, dens: 0, flood: 1 }, false);
   addNeon(0, 11.4, 68, 26, 0.25, 0.25, NEON.gold);
+  // V68: Vordach von unten beleuchtet (Kassetten mit Sonnenfächer, warm), Glühbirnenkante rundum, Lichtfleck auf dem Pflaster
+  { const under = canvasTex(512, 276, (g, W, H) => {
+      const gr = g.createRadialGradient(W / 2, H / 2, 10, W / 2, H / 2, W * 0.6); gr.addColorStop(0, '#fff0cc'); gr.addColorStop(0.6, '#d9b47a'); gr.addColorStop(1, '#7a5a30');
+      g.fillStyle = gr; g.fillRect(0, 0, W, H);
+      g.strokeStyle = 'rgba(120,80,30,0.85)'; g.lineWidth = 6;
+      for (let x = 0; x <= W; x += W / 8) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, H); g.stroke(); }
+      for (let y = 0; y <= H; y += H / 4) { g.beginPath(); g.moveTo(0, y); g.lineTo(W, y); g.stroke(); }
+      g.strokeStyle = '#f6d48a'; g.lineWidth = 10; g.strokeRect(8, 8, W - 16, H - 16);
+      g.globalAlpha = 0.55; sunburst(g, W / 2, H / 2, H * 0.42, 32, '#fff6dc', 'rgba(200,150,80,0.2)'); g.globalAlpha = 1;
+    });
+    const um = new T.Mesh(new T.PlaneGeometry(25.6, 13.6).rotateX(Math.PI / 2), new T.MeshBasicMaterial({ map: under, color: new T.Color(0.95, 0.8, 0.6) }));
+    um.position.set(0, 11.47, 61); scene.add(um);
+    for (let x = -12.6; x <= 12.61; x += 0.9) addGlow(x, 11.32, 67.9, [1.45, 1.05, 0.55], 0.55);
+    for (const sx of [-1, 1]) for (let z = 54.6; z <= 67.5; z += 0.9) addGlow(sx * 12.9, 11.32, z, [1.45, 1.05, 0.55], 0.55);
+    for (const sx of [-1, 1]) addNeon(sx * 13, 11.4, 61, 0.25, 0.25, 14, NEON.gold);
+    shadeBegin(); lightPool(0, P, 61.5, 13, [1, 0.74, 0.42], 0.2); lightPool(0, P, 61.5, 6, [1, 0.8, 0.5], 0.14); shadeEnd(scene); }
   for (const sx of [-12, 12]) { addSeg({ x: sx, z: 67, w: 1, d: 1, y0: P, y1: 11.5, tint: [0.7, 0.55, 0.3], seed: 531, style: 0, dens: 0, flood: 1 }); }
   for (const sx of [-30, -24, 24, 30]) { addSeg({ x: sx, z: 58, w: 0.3, d: 0.3, y0: 7.2, y1: 24, tint: [0.7, 0.55, 0.3], seed: 532, style: 0, dens: 0, flood: 1 }, false); addGlow(sx, 24.4, 58, [1.3, 0.95, 0.5], 1.2); }
   for (let k = 1; k <= 8; k++) { const f = k / 9, y = BEL.s5 + (BEL.spire - BEL.s5) * f, r = 7.5 * (1 - f); for (const [sx, sz] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) addGlow(sx * r, y, sz * r, [1.2, 0.9, 0.5], 1.1); }
