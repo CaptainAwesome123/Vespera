@@ -504,7 +504,7 @@ function placeAll() {
         if (Math.hypot(q.x - d.want[0], q.z - d.want[1]) < 18) continue;   // nicht mitten auf dem Kneipenplatz
         for (const side of [1, -1]) {
           const x = q.x + q.nx * 1.0 - q.nz * 1.9 * side, z = q.z + q.nz * 1.0 + q.nx * 1.9 * side, g = groundAt(x, z, 1.2);
-          if (!g || g.y < -0.3 || g.y > 0.6 || g.via || g.elev || g.ice || !freeAt(x, z, g.y, 0.75, 0.75)) continue;
+          if (!g || g.y < -0.3 || g.y > 0.6 || g.via || g.ice || !freeAt(x, z, g.y, 0.75, 0.75)) continue;
           s = { x, y: g.y, z, yaw: Math.atan2(-q.nx, -q.nz) }; break;
         }
         if (s) break;
@@ -513,7 +513,7 @@ function placeAll() {
       const need = d.free || 1.0;
       for (let i = 0; i < 900 && !s; i++) {
         const r = (i / 900) * d.rMax, a = rnd() * 6.2832, x = d.want[0] + Math.sin(a) * r, z = d.want[1] + Math.cos(a) * r, g = groundAt(x, z, 1.2);
-        if (!g || g.y < -0.3 || g.y > 0.6 || g.via || g.elev || g.ice || g.grass && d.road) continue;
+        if (!g || g.y < -0.3 || g.y > 0.6 || g.via || g.ice || g.grass && d.road) continue;
         if (d.road ? !g.road : g.road) continue;
         if (!freeAt(x, z, g.y, need, need + (H.kind === 'ubahn' ? 1.4 : 0))) continue;
         // Raum darunter: nicht unter einem anderen Versteck

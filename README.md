@@ -293,6 +293,18 @@ Außenhaut, Garten, Terrassen und das Fest.
   pro Sekunde (vorher 42). Bei knapper Bildrate entsteht das Spiegelbild nur jedes zweite Bild (`REFL.half`).
 - *Aufgeräumt:* Feuerwerk, Lichtsäulen aus den Kronen und Suchscheinwerfer des Belmont (seit V33/V42 aus) entfernt.
 
+**V65: Korrekturen aus dem Spielvideo.**
+- *Penthouse-Wendeltreppe:* oben endet die Treppe nach Norden, das Austrittspodest war aber nur 1,5 m lang; wer der Treppe
+  weiter folgte, fiel durchs Treppenauge zurück in den Salon. Jetzt liegt ein Podest über dem ganzen Nordostviertel des
+  Treppenauges, das Geländer davor ist offen, man geht geradeaus in die Bibliothek (`penthouse.js`).
+- *Ballsaal:* zwei Treppen von der ersten zur zweiten Galerie an der Trennwand, zur Mitte hin steigend, oben ein gemeinsames
+  Podest (`GAL.stair`, `belmont.js`). Erste Galerie mit 14 gedeckten Tischen und Gästen, zweite Galerie mit sechs VIP-Logen
+  je Seite (Trennwände, Samtvorhänge, Sessel, Sofa, Champagnerkübel, Gang an der Wand). Lichtpool auch auf den Galerien.
+- *Hochstraße abgerissen (Kanon):* keine Hochstraßen, Rampen und kein Verkehr darauf mehr (`island.js`, `traffic.js`,
+  `driving.js`, `player.js`, Stadtkarte). Die Autos fahren unten, oben fährt nur die Hochbahn.
+- *Schriftzug THE BELMONT:* passt jetzt auf seine Leinwand (vorher fehlte das erste T, das letzte halb).
+- *Spiegel:* im Penthouse und im Ballsaal mit eigenem Silberschein statt schwarzer Tafeln.
+
 **V64: Leistungsrunde nach V57 bis V63.** Gleiche Inhalte, weniger Arbeit je Bild, weniger Speicher.
 - *Fehler im Startbild:* die Straßenbahn (V63) legte im Startbild und in der Pause jedes Bild drei neue Hindernisse für den
   Verkehr an, ohne die alten zu entfernen; nach einer Minute im Menü prüfte jeder Wagen über 20 000 davon (25 ms je Bild und

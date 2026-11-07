@@ -3,7 +3,7 @@
    Ein Stadtplan im Stil der Zwanziger: dunkles Petrolpapier, Goldlinien, Strahlenkranz-Kompass,
    Titelkartusche. Alles aus den echten Spieldaten gezeichnet, nichts von Hand:
    - Gelände (terrainHeight) mit Schummerung und Höhenlinien, Kratersee, Kraterrand, Gletschertäler
-   - Insel (COAST), Blöcke, Parks, Straßennetz (NET), Hochstraßen und Rampen, Viadukt, Tunnel mit Zollhof,
+   - Insel (COAST), Blöcke, Parks, Straßennetz (NET), Viadukt, Tunnel mit Zollhof,
      Privatstraße zur Villa (SERP), Straßenbahnlinien, Gebäude (segs, nach Höhe gestuft), Belmont, Hafen
    - Viertel (Schwerpunkte aus districtAt), Orte (Lokale, Metropol, Bank, Café), Kontor-Handelsplätze,
      Läden, Verstecke (erst wenn entdeckt), laufender Ärger, Aufgabenziele, Alexander, die Aurora Imperial
@@ -21,7 +21,7 @@ import { player } from './player.js';
 import { playing, paused, resume, tryLock, isTouch } from './input.js';
 import { startFlight, stopFlight } from './powers.js';
 import { toast, districtAt, VIEWS, boatExit, BOAT, MAP_HOOK } from './boat.js';
-import { COAST, NET, OUTER, obbCorners, blocks, PLAZA, MEDIAN, CANAL, ELEVATED, onIsland, ISL } from './island.js';
+import { COAST, NET, OUTER, obbCorners, blocks, PLAZA, MEDIAN, CANAL, onIsland, ISL } from './island.js';
 import { segs } from './facade-shader.js';
 import { terrainHeight, VILLA, VIA, AP, MARINA_X, FERRY_X } from './harbour.js';
 import { WATER_Y } from './dance.js';
@@ -159,10 +159,10 @@ function kaDrawCity(g, px, R, step) {
     if (CANAL.on) { g.fillStyle = 'rgba(160,205,212,0.55)'; g.fillRect(CANAL.x - CANAL.hw, CANAL.zA, CANAL.hw * 2, CANAL.zB - CANAL.zA); }
   }
   if (!step || step === 2) {
-    // Straßen: erst die Bodenstraßen, dann Viadukt und Hochstraßen in Gold darüber
+    // Straßen: erst die Bodenstraßen, dann das Viadukt in Gold darüber
     g.lineCap = 'round'; g.lineJoin = 'round';
     const edges = NET.edges.filter(e => e.pts && e.pts.length > 1);
-    const lifted = e => e.kind === 'elev' || e.kind === 'ramp' || e.kind === 'via';
+    const lifted = e => e.kind === 'via';
     for (const e of edges) { if (lifted(e)) continue; g.strokeStyle = '#2b5b62'; g.lineWidth = e.w + (e.kind === 'ring' ? 9 : 0.6); kaPoly(g, e.pts, false); g.stroke(); }
     for (const e of edges) { if (lifted(e)) continue; if (e.w < 20 && e.kind !== 'ring') continue; g.strokeStyle = 'rgba(217,178,106,0.28)'; g.lineWidth = 1 * px; kaPoly(g, e.pts, false); g.stroke(); }
     // Privatstraße zur Villa (Serpentine)
@@ -305,7 +305,7 @@ const KA_V_KIND = { bar: ['Bar', 'B'], pub: ['Kneipe', 'K'], restaurant: ['Resta
 function kaStreetNear(x, z) {
   let best = null, bd = 1e18;
   for (const e of NET.edges) {
-    if (!e.pts || e.kind === 'elev' || e.kind === 'ramp' || e.kind === 'via') continue;
+    if (!e.pts || e.kind === 'via') continue;
     for (let k = 1; k < e.pts.length; k++) {
       const [ax, az] = e.pts[k - 1], [bx, bz] = e.pts[k], vx = bx - ax, vz = bz - az, L2 = vx * vx + vz * vz || 1;
       const t = kaClamp(((x - ax) * vx + (z - az) * vz) / L2, 0, 1), qx = ax + vx * t, qz = az + vz * t, d = (qx - x) ** 2 + (qz - z) ** 2;
@@ -428,7 +428,7 @@ function kaDom() {
 <label><input type="checkbox" data-lay="bezirke">Viertel</label>
 <h3 style="margin-top:12px">Zeichen</h3>
 <div class="sym"><b style="background:#2b5b62;height:6px"></b>Straße</div>
-<div class="sym"><b style="border:2px solid ${KA_GOLD};background:#1d4349;height:7px"></b>Hochstraße, Viadukt</div>
+<div class="sym"><b style="border:2px solid ${KA_GOLD};background:#1d4349;height:7px"></b>Viadukt</div>
 <div class="sym"><b style="border-top:2px dashed ${KA_GOLD};height:0"></b>Tunnel</div>
 <div class="sym"><b style="border-top:2px dashed #5fe0d0;height:0"></b>Linie 1</div>
 <div class="sym"><b style="border-top:2px dashed #e8b765;height:0"></b>Linie 2</div>

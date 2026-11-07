@@ -189,7 +189,7 @@ function gegSpot(cx, cz, rMin, rMax, hide) {
   const f = camera.getWorldDirection(_gd), cp = camera.position;
   for (let i = 0; i < 40; i++) {
     const an = Math.random() * 6.2832, r = rMin + Math.random() * (rMax - rMin), x = cx + Math.sin(an) * r, z = cz + Math.cos(an) * r;
-    const g = groundAt(x, z, 1.2); if (!g || g.y > 0.6 || g.y < -0.3 || g.via || g.elev || g.ice) continue;
+    const g = groundAt(x, z, 1.2); if (!g || g.y > 0.6 || g.y < -0.3 || g.via || g.ice) continue;
     if (gegBlocked(x, z, g.y, 0.45)) continue;
     if (hide && i < 28) { const dx = x - cp.x, dz = z - cp.z, d = Math.hypot(dx, dz) || 1; if ((dx * f.x + dz * f.z) / d > 0.45 && d < 60) continue; }
     return { x, y: g.y, z };
@@ -528,7 +528,7 @@ function evRaub() {
   const e = v.a.m.elements, vx = e[12], vz = e[14], p = player.p;
   let ax = vx - p.x, az = vz - p.z; const L = Math.hypot(ax, az) || 1; ax /= L; az /= L;
   let sp = null;
-  for (let i = 0; i < 12 && !sp; i++) { const an = Math.atan2(ax, az) + (Math.random() - 0.5) * 2.2, r = 7 + Math.random() * 5, x = vx + Math.sin(an) * r, z = vz + Math.cos(an) * r, g = groundAt(x, z, 1.2); if (g && g.y < 0.6 && g.y > -0.3 && !g.via && !g.elev && !gegBlocked(x, z, g.y, 0.45)) sp = { x, y: g.y, z }; }
+  for (let i = 0; i < 12 && !sp; i++) { const an = Math.atan2(ax, az) + (Math.random() - 0.5) * 2.2, r = 7 + Math.random() * 5, x = vx + Math.sin(an) * r, z = vz + Math.cos(an) * r, g = groundAt(x, z, 1.2); if (g && g.y < 0.6 && g.y > -0.3 && !g.via && !gegBlocked(x, z, g.y, 0.45)) sp = { x, y: g.y, z }; }
   if (!sp) return null;
   gegFreeze(v);
   gegSpawn(R, sp.x, sp.y, sp.z, Math.atan2(vx - sp.x, vz - sp.z));
