@@ -31,6 +31,7 @@ import { HS } from './haushalt.js';
 import { inPenthouse } from './penthouse.js';
 import { LOOSE, spawnProp, dropBody, drop } from './physics.js';
 import { tkRelease } from './powers.js';
+import { invOpen } from './inventar.js';
 import { GEGNER } from './gegner.js';
 import { KT, GOODS, POSTS, BIZ, COS, PROJECTS, ktOpen, ktRep, ktCash, ktTake, ktOwns, ktEmit, ktChanged, ktPostHere, postPos, fmM, esc, fmN, titleCase, WARE_PRICE, clamp, ktPrice, netWorth } from './kontor.js';
 
@@ -432,10 +433,11 @@ const AUF_TAB = {
     const items = KT.s.items.length ? KT.s.items.map(i => esc(i.n)).join(', ') : 'nichts';
     return `<h3>Laufende Aufgaben</h3>${act.map(questCard).join('') || '<p>Keine. Bürger mit einem goldenen Kreis über dem Kopf haben ein Anliegen (E). Randolf spricht Sie in der Villa an, der Bürgermeister telegrafiert, Direktor Varga berät in der Bank.</p>'}
       ${off.length ? '<h3>Angebote</h3>' + off.map(questCard).join('') : ''}
-      <h3>In der Tasche</h3><p>${items}</p>
+      <h3>In der Tasche</h3><p>${items} <button type="button" data-act="inv" style="margin-left:6px">Inventar · Umschalt+I</button></p>
       <h3>Erledigt (${Q.done})</h3>${done.length ? '<p>' + done.map(q => `${esc(q.title)} <span style="opacity:.6">(${esc(SRC_N[q.src])})</span>`).join(' · ') + '</p>' : '<p>Noch nichts.</p>'}`;
   },
   click(a, id) {
+    if (a === 'inv') { invOpen('taschen'); return; }   // V62
     const Q = qs(), q = Q.list.find(x => x.id === id); if (!q) return;
     if (a === 'qok') { startQuest(q); ktChanged('quest'); }
     else if (a === 'qno') dropQuest(q, (q.st === 'aktiv' ? 'Aufgegeben: ' : 'Abgelehnt: ') + q.title);

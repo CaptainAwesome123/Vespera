@@ -1133,7 +1133,7 @@ function aim() {
 }
 export function setupLoose() {
   // Zuerst prüfen: beim Tragen geht E an das Ablegen, nicht an Türen oder Sitze
-  INTERACT.unshift({ test: () => !!LOOSE.held, label: 'Ablegen · Klick: werfen · R: drehen', act: () => drop(false) });
+  INTERACT.unshift({ test: () => !!LOOSE.held, get label() { return 'Ablegen · Klick: werfen · R: drehen' + (LOOSE.canPocket && LOOSE.canPocket(LOOSE.held) ? ' · Umschalt+E: einstecken' : ''); }, act: () => drop(false) });   // V62: einstecken (inventar.js)
   INTERACT.push({
     test: p => { if (LOOSE.held || p.y > 1500) return false; LOOSE.aim = aim(); if (!LOOSE.aim) return false; const a = LOOSE.aim; aimLabel.label = 'Aufheben: ' + (a.body ? a.body.name : a.name || GOODS_NAME[a.goods.m] || 'Ware'); return true; },
     get label() { return aimLabel.label; },

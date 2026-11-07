@@ -676,12 +676,13 @@ function ktInit() {
 if (typeof window !== 'undefined') {
   window.addEventListener('keydown', e => {
     if (KT.open) {
+      if (e.code === 'KeyI' && e.shiftKey) return;   // V62: Umschalt+I gehört dem Inventar (inventar.js)
       if (e.code === 'Escape' || e.code === 'KeyI') ktClose();
       else if (/^Digit[1-9]$/.test(e.code)) { const t = TABS[+e.code.slice(5) - 1]; if (t) { KT.tab = t[0]; ktRender(); } }
       e.stopImmediatePropagation(); if (e.code !== 'F5' && e.code !== 'F12') e.preventDefault();
       return;
     }
-    if (e.code === 'KeyI' && !e.repeat && KT.ready && playing && !paused && !DINE.menuOpen && !e.ctrlKey && !e.metaKey) { ktOpen(); e.stopImmediatePropagation(); }
+    if (e.code === 'KeyI' && !e.shiftKey && !e.repeat && KT.ready && playing && !paused && !DINE.menuOpen && !e.ctrlKey && !e.metaKey) { ktOpen(); e.stopImmediatePropagation(); }
   }, true);
   requestAnimationFrame(ktLoop);
 }
