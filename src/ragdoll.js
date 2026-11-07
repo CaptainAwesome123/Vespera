@@ -372,6 +372,7 @@ export function updatePedestrians(dt, t) {
 /* ---------- Bewohner: Namen, Berufe, Charaktere und ein Tagesablauf ---------- */
 export const CLOCK = { min: 19 * 60 + 30 };   // Spielzeit in Minuten; eine echte Sekunde ist eine Spielminute
 export const citizens = [];
+export const CIT_HOOKS = [];   // V63: Nebenfiguren übernehmen beim Aufbau einzelne Bewohner (list, places)
 export const FIRST_M = ['Anton', 'Bruno', 'Carl', 'Emil', 'Felix', 'Franz', 'Georg', 'Hans', 'Karl', 'Ludwig', 'Max', 'Otto', 'Paul', 'Richard', 'Theo', 'Walter', 'Wilhelm', 'Oskar', 'Fritz', 'Konrad', 'Leo', 'Victor', 'Henri', 'Jules', 'Arthur', 'Edgar', 'Josef', 'Rudolf'];
 export const FIRST_F = ['Anna', 'Berta', 'Clara', 'Dora', 'Elsa', 'Frieda', 'Greta', 'Hedwig', 'Ida', 'Käthe', 'Lotte', 'Marlene', 'Martha', 'Paula', 'Rosa', 'Ruth', 'Trude', 'Vera', 'Lilli', 'Edith', 'Mila', 'Irene', 'Josephine', 'Louise', 'Nora', 'Hilde', 'Ella', 'Margot'];
 export const LAST = ['Adler', 'Bauer', 'Brandt', 'Falk', 'Fischer', 'Graf', 'Hartmann', 'Keller', 'König', 'Lang', 'Lorenz', 'Mayer', 'Neumann', 'Roth', 'Schmidt', 'Seidel', 'Sommer', 'Stein', 'Vogel', 'Wagner', 'Weiß', 'Winter', 'Ziegler', 'Hoffmann', 'Marchetti', 'Dubois', 'Novak', 'Kowalski', 'Lindqvist', 'O’Hara', 'Petrov', 'Moreau'];
@@ -483,6 +484,7 @@ export function buildCitizens(loopsAll) {
     c.ped = { st: 6, kind, col: c.col, v: c.v, sc: 0.94 + rc() * 0.12, cit: c };
     citizens.push(c);
   }
+  for (const f of CIT_HOOKS) try { f(citizens, places); } catch (e) { console.warn('Bewohner:', e); }
   return citizens.map(c => c.ped);
 }
 // Was die Berufe draußen tun (Aktionscodes der Figuren)
@@ -566,7 +568,7 @@ export function updateCitizens(dt) {
     if (c.st === 'task') {
       // draußen bei der Arbeit, danach zurück durch die Tür
       const tk = c.tk; pedCrowd.set(a, tk.x, 0.22, tk.z, tk.yaw, c.ped.sc);
-      if ((tk.t -= dt) <= 0 || citizenGoal(c) !== 'work') { citGait(c, 0); const p = c.place; c.path = [[tk.x, tk.z], [p.x, p.z]]; c.pi = 0; c.target = p; c.tk = null; c.st = 'walk'; }
+      if ((tk.t -= dt) <= 0 || (!c.hold && citizenGoal(c) !== 'work')) { citGait(c, 0); const p = c.place; c.path = [[tk.x, tk.z], [p.x, p.z]]; c.pi = 0; c.target = p; c.tk = null; c.st = 'walk'; }
       continue;
     }
     if (c.st === 'walk') {

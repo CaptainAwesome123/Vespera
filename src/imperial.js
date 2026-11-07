@@ -1045,6 +1045,7 @@ export function impHelmCamera(dt) {
   if (!HELM.camP) HELM.camP = new T.Vector3(tx, ty, tz); else HELM.camP.lerp(new T.Vector3(tx, ty, tz), 1 - Math.exp(-dt * 5));
   camera.position.copy(HELM.camP); camera.rotation.set(pitch, yaw, 0);
 }
+export const IMP_CAPT_HOOK = [];   // V63: weitere Menüpunkte beim Kapitän: f(add)
 export const IMP_CAPT_OK = ['Sehr wohl, Sir.', 'Zu Befehl, Sir. Maschinen halbe Kraft.', 'Wird gemacht, Sir. Ruder liegt an.'];
 export function impCaptainMenu() {
   const I = IMP, st = I.st, opts = [], acts = [];
@@ -1063,6 +1064,7 @@ export function impCaptainMenu() {
     if (st !== 'cruise' && !(st === 'blend' && I.b.to === 'cruise')) add('Über Vespera kreuzen', ok('cruise', 'Leinen los, Sir. Wir kreuzen über der Stadt.'));
     if (st !== 'hold' && st !== 'moor' && st !== 'moorV') add('Hier in der Luft stehen bleiben', () => { impBlend('hold'); lifeSay('Der Kapitän', 'Maschinen stopp, Sir. Wir halten die Position.', 4); });
     add('Wie steht es, Kapitän?', () => { I.said = (I.said + 1) % IMP_CAPTAIN.length; lifeSay('Der Kapitän', IMP_CAPTAIN[I.said], 5); });
+    for (const f of IMP_CAPT_HOOK) try { f(add); } catch (e) { console.warn('Kapitän:', e); }
   }
   openChoice('Kapitän der Aurora Imperial', opts, i => { if (acts[i]) acts[i](); });
 }

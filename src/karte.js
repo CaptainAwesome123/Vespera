@@ -49,7 +49,8 @@ const KA_KEY = 'vespera-karte';
 export const KARTE = {
   open: false, ready: false, gen: null, base: null, E: null, view: { cx: 0, cz: -200, k: 0.3 }, el: null, st: null, lv: null,
   W: 0, H: 0, dpr: 1, dirty: true, liveT: 0, hudT: 0, places: [], placeT: 0, card: null, hover: null, travel: null,
-  districts: [], waterLabels: [], s: { v: {}, wp: null, ring: true, lay: { orte: true, handel: true, gegner: true, aufgaben: true, laeden: false, bezirke: true } },
+  districts: [], waterLabels: [], s: { v: {}, wp: null, ring: true, lay: { orte: true, handel: true, gegner: true, aufgaben: true, figuren: true, laeden: false, bezirke: true } },
+  liveHooks: [],   // V63: weitere lebende Punkte (Nebenfiguren): f(liste, ebenen)
   mk: null, visitT: 0, fromPause: false, stats: {},
 };
 const KA_GOLD = '#d9b26a', KA_GOLD_HI = '#f6dc9a', KA_TEAL = '#6fd6cf', KA_RED = '#e0694f', KA_INK = '#f3e6c8';
@@ -354,6 +355,7 @@ function kaLivePoints() {
       if (pr && pr.pt && Number.isFinite(pr.pt.x)) L.push({ cat: 'aufgaben', icon: 'aufgabe', n: q.title, sub: pr.txt, x: pr.pt.x, z: pr.pt.z, track: KT.s.q.track === q.id });
     }
   }
+  for (const f of KARTE.liveHooks) try { f(L, KARTE.s.lay); } catch (e) { /* Punkt fehlt */ }
   return L;
 }
 
@@ -415,6 +417,7 @@ function kaDom() {
 <label><input type="checkbox" data-lay="laeden">Läden</label>
 <label><input type="checkbox" data-lay="gegner">Ärger und Verstecke</label>
 <label><input type="checkbox" data-lay="aufgaben">Aufgaben</label>
+<label><input type="checkbox" data-lay="figuren">Bekanntschaften</label>
 <label><input type="checkbox" data-lay="bezirke">Viertel</label>
 <h3 style="margin-top:12px">Zeichen</h3>
 <div class="sym"><b style="background:#2b5b62;height:6px"></b>Straße</div>
@@ -561,6 +564,9 @@ function kaIcon(g, icon, x, y, r, o = {}) {
   } else if (icon === 'aufgabe') {
     g.strokeStyle = KA_TEAL; g.lineWidth = 2; dia(r); g.fillStyle = 'rgba(64,200,190,0.35)'; g.fill(); g.stroke();
     if (o.track) { g.beginPath(); g.arc(0, 0, r * 1.6, 0, 6.283); g.stroke(); }
+  } else if (icon === 'figur') {
+    g.beginPath(); g.arc(0, 0, r, 0, 6.283); g.fillStyle = 'rgba(6,22,28,0.95)'; g.fill(); g.lineWidth = 2; g.strokeStyle = o.ready ? KA_GOLD_HI : KA_TEAL; g.stroke();
+    g.fillStyle = o.ready ? KA_GOLD_HI : KA_TEAL; g.font = `700 ${Math.round(r * 1.1)}px ${KA_BODY}`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(o.ch || '·', 0, 1);
   } else if (icon === 'anker') {
     g.beginPath(); g.arc(0, 0, r, 0, 6.283); g.fill(); g.stroke();
     g.beginPath(); g.moveTo(0, -r * 0.55); g.lineTo(0, r * 0.55); g.moveTo(-r * 0.45, -r * 0.2); g.lineTo(r * 0.45, -r * 0.2); g.moveTo(-r * 0.5, r * 0.15); g.quadraticCurveTo(0, r * 0.85, r * 0.5, r * 0.15); g.stroke();
@@ -660,7 +666,10 @@ function kaDrawLive() {
   g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H);
   if (!KARTE.ready) return;
   KARTE.live = kaLivePoints();
-  for (const P of KARTE.live) kaIcon(g, P.icon, kaSX(P.x), kaSZ(P.z), P.cat === 'aufgaben' ? 8 : 9, { track: P.track });
+  for (const P of KARTE.live) {
+    kaIcon(g, P.icon, kaSX(P.x), kaSZ(P.z), P.cat === 'aufgaben' ? 8 : 9, { track: P.track, ch: P.ch, ready: P.ready });
+    if (P.icon === 'figur' && KARTE.view.k > 0.3) { g.font = `600 11.5px ${KA_BODY}`; g.fillStyle = P.ready ? KA_GOLD_HI : '#bfe9e4'; g.textAlign = 'left'; g.shadowColor = '#000'; g.shadowBlur = 4; g.fillText(P.n + (P.ready ? ' !' : ''), kaSX(P.x) + 13, kaSZ(P.z) + 4); g.shadowBlur = 0; }
+  }
   if (IMP.g) { const p = IMP.g.position; kaShip(g, kaSX(p.x), kaSZ(p.z), kaShipAng(), 11); if (KARTE.view.k > 0.25) { g.font = `600 11px ${KA_BODY}`; g.fillStyle = KA_GOLD_HI; g.textAlign = 'left'; g.shadowColor = '#000'; g.shadowBlur = 4; g.fillText('Aurora Imperial', kaSX(p.x) + 14, kaSZ(p.z) + 4); g.shadowBlur = 0; } }
   const wp = KARTE.s.wp;
   if (wp) {
