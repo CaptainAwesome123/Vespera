@@ -21,6 +21,10 @@
    BEZIEHUNG je Figur (−100 Feindschaft … +100 Freundschaft) liegt in KT.s.nf und
    wird mit dem Kontor gespeichert. Ruf-Buch (Ö): Abschnitt „Bekanntschaften“.
    Stadtkarte (Y): Ebene „Bekanntschaften“ mit allen Figuren.
+   V66 Kanon: Alexander ist kein strahlender Held. Die Figuren sehen ihn
+   verschieden: Jo bewundert ihn, Brenner braucht ihn und fürchtet seine
+   Macht, Hallstein beneidet ihn, Margot bleibt kritisch, Kröger und das
+   Viertel haben echte Anliegen.
    Keine neuen Shader, keine neuen Modelle: nur HTML und vorhandene Figuren.
    ===================================================================== */
 import { $, shared, T, camera, markPos } from './core.js';
@@ -145,12 +149,12 @@ const NF_ARC = {
       done: 'Sie sind gekommen. Und alle haben nur auf Sie geschaut, nicht auf mich. Das verzeihe ich Ihnen nie. Eine Zigarre?' },
     { title: 'Die große Stiftung', need: 5,
       offer: 'Ich habe dem Waisenhaus gerade dreißigtausend Lumen gestiftet. Die Zeitungen nennen mich großzügig. Ich bin gespannt, was der Gründer der Stadt dagegen setzt: {proj}?',
-      g: () => ({ k: 'stift', id: nfFreeProj() }), rw: { rep: { buerger: 3 } }, nf: { rel: 10, final: true, news: ['Wettstreit der Wohltäter', 'Erst Hallstein, dann Alexander: Die beiden reichsten Männer der Stadt überbieten sich mit Stiftungen. Die Stadt freut sich.'] },
+      g: () => ({ k: 'stift', id: nfFreeProj() }), rw: { rep: { buerger: 3 } }, nf: { rel: 10, final: true, news: ['Wettstreit der Millionäre', 'Erst Hallstein, dann Alexander: Die beiden reichsten Männer der Stadt überbieten sich mit Stiftungen. Die Stadt nimmt das Geld gern. Im Arbeiterviertel fragt man trotzdem, warum es für warme Wohnungen erst einen Wettstreit unter Herren braucht.'] },
       done: 'Das also ist Ihre Antwort. Ich muss zugeben … Sie spielen in einer anderen Liga. Wir sollten reden, Alexander. Unter vier Augen.' },
   ],
   margot: [
     { title: 'Das große Interview', need: -100, interview: true,
-      offer: 'Herr Alexander! Margot Wendt, Vespera-Kurier. Drei Fragen, nur drei. Die ganze Stadt will wissen, wer der Mann hinter dem Belmont ist.',
+      offer: 'Herr Alexander! Margot Wendt, Vespera-Kurier. Vier Fragen, nur vier. Die ganze Stadt will wissen, wer der Mann hinter dem Belmont ist, die Bewunderer genauso wie die, die Sie nicht leiden können.',
       g: { k: 'nftalk' }, rw: {}, nf: { rel: 12, ruf: { presse: 3 } },
       done: 'Danke, Herr Alexander. Das wird morgen auf Seite eins stehen. Ich verspreche: kein Wort verdreht.' },
     { title: 'Ein Foto über der Krone', need: 10,
@@ -163,7 +167,7 @@ const NF_ARC = {
       done: 'Sie waren da! Die Polizei hat mir nie geglaubt. Das wird eine Geschichte, Herr Alexander.' },
     { title: 'Die Titelseite', need: 40,
       offer: 'Mein Chefredakteur will eine große Titelgeschichte über Sie. Aber nur, wenn die Stadt gut über Sie spricht. Zeigen Sie es ihnen: Stiftungen, gute Taten, ehrliche Worte.',
-      g: { k: 'ruf', ax: 'presse', n: 65 }, rw: {}, nf: { rel: 20, item: 'nf:titel', ruf: { bew: 2 }, news: ['Der Mann, der Vespera baute', 'Ein Porträt von Margot Wendt: Wie ein Mann einen Krater im ewigen Eis fand und darin eine Stadt aus Licht, Jazz und Gold baute. Und warum ganz Vespera ihm vertraut.'] },
+      g: { k: 'ruf', ax: 'presse', n: 65 }, rw: {}, nf: { rel: 20, item: 'nf:titel', ruf: { bew: 2 }, news: ['Der Mann, der Vespera baute', 'Ein Porträt von Margot Wendt: Wie ein Mann einen Krater im ewigen Eis fand und darin eine Stadt aus Licht, Jazz und Gold baute. Warum ihn die eine Hälfte der Stadt bewundert, die andere beneidet, und warum manche ihn hassen. Ein Held ist er nicht, schreibt Wendt, ein Bösewicht auch nicht: ein Baumeister mit sehr viel Macht.'] },
       done: 'Die Titelseite gehört Ihnen. Ich habe Ihnen einen Abzug rahmen lassen. Und Herr Alexander … danke für das Vertrauen.' },
   ],
   kroeger: [
@@ -221,11 +225,13 @@ const NF_TOPICS = {
     { id: 'lage', t: 'Wie steht es um die Stadt?', say: () => rufGet('unter') >= 55 ? 'Schlecht, ehrlich gesagt. Flugblätter in jeder Gasse, der Untergrund wächst. Kasimir findet jeden Tag neue Leute.' : BOSS.st === 'gefasst' ? 'Kasimir sitzt, die Gassen sind ruhig. So ruhig war es lange nicht.' : 'Ruhig, bis auf Taschendiebe und die üblichen Hitzköpfe. Aber Kasimir ist noch da draußen.' },
     { id: 'wagen', t: 'Was brauchen Ihre Männer?', when: S => S.rel >= 0, say: 'Mit Verlaub: neue Wagen. Unsere alten Streifenwagen springen bei der Kälte nicht an, die Gauner fahren uns davon.',
       opts: [{ t: 'Ich stifte neue Wagen. (5.000 Lumen)', rel: 8, cash: -5000, ruf: { buerger: 2 }, say: 'Fünf neue Wagen! Das spricht sich bei den Männern herum, Herr Alexander.' }, { t: 'Das muss die Stadt bezahlen.', rel: -3, say: 'Natürlich. Der Stadtrat tagt ja nur alle drei Monate.' }] },
+    { id: 'macht', t: 'Sind Sie mir dankbar, Brenner?', when: S => S.rel >= 10, say: 'Dankbar, ja. Ruhig, nein. Ein Polizeipräsident sollte nicht von einem Mann abhängen, den kein Gesetz aufhalten kann. Auch wenn dieser Mann mir die Gauner bringt.',
+      opts: [{ t: 'Dann halten Sie mich im Zaum.', rel: 5, ruf: { buerger: 1, furcht: -1 }, say: 'Ich werde es versuchen. Mit Papier und Stempel, gegen einen Mann, der fliegen kann.' }, { t: 'Seien Sie froh, dass ich auf Ihrer Seite stehe.', rel: -3, ruf: { furcht: 1 }, say: 'Das bin ich. Und genau das macht mir Sorgen.' }] },
     { id: 'kraefte', t: 'Stören Sie meine Kräfte bei Ihrer Arbeit?', say: () => rufGet('furcht') >= 55 ? 'Offen gesagt: ja. Die Leute auf der Straße haben inzwischen mehr Angst vor Ihnen als vor Kasimir. Das macht mir Sorgen.' : 'Ganz im Gegenteil. Wenn ein Räuber Sie sieht, ergibt er sich meistens von selbst.',
       opts: [{ t: 'Ich werde behutsamer sein.', rel: 4, ruf: { furcht: -2 }, say: 'Mehr verlange ich nicht. Danke.' }, { t: 'Furcht hält die Gauner fern.', rel: -3, ruf: { furcht: 1 }, say: 'Und die anständigen Leute auch, Herr Alexander.' }] },
   ],
   hallstein: [
-    { id: 'stadt', t: 'Was halten Sie von Vespera?', say: 'Eine Stadt, die einem einzigen Mann gehört. Bewundernswert. Und gefährlich.',
+    { id: 'stadt', t: 'Was halten Sie von Vespera?', say: 'Eine Stadt, die einem einzigen Mann gehört. Bewundernswert. Und gefährlich. Ich beneide Sie, Alexander, das gebe ich offen zu. Neid ist ehrlicher als die Schmeichelei in Ihren Salons.',
       opts: [{ t: 'Sie gehört allen, die hier leben.', rel: 4, ruf: { buerger: 1 }, say: 'Das sagen Sie so schön. Aber die Grundbücher sagen etwas anderes.' }, { t: 'Sie gehört mir. Gewöhnen Sie sich daran.', rel: -4, ruf: { furcht: 1 }, say: 'Ich gewöhne mich an nichts, Alexander. Das ist mein Geheimnis.' }] },
     { id: 'glas', t: 'Trinken wir ein Glas zusammen?', say: 'Nur, wenn Sie bezahlen. Sie haben ja genug.',
       opts: [{ t: 'Selbstverständlich. (50 Lumen)', rel: 3, cash: -50, say: 'Champagner, 1911er. Sie haben Geschmack, das muss man Ihnen lassen.' }, { t: 'Diesmal zahlen Sie, Viktor.', rel: 1, say: 'Ha! Der Erste, der mich je eingeladen hat, auf meine Kosten. Gut.' }] },
@@ -235,6 +241,8 @@ const NF_TOPICS = {
     { id: 'neu', t: 'Was gibt es Neues in der Stadt?', say: () => nfPick(['Im Hafen wird gemunkelt, ein Luftschiff aus Paris bringt einen Grafen mit drei Koffern voller Kaviar.', 'Die Straßenbahner wollen streiken, wenn die Kohle nicht billiger wird. Das wissen Sie aber nicht von mir.', 'Man sagt, im Belmont hat ein Gast seine Zimmerrechnung mit einem Diamanten bezahlt.', BOSS.st === 'gefasst' ? 'Kasimir sitzt, aber seine Leute drucken weiter. Irgendwer gibt ihnen Papier.' : 'Kasimir soll wieder in der Stadt sein. Die Polizei schweigt, also stimmt es.']) },
     { id: 'gut', t: 'Schreiben Sie nichts Schlechtes über mich.', say: () => rufGet('presse') < 35 ? 'Meine Kollegen schreiben nicht freundlich über Sie, Herr Alexander. Ich schreibe nur, was stimmt.' : 'Ich schreibe, was stimmt. Zurzeit stimmt meistens Gutes.',
       opts: [{ t: 'Mehr verlange ich nicht.', rel: 4, ruf: { presse: 1 }, say: 'Sehen Sie. Wir verstehen uns.' }, { t: 'Ich könnte den Kurier auch kaufen.', rel: -6, ruf: { presse: -2, furcht: 1 }, say: 'Könnten Sie. Dann schreibe ich eben für ein anderes Blatt. Über Sie.' }] },
+    { id: 'leser', t: 'Was sagen Ihre Leser wirklich über mich?', say: () => rufGet('presse') >= 60 ? 'Die meisten bewundern Sie. Viele beneiden Sie. Und jede Woche kommen Briefe, die ich nicht drucken darf, weil das Wort „Blutsauger“ darin vorkommt.' : 'Ehrlich? Viele haben Angst vor Ihnen, manche hassen Sie. Und ein paar alte Damen schicken Ihnen Strickschals.',
+      opts: [{ t: 'Drucken Sie ruhig auch die bösen Briefe.', rel: 5, ruf: { presse: 2, elite: -0.5 }, say: 'Wirklich? Dann haben Sie mehr Mut als mein Verleger.' }, { t: 'Die Neider interessieren mich nicht.', rel: -2, say: 'Das sollten sie aber. Neider sind die fleißigsten Leser.' }] },
     { id: 'kristall', t: 'Fragen Sie nie nach dem Kristall?', when: S => S.rel >= 20, say: 'Jeden Tag. Aber ich weiß, dass Sie nicht antworten. Also frage ich nur: Ist er gefährlich?',
       opts: [{ t: 'Nur für den, der ihn zuerst berührt hat.', rel: 3, say: 'Und das waren Sie. Gut. Dann schlafe ich heute ruhiger.' }, { t: 'Kein Kommentar, Fräulein Wendt.', rel: 1, say: 'Natürlich nicht. Aber ich frage morgen wieder.' }] },
   ],
@@ -242,6 +250,10 @@ const NF_TOPICS = {
     { id: 'viertel', t: 'Wie ist die Stimmung im Viertel?', say: () => rufGet('unter') >= 55 ? 'Kasimirs Leute verteilen Flugblätter vor dem Werkstor. Manche Jungs hören zu. Ich nicht. Noch nicht.' : rufGet('arbeiter') >= 65 ? 'Gut. Die Leute reden gut über Sie. Das ist neu, ehrlich gesagt.' : 'Müde. Die Schichten sind lang, und das Bier ist teuer.' },
     { id: 'kasimir', t: 'Was halten Sie vom Roten Kasimir?', say: 'Ein Großmaul mit Dynamit. Redet von Gerechtigkeit und sprengt unsere eigenen Straßen.',
       opts: [{ t: 'Ich hole ihn mir.', rel: 2, ruf: { bew: 1 }, say: 'Tun Sie das. Aber vergessen Sie nicht, warum ihm die Leute zuhören.' }, { t: 'Vielleicht hat er in manchem recht.', rel: 5, ruf: { arbeiter: 1 }, say: 'Na sieh mal einer an. Das hätte ich von Ihnen nicht erwartet.' }] },
+    { id: 'warum', t: 'Warum hören die Leute Kasimir zu?', when: S => S.rel >= 0, say: 'Weil sein Bruder unter Ihrem Viadukt liegt, Herr Alexander. Und weil viele hier jemanden kennen, der beim Bau verunglückt ist. Er hat das Dynamit, aber die Wut hat er nicht erfunden.',
+      opts: [{ t: 'Die Familien sollen eine Rente bekommen. (25.000 Lumen)', rel: 8, cash: -25000, ruf: { arbeiter: 3, unter: -3, elite: -0.5 }, say: 'Eine Rente? … Das sage ich den Witwen selbst. Und Kasimir wird es auch hören.' }, { t: 'Wer bei mir arbeitet, weiß, was er tut.', rel: -4, ruf: { arbeiter: -1, unter: 1 }, say: 'So reden alle Herren. Genau deshalb hat Kasimir Zulauf.' }] },
+    { id: 'urteil', t: 'Was halten Sie eigentlich von mir, Hannes?', when: S => S.rel >= 10, say: 'Ehrlich? Sie sind ein Kapitalist, Herr Alexander. Sie bauen, Sie verdienen, und wir schwitzen dafür. Aber Sie kommen wenigstens runter und reden. Das tun die anderen Herren nicht.',
+      opts: [{ t: 'Ehrlich ist mir lieber als höflich.', rel: 4, say: 'Dann sind wir uns ja einig. Wenigstens darin.' }, { t: 'Ohne meine Türme hättet ihr gar keine Arbeit.', rel: -3, ruf: { arbeiter: -1 }, say: 'Und ohne unsere Hände hätten Sie keine Türme. So rum geht’s auch.' }] },
     { id: 'bier', t: 'Ein Bier mit Ihnen, Hannes?', when: S => S.rel >= 15, say: 'Mit Ihnen? Im Brass Lantern? Na gut. Aber Sie trinken aus dem Krug wie alle.',
       opts: [{ t: 'Prost, Hannes.', rel: 4, ruf: { arbeiter: 1 }, say: 'Prost, Alexander. Hätt ich nie gedacht, dass ich das mal sage.' }] },
   ],
@@ -693,7 +705,7 @@ function nfTopic(F, T0) {
   } })) };
 }
 
-/* ---------- Margots Interview (drei Fragen; die Antworten landen in der Zeitung) ---------- */
+/* ---------- Margots Interview (vier Fragen, V66 mit einer unbequemen; die Antworten landen in der Zeitung) ---------- */
 const NF_IV = [
   { f: 'Erste Frage: Wie haben Sie den Krater gefunden?', a: [
     ['Auf einer Expedition. Ich sah ein Leuchten im Eis und bin ihm gefolgt.', { bew: 1 }, 'Er folgte einem Leuchten im Eis, erzählt der Gründer.'],
@@ -703,6 +715,10 @@ const NF_IV = [
     ['Sehen Sie heute Nacht zum Belmont hinauf, Fräulein Wendt.', { bew: 2 }, 'Auf die Frage nach seinen Kräften lächelt er nur: Man möge heute Nacht zum Belmont hinaufsehen.'],
     ['Die Leute sagen vieles.', { presse: 1 }, 'Zu den Gerüchten über seine Kräfte schweigt er bescheiden.'],
     ['Ja. Und nur ich. Niemand sonst wird je solche Kräfte haben.', { furcht: 2, bew: 1 }, '„Nur ich“, sagt er über seine Kräfte. „Niemand sonst.“ Es klang nicht wie eine Prahlerei, eher wie ein Versprechen.']] },
+  { f: 'Ihre Arbeiter sagen, die Löhne reichen nicht für Kohle. Was antworten Sie ihnen?', a: [
+    ['Sie haben recht. Ich lasse die Löhne prüfen.', { arbeiter: 2, elite: -1, presse: 1 }, 'Zu den Löhnen sagt er überraschend: „Sie haben recht. Ich lasse das prüfen.“ Die Fabrikherren der Avenue werden das nicht gern lesen.'],
+    ['Ohne meine Türme gäbe es hier gar keine Arbeit.', { elite: 1, arbeiter: -2 }, 'Auf die Klagen der Arbeiter antwortet er knapp: Ohne seine Türme gäbe es gar keine Arbeit. Im Viertel wird man diesen Satz nicht vergessen.'],
+    ['Niemand muss in Vespera arbeiten. Aber jeder darf.', { furcht: 1, elite: 1, arbeiter: -1, presse: -0.5 }, '„Niemand muss hier arbeiten. Aber jeder darf“, sagt der Gründer. Es klingt großzügig oder kalt, je nachdem, wo man wohnt.']] },
   { f: 'Letzte Frage: Was wünschen Sie sich für Vespera?', a: [
     ['Dass jeder hier ein warmes Zuhause hat.', { arbeiter: 2, buerger: 1 }, 'Sein Wunsch für die Stadt: ein warmes Zuhause für jeden, bis ins letzte Hinterhaus.'],
     ['Höhere Türme, hellere Lichter, mehr Glanz als in Paris.', { elite: 2 }, 'Er träumt von höheren Türmen und hellerem Licht: mehr Glanz als in Paris.'],
