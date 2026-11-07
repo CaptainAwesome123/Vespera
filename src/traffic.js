@@ -510,13 +510,8 @@ export function updateTrucks(dt) {
   truckLights.geometry.attributes.position.needsUpdate = true;
 }
 
-/* ---------- Straßenbahnen: zwei Linien mit Gleisen, Oberleitung und Haltestellen ---------- */
-export const TRAM_LINES = [
-  { axis: 'x', at: -210, from: -985, to: 985, off: 1.4, pole: 8.4, name: 'LINIE 1 · BELMONT', n: 5 },
-  { axis: 'z', at: -220, from: -975, to: 498, off: 2.0, pole: 12.2, name: 'LINIE 2 · HAFEN', n: 4 },
-];
-export const trams = [];
-export let tramMesh, tramWin, tramLights;
+/* ---------- Straßenbahnen: V63 in src/bahn.js (Ringlinien, Hochbahn, mitfahren). Hier bleibt die ferne Wagenform. ---------- */
+export const TRAM_LINES = [];   // V63: die alten geraden Linien sind fort (island.js und boat.js fragen die Liste noch ab)
 export function tramGeos() {
   const B = IB;
   const petrol = [0.03, 0.2, 0.21], cream = [0.8, 0.73, 0.58], gold = [0.85, 0.62, 0.28], roof = [0.16, 0.16, 0.18];
@@ -538,86 +533,6 @@ export function tramGeos() {
   for (const sx of [-1, 1]) { win.push(B(0.03, 0.7, 1.2, sx * 7.12, 2.12, 0)); win.push(B(0.03, 0.26, 1.0, sx * 6.95, 2.66, 0)); }
   return { body: mergeColored(parts), win: mergeGeos(win) };
 }
-export function buildTrams() {
-  const railM = stdMat({ color: 0x9aa0a6, metalness: 1, roughness: 0.22, envI: 1.2 });
-  const bedM = stdMat({ color: 0x1b1f22, roughness: 0.7, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
-  const rails = [], beds = [], poles = [], wire = [];
-  for (const L of TRAM_LINES) {
-    const ax = L.axis === 'x', len = L.to - L.from, mid = (L.from + L.to) / 2;
-    for (const sd of [-1, 1]) {
-      const c = L.at + sd * L.off;
-      beds.push(new T.BoxGeometry(ax ? len : 2.3, 0.02, ax ? 2.3 : len).translate(ax ? mid : c, 0.012, ax ? c : mid));
-      for (const r of [-0.72, 0.72]) rails.push(new T.BoxGeometry(ax ? len : 0.09, 0.05, ax ? 0.09 : len).translate(ax ? mid : c + r, 0.03, ax ? c + r : mid));
-      wire.push(ax ? L.from : c, 5.75, ax ? c : L.from, ax ? L.to : c, 5.75, ax ? c : L.to);
-    }
-    for (let t = L.from + 18; t < L.to; t += 36) {
-      for (const sd of [-1, 1]) {
-        const px = ax ? t : L.at + sd * L.pole, pz = ax ? L.at + sd * L.pole : t;
-        if (inRect(px, pz, PLAZA, 2)) continue;
-        poles.push(px, pz);
-        addCollider(px - 0.2, 0, pz - 0.2, px + 0.2, 7, pz + 0.2);
-      }
-      wire.push(ax ? t : L.at - L.pole, 6.6, ax ? L.at - L.pole : t, ax ? t : L.at + L.pole, 6.6, ax ? L.at + L.pole : t);
-    }
-    // Haltestellen mit Wartehäuschen und Leuchtschild
-    for (let k = 1; k <= 4; k++) {
-      const t = L.from + len * k / 5, side = k % 2 ? 1 : -1;
-      const px = ax ? t : L.at + side * (L.pole - 1.6), pz = ax ? L.at + side * (L.pole - 1.6) : t;
-      if (inRect(px, pz, PLAZA, 6)) continue;
-      addSeg({ x: px, z: pz, w: ax ? 7 : 2.2, d: ax ? 2.2 : 7, y0: 3.0, y1: 3.25, tint: [0.4, 0.33, 0.22], seed: 870, style: 3, dens: 0, flood: 0.8, rib: [0.85, 0.62, 0.28] }, false);
-      for (const e of [-3.2, 3.2]) addSeg({ x: px + (ax ? e : 0), z: pz + (ax ? 0 : e), w: 0.18, d: 0.18, y0: 0.22, y1: 3.0, tint: [0.5, 0.4, 0.25], seed: 871, style: 3, dens: 0, flood: 0.5 });
-      addNeon(px, 3.45, pz, ax ? 3.2 : 0.12, 0.35, ax ? 0.12 : 3.2, NEON.gold);
-      addGlow(px, 2.9, pz, [1.3, 0.9, 0.5], 2.2);
-      const sg = makeSignTex(L.name, '#7ff0e6', false);
-      const m = new T.Mesh(new T.PlaneGeometry(3.4, 3.4 * sg.H / sg.W), new T.MeshBasicMaterial({ map: sg.t, color: new T.Color(1.2, 1.2, 1.2), side: T.DoubleSide }));
-      m.position.set(px, 3.75, pz); m.rotation.y = ax ? 0 : Math.PI / 2; scene.add(m);
-    }
-    for (let k = 0; k < L.n * 2; k++) {
-      const dir = k % 2 ? -1 : 1;
-      trams.push({ L, dir, s: (k >> 1) / L.n * len + rand(0, 40), v: rand(8, 10.5), len });
-    }
-  }
-  const rm = new T.Mesh(mergeGeos(rails), railM); rm.frustumCulled = false; scene.add(rm);
-  const bm = new T.Mesh(mergeGeos(beds), bedM); bm.frustumCulled = false; scene.add(bm);
-  const pole = mergeGeos([new T.CylinderGeometry(0.1, 0.16, 7, 8).translate(0, 3.5, 0), new T.SphereGeometry(0.2, 8, 6).translate(0, 7.05, 0), new T.CylinderGeometry(0.22, 0.22, 0.5, 8).translate(0, 0.25, 0)]);
-  const pm = new T.InstancedMesh(pole, MAT.brass, poles.length / 2);
-  for (let i = 0; i < poles.length / 2; i++) {
-    const px = poles[i * 2], pz = poles[i * 2 + 1], m0 = _m.makeTranslation(px, 0.2, pz).clone(); pm.setMatrixAt(i, m0);
-    // V54: Masten ausreißbar (die Fahrdrähte bleiben hängen); eigenes Netz aus derselben Form, Mitte in halber Höhe
-    tearInst('mast:' + px.toFixed(0) + ',' + pz.toFixed(0), { name: 'Oberleitungsmast', m: 260, stuff: 'metal', kind: 'cyl' }, { x: px, y: 0.2, z: pz, he: [0.22, 3.6, 0.22], cy: 3.6, ims: [[pm, i]], m0, mesh: () => new T.Mesh(pole.clone().translate(0, -3.6, 0), MAT.brass) });
-  }
-  pm.frustumCulled = false; scene.add(pm);
-  const wl = new T.LineSegments(new T.BufferGeometry().setAttribute('position', new T.Float32BufferAttribute(wire, 3)), new T.LineBasicMaterial({ color: 0x3a3a3a }));
-  wl.frustumCulled = false; scene.add(wl);
-  const g = tramGeos();
-  tramMesh = new T.InstancedMesh(g.body, paintMat({ color: 0xffffff, metalness: 0.35, roughness: 0.35, envI: 0.8 }), trams.length);
-  tramWin = new T.InstancedMesh(g.win, new T.MeshBasicMaterial({ color: new T.Color(1.25, 0.86, 0.48) }), trams.length);
-  for (const im of [tramMesh, tramWin]) { im.instanceMatrix.setUsage(T.DynamicDrawUsage); im.frustumCulled = false; scene.add(im); }
-  const pts = [];
-  for (let i = 0; i < trams.length; i++) pts.push({ p: [0, 0, 0], c: [1.4, 1.3, 1.0], s: 1.4, ph: 0, bl: 0 }, { p: [0, 0, 0], c: [1.4, 0.15, 0.08], s: 0.8, ph: 0, bl: 0 }, { p: [0, 0, 0], c: [0.4, 1.2, 1.3], s: 0.9, ph: R(), bl: 1 });
-  tramLights = makeGlowPoints(pts, true); scene.add(tramLights);
-}
-export function updateTrams(dt) {
-  if (!tramMesh) return;
-  const pos = tramLights.geometry.attributes.position.array;
-  trams.forEach((tr, i) => {
-    tr.s = (tr.s + tr.v * dt) % tr.len;
-    const L = tr.L, ax = L.axis === 'x';
-    const dx = ax ? tr.dir : 0, dz = ax ? 0 : tr.dir;
-    const along = tr.dir > 0 ? L.from + tr.s : L.to - tr.s;
-    const side = ax ? tr.dir : -tr.dir;
-    const x = ax ? along : L.at + side * L.off, z = ax ? L.at + side * L.off : along;
-    _q.setFromAxisAngle(_up, Math.atan2(-dz, dx)); _p.set(x, 0.05, z); _s.set(1, 1, 1);
-    _m.compose(_p, _q, _s); tramMesh.setMatrixAt(i, _m); tramWin.setMatrixAt(i, _m);
-    const o = i * 9;
-    pos[o] = x + dx * 7.2; pos[o + 1] = 1.2; pos[o + 2] = z + dz * 7.2;
-    pos[o + 3] = x - dx * 7.2; pos[o + 4] = 1.2; pos[o + 5] = z - dz * 7.2;
-    pos[o + 6] = x; pos[o + 7] = 5.8; pos[o + 8] = z;
-  });
-  tramMesh.instanceMatrix.needsUpdate = true; tramWin.instanceMatrix.needsUpdate = true;
-  tramLights.geometry.attributes.position.needsUpdate = true;
-}
-
 /* ---------- Goldstaub und Dampf ---------- */
 export let dust, steam;   // V27: das Brunnenwasser ist jetzt in src/fountain.js (Teilchen im Shader)
 export function buildParticles() {

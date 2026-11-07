@@ -115,6 +115,7 @@ function ktBuildBiz() {
   ktBiz('eisbahn', { n: 'Eisbahn am Kanal', sec: 'kultur', price: 35000, inc: 600, ort: 'Eiskanal', staff: 3 });
   ktBiz('taxi', { n: 'Wassertaxi-Gesellschaft', sec: 'verkehr', price: 90000, inc: 1500, ort: 'Hafen', staff: 12 });
   ktBiz('faehre', { n: 'Fährlinie Vespera', sec: 'verkehr', price: 140000, inc: 2200, ort: 'Hafen', staff: 10 });
+  ktBiz('bahn', { n: 'Vespera-Verkehrsbetriebe', sec: 'verkehr', price: 1800000, inc: 21000, ort: 'Straßenbahn und Hochbahn', staff: 240, note: 'Linie 1, Linie 2 und die Hochbahn. Als Besitzer fahren Sie umsonst.' });   // V63
   ktBiz('rundflug', { n: 'Rundflug-Gesellschaft', sec: 'verkehr', price: 1400000, inc: 19000, ort: 'Luftschiffhafen', staff: 60, note: 'Das Passagierluftschiff am Landeturm.' });
   ktBiz('kohlen', { n: 'Kohlenhandlung Krause', sec: 'handel', price: 40000, inc: 650, ort: 'Kneipenplatz', staff: 4, note: 'Wer sie besitzt, verkauft Kohle am Kneipenplatz ohne Aufschlag.' });
 }

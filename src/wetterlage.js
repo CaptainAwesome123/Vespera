@@ -35,7 +35,8 @@ import { toast } from './boat.js';
 import { ATMO, WEATHERS, roofAt } from './atmosphere.js';
 import { peds, pedCrowd, setAct, CHATS, loopRound } from './serpentine.js';
 import { DOORS } from './entrances.js';
-import { TRF, trams, tramMesh } from './traffic.js';
+import { TRF } from './traffic.js';
+import { BAHN } from './bahn-hook.js';   // V63: die Straßenbahnen fahren jetzt in src/bahn.js (wlMul, wlStuck je Zug)
 import { PLAZA, landDist } from './island.js';
 import { terrainHeight } from './harbour.js';
 import { WATER_Y } from './dance.js';
@@ -353,12 +354,9 @@ function wlTrafficBack(force) {
   for (const c of WL.hid) if (force || c.wx === undefined || (c.wx - cp.x) ** 2 + (c.wz - cp.z) ** 2 > 170 * 170) { c.gone = false; WL.hid.delete(c); }
 }
 function wlTrams(mul) {
-  for (const tr of trams) {
-    if (!WL.trams.has(tr)) WL.trams.set(tr, tr.v);
-    if (!tr.wlStuck) tr.v = WL.trams.get(tr) * mul;
-  }
+  for (const tr of BAHN.veh) { if (tr.kind !== 'tram') continue; WL.trams.set(tr, 1); tr.wlMul = mul; }
 }
-function wlTramsBack() { for (const [tr, v] of WL.trams) { tr.v = v; tr.wlStuck = false; } WL.trams.clear(); }
+function wlTramsBack() { for (const tr of WL.trams.keys()) { tr.wlMul = 1; tr.wlStuck = false; } WL.trams.clear(); }
 
 /* ---------- Punschwagen vor Cafés, Restaurants und Bars ---------- */
 const WL_VEND = ['Heißer Punsch! Kakao mit Sahne! Wärmt bis in die Zehen!', 'Glühwein, frisch vom Kessel! Zwanzig Funken der Becher!', 'Heiße Maronen und Punsch, meine Damen und Herren!', 'Herr Alexander! Ein Becher Punsch gegen die Kälte?'];
@@ -408,15 +406,13 @@ function wlMakeTask(k) {
     tk.use = { test: p => !tk.done && !tk.walk && (p.x - pd.x) ** 2 + (p.z - pd.z) ** 2 < 2.8 * 2.8 && Math.abs(p.y - tk.y) < 2.5, label: (k === 'leute' ? 'In Sicherheit bringen: ' : 'Den Weg zeigen: ') + tk.who, act: () => wlRescuePerson(tk) };
     INTERACT.push(tk.use);
   } else if (k === 'bahn') {
-    if (!tramMesh || !trams.length) return null;
-    let best = -1, bd = 1e9;
-    trams.forEach((tr, i) => { tramMesh.getMatrixAt(i, _wm); _wp.setFromMatrixPosition(_wm); const d = Math.sqrt(wlD2(_wp.x, _wp.z)); const s = Math.abs(d - 180); if (d > 70 && d < 520 && s < bd) { bd = s; best = i; } });
-    if (best < 0) return null;
-    const tr = trams[best]; tramMesh.getMatrixAt(best, _wm); _wp.setFromMatrixPosition(_wm); _wlq.setFromRotationMatrix(_wm); _wv.set(1, 0, 0).applyQuaternion(_wlq);
-    if (!WL.trams.has(tr)) WL.trams.set(tr, tr.v);
-    tr.wlStuck = true; tr.v = 0;
-    tk.tr = tr; tk.ti = best; tk.x = _wp.x; tk.z = _wp.z; tk.y = 0.1; tk.n = 'Straßenbahn im Schnee stecken geblieben';
-    const fx = _wv.x, fz = _wv.z, ex = tk.x + fx * 8.5, ez = tk.z + fz * 8.5, yaw = Math.atan2(fx, fz);
+    let tr = null, bd = 1e9;
+    for (const v of BAHN.veh) { if (v.kind !== 'tram' || v.st !== 'run' || v === BAHN.ride) continue; const c = v.cars[0], d = Math.sqrt(wlD2(c.x, c.z)), s = Math.abs(d - 180); if (d > 70 && d < 520 && s < bd) { bd = s; tr = v; } }
+    if (!tr) return null;
+    const c0 = tr.cars[0];
+    WL.trams.set(tr, 1); tr.wlStuck = true;
+    tk.tr = tr; tk.x = c0.x; tk.z = c0.z; tk.y = 0.1; tk.n = 'Straßenbahn im Schnee stecken geblieben';
+    const fx = Math.cos(c0.ry), fz = -Math.sin(c0.ry), ex = tk.x + fx * 8.5, ez = tk.z + fz * 8.5, yaw = Math.atan2(fx, fz);
     tk.piles = [[ex, 0, ez, 2.2, 0.9, 1.6, yaw], [ex + fz * 1.2, 0, ez - fx * 1.2, 1.4, 0.6, 1.2, yaw + 1], [tk.x - fx * 8.2, 0, tk.z - fz * 8.2, 1.6, 0.6, 1.2, yaw]];
     tk.use = { test: p => !tk.done && (p.x - tk.x) ** 2 + (p.z - tk.z) ** 2 < 10 * 10 && p.y < 4, label: 'Die Straßenbahn freischaufeln und anschieben', act: () => wlRescueTram(tk) };
     INTERACT.push(tk.use);
@@ -460,7 +456,7 @@ function wlRescueTram(tk) {
   lifeSay('Der Schaffner', wlPick(['Alles einsteigen! Herr Alexander hat uns freigeschoben!', 'Mit bloßen Händen! Danke, Herr Alexander, wir fahren weiter!']), 5);
   for (const q of tk.piles) fxEmit('snowburst', q[0], 0.6, q[2], 0, 2.5, 0, 22, 2.4, 1.6);
   wlNoise(180, 0.8, 0.9, 0.3, 'lowpass', true);
-  tk.tr.wlStuck = false; tk.tr.v = (WL.trams.get(tk.tr) || 9) * (WL.E && WL.E.tram || 1);
+  tk.tr.wlStuck = false; tk.tr.wlMul = WL.E && WL.E.tram || 1;
 }
 function wlRescueFloe(tk) {
   wlTaskDone(tk, 'Einen Fischer von der Eisscholle geholt', { arbeiter: 2, presse: 1.4, bew: 1.6, buerger: 0.6 }, wlPick(['Herr Alexander! Gott sei Dank, die Scholle wurde immer kleiner!', 'Ich sag’s meiner Frau: der Herr von Vespera kam durch die Luft!']));
@@ -475,7 +471,7 @@ function wlRescueSplitter(tk) {
 }
 function wlTasksStep(dt) {
   for (const tk of WL.tasks) {
-    if (tk.k === 'bahn' && !tk.done && tramMesh) { tramMesh.getMatrixAt(tk.ti, _wm); _wp.setFromMatrixPosition(_wm); tk.x = _wp.x; tk.z = _wp.z; }
+    if (tk.k === 'bahn' && !tk.done) { const c = tk.tr.cars[0]; tk.x = c.x; tk.z = c.z; }
     if (tk.k === 'scholle' && !tk.done) {
       const F = WL.fl, i = tk.fi; if (!F.ok[i]) { F.ok[i] = 1; }
       tk.x = F.x[i]; tk.z = F.z[i]; tk.y = WATER_Y + F.y[i] + 0.06 - F.sink * 0.9 + 0.21 * (0.55 + 0.25 * F.e[i]);

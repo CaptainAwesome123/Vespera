@@ -48,7 +48,7 @@ let fails = 0; const ok = (c, m) => { console.log((c ? 'OK   ' : 'FEHLER ') + m)
     for (const t of WL.tasks.slice()) if (t.use) t.use.act();
     await wait(300);
     out.done = WL.done; out.ruf = +(R.rufGet('buerger') - r0).toFixed(2); out.interact = MU.INTERACT.filter(u => WL.tasks.some(t => t.use === u)).length;
-    const tram = WL.tasks.find(t => t.k === 'bahn'); out.tramGo = tram ? tram.tr.v > 0 : 'keine Bahn';
+    const tram = WL.tasks.find(t => t.k === 'bahn'); out.tramGo = tram ? !tram.tr.wlStuck : 'keine Bahn';   // V63: Bahn aus src/bahn.js
     if (WL.carts[0]) { const c0 = KT.s.cash; WL.carts[0].use.act(); out.punsch = c0 - KT.s.cash; }
     W.wlEnd(true); await wait(2500);
     out.after = { ev: WL.ev, w: A.ATMO.w.id, pinned: A.ATMO.pinned, mods: WL.mods.size, tasks: WL.tasks.length, cars: WL.cars.size, extra: !!(WL.report && /Sturmnacht|Retter|packt/.test(WL.report.titel)), report: WL.report && WL.report.titel };
