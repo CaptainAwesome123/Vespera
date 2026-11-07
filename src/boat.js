@@ -223,6 +223,7 @@ export function toast(text) { const t = $('toast'); t.textContent = text; t.styl
 
 /* ---------- Karte ---------- */
 export const mapBase = document.createElement('canvas');
+export const MAP_HOOK = { draw: null };   // V62: die Stadtkarte (karte.js) zeichnet den Ring unten rechts selbst
 export function buildMap() {
   mapBase.width = mapBase.height = 1400;
   const g = mapBase.getContext('2d'), s = 1400 / 2400, X = x => (x + 1200) * s, Z = z => (z + 1100) * s;
@@ -244,6 +245,7 @@ export function buildMap() {
   for (const L of TRAM_LINES) { g.beginPath(); if (L.axis === 'x') { g.moveTo(X(L.from), Z(L.at)); g.lineTo(X(L.to), Z(L.at)); } else { g.moveTo(X(L.at), Z(L.from)); g.lineTo(X(L.at), Z(L.to)); } g.stroke(); }
 }
 export function drawMap() {
+  if (MAP_HOOK.draw && MAP_HOOK.draw()) return;
   const c = $('map'), g = c.getContext('2d'), W = c.width, s = 1400 / 2400;
   const span = 520, px = (player.p.x + 1200) * s, pz = (player.p.z + 1100) * s, half = span * s / 2;
   g.clearRect(0, 0, W, W);
