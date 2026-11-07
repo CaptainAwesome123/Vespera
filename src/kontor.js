@@ -145,7 +145,7 @@ export const PROJECTS = {
 };
 
 /* ---------- Ereignisse ---------- */
-const EVENTS = [
+export const EVENTS = [
   { t: 'Eisgang im Hafen: zwei Frachter sitzen im Packeis fest', g: { kaffee: 1.35, tee: 1.3, tabak: 1.3 }, d: 3 },
   { t: 'Großer Ball im Belmont: die Stadt will Champagner und Kaviar', g: { champagner: 1.3, kaviar: 1.3 }, s: { luxus: 1.15, hotel: 1.2 }, d: 2 },
   { t: 'Streik in der Gießerei: Stahl wird knapp', g: { stahl: 1.4 }, s: { industrie: 0.8 }, sh: { stahl: -0.08 }, d: 3, streik: true },
@@ -238,7 +238,8 @@ export function ktPrice(pid, g) {
   const st = Math.max(1, KT.s.mk[pid][g]), tg = ktTgt(g);
   return GOODS[g].p * KT.s.gp[g] * f * Math.pow(tg / st, 0.5) * evMult('g', g);
 }
-function repDisc(pid) { const r = KT.s.rep[POSTS[pid].rep] ?? 50; return clamp((r - 50) / 50 * 0.06, -0.03, 0.06); }
+function repDisc(pid) { const g = POSTS[pid].rep, r = KT.s.rep[g] ?? 50; return clamp((r - 50) / 50 * 0.06 + (KT.rufBonus ? KT.rufBonus(g) : 0), -0.05, 0.09); }   // V62: ruf.js gibt Vorrechte dazu
+export const ktRepDisc = repDisc;
 export const ktBuyP = (pid, g) => ktPrice(pid, g) * 1.05 * (1 - repDisc(pid)) * (pid === 'kneipe' && g === 'kohle' && ktOwns('kohlen') ? 0.88 : 1);
 export const ktSellP = (pid, g) => ktPrice(pid, g) * 0.95 * (1 + repDisc(pid));
 // Wert des Besitzes (für das Vermögen und den Wiederverkauf)

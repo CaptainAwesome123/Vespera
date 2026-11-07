@@ -40,6 +40,7 @@ export const SAY = {
 export function attOf(pd) {
   if (pd.att) return pd.att;
   const k = pd.a ? pd.a.kind : pd.kind, r = Math.random(), tr = pd.cit && pd.cit.trait.k;
+  if (AWE.attHook) { const h = AWE.attHook(k, tr, r); if (h) return pd.att = h; }   // V62: Ruf und Ansehen (ruf.js) verschiebt die Haltungen
   let att;
   if (k === 'police' || k === 'livery' || k === 'waiter' || k === 'chauffeur' || k === 'sailor') att = 'dienst';
   else if (k === 'kid') att = 'bew';
