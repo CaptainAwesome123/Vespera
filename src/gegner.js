@@ -499,8 +499,9 @@ function gegUnfreeze(v) {
 // V61: weitere Ereignisse (anfuehrer.js: Aufstand mit Barrikade, Bombenserie, Bankraub): { make() -> E, w Gewicht, ok() möglich? }
 export const EV_EXTRA = {};
 function gegPickType() {
-  const L = [['raub', 2], ['dieb', 1], ['bombe', 1], ['angriff', 2]];
-  for (const k in EV_EXTRA) { const X = EV_EXTRA[k]; if (!X.ok || X.ok()) L.push([k, typeof X.w === 'function' ? X.w() : X.w]); }
+  const an = GEGNER.rufAnar ?? 1;   // V62: ruf.js: je stärker der Untergrund, desto mehr Anarchisten (Bombe, Angriff, Aufstand ...)
+  const L = [['raub', 2], ['dieb', 1], ['bombe', 1 * an], ['angriff', 2 * an]];
+  for (const k in EV_EXTRA) { const X = EV_EXTRA[k]; if (!X.ok || X.ok()) L.push([k, (typeof X.w === 'function' ? X.w() : X.w) * an]); }
   let S = 0; for (const [, w] of L) S += w; let r = Math.random() * S;
   for (const [k, w] of L) if ((r -= w) <= 0) return k;
   return 'raub';
@@ -518,7 +519,7 @@ function gegEnd(E, pause = 1) {
   if (GEGNER.ev === E) GEGNER.ev = null;
   if (E.v && E.v.ggSave && !gegUnfreeze(E.v)) GEGNER.thaw.push(E.v);   // Opfer steht noch (umgeworfen, staunt): später weiter
   E.over = true;
-  GEGNER.nextT = (90 + Math.random() * 100) * pause;
+  GEGNER.nextT = (90 + Math.random() * 100) * pause * (GEGNER.rufPace || 1);   // V62: ruf.js (Ansehen, Stärke des Untergrunds)
 }
 
 // --- Überfall ---

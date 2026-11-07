@@ -274,6 +274,7 @@ export function tearFx(B, k) {
 function tkLetGo(throwIt) {
   const H = POWERS.tk; if (!H) return;
   POWERS.tk = null; POWERS.tkWind = 0;
+  if (POWERS.onLetGo) try { POWERS.onLetGo(H, throwIt); } catch (e) { /* V62: ruf.js */ }
   const d = camera.getWorldDirection(_pd);
   if (H.kind === 'ped') {
     // sanft: die Person sinkt gebremst zu Boden und landet auf den Füßen; geworfen nur ein leichter Bogen
