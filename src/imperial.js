@@ -18,6 +18,7 @@ import { openChoice, DINE, standUp } from './venues.js';
 import { PM, toggleView } from './player-model.js';
 import { lifeSay } from './life.js';
 import { buildBordservice, updateBordservice } from './bordservice.js';
+import { shadeBegin, shadeEnd } from './raumlicht.js';
 
 /* =====================================================================
    V33: AURORA IMPERIAL – Alexanders privates Luftschiff
@@ -251,6 +252,7 @@ export function buildImperial() {
   const fur = (parts, map, cols, x, y, z, a = 0) => { const n0 = MOV.list.length; placeFurn(parts, map, (k, g) => KI.add(k, g, cols[k] || [1, 1, 1]), x, y, z, a); for (let i = n0; i < MOV.list.length; i++) MOV.list[i].cols = cols; };
   IMP.fr = { x: 0, y: 0, z: 0, ry: 0, pf: null };
   movOn(IMP.fr);
+  shadeBegin();   // V67: Kontaktschatten der Möbel an Bord (raumlicht.js)
   const floorP = (k, x0, x1, z0, z1, y, sc = 2, c) => KI.add(k, wuv(new T.PlaneGeometry(x1 - x0, z1 - z0).rotateX(-Math.PI / 2).translate((x0 + x1) / 2, y + 0.004, (z0 + z1) / 2), sc), c);
   // Ebene mit Kachelung je `tile` Meter (Kassettendecke, Wandbespannung)
   const tiled = (g, w, h, tile) => { const u = g.attributes.uv; for (let i = 0; i < u.count; i++) u.setXY(i, u.getX(i) * w / tile, u.getY(i) * h / tile); return g; };
@@ -814,6 +816,7 @@ export function buildImperial() {
   /* ================= zusammensetzen ================= */
   KO.build(ship);
   KI.build(inner);
+  shadeEnd(inner);
   inner.add(makeGlowPoints(bulbs));
   ship.add(inner); IMP.inner = inner;
   const farG = new T.Group(); KF.build(farG); ship.add(farG); IMP.farGlow = farG; farG.visible = false;

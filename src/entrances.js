@@ -6,6 +6,7 @@ import { addArcade, addOriels, addBalconies, houseDoor } from './building-forms.
 import { BRICK, wantShop, shopFloor, tier, facadeRelief } from './shops.js';
 import { _m, _p, _q, _up, _s } from './traffic.js';
 import { decoPortal, decoCornice } from './deco.js';
+import { furnShadow } from './raumlicht.js';
 
 // V16 · EINGÄNGE: seit V54 aus dem Eingangs-Baukasten (portal-kit.js, Schmuck-Schicht in deco.js); PORTALS bleibt die Liste
 export const PORTALS = [];
@@ -106,6 +107,7 @@ export function placeFurn(parts, map, add, x, y, z, a = 0) {
   const F = parts.furn, e = MOV.on && F && MOV_TYPES[F.type] ? { id: MOV.seq++, type: F.type, args: F.args, map, x, y, z, a, frame: MOV.frame, ranges: [], taken: false } : null;
   if (e) MOV.list.push(e);
   for (const [g, role] of parts) { const h = g.clone().rotateY(a).translate(x, y, z); if (e) h.userData.mov = { e, role, key: map[role] || map.up }; add(map[role] || map.up, h); }
+  furnShadow(parts, x, y, z, a, e);   // V67: Kontaktschatten (nur solange raumlicht.js sammelt)
 }
 // Café-Terrassen vor Cafés und Restaurants: Bistrotische mit Stühlen und Kerzenlicht
 export const TERRACE = [];

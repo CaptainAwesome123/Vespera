@@ -15,6 +15,7 @@ import { plazaMaterial } from './plaza.js';
 import { buildFountain } from './fountain.js';
 import { buildBelmontLuxe } from './belmont-luxe.js';
 import { galaPeople } from './gala.js';
+import { shadeBegin, shadeEnd, shadeRoom, shadeQuad, shadeEdge, shadeWall, shadeDisc, shadeColumn, lightPool, roughTex } from './raumlicht.js';
 
 /* =====================================================================
    THE BELMONT — das Grand Hotel im Zentrum
@@ -319,6 +320,7 @@ export function buildBelmontInterior() {
   // im Hauptbild und im Spiegelbild des Pflasters). Die zusammengefassten Netze werden außerdem wieder nach Sichtfeld aussortiert.
   const IG = new T.Group(); BEL_IN.g = IG; scene.add(IG);
   movOn();   // V52: Sofas, Sessel und Stühle der Lobby und des Ballsaals sind mit Telekinese greifbar
+  shadeBegin();   // V67: Kontaktschatten der Möbel und Raumschatten sammeln (raumlicht.js)
   const col = addCollider;
   const glow = (x, y, z, c, s) => addGlow(x, y, z, c, s);
 
@@ -366,7 +368,8 @@ export function buildBelmontInterior() {
     sunburst(g, X(0), Z(22), 10 * S, 48, '#c9a050', '#0a0a0c');
   });
   lobbyFloor.anisotropy = ANISO;
-  const lobbyRough = canvasTex(256, 139, (g, W, H) => { g.fillStyle = '#1e1e1e'; g.fillRect(0, 0, W, H); g.fillStyle = '#f0f0f0'; g.fillRect((44.5 / 96) * W, 0, (7 / 96) * W, H); });
+  // V67: Rauheit 0,26 bis 0,4 mit Adern statt glatt 0,12 (die Punktlichter warfen grelle weiße Flecken auf den schwarzen Boden)
+  const lobbyRough = roughTex(512, 278, { base: 0.33, vari: 0.07, seed: 21, rects: [[44.5 / 96, 0, 51.5 / 96, 1, 0.94]] });
   const fl = new T.Mesh(new T.PlaneGeometry(96, 52), stdMat({ map: lobbyFloor, roughnessMap: lobbyRough, roughness: 1, metalness: 0.1, envI: 0.9, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
   fl.rotation.x = -Math.PI / 2; fl.position.set(0, P + 0.01, 22); IG.add(fl);
   const ballFloor = canvasTex(2048, 896, (g, W, H) => {
@@ -405,7 +408,7 @@ export function buildBelmontInterior() {
     g.strokeStyle = '#d8b060'; g.lineWidth = 8; g.strokeRect(X(-18), Z(-37), 36 * S, 18 * S);
     ballFloor.needsUpdate = true;
   } });
-  const ballRough = canvasTex(256, 112, (g, W, H) => { g.fillStyle = '#262626'; g.fillRect(0, 0, W, H); g.fillStyle = '#707070'; g.fillRect((30 / 96) * W, (11 / 42) * H, (36 / 96) * W, (18 / 42) * H); });
+  const ballRough = roughTex(512, 224, { base: 0.34, vari: 0.07, seed: 22, rects: [[30 / 96, 11 / 42, 66 / 96, 29 / 42, 0.46]] });
   const bf = new T.Mesh(new T.PlaneGeometry(96, 42), stdMat({ map: ballFloor, roughnessMap: ballRough, roughness: 1, metalness: 0.08, envI: 0.85, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
   bf.rotation.x = -Math.PI / 2; bf.position.set(0, P + 0.01, -27); IG.add(bf);
 
@@ -439,7 +442,7 @@ export function buildBelmontInterior() {
   const bsign = makeSignTex('GRAND BALLROOM', '#f6c76a', false);
   const bs = new T.Mesh(new T.PlaneGeometry(12, 12 * bsign.H / bsign.W), new T.MeshBasicMaterial({ map: bsign.t, color: new T.Color(1.2, 1.15, 1.05) }));
   bs.position.set(0, 9.6, -3.85); IG.add(bs);
-  const fanM = new T.MeshBasicMaterial({ map: FAN_TEX, transparent: true, color: new T.Color(1.3, 1.1, 0.8), depthWrite: false, side: T.DoubleSide });
+  const fanM = new T.MeshBasicMaterial({ map: FAN_TEX, transparent: true, color: new T.Color(1.08, 0.9, 0.64), depthWrite: false, side: T.DoubleSide });
   // V64: alle Sonnenfächer der Halle in einem Netz (vorher 28 einzelne, je ein Zeichenaufruf)
   const fanGeos = [];
   const fanPlane = (x, y, z, w, ry) => { fanGeos.push(new T.PlaneGeometry(w, w / 2).rotateY(ry).translate(x, y + w / 4, z)); };
@@ -640,7 +643,7 @@ export function buildBelmontInterior() {
   put('dark', boxW(30, 1.3, 9, 0, P + 0.65, -43.5, 3)); put('gold', new T.BoxGeometry(30.2, 0.12, 0.12).translate(0, S0, -39));
   col(-15, 0, -48, 15, S0, -39);
   for (let k = 0; k < 3; k++) { const z = -38.6 + k * 0.6, y = S0 - (k + 1) * 0.43; put('dark', boxW(10, y, 0.6, 0, y / 2, z, 2)); col(-5, 0, z - 0.3, 5, y, z + 0.3); }
-  const bigFan = new T.Mesh(new T.PlaneGeometry(34, 17), new T.MeshBasicMaterial({ map: FAN_TEX, transparent: true, color: new T.Color(1.15, 0.95, 0.65), depthWrite: false }));
+  const bigFan = new T.Mesh(new T.PlaneGeometry(34, 17), new T.MeshBasicMaterial({ map: FAN_TEX, transparent: true, color: new T.Color(0.92, 0.74, 0.48), depthWrite: false })   /* V67: weniger überstrahlt */);
   bigFan.position.set(0, S0 + 8.5, -47.8); IG.add(bigFan);
   for (const r of [16, 17.2, 18.4]) put('gold', new T.TorusGeometry(r, 0.12, 6, 64, Math.PI).translate(0, S0, -47.6));
   for (const r of [16.6, 17.8]) addNeonArc(0, S0, -47.5, r);
@@ -693,9 +696,13 @@ export function buildBelmontInterior() {
     addLight(0xffc27a, i * 0.72, d, 1.6, x, y, z, true);
   }
 
+  // ---------- V67: Raumschatten, Kontaktschatten und Lichtflecken (raumlicht.js, zwei Zeichenaufrufe) ----------
+  belmontShade({ P, G1, G2, LOBBY_H, BALL_H, S0, tables, put, M });
+
   movOff();
   for (const k in batch) IG.add(new T.Mesh(mergeGeos(batch[k]), M[k]));
   if (fanGeos.length) IG.add(new T.Mesh(mergeGeos(fanGeos), fanM));
+  shadeEnd(IG);
 
   // ---------- Menschen ----------
   const C = interiorCrowd = new Crowd(['tux', 'gown', 'dress', 'livery'], 680);
@@ -791,6 +798,64 @@ export const BALL_DECO = { g: null };
 // V65: Galerien des Ballsaals: Treppe zur zweiten Galerie (x0 oben, x1 unten, z0 offene Kante), Tische der ersten Galerie, VIP-Logen der zweiten
 export const GAL = { stair: { x0: 7.6, x1: 20.8, z0: -9.4 }, tables: [], seats: [] };
 export const BEL_IN = { g: null };   // V34: Lobby und Ballsaal (nur in der Nähe sichtbar)
+// V67: Lobby und Ballsaal bekommen Raumtiefe ohne Schatten im Shader: dunklere Boden- und Deckenkanten an den Wänden,
+// weiche Dunkelheit unter den Galerien, Flecken an Säulenfüßen, unter Tischen, Tresen und Bühne, warme Lichtflecken unter
+// den Kronleuchtern und auf den Tischtüchern. Dazu Teppichläufer auf den Galerien (vorher schwarzer Marmor, fast unsichtbar).
+function belmontShade({ P, G1, G2, LOBBY_H, BALL_H, S0, tables, put, M }) {
+  const warm = [1, 0.72, 0.42];
+  // Lobby: Innenmaße zwischen den Wandverkleidungen; offen bleiben Portal und Ballsaaltor
+  shadeRoom(-47.78, 47.78, -3.78, 47.78, P, { a: 0.5, w: 1.1, wh: 0.9, ceil: LOBBY_H - P, gaps: [[-8.3, 8.3, 47, 49], [-9.6, 9.6, -5, -3]] });
+  // Ballsaal: Boden und Decke; unter den Galerien ist es ohnehin dunkler (siehe unten)
+  shadeRoom(-47.78, 47.78, -47.78, -6.1, P, { a: 0.45, w: 1.0, wh: 0.8, ceil: BALL_H - P, gaps: [[-9.2, 9.2, -7, -5]] });
+  // unter den Galerien: weiche Dunkelheit, zum Saal hin auslaufend
+  for (const sx of [-1, 1]) { shadeQuad(sx * 44.6, P + 0.05, -30.5, 9.5, 37, 0, 0.2, 0); shadeQuad(sx * 44.6, G1 + 0.05, -30.5, 9.5, 37, 0, 0.15, 0); }
+  shadeQuad(0, P + 0.05, -9.4, 90, 9.6, 0, 0.2, 0);
+  // Galerieböden: Wandkanten (Außenwand, Nordwand, Trennwand) und Unterseite der nächsten Platte
+  const st = GAL.stair;
+  for (const y of [G1, G2]) {
+    const H = y === G1 ? G2 - 0.6 - G1 : BALL_H - G2;
+    for (const sx of [-1, 1]) {
+      shadeEdge(sx * 47.78, -47.78, sx * 47.78, -6.1, y + 0.05, -sx, 0, 1.0, 0.45); shadeWall(sx * 47.78, -47.78, sx * 47.78, -6.1, y, 0.8, -sx, 0, 0.36);
+      shadeWall(sx * 47.78, -47.78, sx * 47.78, -6.1, y + H, -1.0, -sx, 0, 0.32);
+      shadeEdge(sx * 41.2, -47.78, sx * 47.78, -47.78, y + 0.05, 0, 1, 1.0, 0.45); shadeWall(sx * 41.2, -47.78, sx * 47.78, -47.78, y, 0.8, 0, 1, 0.36);
+      // Trennwand: neben den Treppen (V65) offen lassen
+      for (const [a, b] of [[st.x1 + 0.3, 47.78], [0, st.x0 - 0.2]]) { shadeEdge(sx * a, -6.1, sx * b, -6.1, y + 0.05, 0, -1, 1.0, 0.42); shadeWall(sx * a, -6.1, sx * b, -6.1, y, 0.8, 0, -1, 0.34); }
+    }
+  }
+  // Teppichläufer auf den Galerien (Läufer aus der Lobby, längs gekachelt)
+  M.galRug = stdMat({ map: RUNNER_TEX(), color: 0xe6d4c8, roughness: 0.95, envI: 0.15, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 });
+  const rug = (x0, x1, z0, z1, y) => {
+    const alongZ = z1 - z0 > x1 - x0, w = alongZ ? x1 - x0 : z1 - z0, L = alongZ ? z1 - z0 : x1 - x0, g = new T.PlaneGeometry(w, L), uv = g.attributes.uv;
+    for (let i = 0; i < uv.count; i++) uv.setY(i, uv.getY(i) * L / w);
+    g.rotateX(-Math.PI / 2); if (!alongZ) g.rotateY(Math.PI / 2);
+    put('galRug', g.translate((x0 + x1) / 2, y + 0.015, (z0 + z1) / 2));
+  };
+  for (const sx of [-1, 1]) for (const y of [G1, G2]) rug(Math.min(sx * 41.6, sx * 47.5), Math.max(sx * 41.6, sx * 47.5), -47.5, -13.4, y);
+  rug(-40.6, 40.6, -12.6, -6.5, G1); rug(-40.6, 40.6, -12.6, -9.8, G2);
+  // Säulenfüße: Lobby, unter den Galerien, vorn an der Quergalerie
+  for (const sx of [-1, 1]) for (const z of [4, 16, 28, 40]) shadeColumn(sx * 27, P, z, 1.2, 0.55);
+  for (const sx of [-1, 1]) for (let z = -46; z <= -13; z += 7) { shadeColumn(sx * 41.4, P, z, 0.45, 0.5); shadeColumn(sx * 41.4, G1, z, 0.45, 0.45); }
+  for (let x = -34; x <= 34; x += 8.5) if (Math.abs(x) >= 3) { shadeColumn(x, P, -13.4, 0.45, 0.5); shadeColumn(x, G1, -13.4, 0.45, 0.45); }
+  // Lobby: Rundsofa, Sitzgruppen-Tische, Empfang, Palmenkübel
+  shadeDisc(0, P, 22, 5.0, 0.55);
+  for (const sx of [-1, 1]) for (const z0 of [10, 34]) { shadeDisc(sx * 16, P, z0, 1.5, 0.45); for (const [dx, dz] of [[5.5, -4], [5.5, 4]]) shadeDisc(sx * 16 + sx * dx, P, z0 + dz, 0.95, 0.45); }
+  shadeQuad(-39, P + 0.05, 22, 3.8, 22.8, 0, 0.5, 0);
+  for (const sx of [-1, 1]) for (const z of [46, -2]) shadeDisc(sx * 44, P, z, 0.95, 0.45);
+  for (const sx of [-1, 1]) for (const z of [45.5, -2.2]) shadeDisc(sx * 11, P, z, 0.95, 0.45);
+  // Ballsaal: Tische (Saal und Galerien), Bar, Bühne, Treppenfüße
+  for (const [x, z] of tables) { shadeDisc(x, P, z, 1.45, 0.48); lightPool(x, P + 0.79, z, 0.95, warm, 0.16); }
+  for (const [x, y, z] of GAL.tables) { shadeDisc(x, y, z, 1.35, 0.48); lightPool(x, y + 0.79, z, 0.9, warm, 0.16); }
+  shadeQuad(-44, P + 0.05, -29, 2.4, 22.8, 0, 0.5, 0);
+  shadeEdge(-15, -39, 15, -39, P + 0.05, 0, 1, 0.9, 0.5);
+  shadeEdge(-5, -37.7, 5, -37.7, P + 0.05, 0, 1, 0.6, 0.4);
+  for (const sx of [-1, 1]) { shadeQuad(sx * 36, P + 0.05, -26.5, 7.2, 28, 0, 0.28, 0); shadeDisc(sx * 36, P, -42, 0.95, 0.45); }
+  for (const [x, z] of [[-45, -45], [45, -45], [-45, -10], [45, -10]]) shadeDisc(x, P, z, 0.95, 0.45);
+  // Lichtflecken unter den Kronleuchtern und Pendelleuchten
+  lightPool(0, P, 22, 9, warm, 0.26);
+  for (const sx of [-1, 1]) for (const z of [6, 38]) lightPool(sx * 14, P, z, 5, warm, 0.18);
+  lightPool(0, P, -28, 13, warm, 0.22); lightPool(-26, P, -28, 7, warm, 0.17); lightPool(26, P, -28, 7, warm, 0.17);
+}
+
 function buildBallroomDeco({ P, G1, G2, BALL_H, S0, tables, put, col, glow, M }) {
   const grp = new T.Group(); BALL_DECO.g = grp; scene.add(grp);
   const batch = {}, add = (k, g) => (batch[k] ||= []).push(g);

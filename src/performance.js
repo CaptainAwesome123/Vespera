@@ -50,11 +50,13 @@ export function buildLightPool() {
   for (let k = 0; k < 4; k++) { const l = new T.PointLight(0xffc27a, 0, 50, 1.6); l.userData = { a: null, w: 0 }; scene.add(l); lightPool.push(l); }
 }
 export let lightTimer = 0;
+let insideGoal = 0;   // V67: Ziel für U.uInside (Tonkurve innen), weich übergeblendet
 const _ranked = [], _rankK = [];
 export function updateLights(dt) {
   if ((lightTimer -= dt) <= 0) {
     lightTimer = 0.2;
     const cp = camera.position, ins = playing && (inBelmont(player.p.x, player.p.z, player.p.y) || inPenthouse(player.p));
+    insideGoal = ins ? 1 : 0;
     // die nächsten (Abstand im Verhältnis zur Reichweite) ohne Zwischenlisten: Einfügen in eine kurze sortierte Liste
     const ranked = _ranked, rk = _rankK, N = lightPool.length; ranked.length = 0;
     for (const a of LIGHTS) {
@@ -72,6 +74,7 @@ export function updateLights(dt) {
     }
   }
   for (const l of lightPool) { const u = l.userData; u.w = u.a ? Math.min(1, u.w + dt * 2.5) : 0; l.intensity = u.a ? u.a.i * u.w : 0; }
+  U.uInside.value += (insideGoal - U.uInside.value) * Math.min(1, dt * 2.5);
 }
 // Kleine Einzelteile (Schilder, Leuchten, Zierrat) werden in großer Entfernung ausgeblendet
 export const detailCull = [];

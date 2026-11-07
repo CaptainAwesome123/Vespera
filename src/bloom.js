@@ -21,13 +21,16 @@ export function setupComposer() {
   composer.addPass(passWithoutReverse(bloomPass));   // V40: Quad-Pässe ohne Reverse-Z (siehe depth.js)
   // Filmischer Abschluss: weiche Lichterkappe, Türkis in den Schatten, Gold im Licht, Vignette, feines Korn
   gradePass = new ShaderPass({
-    uniforms: { tDiffuse: { value: null }, uTime: U.uTime, uRes: { value: new T.Vector2(sz.x, sz.y) } },
+    uniforms: { tDiffuse: { value: null }, uTime: U.uTime, uIn: U.uInside, uRes: { value: new T.Vector2(sz.x, sz.y) } },
     vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
-    fragmentShader: `uniform sampler2D tDiffuse; uniform float uTime; uniform vec2 uRes; varying vec2 vUv;
+    fragmentShader: `uniform sampler2D tDiffuse; uniform float uTime; uniform float uIn; uniform vec2 uRes; varying vec2 vUv;
       float hash(vec2 p){ return fract(sin(dot(p, vec2(12.9898,78.233)))*43758.5453); }
       void main(){
         vec3 c = texture2D(tDiffuse, vUv).rgb;
         float l = dot(c, vec3(0.2126, 0.7152, 0.0722));
+        // V67: Innenräume etwas heller belichten, tiefe Schatten leicht türkis anheben (innen stärker), damit dunkle Ecken lesbar bleiben
+        c *= 1.0 + 0.16 * uIn;
+        c += vec3(0.008, 0.012, 0.014) * (1.0 + 1.8 * uIn) * (1.0 - smoothstep(0.0, 0.16, l));
         // weiche Schulter: helle Stellen werden sanft gekappt, nichts blendet
         c = c / (1.0 + max(c - 0.55, 0.0) * 1.3);
         c = mix(c * vec3(0.92, 1.02, 1.05), c * vec3(1.06, 1.0, 0.9), smoothstep(0.08, 0.6, l));
