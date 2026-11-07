@@ -225,6 +225,16 @@ function flyPose(dt) {
 
 // Kamera hinter dem Spieler, leicht über der rechten Schulter; Wände schieben sie heran
 const _t = new T.Vector3(), _c = new T.Vector3(), _f = new T.Vector3(), _r = new T.Vector3();
+// V63: Alexander sitzt (Bank in der Straßenbahn oder Hochbahn): Sitzhaltung wie die Fahrgäste, Lage und Blickrichtung von außen
+export function playerSitAt(x, y, z, yaw, dt) {
+  if (!PM.mesh) return;
+  PM.show = true; PM.mesh.visible = true;
+  AN.airW = AN.fallW = AN.prepW = AN.tkW = AN.brace = AN.brake = 0; AN.fade = 0; PM.air = 0;
+  PM.yawB = yaw;
+  baseState(7.2, 0, 'sit', dt);
+  PM.place(x, y, z, yaw, { act: 7.2, smile: 0.4 });
+  writeU(dt);
+}
 export function thirdPersonCamera(dt) {
   // V33: im Flug etwas weiter weg, damit man die ganze Figur sieht
   const far = player.fly ? PM.distT + 2.2 : PM.distT;

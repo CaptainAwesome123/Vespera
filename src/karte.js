@@ -26,7 +26,7 @@ import { segs } from './facade-shader.js';
 import { terrainHeight, VILLA, VIA, AP, MARINA_X, FERRY_X } from './harbour.js';
 import { WATER_Y } from './dance.js';
 import { SERP } from './serpentine.js';
-import { TRAM_LINES } from './traffic.js';
+import { BAHN } from './bahn-hook.js';   // V63: Straßenbahn- und Hochbahnlinien
 import { VENUES, DINE } from './venues.js';
 import { ORTE } from './orte.js';
 import { SHOPS, DEPOTS } from './shops.js';
@@ -49,7 +49,7 @@ const KA_KEY = 'vespera-karte';
 export const KARTE = {
   open: false, ready: false, gen: null, base: null, E: null, view: { cx: 0, cz: -200, k: 0.3 }, el: null, st: null, lv: null,
   W: 0, H: 0, dpr: 1, dirty: true, liveT: 0, hudT: 0, places: [], placeT: 0, card: null, hover: null, travel: null,
-  districts: [], waterLabels: [], s: { v: {}, wp: null, ring: true, lay: { orte: true, handel: true, gegner: true, aufgaben: true, laeden: false, bezirke: true } },
+  districts: [], waterLabels: [], s: { v: {}, wp: null, ring: true, lay: { orte: true, handel: true, gegner: true, aufgaben: true, laeden: false, bezirke: true, bahn: true } },
   mk: null, visitT: 0, fromPause: false, stats: {},
 };
 const KA_GOLD = '#d9b26a', KA_GOLD_HI = '#f6dc9a', KA_TEAL = '#6fd6cf', KA_RED = '#e0694f', KA_INK = '#f3e6c8';
@@ -193,10 +193,12 @@ function kaDrawCity(g, px, R, step) {
         for (let s = 0; s < L; s += 40) { const x = ax + (bx - ax) * s / L, z = az + (bz - az) * s / L, w = e.w / 2 + 4 * px; g.beginPath(); g.moveTo(x - nx * w, z - nz * w); g.lineTo(x + nx * w, z + nz * w); g.stroke(); }
       }
     }
-    // Straßenbahn
-    g.setLineDash([6 * px, 4 * px]); g.strokeStyle = KA_TEAL; g.lineWidth = 1.6 * px;
-    for (const L of TRAM_LINES) { g.beginPath(); if (L.axis === 'x') { g.moveTo(L.from, L.at); g.lineTo(L.to, L.at); } else { g.moveTo(L.at, L.from); g.lineTo(L.at, L.to); } g.stroke(); }
-    g.setLineDash([]);
+    // V63: Straßenbahn (gestrichelt in Linienfarbe) und Hochbahn (doppelte Linie mit Pfeilerstrichen)
+    for (const L of BAHN.lines) {
+      const P = L.cen.P;
+      if (L.kind === 'hoch') { g.strokeStyle = 'rgba(3,12,16,0.9)'; g.lineWidth = 4.2 * px; kaPoly(g, P, true); g.stroke(); g.strokeStyle = L.col; g.lineWidth = 2.4 * px; kaPoly(g, P, true); g.stroke(); g.strokeStyle = 'rgba(3,12,16,0.9)'; g.lineWidth = 0.8 * px; kaPoly(g, P, true); g.stroke(); }
+      else { g.setLineDash([6 * px, 4 * px]); g.strokeStyle = L.col; g.lineWidth = 1.8 * px; kaPoly(g, P, true); g.stroke(); g.setLineDash([]); }
+    }
   }
   if (!step || step === 3) {
     // Gebäude: nach Höhe sortiert, höhere Stufen heller (die Rücksprünge der Türme werden sichtbar)
@@ -338,6 +340,10 @@ function kaPlaces() {
   if (KT.ready) for (const pid in POSTS) { const Q = postPos(pid); if (Q) add({ id: 'post:' + pid, cat: 'handel', icon: 'handel', n: POSTS[pid].n, sub: 'Handelsplatz · ' + POSTS[pid].note, x: Q.x, z: Q.z, prio: 5, ziele: [{ t: 'Hinfliegen', a: { x: Q.x, y: 0.3, z: Q.z + (pid === 'luft' ? 0 : 0) } }] }); }
   // Läden
   for (const S of SHOPS) add({ id: 'shop:' + S.name + S.x.toFixed(0), cat: 'laeden', icon: 'laden', n: titleCase(S.name), sub: 'Laden', x: S.x, z: S.z, prio: 1 });
+  // V63: Haltestellen der Straßenbahn und Bahnhöfe der Hochbahn
+  for (const S of BAHN.stations) { const sd = S.sides[0]; if (!sd) continue; const L = S.line, ch = L.id, nm = L.kind === 'hoch' ? 'Hochbahn' : L.name;
+    add({ id: 'bahn:' + S.id, cat: 'bahn', icon: 'bahn', ch, n: S.n, sub: nm + ' · ' + L.title + (S.change.length ? ' · Umsteigen: ' + S.change.join(', ') : ''), x: S.x, z: S.z, prio: 3, bahn: S.id,
+      ziele: [{ t: 'Hinfliegen', a: { x: sd.x + sd.nx * (sd.lc + 1.4), y: sd.y, z: sd.z + sd.nz * (sd.lc + 1.4) } }] }); }
   // Verstecke (erst wenn entdeckt)
   for (const H of VERST.list) if (H.ok && H.known) add({ id: 'verst:' + H.id, cat: 'gegner', icon: H.cleared ? 'versteckAus' : 'versteck', n: H.name, sub: H.cleared ? 'Ausgehoben' : (H.def && H.def.sub || 'Versteck') + ' · Eingang hier', x: H.ex, z: H.ez, prio: 8, ziele: [{ t: 'Hinfliegen', a: { x: H.ex + 4, y: 0.3, z: H.ez + 4 } }] });
   return P;
@@ -413,6 +419,7 @@ function kaDom() {
 <label><input type="checkbox" data-lay="orte">Orte und Lokale</label>
 <label><input type="checkbox" data-lay="handel">Handelsplätze (Kontor)</label>
 <label><input type="checkbox" data-lay="laeden">Läden</label>
+<label><input type="checkbox" data-lay="bahn">Bahn: Haltestellen und Wagen</label>
 <label><input type="checkbox" data-lay="gegner">Ärger und Verstecke</label>
 <label><input type="checkbox" data-lay="aufgaben">Aufgaben</label>
 <label><input type="checkbox" data-lay="bezirke">Viertel</label>
@@ -420,7 +427,9 @@ function kaDom() {
 <div class="sym"><b style="background:#2b5b62;height:6px"></b>Straße</div>
 <div class="sym"><b style="border:2px solid ${KA_GOLD};background:#1d4349;height:7px"></b>Hochstraße, Viadukt</div>
 <div class="sym"><b style="border-top:2px dashed ${KA_GOLD};height:0"></b>Tunnel</div>
-<div class="sym"><b style="border-top:2px dashed ${KA_TEAL};height:0"></b>Straßenbahn</div>
+<div class="sym"><b style="border-top:2px dashed #5fe0d0;height:0"></b>Linie 1</div>
+<div class="sym"><b style="border-top:2px dashed #e8b765;height:0"></b>Linie 2</div>
+<div class="sym"><b style="border-top:3px double #f3e2b0;height:0"></b>Hochbahn</div>
 <div class="sym"><b style="background:#b9a98a;height:4px"></b>Privatstraße zur Villa</div>
 <div class="sym"><b style="background:linear-gradient(90deg,#1a4248,#60968f);height:8px"></b>Gebäude, hell = hoch</div>
 <h3 style="margin-top:12px">Ziele</h3><div class="ziele"></div><div class="hilfe">Mausrad: Zoom · Ziehen: verschieben · Klick: Wegpunkt oder Ort · Rechtsklick: Wegpunkt weg · Leertaste: zu Alexander · Pfeile und +/−: schieben, zoomen · Y oder Esc: schließen</div></aside>
@@ -439,6 +448,7 @@ function kaDom() {
     else if (a === 'goto') { const P = KARTE.places.find(q => q.id === b.dataset.id); if (P) { KARTE.view.cx = P.x; KARTE.view.cz = P.z; KARTE.view.k = Math.max(KARTE.view.k, 0.9); KARTE.dirty = true; kaShowCard(P); } }
     else if (a === 'wp') { const P = KARTE.cardP; if (P) { kaSetWp({ x: P.x, z: P.z, n: P.n }); kaHideCard(); } }
     else if (a === 'fly') { const P = KARTE.cardP; if (P) kaFlyTo(P, +b.dataset.i || 0); }
+    else if (a === 'bahn') { const P = KARTE.cardP; if (P && BAHN.travelTo) { const r = BAHN.travelTo(P.bahn); if (r) toast(r); else kaClose(); } }
     e.stopPropagation();
   });
   kaInputs(el);
@@ -572,6 +582,11 @@ function kaIcon(g, icon, x, y, r, o = {}) {
     g.beginPath(); g.moveTo(-r, -r * 0.35); g.lineTo(0, -r); g.lineTo(r, -r * 0.35); g.closePath(); g.fill(); g.stroke();
     g.fillRect(-r, r * 0.55, 2 * r, r * 0.3); g.strokeRect(-r, r * 0.55, 2 * r, r * 0.3);
     for (const xx of [-0.6, 0, 0.6]) { g.beginPath(); g.moveTo(xx * r, -r * 0.2); g.lineTo(xx * r, r * 0.5); g.stroke(); }
+  } else if (icon === 'bahn') {
+    g.beginPath(); g.arc(0, 0, r * 0.95, 0, 6.283); g.fill(); g.stroke();
+    g.fillStyle = gold; g.font = `700 ${Math.round(r * 1.05)}px ${KA_BODY}`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(o.ch || 'H', 0, 1);
+  } else if (icon === 'bahnwagen') {
+    g.fillStyle = o.col || KA_TEAL; g.strokeStyle = 'rgba(3,12,16,0.9)'; g.lineWidth = 1.5; g.beginPath(); g.arc(0, 0, r * 0.55, 0, 6.283); g.fill(); g.stroke();
   } else if (icon === 'fabrik') {
     g.beginPath(); g.moveTo(-r, r * 0.7); g.lineTo(-r, -r * 0.2); g.lineTo(-r * 0.3, r * 0.15); g.lineTo(-r * 0.3, -r * 0.2); g.lineTo(r * 0.4, r * 0.15); g.lineTo(r * 0.4, -r); g.lineTo(r, -r); g.lineTo(r, r * 0.7); g.closePath(); g.fill(); g.stroke();
   } else {
@@ -660,6 +675,7 @@ function kaDrawLive() {
   g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H);
   if (!KARTE.ready) return;
   KARTE.live = kaLivePoints();
+  if (KARTE.s.lay.bahn) for (const v of BAHN.veh) { const c = v.cars[0]; kaIcon(g, 'bahnwagen', kaSX(c.x), kaSZ(c.z), 8, { col: v.line.col }); }   // V63: fahrende Wagen
   for (const P of KARTE.live) kaIcon(g, P.icon, kaSX(P.x), kaSZ(P.z), P.cat === 'aufgaben' ? 8 : 9, { track: P.track });
   if (IMP.g) { const p = IMP.g.position; kaShip(g, kaSX(p.x), kaSZ(p.z), kaShipAng(), 11); if (KARTE.view.k > 0.25) { g.font = `600 11px ${KA_BODY}`; g.fillStyle = KA_GOLD_HI; g.textAlign = 'left'; g.shadowColor = '#000'; g.shadowBlur = 4; g.fillText('Aurora Imperial', kaSX(p.x) + 14, kaSZ(p.z) + 4); g.shadowBlur = 0; } }
   const wp = KARTE.s.wp;
@@ -681,8 +697,9 @@ function kaShowCard(P) {
   const d = Math.hypot(P.x - player.p.x, P.z - player.p.z), visited = kaVisited(P), Z = P.ziele || [];
   let btn = `<button type="button" class="ka" data-act="wp">Wegpunkt setzen</button>`;
   if (Z.length) Z.forEach((z, i) => { btn += `<button type="button" class="ka" data-act="fly" data-i="${i}" ${visited ? '' : 'disabled'}>${Z.length > 1 ? z.t : 'Hinfliegen'}</button>`; });
+  if (P.bahn) { const at = BAHN.sideAt && (BAHN.sideAt(player.p) || BAHN.ride); btn += `<button type="button" class="ka" data-act="bahn" ${at ? '' : 'disabled'}>Mit der Bahn hinfahren</button>`; }
   const el = KARTE.card;
-  el.innerHTML = `<b></b><p></p><div class="d">${kaFmtD(d)} von Alexander</div><div class="btns">${btn}</div>${Z.length && !visited ? '<div class="no">Schnellreise, sobald Sie einmal dort waren.</div>' : ''}`;
+  el.innerHTML = `<b></b><p></p><div class="d">${kaFmtD(d)} von Alexander</div><div class="btns">${btn}</div>${Z.length && !visited ? '<div class="no">Schnellreise, sobald Sie einmal dort waren.</div>' : ''}${P.bahn && !(BAHN.sideAt && (BAHN.sideAt(player.p) || BAHN.ride)) ? '<div class="no">Mit der Bahn: an einer Haltestelle oder im Wagen.</div>' : ''}`;
   el.querySelector('b').textContent = P.n; el.querySelector('p').textContent = P.sub || '';
   el.hidden = false;
   const x = kaSX(P.x), y = kaSZ(P.z), w = el.offsetWidth, h = el.offsetHeight;
@@ -691,7 +708,7 @@ function kaShowCard(P) {
 function kaHideCard() { if (KARTE.card) KARTE.card.hidden = true; KARTE.cardP = null; }
 function kaZiele() {
   const box = KARTE.el.querySelector('aside .ziele');
-  const list = KARTE.places.filter(P => P.ziele && P.ziele.length && P.cat !== 'laeden').sort((a, b) => b.prio - a.prio || a.n.localeCompare(b.n));
+  const list = KARTE.places.filter(P => P.ziele && P.ziele.length && P.cat !== 'laeden' && P.cat !== 'bahn').sort((a, b) => b.prio - a.prio || a.n.localeCompare(b.n));
   box.innerHTML = list.map(P => `<button type="button" data-act="goto" data-id="${P.id.replace(/"/g, '&quot;')}"></button>`).join('');
   [...box.children].forEach((b, i) => { b.textContent = list[i].n; if (kaVisited(list[i])) { const e = document.createElement('em'); e.textContent = 'Flug'; b.append(e); } });
 }

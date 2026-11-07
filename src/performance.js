@@ -16,7 +16,8 @@ import { inImperial, IMP, HELM, impHelmInput, impHelmCamera } from './imperial.j
 import { updatePedestrians, CLOCK, citizenNear, citizenDoing } from './ragdoll.js';
 import { updateBeamSpots } from './airships.js';
 import { updateCarLights } from './carlight.js';
-import { updateCars, updateTrucks, updateTrams } from './traffic.js';
+import { updateCars, updateTrucks } from './traffic.js';
+import { BAHN } from './bahn-hook.js';   // V63: Straßenbahn und Hochbahn (src/bahn.js)
 import { player, updatePlayer, EYE } from './player.js';
 import { updateVenues } from './venues.js';
 import { updateOrte } from './orte.js';
@@ -223,15 +224,18 @@ export function frame(now) {
     scene.fog.density = U.uFogDensity.value = FOG_DENSITY * (0.85 - 0.56 * k) * ATMO.fogMul;   // V25: Wetter und Innenräume
   }
   updatePort(dt, t);
+  if (BAHN.update) BAHN.update(dt);   // V63: Bahnen vor dem Mitnehmen bewegen (kein Nachziehen der Kamera im Wagen)
   if (playing) carryPlayer();
-  if (playing && !paused) { if (DRIVE.on) updateDrive(rdt); else if (BOAT.on) updateBoatInput(rdt); else if (IMP.st === 'helm') impHelmInput(rdt); else updatePlayer(rdt); updatePowers(rdt, t); updateEnergy(rdt); }   // V33: Alexanders Kräfte; V58: am Steuer der Aurora Imperial; V59: Energieschub
+  if (playing && !paused) { if (DRIVE.on) updateDrive(rdt); else if (BOAT.on) updateBoatInput(rdt); else if (IMP.st === 'helm') impHelmInput(rdt); else if (BAHN.sit) BAHN.seatInput(rdt); else updatePlayer(rdt); updatePowers(rdt, t); updateEnergy(rdt); }   // V33: Alexanders Kräfte; V58: am Steuer der Aurora Imperial; V59: Energieschub
   if (playing && !paused) updateKraefte(rdt, t);   // V60: Schockwelle, Schild, Levitation, Zeitlupe
   if (playing) updateVehicleWorld(dt);
+  if (BAHN.obstacles) BAHN.obstacles();   // V63: Autos halten hinter der Straßenbahn
   if (playing) { updateSpawns(); updateLoose(dt); }   // V26: lose Dinge
   if (playing && !paused) updateBoat(dt);
   if (playing && DRIVE.on) driveCamera();
   else if (playing && BOAT.on) boatCamera();
   else if (playing && IMP.st === 'helm' && HELM.cam === 'aussen') impHelmCamera(dt);   // V58: Außenansicht des Schiffs vom Steuer aus
+  else if (playing && BAHN.camera && BAHN.camera(rdt)) { /* V63: Außenansicht der Bahn, Sitzplatz */ }
   else if (playing && PM.mesh && PM.view === 'third' && !DINE.seat) thirdPersonCamera(dt);   // V33: auch im Flug von hinten
   else if (playing) {
     camera.position.set(player.p.x, player.p.y + (player.fly ? 0.8 : EYE), player.p.z);
@@ -241,7 +245,8 @@ export function frame(now) {
     camera.position.set(Math.sin(a) * 430, 150 + Math.sin(t * 0.07) * 30, Math.cos(a) * 430);
     camera.lookAt(0, 210, 0);
   }
-  updatePlayerModel(rdt, playing && !DRIVE.on && !BOAT.on && !DINE.seat);
+  updatePlayerModel(rdt, playing && !DRIVE.on && !BOAT.on && !DINE.seat && !BAHN.sit);
+  if (playing && BAHN.sit) BAHN.seatModel(rdt);   // V63: im Wagen sitzend
   if (playing && !paused) powersCamera(rdt);
   U.uCam.value.copy(camera.position);
   updateAtmosphere(dt);   // V25: Wetter, Mond, Nebel, Mondschatten
@@ -249,7 +254,6 @@ export function frame(now) {
   updateCars(dt);
   updateCarLights();   // V38
   updateTrucks(dt);
-  updateTrams(dt);
   const inside = playing && (inBelmont(player.p.x, player.p.z, player.p.y) || inVillaHouse(player.p) || inImperial(player.p) || inPenthouse(player.p) || (UNTER.test && UNTER.test(player.p))) ? 1 : 0;   // V61: auch in den Verstecken unter der Stadt   // V28: auch in der Villa kein Regen, kein Bodennebel; V33: Luftschiff und Penthouse
   U.uInside.value += (inside - U.uInside.value) * Math.min(1, dt * 4);
   // V34: aus Lobby und Ballsaal sieht man nur durchs Portal hinaus: Figuren, Bäume und Autos draußen nur bis 180 m (vorher die halbe Stadt, 12 Mio. Dreiecke)

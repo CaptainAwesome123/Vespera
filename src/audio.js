@@ -8,7 +8,8 @@ import { VILLA } from './harbour.js';
 import { IMP, inImperial } from './imperial.js';
 import { ATMO } from './atmosphere.js';
 import { POWERS } from './powers.js';
-import { trams, TRF } from './traffic.js';
+import { TRF } from './traffic.js';
+import { BAHN } from './bahn-hook.js';   // V63
 import { peds } from './serpentine.js';
 import { onIsland } from './island.js';
 import { WIND } from './wind.js';
@@ -282,10 +283,9 @@ export function updateSound(dt) {
   sndPanAt(L.carP, cx, cz);
   SND.carNear = cd;
   let td = 1e9, tx = 0, tz = 0, tr0 = null;
-  for (const tr of trams) {
-    const Ln = tr.L, ax = Ln.axis === 'x', along = tr.dir > 0 ? Ln.from + tr.s : Ln.to - tr.s, side = ax ? tr.dir : -tr.dir;
-    const x = ax ? along : Ln.at + side * Ln.off, zz = ax ? Ln.at + side * Ln.off : along, d = Math.hypot(x - cp.x, zz - cp.z, cp.y);
-    if (d < td) { td = d; tx = x; tz = zz; tr0 = tr; }
+  for (const tr of BAHN.cars) {   // V63: Straßenbahn und Hochbahn (stehende Wagen rumpeln leiser)
+    const d = Math.hypot(tr.x - cp.x, tr.z - cp.z, cp.y - tr.y) * (tr.veh.v > 1 ? 1 : 1.8);
+    if (d < td) { td = d; tx = tr.x; tz = tr.z; tr0 = tr.veh; }
   }
   const tramK = td < 160 ? Math.pow(1 - td / 160, 2) : 0;
   sndSet(L.tram.gain, 0.4 * tramK, 0.3); sndSet(L.rail.gain, 0.012 * tramK * (0.5 + 0.5 * Math.sin(t * 0.7)), 0.3);

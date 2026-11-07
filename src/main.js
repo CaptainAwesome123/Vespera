@@ -18,7 +18,8 @@ import { planAccess, buildPort, portInteractions, VILLA } from './harbour.js';
 import { buildGround, buildVilla, planSerpentine, buildAccessRoad, buildSerpentine, flushInstances, buildMountains } from './serpentine.js';
 import { buildSky } from './sky.js';
 import { buildGroundFog, buildAirship } from './airships.js';
-import { TRAM_LINES, buildCars, buildTrucks, buildTrams, buildParticles } from './traffic.js';
+import { buildCars, buildTrucks, buildParticles } from './traffic.js';
+import { BAHN } from './bahn-hook.js';
 import { buildVenues } from './venues.js';
 import { buildOrte } from './orte.js';
 import { driveInteractions, venueInteractions } from './eating.js';
@@ -62,9 +63,6 @@ export async function build() {
   await step('finishShops');
   buildNetwork();
   await step('buildNetwork');
-  // Straßenbahn und Hochstraßen enden am Rand des Rasters
-  for (const L of TRAM_LINES) { const on = NET.nodes.filter(n => n.kind === 'grid' && Math.abs((L.axis === 'x' ? n.z : n.x) - L.at) < 30); if (on.length) { const v = on.map(n => L.axis === 'x' ? n.x : n.z); L.from = Math.max(L.from, Math.min(...v) - 5); L.to = Math.min(L.to, Math.max(...v) + 5); } }
-  await step('Straßenbahn');
   buildOuter();
   await step('buildOuter');
   buildIndustry();
@@ -124,8 +122,8 @@ export async function build() {
   await step('buildCarLights');
   buildTrucks();
   await step('buildTrucks');
-  buildTrams();
-  await step('buildTrams');
+  if (BAHN.build) BAHN.build();   // V63: Straßenbahnlinien 1 und 2, Hochbahn (src/bahn.js)
+  await step('buildBahn');
   flushInstances();
   await step('flushInstances');
   buildMountains();

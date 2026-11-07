@@ -26,6 +26,7 @@ import { LIFE } from './life.js';
 import { blocks, PLAZA, MEDIAN, QUAY, QX } from './island.js';
 import { QUAY_GAPS } from './harbour.js';
 import { GEOS, KINDS_OF, propMaterial } from './physics.js';
+import { BAHN } from './bahn-hook.js';
 
 export const CLUT = { items: [], grid: new Map(), cell: 8, on: true, stats: { items: 0, kinds: 0 } };
 export const CLUT_CELL = 200;
@@ -55,6 +56,7 @@ export function planClutter() {
   for (const l of lamps) take(l.x, l.z, 0.5);
   const F = STREET.furniture; if (F) for (const k in F.out) for (const p of F.out[k]) take(p.x, p.z, k === 'kiosk' || k === 'column' ? 1.6 : k === 'bench' || k === 'planter' ? 1.0 : 0.4);
   for (const d of DOORS) take(d.x + d.nx * 1.2, d.z + d.nz * 1.2, 1.3);
+  for (const o of BAHN.keepOut) take(o.x, o.z, o.r);   // V63: Haltestellen und Hochbahntreppen frei halten
   // Ding hinstellen: Boden y0 (Unterkante), Gierwinkel, Farbe (für PAINT-Teile), tilt = Neigung um die eigene x-Achse (Anlehnen)
   const put = (k, x, z, yaw, y0 = 0.22, c = null, tilt = 0, force = false) => {
     const I = K[k]; if (!I) return null;
