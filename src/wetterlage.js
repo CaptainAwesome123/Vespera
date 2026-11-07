@@ -682,7 +682,7 @@ function wlInit() {
   if (q && WL_EV[q]) setTimeout(() => wlStart(q, true), 1500);
   zeitungKasten('wetter', 'Wetterwarte Vespera', ['Ruhige Polarnacht', 'Nächste Meldung, sobald sich etwas zusammenbraut']);
   // Stadtkarte: offene Aufgaben als Punkte
-  if (KARTE) (KARTE.live ||= []).push(() => WL.tasks.filter(t => !t.done && (t.k !== 'splitter' || t.landed)).map(t => ({ cat: 'aufgaben', icon: 'aufgabe', n: t.n, sub: WL.E ? WL.E.n : 'Wetter', x: t.x, z: t.z })));
+  if (KARTE) (KARTE.liveHooks ||= []).push((L, lay) => { if (lay && lay.aufgaben === false) return; for (const t of WL.tasks) if (!t.done && (t.k !== 'splitter' || t.landed)) L.push({ cat: 'aufgaben', icon: 'aufgabe', n: t.n, sub: WL.E ? WL.E.n : 'Wetter', x: t.x, z: t.z }); });
   wlTasten();
   if (window.vespera) window.vespera.wetter = { WL, WL_EV, start: wlStart, end: wlEnd, forecast: wlForecast };
 }

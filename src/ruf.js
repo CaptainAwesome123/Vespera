@@ -45,7 +45,8 @@ import { peds } from './serpentine.js';
 import { GALA, startGala } from './gala.js';
 
 const RUF_SAVE = 'vespera.ruf';
-export const RUF = { s: null, ready: false, open: false, dirty: false, saveT: 8, tickT: 0, slowT: 0, snap: {}, q: [], qT: 0, fat: {}, lastTat: null, w: {}, stamp: null, lines: new Map(), newsT: {}, distT: 0, dist: '' };
+export const RUF = { extra: [], onAct: [], s: null,   // V63: extra = weitere Abschnitte im Buch (Funktionen, die HTML liefern), onAct = Klicks darauf
+  ready: false, open: false, dirty: false, saveT: 8, tickT: 0, slowT: 0, snap: {}, q: [], qT: 0, fat: {}, lastTat: null, w: {}, stamp: null, lines: new Map(), newsT: {}, distT: 0, dist: '' };
 
 /* ---------- Achsen und Ränge ---------- */
 export const RUF_AX = {
@@ -613,6 +614,7 @@ function rufClick(e) {
   const a = b.dataset.act;
   if (a === 'close') rufClose();
   else if (a === 'post') rufAnswer(+b.dataset.id, +b.dataset.i);
+  else for (const f of RUF.onAct) try { if (f(a, b)) break; } catch (er) { console.warn('Ruf:', er); }
 }
 const rufBar = (v, cls = '') => `<div class="bar ${cls}"><i style="width:${v.toFixed(1)}%"></i>${[20, 40, 60, 80].map(x => `<u style="left:${x}%"></u>`).join('')}</div>`;
 function rufTrend(k) { let d = 0; for (const e of RUF.s.log.slice(0, 10)) d += e.c[k] || 0; return Math.abs(d) < 0.5 ? '' : ` <span class="${(k === 'unter' || k === 'furcht' ? d < 0 : d > 0) ? 'up' : 'dn'}">${d > 0 ? '▲' : '▼'}</span>`; }
@@ -645,6 +647,7 @@ function rufRender() {
   <section><h3>Post und Einladungen</h3>${posts}</section>
   <section><h3>Vorrechte</h3><ul>${RUF_PRIV.map(P => { const on = P.ok(); return `<li class="${on ? '' : 'off'}"><span class="k">${on ? '✦' : '◇'}</span><b>${esc(P.t)}</b> <span class="s">· ${on ? 'erreicht' : esc(P.need)}</span><br><span class="s">${esc(P.d)}</span></li>`; }).join('')}${warn.map(w => `<li class="warn"><span class="k">⚠</span><b>${esc(w.t)}</b><br><span class="s">${esc(w.d)}</span></li>`).join('')}</ul>
     <h3 style="margin-top:12px">Rabatt im Handel</h3><table>${disc}</table></section>
+  ${RUF.extra.map(f => { try { return f(); } catch (e) { return ''; } }).join('')}
   <section class="wide log"><h3>Chronik</h3><ul>${log}</ul></section>`;
   m.scrollTop = sc;
 }

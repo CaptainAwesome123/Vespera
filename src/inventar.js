@@ -35,7 +35,7 @@ export const INV = { open: false, tab: 'taschen', sel: 0, read: null, ready: fal
 
 /* ---------- Was es gibt ---------- */
 // Ware aus den Läden (k = Ladenart, wie aufgaben.js sie erwartet)
-const INV_SHOP = {
+export const INV_SHOP = {   // V63: Nebenfiguren tragen ihre Andenken hier ein
   hut: { n: 'Filzhut mit Seidenband', ic: 'hut', v: 5, prop: 'hatbox', t: 'Grauer Filz, schwarzes Seidenband, in der Hutschachtel des Ladens.', use: ['Aufsetzen', 'hut'] },
   buch: { n: 'Roman in Leder', ic: 'buch', v: 4, prop: 'book', t: 'Goldprägung auf dem Rücken, der Duft von frischem Papier.', use: ['Lesen', 'lesen'] },
   deli: { n: 'Bergkäse und Oliven', ic: 'essen', v: 3, t: 'In Wachspapier eingeschlagen, mit einem Zweig Rosmarin.', use: ['Essen', 'essen'] },

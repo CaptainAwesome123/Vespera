@@ -35,7 +35,8 @@ import { invOpen } from './inventar.js';
 import { GEGNER } from './gegner.js';
 import { KT, GOODS, POSTS, BIZ, COS, PROJECTS, ktOpen, ktRep, ktCash, ktTake, ktOwns, ktEmit, ktChanged, ktPostHere, postPos, fmM, esc, fmN, titleCase, WARE_PRICE, clamp, ktPrice, netWorth } from './kontor.js';
 
-const AQ = { givers: [], marks: [], scanT: 3, randT: 0, rt: {}, el: null, tickT: 0 };
+// V63: prog/check = weitere Zielarten (Nebenfiguren), onDone/onDrop = Rückmeldung nach Abschluss oder Abbruch
+const AQ = { givers: [], marks: [], scanT: 3, randT: 0, rt: {}, el: null, tickT: 0, prog: {}, check: {}, onDone: [], onDrop: [] };
 const GROUP = { elite: 'Elite', buerger: 'Bürger', arbeiter: 'Arbeiter' };
 const pickA = a => a[Math.floor(Math.random() * a.length)];
 const _pv = new T.Vector3();
@@ -155,6 +156,7 @@ function dropQuest(q, why) {
   if (q.ci != null) { const c = citizens[q.ci]; if (c) c.use = null; AQ.givers = AQ.givers.filter(i => i !== q.ci); }
   Q.list = Q.list.filter(x => x !== q); if (Q.track === q.id) Q.track = (Q.list.find(x => x.st === 'aktiv') || {}).id || null;
   if (why) toast(why);
+  for (const f of AQ.onDrop) try { f(q); } catch (e) { console.warn('Aufgaben:', e); }
   ktChanged('quest');
 }
 function finishQuest(q, line) {
@@ -167,13 +169,14 @@ function finishQuest(q, line) {
   if (rw.cash) { ktCash(Math.round(rw.cash), 'Erstattet: ' + q.title); parts.push('+' + fmM(rw.cash)); }
   const B = AQ.rt[q.id]; if (B) { releaseBody(B); dropBody(B); delete AQ.rt[q.id]; }
   if (q.ci != null) { const c = citizens[q.ci]; if (c) c.use = null; AQ.givers = AQ.givers.filter(i => i !== q.ci); }
-  const who = q.src === 'buerger' ? q.who.split(' · ')[0] : q.src === 'randolf' ? 'Randolf' : q.src === 'mayor' ? 'Telegramm des Bürgermeisters' : 'Direktor Varga';
-  lifeSay(who, line || pickA(THANKS[q.src]), 5);
+  const who = q.src === 'buerger' || q.src === 'nf' ? q.who.split(' · ')[0] : q.src === 'randolf' ? 'Randolf' : q.src === 'mayor' ? 'Telegramm des Bürgermeisters' : 'Direktor Varga';
+  lifeSay(who, line || q.doneLine || pickA(THANKS[q.src] || THANKS.buerger), 5);
   toast('Aufgabe erledigt: ' + q.title + (parts.length ? ' · ' + parts.join(' · ') : ''));
   ktEmit('aufgabe', q.title, `${q.who.split(' · ')[0]} dankt Alexander: ${q.title}.`);
   // erledigte nur kurz merken
   const done = Q.list.filter(x => x.st === 'fertig'); if (done.length > 25) Q.list = Q.list.filter(x => x !== done[0]);
   if (Q.track === q.id) Q.track = (Q.list.find(x => x.st === 'aktiv') || {}).id || null;
+  for (const f of AQ.onDone) try { f(q); } catch (e) { console.warn('Aufgaben:', e); }
   ktChanged('quest');
 }
 const THANKS = {
@@ -187,6 +190,7 @@ const THANKS = {
 function hasItem(kind) { return KT.s.items.findIndex(i => i.k === kind); }
 function progress(q) {
   const g = q.g, s = KT.s;
+  if (AQ.prog[g.k]) return AQ.prog[g.k](q);   // V63
   if (g.k === 'ware') { const have = s.lager[g.g] || 0, P = placeOf(g.to); return { ok: false, txt: `${Math.min(have, g.n)}/${g.n} ${GOODS[g.g].n} im Lager · liefern ${P ? P.ort : ''}`, pt: have >= g.n ? P : bestBuyPost(g.g) }; }
   if (g.k === 'ding') {
     const i = hasItem(g.kind);
@@ -223,6 +227,7 @@ function checkQuests() {
   for (const q of qs().list.slice()) {
     if (q.st !== 'aktiv') continue;
     const g = q.g;
+    if (AQ.check[g.k]) { if (q.st === 'aktiv' && AQ.check[g.k](q) && q.st === 'aktiv') finishQuest(q); continue; }   // V63
     if (g.k === 'gehen') { const P = g.pt || placeOf(g.at); if (inside(p, P)) finishQuest(q); }
     else if (g.k === 'besitz' || g.k === 'stift' || g.k === 'aktie' || g.k === 'lager' || g.k === 'gauner') { if (progress(q).ok) finishQuest(q); }
     else if (g.k === 'ding' && g.to === 'randolf') {
@@ -302,7 +307,7 @@ function scanGivers() {
   const busy = new Set(Q.list.filter(q => q.ci != null && q.st !== 'fertig').map(q => q.ci));
   const cand = [];
   citizens.forEach((c, i) => {
-    const a = c.ped.a; if (!a || !a.on || busy.has(i) || c.ped.aw || c.ped.gg) return;
+    const a = c.ped.a; if (!a || !a.on || busy.has(i) || c.ped.aw || c.ped.gg || c.nf) return;   // V63: Nebenfiguren haben eigene Bitten
     const e = a.m.elements, d2 = (e[12] - p.x) ** 2 + (e[14] - p.z) ** 2;
     if (d2 > 14 * 14 && d2 < 80 * 80 && Math.abs(e[13] - p.y) < 3) cand.push(i);
   });
@@ -434,7 +439,7 @@ const AUF_TAB = {
     return `<h3>Laufende Aufgaben</h3>${act.map(questCard).join('') || '<p>Keine. Bürger mit einem goldenen Kreis über dem Kopf haben ein Anliegen (E). Randolf spricht Sie in der Villa an, der Bürgermeister telegrafiert, Direktor Varga berät in der Bank.</p>'}
       ${off.length ? '<h3>Angebote</h3>' + off.map(questCard).join('') : ''}
       <h3>In der Tasche</h3><p>${items} <button type="button" data-act="inv" style="margin-left:6px">Inventar · Umschalt+I</button></p>
-      <h3>Erledigt (${Q.done})</h3>${done.length ? '<p>' + done.map(q => `${esc(q.title)} <span style="opacity:.6">(${esc(SRC_N[q.src])})</span>`).join(' · ') + '</p>' : '<p>Noch nichts.</p>'}`;
+      <h3>Erledigt (${Q.done})</h3>${done.length ? '<p>' + done.map(q => `${esc(q.title)} <span style="opacity:.6">(${esc(SRC_N[q.src] || q.who.split(' · ')[0])})</span>`).join(' · ') + '</p>' : '<p>Noch nichts.</p>'}`;
   },
   click(a, id) {
     if (a === 'inv') { invOpen('taschen'); return; }   // V62
