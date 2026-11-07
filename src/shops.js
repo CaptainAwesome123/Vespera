@@ -1,6 +1,6 @@
 import { registerLayer, chunkKey } from './chunks.js';
 import { decoPilaster } from './deco.js';
-import { shared, MOBILE, canvasTex, T, mulberry32, scene, pick, camera, R, rand, mergeGeos, U } from './core.js';
+import { shared, MOBILE, canvasTex, freeAfterUpload, T, mulberry32, scene, pick, camera, R, rand, mergeGeos, U } from './core.js';
 import { addCollider, paintMat, mergeColored } from './people-skeleton.js';
 import { FL, addSeg, addGlow, addNeon, NEON, curbs, lamps, trees, steamPts, segs, towers, shafts, neons, spires, glowPts, roofs } from './facade-shader.js';
 import { BR_SPOTS } from './island.js';
@@ -66,6 +66,7 @@ export function shopSign(text, w, h) {
     while (g.measureText(text).width > W - 70 && fs > 30) { fs -= 4; g.font = `${fs}px Limelight, Georgia, serif`; }
     g.fillStyle = '#f0cf86'; g.shadowColor = 'rgba(0,0,0,0.7)'; g.shadowBlur = 6; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(text, W / 2, H / 2 + 4);
   });
+  freeAfterUpload(t);   // V64: Ladenschilder werden nie neu gezeichnet (44 Leinwände 2048 x 320)
   return new T.Mesh(new T.PlaneGeometry(w, h), new T.MeshBasicMaterial({ map: t, color: new T.Color(1.25, 1.25, 1.25) }));
 }
 // Welche Bauten einen begehbaren Laden bekommen: nah am Zentrum, breit genug, mit Straßenseite

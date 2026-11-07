@@ -244,7 +244,24 @@ export function obbOverlap(A, B, pad = 0) {
   }
   return true;
 }
-export const blockAt = (x, z, m = 0) => blocks.find(b => x > b.x0 - m && x < b.x1 + m && z > b.z0 - m && z < b.z1 + m);
+// V64: Raster über die Blöcke (64 m, mit 16 m Rand); blockAt lief jedes Bild tausendfach (Bordsteinhöhe für Wagen und Menschen,
+// Laub im Wind) und ging dabei jedes Mal alle Blöcke durch. Gleiches Ergebnis: in jeder Zelle stehen die Blöcke in ihrer
+// ursprünglichen Reihenfolge, der erste Treffer ist derselbe wie bei blocks.find. Größere Ränder fragen weiter die ganze Liste.
+const BG = { n: -1, cell: 64, pad: 16, map: new Map() };
+function blockGrid() {
+  BG.n = blocks.length; BG.map.clear();
+  const C = BG.cell, P = BG.pad;
+  for (const b of blocks) for (let i = Math.floor((b.x0 - P) / C); i <= Math.floor((b.x1 + P) / C); i++) for (let j = Math.floor((b.z0 - P) / C); j <= Math.floor((b.z1 + P) / C); j++) {
+    const k = i * 65536 + j; let L = BG.map.get(k); if (!L) BG.map.set(k, L = []); L.push(b);
+  }
+}
+const _bFind = (L, x, z, m) => { for (const b of L) if (x > b.x0 - m && x < b.x1 + m && z > b.z0 - m && z < b.z1 + m) return b; return undefined; };
+export const blockAt = (x, z, m = 0) => {
+  if (m > BG.pad) return _bFind(blocks, x, z, m);
+  if (BG.n !== blocks.length) blockGrid();
+  const L = BG.map.get(Math.floor(x / BG.cell) * 65536 + Math.floor(z / BG.cell));
+  return L ? _bFind(L, x, z, m) : undefined;
+};
 export function plotFree(o, roadPad) {
   const pts = obbCorners(o, 0.5);
   pts.push([o.x, o.z], [(pts[0][0] + pts[1][0]) / 2, (pts[0][1] + pts[1][1]) / 2], [(pts[2][0] + pts[3][0]) / 2, (pts[2][1] + pts[3][1]) / 2], [(pts[1][0] + pts[2][0]) / 2, (pts[1][1] + pts[2][1]) / 2], [(pts[3][0] + pts[0][0]) / 2, (pts[3][1] + pts[0][1]) / 2]);

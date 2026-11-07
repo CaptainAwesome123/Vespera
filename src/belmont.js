@@ -437,7 +437,9 @@ export function buildBelmontInterior() {
   const bs = new T.Mesh(new T.PlaneGeometry(12, 12 * bsign.H / bsign.W), new T.MeshBasicMaterial({ map: bsign.t, color: new T.Color(1.2, 1.15, 1.05) }));
   bs.position.set(0, 9.6, -3.85); IG.add(bs);
   const fanM = new T.MeshBasicMaterial({ map: FAN_TEX, transparent: true, color: new T.Color(1.3, 1.1, 0.8), depthWrite: false, side: T.DoubleSide });
-  const fanPlane = (x, y, z, w, ry) => { const m = new T.Mesh(new T.PlaneGeometry(w, w / 2), fanM); m.position.set(x, y + w / 4, z); m.rotation.y = ry; IG.add(m); return m; };
+  // V64: alle Sonnenfächer der Halle in einem Netz (vorher 28 einzelne, je ein Zeichenaufruf)
+  const fanGeos = [];
+  const fanPlane = (x, y, z, w, ry) => { fanGeos.push(new T.PlaneGeometry(w, w / 2).rotateY(ry).translate(x, y + w / 4, z)); };
   fanPlane(0, 11.2, -3.88, 10, 0);
   // Goldlinien und Pilaster
   for (let z = 0; z <= 46; z += 4) for (const sx of [-1, 1]) {
@@ -663,6 +665,7 @@ export function buildBelmontInterior() {
 
   movOff();
   for (const k in batch) IG.add(new T.Mesh(mergeGeos(batch[k]), M[k]));
+  if (fanGeos.length) IG.add(new T.Mesh(mergeGeos(fanGeos), fanM));
 
   // ---------- Menschen ----------
   const C = interiorCrowd = new Crowd(['tux', 'gown', 'dress', 'livery'], 680);

@@ -266,7 +266,8 @@ export function frame(now) {
   updateBelmontDoor(dt);
   updatePenthouse(dt); updateCrystal(dt); crystalAura(dt);   // V57: der Meteoritenkristall lebt
   updatePentStaff(dt);   // V57: Personal im Penthouse
-  const nearVilla = Math.hypot(camera.position.x - VILLA.x, camera.position.z - VILLA.z) < 650;
+  const villaD = Math.hypot(camera.position.x - VILLA.x, camera.position.z - VILLA.z), nearVilla = villaD < 650;
+  if (VILLA.buffet) VILLA.buffet.visible = villaD < 220;   // V64: Teller und Gläser auf dem Büfett nur aus der Nähe
   if (VILLA.crowd) VILLA.crowd.show(nearVilla);
   if (nearVilla) updateVilla(t); else updateVillaZones(false);
   updateLights(dt);
