@@ -163,6 +163,10 @@ export const EVENTS = [
   { t: 'Nordlicht über dem Krater: Touristen buchen Rundflüge', s: { verkehr: 1.2, hotel: 1.1 }, sh: { luft: 0.08 }, d: 2 },
   { t: 'Bierschwemme: die Brauerei hat zu viel gebraut', g: { bier: 0.7 }, d: 2 },
   { t: 'Maschinenbedarf für die neue Luftschiffwerft', g: { maschinen: 1.3, stahl: 1.15 }, d: 3 },
+  // V66 Kanon: Reichtum hat Gegenwind
+  { t: 'Hafenarbeiter legen die Arbeit nieder: höhere Mieten, gleiche Löhne', g: { kaffee: 1.2, tee: 1.15, fisch: 1.25 }, s: { handel: 0.85 }, sh: { nord: -0.05 }, d: 2, streik: true },
+  { t: 'Leitartikel im Kurier: „Wem gehört Vespera?“ verunsichert Anleger', sh: { bank: -0.05, luft: -0.03 }, d: 1 },
+  { t: 'Gewerkschaft fordert zehn Prozent mehr Lohn in den Werken', sh: { stahl: -0.05, glas: -0.03 }, s: { industrie: 0.92 }, d: 2 },
 ];
 
 /* ---------- Zustand ---------- */

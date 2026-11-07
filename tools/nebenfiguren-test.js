@@ -48,8 +48,8 @@ let fails = 0; const ok = (c, m) => { console.log((c ? 'OK   ' : 'FEHLER ') + m)
     N.open('jo'); await wait(30); out.giveOpt = opts()[0]; N.choose(0); await wait(30);
     out.joDone = { st: N.s('jo').st, rel: N.s('jo').rel - rel0, line: document.querySelector('#nfDlg .ln').textContent.slice(0, 40), items: KT.s.items.filter(i => i.k === 'blumen').length };
     N.close();
-    // 3) Margot: Interview mit drei Fragen und Zeitungsmeldung
-    N.open('margot'); await wait(30); pickBy(/Kann ich/); pickBy(/Fragen Sie/); N.choose(0); N.choose(2); N.choose(1); await wait(50);
+    // 3) Margot: Interview mit vier Fragen (V66: eine zu den Löhnen) und Zeitungsmeldung
+    N.open('margot'); await wait(30); pickBy(/Kann ich/); pickBy(/Fragen Sie/); N.choose(0); N.choose(2); N.choose(0); N.choose(1); await wait(50);
     out.margot = { st: N.s('margot').st, news: news.includes('Ein Abend mit dem Gründer'), line: document.querySelector('#nfDlg .ln').textContent.slice(0, 40) };
     N.close();
     // 4) Kröger: Zielart Lohn (Kontor · Löhne)
@@ -85,7 +85,7 @@ let fails = 0; const ok = (c, m) => { console.log((c ? 'OK   ' : 'FEHLER ') + m)
   ok(r.joQ && r.joQ[1] === 'nfding' && r.joQ[2] === 'nf', 'Bitte angenommen (Taste 1): ' + (r.joQ || []).join(' · '));
   ok(r.closed, 'Esc schließt das Gespräch');
   ok(/Übergeben/.test(r.giveOpt || '') && r.joDone.st === 1 && r.joDone.rel >= 15 && r.joDone.items === 0, 'Rosen übergeben: Kapitel 1, Beziehung +' + r.joDone.rel);
-  ok(r.margot.st === 1 && r.margot.news, 'Interview: drei Fragen, Meldung im Kurier');
+  ok(r.margot.st === 1 && r.margot.news, 'Interview: vier Fragen, Meldung im Kurier');
   ok(r.kroegerQ === 'lohn' && r.kroegerDone === 3, 'Zielart Lohn erfüllt sich über das Kontor');
   ok(r.hallQ && r.hallQ[0] === 'stift' && r.hallFinal, 'Stiftung erfüllt, Hallstein will das letzte Wort');
   ok(r.hallAlly.ally && r.hallAlly.d >= 25, 'Handschlag: Partner, ' + r.hallAlly.label);

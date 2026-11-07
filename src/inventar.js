@@ -155,7 +155,7 @@ const INV_BOOKS = [
   ['Sechs Monate Nacht', 'In der Polarnacht vergisst man die Sonne nicht. Man lernt nur, dass Gold auch im Lampenlicht glänzt.'],
 ];
 const INV_THANKS = {
-  arbeiter: ['Für mich? Herr Alexander … das ist zu viel.', 'Das zeig ich meiner Frau! Danke, Herr Alexander!', 'Sie sind ein feiner Herr, Herr Alexander.'],
+  arbeiter: ['Für mich? Herr Alexander … das ist zu viel.', 'Das zeig ich meiner Frau! Danke, Herr Alexander!', 'Danke. Ehrlich gesagt wär’ mir mehr Lohn lieber, aber danke.', 'Ein Geschenk vom Herrn? Na, die Jungs werden staunen. Oder lästern.'],
   buerger: ['Wie aufmerksam, Herr Alexander! Vielen Dank!', 'Ein Geschenk von Ihnen? Das hebe ich auf!', 'Herr Alexander, Sie überraschen mich immer wieder.'],
   elite: ['Ganz entzückend, Alexander. Sie haben Geschmack.', 'Das wird man im Belmont bewundern. Danke!', 'Mon dieu, Alexander … Sie verwöhnen mich.'],
 };
@@ -202,7 +202,7 @@ export function invGift(it) {
   if (v.gift.d !== KT.s.day) v.gift = { d: KT.s.day, n: 0 };
   if (v.gift.n < 3) { v.gift.n++; ktRep(g, D.v >= 50 ? 2 : 1); toast(`${invName(it)} an ${c.name} verschenkt · Ansehen ${g === 'arbeiter' ? 'Arbeiter' : g === 'elite' ? 'Elite' : 'Bürger'} +${D.v >= 50 ? 2 : 1}`); }
   else toast(`${invName(it)} an ${c.name} verschenkt`);
-  if (D.v >= 100) ktEmit('aufgabe', 'Großzügiger Gründer', `${c.name} erhielt von Alexander persönlich ein Geschenk: ${invName(it)}.`);
+  if (D.v >= 100) ktEmit('aufgabe', 'Ein Geschenk vom Gründer', `${c.name} erhielt von Alexander persönlich ein Geschenk: ${invName(it)}.`);
   ktChanged('inv');
   return true;
 }

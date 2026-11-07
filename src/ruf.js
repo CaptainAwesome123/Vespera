@@ -25,6 +25,10 @@
      schlechtem Ruf kühle Blicke, Streiks, mehr Zulauf für die Anarchisten.
      Der Untergrund wächst, wenn die Arbeiter unzufrieden sind, und schrumpft
      mit jeder Razzia; danach richtet sich, wie oft Anarchisten auftauchen.
+   V66 KANON: Alexander ist kein strahlender Held, sondern ein reicher
+   Kapitalist, der seine Stadt aufbaut: nicht böse, aber auch kein Heiliger.
+   Darum gibt es auch ganz oben keine Heldentitel, sondern Titel für Macht
+   und Ansehen; selbst bei bestem Ruf bleiben Neid, Spott und Kritik.
    Gespeichert im Browser (localStorage 'vespera.ruf'); Gesellschaft, Bürger
    und Arbeiter liegen im Spielstand des Kontors.
    Keine 3D-Teile, keine Shader: nur HTML über dem Bild.
@@ -51,11 +55,11 @@ export const RUF = { extra: [], onAct: [], s: null,   // V63: extra = weitere Ab
 /* ---------- Achsen und Ränge ---------- */
 export const RUF_AX = {
   elite: { n: 'Hohe Gesellschaft', s: 'Salons, Bälle, Belmont-Gäste', kt: true, r: ['Gemieden in den Salons', 'Belächelt in den Salons', 'Gern gesehener Gast', 'Gefeierter Gastgeber', 'Erster der Gesellschaft'] },
-  buerger: { n: 'Bürger', s: 'Boulevards, Läden, Cafés', kt: true, r: ['Misstrauisch beäugt', 'Mit Vorsicht gegrüßt', 'Geachteter Mitbürger', 'Beliebter Stadtvater', 'Held der Bürger'] },
+  buerger: { n: 'Bürger', s: 'Boulevards, Läden, Cafés', kt: true, r: ['Misstrauisch beäugt', 'Mit Vorsicht gegrüßt', 'Geachteter Mitbürger', 'Beliebter Mitbürger', 'Liebling der Boulevards'] },
   arbeiter: { n: 'Arbeiter', s: 'Arbeiterviertel, Fabriken, The Brass Lantern', kt: true, r: ['Der Herr von oben', 'Kühl empfangen', 'Ein fairer Patron', 'Respektierter Chef', 'Einer von uns'] },
-  presse: { n: 'Presse', s: 'Der Vespera-Kurier', r: ['Zielscheibe des Kuriers', 'Kritisch beäugt', 'Gern zitiert', 'Liebling der Presse', 'Held der Titelseite'] },
-  personal: { n: 'Personal', s: 'Belmont, Villa, Aurora Imperial', r: ['Gefürchteter Dienstherr', 'Strenger Herr', 'Guter Herr', 'Geschätzter Dienstherr', 'Verehrter Dienstherr'] },
-  bew: { n: 'Bewunderung', s: 'Staunen über den Mann mit dem Kristall', r: ['Gleichgültig', 'Neugierig bestaunt', 'Bewundert', 'Gefeiert', 'Vergöttert'] },
+  presse: { n: 'Presse', s: 'Der Vespera-Kurier', r: ['Zielscheibe des Kuriers', 'Kritisch beäugt', 'Gern zitiert', 'Liebling der Presse', 'Dauergast der Titelseite'] },
+  personal: { n: 'Personal', s: 'Belmont, Villa, Aurora Imperial', r: ['Gefürchteter Dienstherr', 'Strenger Herr', 'Guter Herr', 'Geschätzter Dienstherr', 'Hochgeachteter Dienstherr'] },
+  bew: { n: 'Bewunderung', s: 'Staunen über den Mann mit dem Kristall', r: ['Gleichgültig', 'Neugierig bestaunt', 'Bewundert', 'Gefeiert', 'Eine lebende Legende'] },
   furcht: { n: 'Furcht', s: 'Scheu vor seinen Kräften', r: ['Niemand fürchtet ihn', 'Ehrfurcht', 'Respekt und Scheu', 'Furcht', 'Schrecken'] },
   unter: { n: 'Der Untergrund', s: 'Der Rote Kasimir und die Anarchisten', r: ['Zerschlagen', 'Versprengt', 'Im Untergrund', 'Wachsend', 'Im Aufruhr'] },
 };
@@ -70,15 +74,15 @@ export function rufAnsehen() {
 // Wesen: gefürchtet / geachtet / bewundert
 export function rufWesen() { const F = rufGet('furcht'), B = rufGet('bew'); return F >= 50 && F >= B - 10 ? 'gef' : B >= 70 && F < 40 ? 'bew' : 'gea'; }
 const RUF_TITLES = {
-  gef: ['Der gefürchtete Herr im Turm', 'Gefürchteter Patron', 'Strenger Herr von Vespera', 'Gefürchteter Wohltäter', 'Eiserner Vater der Stadt'],
-  gea: ['Umstrittener Magnat', 'Der Mann im Turm', 'Herr von Vespera', 'Wohltäter von Vespera', 'Vater der Stadt'],
-  bew: ['Bewunderter Exzentriker', 'Gefeierter Sonderling', 'Gefeierter Herr von Vespera', 'Liebling von Vespera', 'Legende des Kraters'],
+  gef: ['Der gefürchtete Herr im Turm', 'Gefürchteter Patron', 'Strenger Herr von Vespera', 'Eiserner Magnat', 'Der eiserne Herr des Kraters'],
+  gea: ['Umstrittener Magnat', 'Der Mann im Turm', 'Herr von Vespera', 'Mächtiger Patron', 'Der große Baumeister'],
+  bew: ['Bewunderter Exzentriker', 'Gefeierter Sonderling', 'Gefeierter Herr von Vespera', 'Der Magnat, den alle kennen', 'Legende des Kraters'],
 };
 const RUF_WESEN = { gef: 'gefürchtet', gea: 'geachtet', bew: 'bewundert' };
 const rufTier = a => a < 25 ? 0 : a < 45 ? 1 : a < 65 ? 2 : a < 82 ? 3 : 4;
 export function rufTitle() { return RUF_TITLES[rufWesen()][rufTier(rufAnsehen())]; }
 
-function rufFresh() { return { v: 1, presse: 68, personal: 80, furcht: 28, bew: 74, unter: 45, log: [], post: [], deeds: {}, cd: {}, ranks: {}, title: null, nid: 1, day: 0, hint: false }; }
+function rufFresh() { return { v: 1, presse: 58, personal: 74, furcht: 32, bew: 66, unter: 48, log: [], post: [], deeds: {}, cd: {}, ranks: {}, title: null, nid: 1, day: 0, hint: false }; }
 function rufLoad() {
   let s = null;
   try { s = JSON.parse(localStorage.getItem(RUF_SAVE) || 'null'); } catch (e) { s = null; }
@@ -134,7 +138,7 @@ const RUF_PRIV = [
   { id: 'haendler', t: 'Freund der Händler', need: 'Bürger ab 75', ok: () => rufGet('buerger') >= 75, d: '+2 % Rabatt am Güterkai.' },
   { id: 'arbeiter', t: 'Einer von uns', need: 'Arbeiter ab 70', ok: () => rufGet('arbeiter') >= 70, d: '+2 % am Industriedepot und am Kneipenplatz; Streiks dauern nur einen Tag; die Anarchisten finden kaum Zulauf.' },
   { id: 'presse', t: 'Liebling der Presse', need: 'Presse ab 75', ok: () => rufGet('presse') >= 75, d: 'Schlechte Nachrichten kosten bei der Presse nur halb so viel; freundliche Leitartikel.' },
-  { id: 'personal', t: 'Verehrter Dienstherr', need: 'Personal ab 80', ok: () => rufGet('personal') >= 80, d: 'Das Personal erzählt nur Gutes: jeden Tag etwas Ansehen in der Gesellschaft und bei der Presse.' },
+  { id: 'personal', t: 'Hochgeachteter Dienstherr', need: 'Personal ab 80', ok: () => rufGet('personal') >= 80, d: 'Das Personal erzählt nur Gutes: jeden Tag etwas Ansehen in der Gesellschaft und bei der Presse.' },
   { id: 'gala', t: 'Einladungen zur Gala', need: 'Ansehen ab 65', ok: () => rufAnsehen() >= 65, d: 'Direktor Hartmann schickt Einladungen zur Gala im Belmont.' },
   { id: 'schluessel', t: 'Goldener Schlüssel der Stadt', need: 'Vom Bürgermeister (Ansehen ab 85)', ok: () => !!RUF.s.deeds.schluessel, d: '+1 % Rabatt überall; der Stadtrat steht hinter Ihnen.' },
   { id: 'furcht', t: 'Gefürchtet', need: 'Furcht ab 70', ok: () => rufGet('furcht') >= 70, d: 'Verbrecher wagen sich seltener auf die Straße, doch viele Bürger ducken sich weg.' },
@@ -171,9 +175,10 @@ export function rufAttP(group, tr) {
     const sk = Math.max(0, 1 - resp - bew - fu);
     return { bew, resp, furcht: fu, neid: 0, skep: sk };
   }
-  let bew = (0.2 + 0.65 * R / 100) * (0.6 + 0.4 * A / 100), fu = group === 'elite' ? pf * 0.7 : pf;
+  // V66 Kanon: auch bei bestem Ruf bewundert ihn nie die ganze Stadt; Neid und Kritik bleiben immer
+  let bew = (0.15 + 0.6 * R / 100) * (0.6 + 0.4 * A / 100), fu = group === 'elite' ? pf * 0.7 : pf;
   if (tr === 'mürrisch' || tr === 'ehrgeizig') bew *= 0.7;
-  const rest = Math.max(0, 1 - bew - fu), sk = group === 'buerger' && R < 40 ? rest * 0.6 : 0;
+  const rest = Math.max(0, 1 - bew - fu), sk = rest * (group === 'buerger' ? (R < 40 ? 0.6 : 0.3) : 0.15);
   return { bew, resp: 0, furcht: fu, neid: rest - sk, skep: sk };
 }
 function rufAttHook(k, tr) {
@@ -197,25 +202,25 @@ function rufRefreshAtt(force) {
 
 /* ---------- Neue Sätze je Rang und Tat ---------- */
 const RUF_LINES = [
-  { on: () => RUF.s.deeds.kasimir, L: { 'SAY_NEAR.bew': ['Sie haben den Roten Kasimir geschnappt! Endlich kann man wieder ruhig schlafen.', 'Herr Alexander! Das mit Kasimir, das war großartig!'], 'SAY_NEAR.resp': ['Kasimir hinter Gittern … das hat er sich selbst eingebrockt.'], 'TALK.bew': ['Seit Kasimir hinter Gittern sitzt, gehe ich wieder abends spazieren. Danke, Herr Alexander!'] } },
+  { on: () => RUF.s.deeds.kasimir, L: { 'SAY_NEAR.bew': ['Sie haben den Roten Kasimir geschnappt! Endlich kann man wieder ruhig schlafen.', 'Herr Alexander! Das mit Kasimir, das war großartig!'], 'SAY_NEAR.resp': ['Kasimir hinter Gittern … das hat er sich selbst eingebrockt.'], 'TALK.bew': ['Seit Kasimir hinter Gittern sitzt, gehe ich wieder abends spazieren. Danke, Herr Alexander!'], 'SAY_NEAR.skep': ['Kasimir sitzt. Die Mieten sind trotzdem zu hoch.', 'Einen Mann kann man einsperren. Den Hunger im Viertel nicht.'], 'TALK.skep': ['Sie haben Kasimir gefasst, schön. Aber gehört hat ihm das halbe Viertel, und warum, das fragt keiner.'] } },
   { on: () => RUF.s.deeds.gala, L: { 'SAY_NEAR.bew': ['Der Goldene Stern steht Ihnen, Herr Alexander!', 'Ich habe das Feuerwerk über dem Belmont gesehen. Herrlich!'], 'TALK.dienst': ['Die Gala war ein Triumph, Herr Alexander. Das ganze Haus spricht davon.'] } },
   { on: () => KT.s && KT.s.proj.spital, L: { 'SAY_NEAR.bew': ['Das Hospital am Kraterrand hat meiner Mutter das Leben gerettet, Herr Alexander!'], 'TALK.resp': ['Im neuen Hospital haben sie meinen Jungen wieder zusammengeflickt. Das vergess’ ich Ihnen nicht.'] } },
   { on: () => KT.s && KT.s.proj.oefen, L: { 'SAY_NEAR.resp': ['Die neuen Öfen halten warm, Herr Alexander. Danke.', 'Zum ersten Mal kein Eis an den Fenstern. Dank Ihnen.'], 'TALK.skep': ['Die Öfen sind gut, das muss man Ihnen lassen. Jetzt noch die Löhne …'] } },
   { on: () => KT.s && KT.s.proj.tram, L: { 'SAY_NEAR.bew': ['Mit der neuen Straßenbahn bin ich in zwölf Minuten bei der Arbeit!'], 'SAY_NEAR.resp': ['Die Linie Nord, Herr Alexander. Gute Sache.'] } },
   { on: () => KT.s && KT.s.proj.schule, L: { 'SAY_NEAR.resp': ['Mein Junge geht jetzt auf Ihre Gewerkschule. Er wird Luftschiffbauer!'] } },
   { on: () => KT.s && KT.s.proj.waisen, L: { 'SAY_NEAR.bew': ['Die Kinder im Waisenhaus haben Ihnen ein Bild gemalt, Herr Alexander.'] } },
-  { on: () => KT.s && KT.s.proj.oper, L: { 'SAY_NEAR.bew': ['Ein Opernhaus aus Marmor und Gold! Ganz Vespera freut sich darauf.'], 'SAY_NEAR.neid': ['Eine Oper. Für die, die sich die Logen leisten können.'] } },
+  { on: () => KT.s && KT.s.proj.oper, L: { 'SAY_NEAR.bew': ['Ein Opernhaus aus Marmor und Gold! Ganz Vespera freut sich darauf.'], 'SAY_NEAR.neid': ['Eine Oper. Für die, die sich die Logen leisten können.'], 'SAY_NEAR.skep': ['Marmor für die Oper. Und bei uns tropft es durchs Dach.'] } },
   { on: () => rufGet('arbeiter') >= 70, L: { 'SAY_NEAR.resp': ['Einer von uns, Herr Alexander! Kommen Sie auf ein Bier in die Brass Lantern?', 'Jungs, der Chef! Mützen ab!', 'Mit Ihnen als Patron schuften wir gern.'], 'SAY_NEAR.bew': ['Ein Herr, der seine Arbeiter nicht vergisst. Das gibt’s nur in Vespera.'] } },
   { on: () => rufGet('arbeiter') < 30, L: { 'SAY_NEAR.skep': ['Die Löhne reichen nicht mal für Kohle, Herr Alexander.', 'Passen Sie auf, im Viertel brodelt’s.', 'Hier unten mögen Sie nicht viele, Herr Alexander.', 'Streik liegt in der Luft. Nur damit Sie’s wissen.'], 'TALK.skep': ['Ihre Türme werden immer höher und unsere Löhne immer kleiner. Wie passt das zusammen?', 'Sie sollten mal eine Schicht in der Gießerei machen, Herr Alexander.'], 'SAY_NEAR.furcht': ['Kopf runter … der Herr aus dem Turm.'] } },
   { on: () => rufGet('elite') >= 80, L: { 'SAY_NEAR.neid': ['Herr Alexander! Sie kommen doch zu meiner Soirée am Donnerstag?', 'Darf ich Ihnen meine Tochter vorstellen, Herr Alexander?'], 'SAY_NEAR.bew': ['Herr Alexander, ganz Vespera spricht von Ihrem letzten Empfang!'] } },
   { on: () => rufGet('elite') < 35, L: { 'SAY_NEAR.neid': ['Man sieht ihn kaum noch in den Salons.', 'Haben Sie gehört? Sogar Varga lädt ihn nicht mehr ein.'] } },
-  { on: () => rufGet('buerger') >= 80, L: { 'SAY_NEAR.bew': ['Herr Alexander! Unser Held!', 'Drei Hurras für den besten Mann der Stadt!', 'Meine Kinder sagen, Sie sind besser als jeder Filmstar.'] } },
+  { on: () => rufGet('buerger') >= 80, L: { 'SAY_NEAR.bew': ['Herr Alexander! Was für eine Freude!', 'Drei Hurras für Herrn Alexander!', 'Meine Kinder sagen, Sie sind besser als jeder Filmstar.'], 'SAY_NEAR.neid': ['Alle lieben ihn. Na ja. Fast alle.', 'Beliebt sein ist leicht, wenn einem die Stadt gehört.'] } },
   { on: () => rufGet('buerger') < 35, L: { 'SAY_NEAR.skep': ['Da kommt er. Hoffentlich wirft er heute niemanden.', 'Früher hat man ihn gefeiert. Heute geht man lieber aus dem Weg.'] } },
   { on: () => rufGet('furcht') >= 65, L: { 'SAY_NEAR.furcht': ['Bitte … werfen Sie mich nicht, Herr Alexander!', 'Ich hab’ gesehen, was Sie mit dem Wagen gemacht haben …', 'Kinder, rein ins Haus! Schnell!'], 'SAY_POW.furcht': ['Er hat wieder schlechte Laune!', 'Wer ist diesmal dran?'], 'TALK.furcht': ['Ich … ich hab’ nichts gesehen, Herr Alexander. Gar nichts.'] } },
-  { on: () => rufGet('bew') >= 85, L: { 'SAY_NEAR.bew': ['Ein Autogramm, Herr Alexander! Bitte!', 'Ich habe ein Foto von Ihnen über dem Bett hängen!', 'Sie sind das Beste, was Vespera je passiert ist!'], 'SAY_NEAR.kid': ['Ich will auch einen Kristall! Wo gibt’s die?'] } },
+  { on: () => rufGet('bew') >= 85, L: { 'SAY_NEAR.bew': ['Ein Autogramm, Herr Alexander! Bitte!', 'Ich habe ein Foto von Ihnen über dem Bett hängen!', 'Ohne Sie stünde hier nichts als Eis, Herr Alexander!'], 'SAY_NEAR.kid': ['Ich will auch einen Kristall! Wo gibt’s die?'], 'SAY_NEAR.skep': ['Die Leute jubeln ihm zu wie einem König. Wir haben keinen König gewählt.'] } },
   { on: () => rufGet('presse') >= 80, L: { 'SAY_NEAR.bew': ['Ich lese jeden Abend im Kurier über Sie, Herr Alexander!'] } },
   { on: () => rufGet('presse') < 30, L: { 'SAY_NEAR.skep': ['Haben Sie gelesen, was der Kurier über ihn schreibt?'], 'SAY_NEAR.neid': ['Der Kurier lässt kein gutes Haar an ihm. Zu Recht?'] } },
-  { on: () => rufGet('personal') >= 85, L: { 'SAY_NEAR.dienst': ['Für Sie arbeitet man gern, Herr Alexander.', 'Das ganze Haus ist stolz, Ihnen zu dienen, Herr Alexander.'] } },
+  { on: () => rufGet('personal') >= 85, L: { 'SAY_NEAR.dienst': ['Für Sie arbeitet man gern, Herr Alexander.', 'Sie zahlen anständig, Herr Alexander. Das spricht sich herum.'] } },
   { on: () => rufGet('personal') < 40, L: { 'SAY_NEAR.dienst': ['S… sehr wohl, Herr Alexander. Sofort, Herr Alexander.', 'Jawohl, Herr Alexander. Bitte keine Umstände.'] } },
 ];
 const RUF_ARR = { SAY_NEAR, SAY_POW, TALK };
@@ -248,8 +253,8 @@ const RUF_KOMM = [
   [['Kommentar: Wer schützt Vespera vor seinem Beschützer?', 'Kommentar: Die Stadt ist kein Spielzeug'], 'Der Kurier fragt, ob ein einzelner Mann so viel Macht haben darf. {last} Vespera verdankt Herrn Alexander viel, aber Dankbarkeit ist kein Freibrief.'],
   [['Kommentar: Glanz und Schatten im Turm', 'Kommentar: Ein Gründer auf dem Prüfstand'], 'Die Stimmung in der Stadt ist gemischt. {last} Die Redaktion meint: Wer eine Stadt baut, muss sie auch pflegen.'],
   [['Kommentar: Der Herr von Vespera', 'Kommentar: Ein Abend wie jeder andere in Vespera'], 'Herr Alexander bleibt, was er ist: der Mann, ohne den es diese Stadt nicht gäbe. {last} Man darf gespannt sein, was er als Nächstes vorhat.'],
-  [['Kommentar: Ein Glücksfall für Vespera', 'Kommentar: Was diese Stadt an ihm hat'], 'Wer abends über die Grande Promenade geht, sieht, was Herr Alexander geschaffen hat. {best} Die Redaktion zieht den Hut.'],
-  [['Kommentar: Der beste Mann der Stadt', 'Kommentar: Vespera und sein Held'], 'Keine Stadt der Welt hat einen Gründer wie ihn. {best} Der Kurier verneigt sich, und ganz Vespera mit ihm.'],
+  [['Kommentar: Ein Glücksfall für Vespera?', 'Kommentar: Was diese Stadt an ihm hat'], 'Wer abends über die Grande Promenade geht, sieht, was Herr Alexander geschaffen hat. {best} Wer durch das Arbeiterviertel geht, sieht auch, was noch fehlt. Die Redaktion zieht den Hut, aber nur halb.'],
+  [['Kommentar: Der mächtigste Mann der Stadt', 'Kommentar: Vespera und sein Baumeister'], 'Keine Stadt der Welt hat einen Gründer wie ihn. {best} Gerade deshalb bleibt der Kurier wachsam: Eine Stadt, die einem einzigen Mann gehört, braucht eine Zeitung, die ihm nicht gehört.'],
 ];
 function rufKommentar() {
   const r = rufRank(rufGet('presse')), K = RUF_KOMM[r], L = RUF.s.log.slice(0, 12);
@@ -284,10 +289,10 @@ const RUF_POST = {
   gala: { ok: () => rufHas('gala') && GALA.dir && GALA.st !== 'laeuft', cd: 3, from: 'Direktor Hartmann, The Belmont', t: 'Gala zu Ihren Ehren', x: 'Der Grand Ballroom ist geschmückt, die Kapelle probt, der Stadtrat hat zugesagt. Wann immer Herr Alexander wünscht, beginnt die Gala.',
     opts: [['Heute Abend, bitte', { elite: 1 }, 'Direktor Hartmann erwartet Sie im Grand Ballroom des Belmont.', { fn: () => { try { startGala(); } catch (e) { console.warn('Ruf/Gala:', e); } } }], ['Ein andermal', {}, 'Hartmann: „Selbstverständlich, Herr Alexander.“']] },
   gewerkschaft: { ok: () => rufGet('arbeiter') < 35, cd: 2, from: 'Gewerkschaft der Kesselschmiede', t: 'Eine Bittschrift aus dem Arbeiterviertel', x: 'Die Arbeiter bitten um bessere Löhne und Kohle für den Winter. Sie schreiben höflich, aber die Stimmung ist gereizt.',
-    opts: [['Alle knappen Löhne auf gerecht anheben', { arbeiter: 6, elite: -1 }, 'Im Viertel wird gejubelt.', { fn: () => { let n = 0; for (const id in KT.s.own) if ((KT.s.own[id].lohn ?? 1) === 0) { KT.s.own[id].lohn = 1; n++; } if (n) toast(`${n} ${n === 1 ? 'Firma zahlt' : 'Firmen zahlen'} jetzt gerechte Löhne`); } }],
+    opts: [['Alle knappen Löhne auf gerecht anheben', { arbeiter: 6, elite: -1 }, 'Im Viertel atmet man auf. Die anderen Fabrikherren schicken verärgerte Briefe.', { fn: () => { let n = 0; for (const id in KT.s.own) if ((KT.s.own[id].lohn ?? 1) === 0) { KT.s.own[id].lohn = 1; n++; } if (n) toast(`${n} ${n === 1 ? 'Firma zahlt' : 'Firmen zahlen'} jetzt gerechte Löhne`); } }],
       ['Kohle spenden (20.000 Lm)', { arbeiter: 4 }, 'Die Kohlenwagen rollen ins Viertel.', { cost: 20000 }], ['Ablehnen', { arbeiter: -3, unter: 4 }, 'Die Bittschrift landet bei den Anarchisten.']] },
-  drohbrief: { ok: () => rufGet('unter') >= 60, cd: 3, from: 'Der Rote Kasimir', t: 'Ein Brief ohne Absender', x: '„Deine goldenen Türme stehen auf unseren Rücken, Alexander. Bald holen wir uns die Stadt zurück.“ Mit rotem Stern unterschrieben.',
-    opts: [['Der Polizei übergeben', { presse: 1, unter: -2, buerger: 1 }, 'Die Polizei verdoppelt die Streifen.'], ['Zerreißen', { furcht: 1 }, 'Ein Stück Papier, mehr nicht.']] },
+  drohbrief: { ok: () => rufGet('unter') >= 60, cd: 3, from: 'Der Rote Kasimir', t: 'Ein Brief ohne Absender', x: '„Deine goldenen Türme stehen auf unseren Rücken, Alexander. Wir haben sie gebaut, wir frieren in ihrem Schatten. Bald holen wir uns die Stadt zurück.“ Mit rotem Stern unterschrieben.',
+    opts: [['Der Polizei übergeben', { presse: 1, unter: -2, buerger: 1 }, 'Die Polizei verdoppelt die Streifen.'], ['Zerreißen', { furcht: 1 }, 'Ein Stück Papier, mehr nicht.'], ['Im Kurier antworten: Ich höre zu, ohne Dynamit', { arbeiter: 2, presse: 2, elite: -1, unter: -1 }, 'Der Kurier druckt Ihre Antwort. In den Salons runzelt man die Stirn, im Viertel liest man sie zweimal.']] },
 };
 function rufPostAdd(k) {
   const s = RUF.s; if (s.post.some(p => p.k === k) || s.post.length >= 4) return false;

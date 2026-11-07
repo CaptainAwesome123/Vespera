@@ -123,7 +123,8 @@ const SPEECH = [
     'Heute Abend zahle ich. Für jeden Gast in diesem Saal und für jede Kneipe der Stadt.',
     'Champagner für alle, und gleich ein Feuerwerk, das man bis nach Europa sieht!']],
 ];
-const CHEERS = ['Bravo!', 'Hoch soll er leben!', 'Was für ein Mann!', 'Auf Alexander!', 'Wunderbar gesagt!', 'Bravo, bravissimo!', 'Er hat uns alles gegeben.', 'Das war eine Rede!'];
+// V66 Kanon: viel Beifall, aber nicht jeder im Saal meint ihn so
+const CHEERS = ['Bravo!', 'Hoch soll er leben!', 'Was für ein Mann!', 'Auf Alexander!', 'Wunderbar gesagt!', 'Bravo, bravissimo!', 'Das war eine Rede!', 'Hübsch gesagt. Wer den Saal besitzt, bekommt auch den Beifall.', 'Klatschen Sie, Liebling. Er schaut herüber.'];
 const CHEER_WHO = ['Eine Dame', 'Ein Herr', 'Eine Dame auf der Galerie', 'Ein Herr an der Bar', 'Eine junge Dame', 'Ein alter Herr'];
 const ENTER = ['Alexander! Er ist da!', 'Seht nur, Alexander kommt!', 'Applaus für den Herrn von Vespera!', 'Guten Abend, Alexander!', 'Der Gründer persönlich!'];
 
@@ -148,13 +149,14 @@ function script() {
   doit(() => { setAct(G.dir, 2.3); G.beamTo = 'mic'; fire('reden'); }, 0.4);
   line('Direktor Hartmann', 'Verehrte Gäste, heute Abend feiern wir den Mann, der diese Stadt aus dem ewigen Eis gehoben hat.');
   line('Direktor Hartmann', 'Er fand den Krater, als die Welt hier oben nur Nacht und Schnee sah. Und er baute uns Türme bis an die Polarlichter.');
-  line('Direktor Hartmann', 'Er hat uns das Belmont geschenkt, das schönste Haus der Welt. Mein Herr, es ist uns eine Ehre.', 0.2);
+  line('Direktor Hartmann', 'Er hat das Belmont gebaut, das schönste Haus der Welt. Und er ist, wie Sie wissen, mein Arbeitgeber, ich lobe ihn also mit Vorsicht.', 0.2);
   doit(() => { setAct(G.dir, 0.6); G.bow = { a: G.dir, t: 1.6 }; applause(4, 0.7); guestsDo('clap'); }, 2.2);
   doit(() => { guestsDo('listen'); walkTo(G.dir, [beside(-1)]); walkTo(G.bm, toMic(1)); }, 0.2);
   hold();
   doit(() => { setAct(G.bm, 2.3); setAct(G.dir, 0.2); }, 0.4);
   line('Bürgermeister von Arnim', 'Ich spreche für ganz Vespera: für die Herrschaften in den Türmen und für die Männer an den Kesseln.');
   line('Bürgermeister von Arnim', 'Ohne Alexander gäbe es keine Stadt, keine Lichter, keinen Hafen und keine einzige Straße durch diese Berge.');
+  line('Bürgermeister von Arnim', 'Nicht jeder in Vespera feiert heute mit, das wissen wir alle. Auch das gehört zu einer Stadt.');
   line('Bürgermeister von Arnim', 'Darum verleiht Ihnen der Stadtrat heute den Goldenen Stern von Vespera.', 0.2);
   doit(() => { tusch(); guestsDo('clap'); applause(5, 1); toast('Auszeichnung: der Goldene Stern von Vespera'); G.stars = (G.stars | 0) + 1; G.beamTo = 'player'; fire('stern'); }, 3.2);
   line('Bürgermeister von Arnim', 'Alexander, bitte: ein Wort an Ihre Stadt!', 0.2);

@@ -718,7 +718,7 @@ function bhRideState(dt) {
 }
 const BH_GREET = {
   '1': ['Herr Alexander! In der Straßenbahn? Wie bescheiden!', 'Guten Abend, Herr Alexander. Eine schöne Fahrt!', 'Sehen Sie nur, Alexander fährt mit uns!', 'Nehmen Sie doch meinen Platz, Herr Alexander!'],
-  '2': ['Der Herr von Vespera bei uns in der Linie 2? Das glaubt mir keiner!', 'Abend, Herr Alexander. Die Linie 2 ist pünktlich wie nie.', 'Mit uns einfachen Leuten? Alle Achtung, Herr Alexander.'],
+  '2': ['Der Herr von Vespera bei uns in der Linie 2? Das glaubt mir keiner!', 'Abend, Herr Alexander. Die Linie 2 ist pünktlich wie nie.', 'Mit uns einfachen Leuten? Alle Achtung, Herr Alexander.', 'Fahren Sie ruhig mit, Herr Alexander. Für Sie ist der Fahrschein ja Kleingeld, für uns ein halbes Mittagessen.'],
   H: ['Von hier oben sieht man das Belmont leuchten, nicht wahr, Herr Alexander?', 'Die Hochbahn ist die schönste Aussicht der Stadt!', 'Herr Alexander! Darf ich Ihnen die Zeitung reichen?'],
 };
 function bhBoarded(v) {

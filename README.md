@@ -293,6 +293,24 @@ Außenhaut, Garten, Terrassen und das Fest.
   pro Sekunde (vorher 42). Bei knapper Bildrate entsteht das Spiegelbild nur jedes zweite Bild (`REFL.half`).
 - *Aufgeräumt:* Feuerwerk, Lichtsäulen aus den Kronen und Suchscheinwerfer des Belmont (seit V33/V42 aus) entfernt.
 
+**V66: Kanon Alexander.** Alexander ist kein strahlender Held, sondern ein reicher Kapitalist, der seine Stadt aufbaut:
+nicht böse, aber auch kein Heiliger. Die Leute bewundern, fürchten, beneiden oder hassen ihn; der Widerstand hat Gründe.
+Nur Texte und Daten, keine Shader, keine Modelle. Der Kanon steht in `vespera-spiel/kanon.md`.
+- *Ruf (Ö):* keine Heldentitel mehr („Held der Bürger“, „Vergöttert“, „Wohltäter“, „Vater der Stadt“), sondern Macht und
+  Ansehen (Magnat, Patron, Baumeister, Legende). Start etwas kühler (Presse 58, Bewunderung 66). Auch bei bestem Ruf bewundert
+  ihn nie die ganze Stadt: immer ein Anteil Neid und Kritik (`rufAttP`, `attOf`). Neue Sätze je Rang, Presse-Kommentare mit
+  Vorbehalt, Drohbrief mit dritter Antwort („Ich höre zu, ohne Dynamit“).
+- *Stimmen:* rund 60 neue Zurufe und Antworten mit Neid, Spott, Furcht und offener Ablehnung, Wechselreden mit Widerspruch,
+  Randolf und Konrad berichten auch Unfreundliches (`stimmen.js`, V66-Block).
+- *Gegner und Kasimir:* Parolen mit Anliegen („Brot und Kohle statt Kronleuchter“), Kasimir mit Vorgeschichte (Kesselschmied,
+  Bruder beim Viaduktbau verunglückt), Zuschauer nicht nur jubelnd.
+- *Zeitung (U):* Zeugen auch kritisch, Leserbriefe in jeder Ausgabe, neue Meldungen (Mieten, Gewerkschaft, Unfall in der
+  Gießerei, Leitartikel „Wem gehört Vespera?“, Schweigemarsch, Kabarett), Gala-Bericht mit Blick vor die Tür.
+- *Nebenfiguren:* neue Themen bei Kröger (Warum hört man Kasimir zu? Was halten Sie von mir?), Margot (Leserbriefe),
+  Brenner (Macht), Margots Interview mit vierter Frage zu den Löhnen; Porträt und Stiftungs-Wettstreit ohne Heldenton.
+- *Aufgaben, Kontor, Gala, Wetter:* neue Bürgermeister-Aufgabe „Neue Ventile für die Gießerei“, drei Kontor-Ereignisse
+  (Hafenstreik, Leitartikel, Lohnforderung), gemischter Beifall auf der Gala, Wetterberichte ohne „Retter“ und „Held“.
+
 **V65: Korrekturen aus dem Spielvideo.**
 - *Penthouse-Wendeltreppe:* oben endet die Treppe nach Norden, das Austrittspodest war aber nur 1,5 m lang; wer der Treppe
   weiter folgte, fiel durchs Treppenauge zurück in den Salon. Jetzt liegt ein Podest über dem ganzen Nordostviertel des

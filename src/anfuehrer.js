@@ -1,6 +1,10 @@
 /* =====================================================================
    V61 · DER ROTE KASIMIR UND DIE GROSSEN ANGRIFFE
    Kasimir Roth, genannt der Rote Kasimir, führt die Anarchisten von Vespera.
+   V66 Kanon: kein Comic-Bösewicht. Er war Kesselschmied in der Gießerei,
+   sein Bruder starb beim Bau des großen Viadukts, die Witwe bekam einen
+   Brief und einen Monatslohn. Seitdem kämpft er gegen Alexander; seine
+   Fragen (Löhne, Mieten, Macht) sind berechtigt, sein Dynamit nicht.
    Ochsenblutroter Zweireiher, einen halben Kopf größer als seine Leute.
    Er ist zäh (vier Treffer, dazwischen rappelt er sich auf), weicht dem
    aufgeladenen Energieschub zur Seite aus, schießt Doppelschüsse und wirft
@@ -46,16 +50,16 @@ const pick = a => a[Math.floor(Math.random() * a.length)];
 // Meldung an die Zeitung von Vespera (eigener Teil des Spiels, hört auf 'vespera-news'; prio ab 8 = Extrablatt)
 export function news(titel, text, prio = 5, ort) { try { window.dispatchEvent(new CustomEvent('vespera-news', { detail: { titel, text, rubrik: 'Polizei', prio, ort } })); } catch (e) { /* ohne Zeitung */ } }
 const KSAY = {
-  intro: ['Bürger von Vespera! Seht ihn euch an, euren goldenen Gott!', 'Alexander! Du hast diese Stadt aus dem Eis geholt, und heute holen wir sie uns zurück!', 'Der Kristall gehört dem Volk, nicht einem Mann im Frack!', 'Genossen! Heute brennt das Gold!', 'Hört mich an! Kein Mann soll über Vespera herrschen!'],
-  kampf: ['Unverwundbar? Das werden wir ja sehen!', 'Nimm das, Herr von Vespera!', 'Dynamit kennt keine Götter!', 'Du kannst nicht überall sein, Alexander!', 'Für jede Kugel, die abprallt, kommen zehn Genossen!', 'Ihr da oben im Belmont, hört ihr das?', 'Komm doch her, du goldener Teufel!'],
+  intro: ['Bürger von Vespera! Seht ihn euch an, euren goldenen Gott!', 'Alexander! Du hast diese Stadt aus dem Eis geholt, und heute holen wir sie uns zurück!', 'Der Kristall gehört dem Volk, nicht einem Mann im Frack!', 'Genossen! Heute brennt das Gold!', 'Hört mich an! Kein Mann soll über Vespera herrschen!', 'Mein Bruder liegt unter deinem Viadukt, Alexander! Ein Brief und ein Monatslohn, das war dir sein Leben wert!', 'Zwölf Jahre stand ich an deinen Kesseln. Heute stehe ich hier!'],
+  kampf: ['Unverwundbar? Das werden wir ja sehen!', 'Nimm das, Herr von Vespera!', 'Dynamit kennt keine Götter!', 'Du kannst nicht überall sein, Alexander!', 'Für jede Kugel, die abprallt, kommen zehn Genossen!', 'Ihr da oben im Belmont, hört ihr das?', 'Komm doch her, du goldener Teufel!', 'Wie viele Kammern im Viertel hätte dein Ballsaal geheizt?', 'Du hast die Stadt gebaut? Wir haben sie gebaut!'],
   dynamit: ['Fang, Alexander!', 'Ein Geschenk aus dem Untergrund!', 'Mal sehen, ob du auch das hier wegsteckst!', 'Für das Belmont!'],
   getroffen: ['Ha! Ist das alles?', 'Ich … stehe … wieder auf!', 'Ein Kasimir bleibt nicht liegen!', 'Das war nur ein Kratzer!', 'Mehr hast du nicht?'],
   ausweichen: ['Daneben!', 'Zu langsam, Herr Alexander!', 'Den Trick kenne ich schon!'],
   rufen: ['Genossen! Zu mir!', 'Alle Mann an die Barrikade!', 'Aus den Kellern, Brüder! Jetzt!'],
   flucht: ['Rückzug! In den Untergrund!', 'Das ist nicht das Ende, Alexander! Wir sehen uns unter der Stadt!', 'Zur Station Nordstern, Genossen!'],
-  besiegt: ['Ihr könnt einen Mann einsperren … aber keine Idee!', 'Das … war nicht … das letzte Wort …', 'Verflucht seist du und dein Kristall!'],
+  besiegt: ['Ihr könnt einen Mann einsperren … aber keine Idee!', 'Das … war nicht … das letzte Wort …', 'Verflucht seist du und dein Kristall!', 'Sperr mich ein … und dann frag dich, warum sie mir zugehört haben.'],
   polizei: ['Den Roten Kasimir! Herr Alexander, das kommt morgen in alle Zeitungen!', 'Endlich! Seit Monaten jagen wir ihn. Danke, Herr Alexander!', 'Der Rote Kasimir in Handschellen … das glaubt mir auf dem Revier keiner.'],
-  jubel: ['Sie haben den Roten Kasimir gefasst!', 'Hoch lebe Alexander! Die Bande ist erledigt!', 'Vespera ist wieder sicher!'],
+  jubel: ['Sie haben den Roten Kasimir gefasst!', 'Hoch lebe Alexander! Die Bande ist erledigt!', 'Vespera ist wieder sicher!', 'Gut, dass die Bomben aufhören. Aber im Viertel wird man ihn vermissen.', 'Ein Kasimir sitzt. Der nächste wächst schon nach, wenn sich nichts ändert.'],
 };
 const ksay = (k, prio = 2) => { const pd = BOSS.pd, G = pd && pd.gg; return gegnerSay('Der Rote Kasimir', pick(KSAY[k]), prio, G ? G.x : undefined, G ? G.z : undefined); };
 
@@ -211,7 +215,7 @@ function onGefasst(d) {
   setTimeout(() => { toast('Der Rote Kasimir ist gefasst! Die Bande hat keinen Anführer mehr'); gegnerSay('Ein Polizist', pick(KSAY.polizei), 3); }, 400);
   setTimeout(() => { aweBurst('throw', 50, 1); gegnerSay('Ein Passant', pick(KSAY.jubel), 1); }, 3600);
   GEG.fire('boss', BOSS.pd, d.x, d.z);
-  news('Der Rote Kasimir gefasst!', 'Alexander stellt den Anführer der Anarchisten. Die Polizei führt Kasimir Roth in Handschellen ab; die Bande ist führerlos.', 9);
+  news('Der Rote Kasimir gefasst!', 'Alexander stellt den Anführer der Anarchisten. Die Polizei führt Kasimir Roth in Handschellen ab; die Bande ist führerlos. Im Arbeiterviertel ist die Erleichterung leiser als in den Salons: Viele dort teilen seine Wut, wenn auch nicht sein Dynamit.', 9);
   if (BOSS.onCaught) BOSS.onCaught();
 }
 
@@ -366,7 +370,7 @@ function evBankraub() {
     if (!busy && E.t > 3 && !E.over) {
       const lost = E.crooks.filter(r => r.gg.s === 'off' && r.gg.bag).length;
       news(E.got ? 'Bankraub vereitelt' : 'Bankräuber entkommen', E.got ? E.got + ' Geldsäcke der Vespera-Bank sind dank Alexander wieder da.' : 'Drei Räuber flohen mit der Beute aus der Vespera-Bank.', E.got ? 6 : 5);
-      toast(E.got ? (E.got === E.crooks.length ? 'Alle Geldsäcke zurück! Die Vespera-Bank dankt Herrn Alexander' : E.got + ' von ' + E.crooks.length + ' Geldsäcken gerettet') : 'Die Bankräuber sind mit der Beute entkommen');
+      toast(E.got ? (E.got === E.crooks.length ? 'Alle Geldsäcke zurück in der Vespera-Bank. Die Aktionäre sind beruhigt' : E.got + ' von ' + E.crooks.length + ' Geldsäcken gerettet') : 'Die Bankräuber sind mit der Beute entkommen');
       GEG.end(E);
     }
   };

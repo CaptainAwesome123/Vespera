@@ -59,13 +59,13 @@ import { KARTE } from './karte.js';
 // hide: Anteil ausgeblendeter Wagen, inside: Anteil der Passanten, die nach drinnen gehen, hurry: Schritttempo draußen
 export const WL_EV = {
   sturm: {
-    gen: 'des Schneesturms', hero: 'Der Retter in der Sturmnacht', n: 'Schneesturm', w: 'sturm', after: 'schnee', dur: [270, 350], cold: 1, kt: 'Kältewelle', car: 0.55, hide: 0.4, tram: 0.5, boat: 0.5, inside: 0.6, hurry: 1.5, wgt: 3,
+    gen: 'des Schneesturms', hero: 'Alexander in der Sturmnacht', n: 'Schneesturm', w: 'sturm', after: 'schnee', dur: [270, 350], cold: 1, kt: 'Kältewelle', car: 0.55, hide: 0.4, tram: 0.5, boat: 0.5, inside: 0.6, hurry: 1.5, wgt: 3,
     warn: 'Wetterwarte Vespera: Ein Schneesturm zieht über die Berge heran. In einer Minute ist er in der Stadt.',
     sub: 'Gestrandete und eine Straßenbahn stecken im Schnee fest', tasks: ['leute', 'leute', 'bahn'],
     news: ['Schneesturm über Vespera', 'Ein Schneesturm fegt über den Krater. Die Wetterwarte rät: Mantel zu, Hut fest und nach Hause. Kohlenhändler melden Rekordumsätze.'],
   },
   nordlicht: {
-    gen: 'der Nordlichtnacht', hero: 'Ein Held unter dem Nordlicht', n: 'Nordlichtnacht', w: 'nordlicht', after: 'polarlicht', dur: [230, 300], look: 1, gather: 1, kt: 'Nordlicht über dem Krater', wgt: 3,
+    gen: 'der Nordlichtnacht', hero: 'Alexander unter dem Nordlicht', n: 'Nordlichtnacht', w: 'nordlicht', after: 'polarlicht', dur: [230, 300], look: 1, gather: 1, kt: 'Nordlicht über dem Krater', wgt: 3,
     warn: 'Wetterwarte Vespera: Sonnensturm gemeldet! Heute Nacht wird das Nordlicht so hell wie seit Jahren nicht.',
     sub: 'Die Stadt versammelt sich auf dem Belmont-Platz', tasks: [],
     news: ['Nordlichtnacht: ganz Vespera schaut hinauf', 'Grüne und rosa Vorhänge über dem Krater: Tausende versammelten sich auf dem Belmont-Platz und auf den Straßen, um das Schauspiel zu sehen.'],
@@ -444,7 +444,7 @@ function wlTaskDone(tk, why, ch, line) {
 function wlRescuePerson(tk) {
   const pd = tk.pd, lost = tk.k === 'verirrt';
   wlTaskDone(tk, lost ? 'Einem Verirrten im Nebel den Weg gezeigt' : 'Gestrandete in Sicherheit gebracht', lost ? { buerger: 1.5, presse: 0.6, bew: 0.6 } : { buerger: 2, arbeiter: 0.8, presse: 1, bew: 1 },
-    lost ? wlPick(['Danke! In diesem Nebel sieht man ja die eigene Hand nicht.', 'Ach, dort entlang! Herr Alexander, Sie sind ein Engel.']) : wlPick(['Herr Alexander! Ich dachte schon, ich erfriere hier.', 'Danke, danke! Meine Füße spüre ich nicht mehr.', 'Der Herr von Vespera persönlich! Das glaubt mir keiner.']));
+    lost ? wlPick(['Danke! In diesem Nebel sieht man ja die eigene Hand nicht.', 'Ach, dort entlang! Danke, Herr Alexander. Das hätte ich von Ihnen nicht gedacht.']) : wlPick(['Herr Alexander! Ich dachte schon, ich erfriere hier.', 'Danke, danke! Meine Füße spüre ich nicht mehr.', 'Der Herr von Vespera persönlich! Das glaubt mir keiner.', 'Danke … Wenn die Straßenbahn öfter führe, müssten Sie mich nicht aus dem Schnee holen.']));
   fxEmit('snowburst', tk.x, tk.y + 0.3, tk.z, 0, 1.2, 0, 14, 1.2, 1.1);
   // zur nächsten Tür gehen, dann hinein
   let d = null, bd = 1e9; for (const g of DOORS) { const q = (g.x - pd.x) ** 2 + (g.z - pd.z) ** 2; if (q < bd) { bd = q; d = g; } }
@@ -459,7 +459,7 @@ function wlRescueTram(tk) {
   tk.tr.wlStuck = false; tk.tr.wlMul = WL.E && WL.E.tram || 1;
 }
 function wlRescueFloe(tk) {
-  wlTaskDone(tk, 'Einen Fischer von der Eisscholle geholt', { arbeiter: 2, presse: 1.4, bew: 1.6, buerger: 0.6 }, wlPick(['Herr Alexander! Gott sei Dank, die Scholle wurde immer kleiner!', 'Ich sag’s meiner Frau: der Herr von Vespera kam durch die Luft!']));
+  wlTaskDone(tk, 'Einen Fischer von der Eisscholle geholt', { arbeiter: 2, presse: 1.4, bew: 1.6, buerger: 0.6 }, wlPick(['Herr Alexander! Gott sei Dank, die Scholle wurde immer kleiner!', 'Ich sag’s meiner Frau: der Herr von Vespera kam durch die Luft!', 'Danke, Herr Alexander. Mit einem ordentlichen Boot wär’ ich gar nicht erst hier draußen.']));
   fxEmit('spray', tk.x, WATER_Y + 0.4, tk.z, 0, 3, 0, 18, 1.4, 1);
   wlGive(tk.pd); tk.pd = null; WL.flLock = -1;
 }
@@ -581,7 +581,7 @@ export function wlEnd(natural = true) {
     if (c.punsch) bits.push(c.punsch === 1 ? 'eine Runde Punsch für alle spendiert' : c.punsch + ' Runden Punsch spendiert');
     if (n || c.punsch || WL.flyCheer) {
       const t = bits.length ? 'Während ' + E.gen + ' hat Herr Alexander ' + bits.join(', ').replace(/, ([^,]*)$/, ' und $1') + '.' : 'Herr Alexander flog unter dem Nordlicht über die Menge auf dem Belmont-Platz; der Beifall wollte nicht enden.';
-      WL.report = zeitungMeldung({ titel: n >= 2 ? E.hero : id === 'nordlicht' && !n ? 'Applaus unter dem Nordlicht' : 'Herr Alexander packt mit an', text: t + (id === 'sturm' ? ' Die Stadt atmet auf.' : ''), rubrik: 'Stadt', prio: n >= 2 ? 8 : 6, ruf: n >= 2 ? 'Extrablatt! Alexander rettet Bürger im ' + E.n + '!' : null, foto: false, quelle: 'wetter' });
+      WL.report = zeitungMeldung({ titel: n >= 2 ? E.hero : id === 'nordlicht' && !n ? 'Applaus unter dem Nordlicht' : 'Herr Alexander packt mit an', text: t + (id === 'sturm' ? ' Die Stadt atmet auf. Im Arbeiterviertel fragt man allerdings, warum die Straßen dort als letzte geräumt werden.' : n ? ' ' + wlPick(['Die Geretteten bedankten sich herzlich.', 'Die Hafenmeisterei dankt, mahnt aber bessere Boote für die Fischer an.', 'Nicht jeder klatschte: Manche finden, ein Mann allein sollte nicht nötig sein, wo die Stadt Räumdienste bezahlen könnte.']) : ''), rubrik: 'Stadt', prio: n >= 2 ? 8 : 6, ruf: n >= 2 ? 'Extrablatt! Alexander rettet Bürger im ' + E.n + '!' : null, foto: false, quelle: 'wetter' });
     }
     toast(E.n + ' ist vorüber');
   }
@@ -657,7 +657,7 @@ function wlFrame(dt) {
     for (const i of WL.items) if (i.k === 'gather') setAct(i.pd, 9);
     setTimeout(() => { for (const i of WL.items) if (i.k === 'gather') setAct(i.pd, 16); }, 7000);
     if (RUF.ready) rufAdd({ bew: 2, presse: 1, buerger: 1 }, 'Flug unter dem Nordlicht über die Menge');
-    lifeSay('Die Menge auf dem Platz', wlPick(['Bravo! Bravo, Herr Alexander!', 'Seht doch, er fliegt durchs Nordlicht!', 'Hoch soll er leben, der Herr von Vespera!']), 4.5);
+    lifeSay('Die Menge auf dem Platz', wlPick(['Bravo! Bravo, Herr Alexander!', 'Seht doch, er fliegt durchs Nordlicht!', 'Hoch soll er leben, der Herr von Vespera!', 'Angeber! … Na gut, schön ist es schon.']), 4.5);
   }
   wlTasksStep(dt);
   if (WL.tasks.length || (WL.mk && WL.mk.children.length)) wlMarkers();

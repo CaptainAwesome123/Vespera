@@ -19,6 +19,9 @@
      der gewählten Rede und dem Foto vom Goldenen Stern oder Feuerwerk.
    - atmosphere.js: Wetter und Mondphase; dazu Stadtnachrichten, Klatsch
      und Anzeigen.
+   V66 Kanon: Der Kurier ist kein Hofblatt. Alexander ist ein reicher
+   Kapitalist, kein strahlender Held: neben Bewunderung stehen kritische
+   Stimmen (Zeugen, Leserbriefe, Kommentare, Arbeiter mit echten Sorgen).
    Zur Tat gehört ein Foto: ein kleines Graustufenbild aus dem Spielbild
    (einmal pro Meldung, kein Shader, kein Licht).
 
@@ -125,6 +128,8 @@ function ztSnap(it) {
 /* ---------- Texte ---------- */
 const ZT_ZEUGE = ['eine Dame im Pelzmantel', 'ein Kellner', 'ein Straßenbahnschaffner', 'ein Zeitungsjunge', 'ein Hafenarbeiter', 'eine Garderobiere', 'ein älterer Herr mit Monokel', 'ein Taxifahrer', 'eine Verkäuferin', 'ein Schuhputzer'];
 const ZT_STAUNEN = ['„Mit einer Hand!“', '„So etwas habe ich noch nie gesehen!“', '„Ich dachte, ich träume“', '„Einfach so, als wäre es nichts“', '„Da bleibt einem die Luft weg!“', '„Der Herr von Vespera, leibhaftig!“'];
+// V66: nicht jeder Zeuge staunt; manche ärgern sich, fürchten sich oder fragen nach
+const ZT_ZWEIFEL = ['„Schön und gut, aber wer bezahlt den Schaden?“', '„Mir ist das unheimlich. Ein Mann, dem niemand etwas kann“', '„Die Polizei kann das auch, nur langsamer“', '„Er tut so etwas, weil er es kann. Fragen muss er keinen“', '„Beeindruckend. Ein Lohn, von dem man leben kann, wäre beeindruckender“'];
 // "im Arbeiterviertel", "auf dem Belmont-Platz", "an der Hafenpromenade" ...
 export function ztIn(ort) {
   const o = String(ort || 'Vespera');
@@ -141,7 +146,7 @@ export function ztIn(ort) {
   if (/^Vespera$/.test(o)) return 'in Vespera';
   return 'im ' + o;
 }
-const ztZeuge = () => ztPick(ZT_STAUNEN) + ', sagt ' + ztPick(ZT_ZEUGE) + '.';
+const ztZeuge = () => (Math.random() < 0.3 ? ztPick(ZT_ZWEIFEL) : ztPick(ZT_STAUNEN)) + ', sagt ' + ztPick(ZT_ZEUGE) + '.';
 const ZT_FALL = {
   raub: {
     gefasst: { prio: 8, rubrik: 'Polizei', t: ['Alexander stellt Räuber {in}', 'Überfall {in} vereitelt!', 'Räuber trifft auf den Herrn von Vespera'],
@@ -168,15 +173,15 @@ const ZT_FALL = {
   },
   angriff: {
     gefasst: { prio: 10, rubrik: 'Alexander', t: ['Anarchisten greifen Alexander an und verlieren!', '{n} Anarchisten {in} festgenommen', 'Steine, Flaschen, Kugeln: nichts hält Alexander auf'],
-      x: ['Eine Bande von Anarchisten stellte Herrn Alexander {in}. Sie warfen Steine und Flaschen, einer schoss mit dem Revolver. Alles prallte ab. Am Ende lagen die Angreifer auf dem Pflaster, die Polizei nahm {n} von ihnen fest. {zeuge}'] },
+      x: ['Eine Bande von Anarchisten stellte Herrn Alexander {in}. Sie warfen Steine und Flaschen, einer schoss mit dem Revolver. Alles prallte ab. Am Ende lagen die Angreifer auf dem Pflaster, die Polizei nahm {n} von ihnen fest. {zeuge}', 'Mit Steinen, Flaschen und Flugblättern („Brot und Kohle statt Kronleuchter“) gingen Anarchisten {in} auf Herrn Alexander los. Gegen seine Kräfte hatten sie keine Aussicht, die Polizei nahm {n} von ihnen fest. Die Festgenommenen sind Arbeiter aus der Gießerei und dem Hafen. Die Gewerkschaft distanziert sich von der Gewalt, nicht aber von den Forderungen.'] },
     sonst: { prio: 6, rubrik: 'Polizei', t: ['Anarchisten-Krawall {in}', 'Anarchisten fliehen vor Alexander'],
       x: ['{In} griffen Anarchisten den Herrn von Vespera an, flohen aber, als ihre Würfe abprallten. Die Polizei sucht nach dem Versteck der Bande.'] },
   },
 };
 const ZT_TAT = {
   wagen: { prio: 6, t: ['Automobil schwebt {in}', 'Herr Alexander hebt Automobil mit bloßem Blick'], x: ['Passanten {in} trauten ihren Augen nicht: Ein Automobil stieg wie eine Feder in die Luft. Herr Alexander hielt es mit seinen Kräften. {zeuge}'] },
-  mensch: { prio: 5, t: ['Passant schwebt {in}', '„Ich bin geflogen!“'], x: ['Ein Bürger {in} schwebte am Abend einige Meter über dem Pflaster, gehalten von Herrn Alexander. Er nahm es mit Humor: „Ein Erlebnis! Das erzähle ich meinen Enkeln.“'] },
-  riss: { prio: 5, t: ['{ding} {in} herausgerissen', 'Alexander räumt {in} auf'], x: ['Mit einem Ruck löste sich {in} {dinga} aus dem Boden und schwebte davon. Die Stadtwerke bleiben gelassen: „Der Herr von Vespera hat die Stadt gebaut, er darf sie auch umstellen.“'] },
+  mensch: { prio: 5, t: ['Passant schwebt {in}', '„Ich bin geflogen!“', 'Gefragt wurde er nicht'], x: ['Ein Bürger {in} schwebte am Abend einige Meter über dem Pflaster, gehalten von Herrn Alexander. Er nahm es mit Humor: „Ein Erlebnis! Das erzähle ich meinen Enkeln.“', 'Ein Bürger {in} wurde am Abend von Herrn Alexander in die Luft gehoben. Wieder auf den Füßen, war ihm eher nach Schimpfen zumute: „Ich bin doch kein Spielzeug.“ Die Redaktion fragt: Wo endet der Spaß, wenn einer alles darf?'] },
+  riss: { prio: 5, t: ['{ding} {in} herausgerissen', 'Alexander räumt {in} auf'], x: ['Mit einem Ruck löste sich {in} {dinga} aus dem Boden und schwebte davon. Die Stadtwerke reagieren säuerlich: „Der Herr von Vespera hat die Stadt gebaut. Reparieren dürfen sie unsere Leute.“'] },
   landung: { prio: 4, t: ['Landung mit Donnerhall {in}', 'Alexander landet {in}'], x: ['Mit einem Schlag, der die Schaufenster zittern ließ, setzte Herr Alexander {in} auf, ein Knie am Boden, Schnee und Staub stoben auf. {zeuge}'] },
   flug: { prio: 4, t: ['Alexander kreist über den Türmen', 'Ein Mann am Himmel über Vespera'], x: ['Wieder wurde Herr Alexander hoch über der Stadt gesehen, schwarz vor dem Polarlicht, mit wehendem Frack. Die Gäste auf den Dachterrassen hoben die Gläser. {zeuge}'] },
   welle: { prio: 5, t: ['Druckwelle erschüttert die Straße {in}', 'Rätselhafter Stoß {in}'], x: ['{In} stürzte Herr Alexander aus dem Himmel und schlug einen Ring aus Luft, der Hüte, Zeitungen und Laub davonwirbelte. Verletzt wurde niemand.'] },
@@ -206,7 +211,33 @@ const ZT_STADT = [
   { r: 'Wirtschaft', t: 'Vespera-Bank: Tresor voller denn je', x: 'Die Direktion meldet einen neuen Höchststand an eingelagertem Gold. Der Tresor liegt tief unter dem Börsenviertel und gilt als der sicherste der Welt.' },
   { r: 'Stadt', t: 'Brass Lantern: Klavier wieder gestimmt', x: 'Die Arbeiterkneipe am Kneipenplatz hat ihr altes Klavier stimmen lassen. Die Stammgäste sagen, es klinge jetzt fast zu gut.' },
   { r: 'Stadt', t: 'Die Polizei verstärkt ihre Streifen', x: 'Nach den Umtrieben der Anarchisten gehen die Schutzleute nun zu zweit. Der Polizeipräsident dankt Herrn Alexander für seine Hilfe.' },
+  // V66: die andere Seite der Stadt
+  { r: 'Stadt', t: 'Mieten im Arbeiterviertel steigen erneut', x: 'Zum dritten Mal in diesem Jahr erhöhen die Hausverwaltungen am Kneipenplatz die Mieten. Viele Häuser gehören Gesellschaften, an denen Herr Alexander beteiligt ist. Seine Verwaltung verweist auf die gestiegenen Kohlepreise.' },
+  { r: 'Wirtschaft', t: 'Gewerkschaft fordert mehr Lohn', x: 'Die Gewerkschaft der Kesselschmiede verlangt zehn Prozent mehr Lohn in den Werken am Hafen. „Wir bauen die reichste Stadt der Welt und können uns keine Kohle leisten“, sagt ihr Sprecher. Die Werksleitungen schweigen.' },
+  { r: 'Meinung', t: 'Leitartikel: Wem gehört Vespera?', x: 'Das Hotel, die Bank, die Bahn, die halbe Avenue: Fragt man in Vespera, wem etwas gehört, lautet die Antwort meist „Herrn Alexander“. Niemand bestreitet, dass er Großes geschaffen hat. Aber eine Stadt, in der so vieles in einer Hand liegt, muss sich fragen, wer ihr widerspricht, wenn diese Hand irrt.' },
+  { r: 'Meinung', t: 'Der Mann mit dem Kristall: Segen oder Gefahr?', x: 'Ein Leser aus dem Theaterviertel schreibt: „Ich bewundere Herrn Alexander. Aber ich schlafe schlecht, seit ich weiß, dass ihn keine Kugel und kein Gesetz aufhalten kann.“ Eine Antwort aus dem Belmont steht aus.' },
+  { r: 'Stadt', t: 'Unfall in der Gießerei', x: 'Ein Dampfventil platzte in der Nachtschicht, zwei Arbeiter wurden verbrüht. Die Kollegen fordern neue Kessel und kürzere Schichten. Die Werksleitung spricht von einem bedauerlichen Einzelfall, im Viertel spricht man vom dritten in diesem Winter.' },
+  { r: 'Gesellschaft', t: 'Salongeflüster: Ist er zu mächtig geworden?', x: 'In den Salons der Avenue bewundert man Herrn Alexander, und man beneidet ihn. Reeder von Hallstein soll beim Diner gesagt haben: „Eine Stadt braucht einen Baumeister. Einen König braucht sie nicht.“ Gelacht haben alle, widersprochen hat keiner.' },
+  { r: 'Stadt', t: 'Schweigemarsch vor dem Belmont', x: 'Rund zweihundert Arbeiter zogen am Abend mit Laternen vor das Grand Hotel. Sie trugen Schilder mit „Brot, Kohle, Lohn“. Der Marsch blieb friedlich; oben im Ballsaal spielte die Kapelle weiter.' },
+  { r: 'Kultur', t: 'Kabarett im Metropol spottet über den Herrn im Turm', x: 'Die neue Nummer im Varieté heißt „Der Mann, der alles hebt, außer den Löhnen“. Das Publikum lacht, auch in den Logen, wenn auch etwas leiser.' },
 ];
+// V66: Leserbriefe in jeder Ausgabe, mal bewundernd, mal neidisch, mal wütend
+const ZT_LESER = [
+  ['A. K., Hafenpromenade', 'Ohne Herrn Alexander stünde hier nur Eis. Wer schimpft, möge bitte zurück nach Hamburg ziehen.'],
+  ['Familie Brandt, Kneipenplatz', 'Unser Ofen bleibt drei Tage die Woche kalt. Die Kronleuchter im Belmont brennen jede Nacht.'],
+  ['Ein Kesselschmied', 'Ich habe am Viadukt gebaut. Auf der Gedenktafel steht nur ein Name, und es ist nicht meiner.'],
+  ['M. v. S., Salonviertel', 'Herr Alexander ist ein Genie. Man muss ihn nicht lieben, um das zu sehen.'],
+  ['Eine Verkäuferin', 'Ich habe ihn fliegen sehen und mich gefreut wie ein Kind. Dann kam die Mieterhöhung.'],
+  ['Dr. Heinemann, Observatoriumsviertel', 'Bewunderung ist gut, Kontrolle ist besser. Wer kontrolliert einen Unverwundbaren?'],
+  ['Ein Straßenbahnschaffner', 'Er grüßt immer freundlich. Das muss man ihm lassen. Er kann es sich ja auch leisten.'],
+  ['Witwe Ostermann', 'Das neue Hospital hat meinem Enkel das Leben gerettet. Ich bete für Herrn Alexander, auch wenn mein Sohn ihn verflucht.'],
+  ['Ein Student', 'Die Anarchisten sind Verbrecher. Aber ihre Flugblätter rechnen besser als der Stadtrat.'],
+  ['Frau Direktor Pohl', 'Neid ist eine hässliche Sache. Ich sehe sie jeden Tag vor dem Belmont.'],
+];
+function ztLeserKasten() {
+  const L = ZT_LESER.slice().sort(() => Math.random() - 0.5).slice(0, 3);
+  return { titel: 'Leserbriefe', zeilen: L.map(([w, t]) => '„' + t + '“ · ' + w) };
+}
 const ZT_ANZEIGEN = [
   ['CAFÉ KRANICH', 'Torten · Mokka · Musik', 'Salonviertel'], ['VARIETÉ METROPOL', 'Die große Revue · täglich', 'Lichterviertel'], ['VESPERA-BANK', 'Ihr Gold in sicheren Händen', 'Börsenviertel'],
   ['THE BELMONT', 'Ballsaal · Jazz · Champagner', 'Grand Hotel seit 1912'], ['THE BRASS LANTERN', 'Bier, Klavier und ehrliche Leute', 'Kneipenplatz'], ['PELZHAUS NORDSTERN', 'Wärme mit Stil', 'Grande Promenade'],
@@ -261,6 +292,8 @@ const ZT_REDE = [
   'Herr Alexander fasste sich kurz: „Danke. Und jetzt: tanzen!“ Der Saal lachte und applaudierte stehend.',
   'Herr Alexander zeigte sich großzügig und versprach der Stadt Geschenke. Die Kapelle spielte einen Tusch, die Gäste jubelten.',
 ];
+// V66: was der Kurier außerdem bemerkt
+const ZT_GALA_DRAUSSEN = ['Vor den Türen des Belmont standen derweil Arbeiter mit Laternen und Schildern: „Ein Glas Champagner kostet so viel wie eine Woche Kohle.“ Die Portiers ließen sie gewähren.', 'Nicht alle Gäste applaudierten gleich laut. Reeder von Hallstein hob sein Glas, trank aber nicht.', 'Im Arbeiterviertel blieb es an diesem Abend still. Man feierte dort nicht, man arbeitete.', ''];
 const ZT_GALA = { rede: -1, foto: null, champ: false };
 function ztGala(d) {
   const ph = d && d.phase, G = ZT_GALA;
@@ -274,7 +307,7 @@ function ztGala(d) {
     const r = d.rede != null && d.rede >= 0 ? d.rede : G.rede, n = d.n | 0;
     const text = 'Glanzvoller Abend im großen Ballsaal des Belmont: Direktor Hartmann und Bürgermeister von Arnim ehrten Herrn Alexander, der Stadtrat verlieh ihm den Goldenen Stern von Vespera. ' +
       (ZT_REDE[r] || 'Herr Alexander hörte die Reden mit einem stillen Lächeln an und hob nur das Glas.') +
-      ' Nach dem Toast eröffnete ein Paar den Ehrenwalzer, Goldregen fiel von der Decke, und über dem Belmont stiegen Feuerwerk in Türkis und Gold in den Polarhimmel.' + (n > 1 ? ' Es war bereits die ' + n + '. Gala zu seinen Ehren.' : '');
+      ' Nach dem Toast eröffnete ein Paar den Ehrenwalzer, Goldregen fiel von der Decke, und über dem Belmont stiegen Feuerwerk in Türkis und Gold in den Polarhimmel.' + (n > 1 ? ' Es war bereits die ' + n + '. Gala zu seinen Ehren, ausgerichtet in seinem eigenen Hotel.' : '') + (' ' + ztPick(ZT_GALA_DRAUSSEN)).replace(/ $/, '');
     const it = zeitungMeldung({ titel: ztPick(['Gala im Belmont: Vespera feiert Alexander', 'Goldener Stern für den Herrn von Vespera', 'Feuerwerk über dem Belmont: die Gala des Jahres']), text, rubrik: 'Gesellschaft', prio: 9, ort: 'The Belmont', extra: true, ruf: 'Extrablatt! Gala im Belmont! Goldener Stern für Alexander!', quelle: 'gala' });
     if (it && G.foto) it.foto = G.foto;
   }
@@ -363,7 +396,7 @@ export function zeitungDrucken(extra = false, still = false) {
     uhr: String(now.getHours()).padStart(2, '0') + '.' + String(now.getMinutes()).padStart(2, '0') + ' Uhr',
     lead, items, wetter: W, kolumne,
     polizei: [['Gefasst', S.gefasst || 0], ['Entkommen', S.entkommen || 0], ['Bomben entschärft', S.entschaerft || 0], ['Explosionen', S.explodiert || 0]],
-    kaesten: [...F.boxes.values()].map(b => ({ titel: b.titel, zeilen: b.zeilen })),
+    kaesten: [...F.boxes.values()].map(b => ({ titel: b.titel, zeilen: b.zeilen })).concat([ztLeserKasten()]),
     anzeigen: ZT_ANZEIGEN.slice().sort(() => Math.random() - 0.5).slice(0, 3),
   };
   F.archive.push(ed); if (F.archive.length > ZT_ARCH) F.archive.shift();

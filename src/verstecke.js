@@ -586,7 +586,7 @@ function alarm(E, H) {
   if (E.ph !== 'calm') return;
   E.ph = 'fight';
   const S = E.crooks.find(pd => pd.gg.s === 'script');
-  if (S) gegnerSay('Ein Anarchist', pick(['Alarm! Alexander ist hier unten!', 'Verdammt, er hat uns gefunden!', 'Genossen, zu den Waffen! Der Herr von Vespera!', 'Wie kommt der hier runter?!']), 3, S.gg.x, S.gg.z);
+  if (S) gegnerSay('Ein Anarchist', pick(['Alarm! Alexander ist hier unten!', 'Verdammt, er hat uns gefunden!', 'Genossen, zu den Waffen! Der Herr von Vespera!', 'Wie kommt der hier runter?!', 'Hier unten bezahlt er keine Miete, Genossen! Aber wir!']), 3, S.gg.x, S.gg.z);
   for (const pd of E.crooks) if (pd.gg.s === 'script') { pd.gg.s = 'fight'; pd.gg.gm = null; }
 }
 const pick = a => a[Math.floor(Math.random() * a.length)];
@@ -610,7 +610,7 @@ function raidStep(E, H, dt) {
   }
   if (B && B.gg.s === 'script') {
     GEG.face(B, p.x, p.z, dt); GEG.place(B);
-    if (!E.introSaid && E.t > 0.6) { E.introSaid = true; gegnerSay('Der Rote Kasimir', pick(['Willkommen in der Station Nordstern, Alexander. Hier unten bist du nur ein Mann im Frack.', 'Siehst du den Kasten dort? Die Ladung reicht für das ganze Belmont!', 'Du kommst spät, Herr von Vespera. Aber nicht zu spät für die Vorstellung.']), 3, B.gg.x, B.gg.z); }
+    if (!E.introSaid && E.t > 0.6) { E.introSaid = true; gegnerSay('Der Rote Kasimir', pick(['Willkommen in der Station Nordstern, Alexander. Hier unten bist du nur ein Mann im Frack.', 'Siehst du den Kasten dort? Die Ladung reicht für das ganze Belmont!', 'Du kommst spät, Herr von Vespera. Aber nicht zu spät für die Vorstellung.', 'Hier unten, Alexander, wohnen die, die du vergessen hast. Sieh dich gut um.']), 3, B.gg.x, B.gg.z); }
     if ((B.gg.introT -= dt) <= 0) { B.gg.s = 'fight'; GEG.act(B, 13.1); alarm(E, H); }
   }
   // Höllenmaschine: tickt, sobald Kasimir halb besiegt ist (oder nach 50 s Kampf)

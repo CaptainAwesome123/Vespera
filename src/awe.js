@@ -10,8 +10,9 @@
    (aLive.w). Nach ein paar Sekunden geht jeder seiner Wege.
    Niemand sonst hat solche Kräfte; die Stadt weiß, wer er ist: ab und zu
    ruft jemand etwas ("Seht nur, Alexander fliegt!").
-   V55: Jeder hat eine Haltung zu Alexander (attOf): die meisten bewundern ihn,
-   viele sind neidisch, Arbeiter sind skeptisch, ängstlich oder respektvoll,
+   V55: Jeder hat eine Haltung zu Alexander (attOf): viele bewundern ihn,
+   viele sind neidisch (V66 Kanon: er ist ein reicher Kapitalist, kein
+   strahlender Held; manche verachten oder hassen ihn sogar), Arbeiter sind skeptisch, ängstlich oder respektvoll,
    Polizisten, Portiers, Kellner und Chauffeure stehen stramm oder verneigen
    sich. Seine Autorität erkennt jeder an: geht er zu Fuß vorbei, machen die
    Leute Platz, ziehen den Hut, winken, verneigen sich, tuscheln (Neid),
@@ -45,14 +46,14 @@ export function attOf(pd) {
   if (k === 'police' || k === 'livery' || k === 'waiter' || k === 'chauffeur' || k === 'sailor') att = 'dienst';
   else if (k === 'kid') att = 'bew';
   else if (k === 'worker') att = tr === 'mürrisch' ? (r < 0.7 ? 'skep' : 'furcht') : tr === 'schüchtern' ? (r < 0.6 ? 'furcht' : 'resp') : r < 0.36 ? 'skep' : r < 0.64 ? 'furcht' : 'resp';
-  else att = tr === 'mürrisch' || tr === 'ehrgeizig' ? (r < 0.6 ? 'neid' : 'bew') : r < 0.3 ? 'neid' : 'bew';
+  else att = tr === 'mürrisch' || tr === 'ehrgeizig' ? (r < 0.5 ? 'neid' : r < 0.7 ? 'skep' : 'bew') : r < 0.25 ? 'neid' : r < 0.37 ? 'skep' : r < 0.45 ? 'furcht' : 'bew';
   return pd.att = att;
 }
 const WHO = { worker: 'Ein Arbeiter', police: 'Ein Polizist', kid: 'Ein Junge', waiter: 'Ein Kellner', livery: 'Ein Portier', chauffeur: 'Ein Chauffeur', sailor: 'Ein Matrose' };
 export const whoOf = pd => pd.cit ? pd.cit.name : WHO[pd.a && pd.a.kind] || (pd.fem ? 'Eine Dame' : 'Ein Herr');
 // was man ruft, wenn er zu Fuß vorbeikommt
 export const SAY_NEAR = {
-  bew: ['Guten Abend, Herr Alexander!', 'Da ist er! Herr Alexander!', 'Herr Alexander! Was für eine Ehre!', 'Vespera dankt Ihnen, Herr Alexander!', 'Sehen Sie nur, er geht zu Fuß wie unsereins!'],
+  bew: ['Guten Abend, Herr Alexander!', 'Da ist er! Herr Alexander!', 'Herr Alexander! Was für eine Ehre!', 'Schön, Sie zu sehen, Herr Alexander!', 'Sehen Sie nur, er geht zu Fuß wie unsereins!'],
   kid: ['Mama, schau! Das ist Alexander!', 'Herr Alexander! Können Sie fliegen? Zeigen Sie’s mir!', 'Wenn ich groß bin, werd’ ich wie Alexander!'],
   neid: ['Na, wenn das nicht der Herr von Vespera ist …', 'Dem gehört die halbe Stadt.', 'Manche haben eben alles.', 'Penthouse, Villa, Luftschiff … und ich zahle Miete.'],
   skep: ['Da kommt der Herr von oben.', 'Was will der denn hier unten?', 'Schaut euch den an. Keinen Tag geschuftet wie wir.', '’n Abend … Herr Alexander.'],
@@ -71,7 +72,7 @@ export const SAY_POW = {
 };
 // was sie sagen, wenn er sie anspricht (ragdoll.js citizenSay)
 export const TALK = {
-  bew: ['Herr Alexander! Darf ich Ihnen die Hand schütteln? Das glaubt mir zu Hause keiner.', 'Ohne Sie gäbe es Vespera nicht. Danke, Herr Alexander!', 'Ich habe Sie über dem Belmont fliegen sehen. Ich werde es nie vergessen.', 'Guten Abend, Herr Alexander! Es ist mir eine Ehre.'],
+  bew: ['Herr Alexander! Darf ich Ihnen die Hand schütteln? Das glaubt mir zu Hause keiner.', 'Ohne Sie gäbe es Vespera nicht. Das sage ich jedem, der über Sie schimpft.', 'Ich habe Sie über dem Belmont fliegen sehen. Ich werde es nie vergessen.', 'Guten Abend, Herr Alexander! Es ist mir eine Ehre.'],
   neid: ['Guten Abend, Herr Alexander. Penthouse, Villa, Luftschiff … manche haben eben alles.', 'Natürlich, Herr Alexander. Wie Sie wünschen. Wie immer.', 'Eines Tages habe ich auch eine Suite im Belmont. Ganz bestimmt.', 'Schön für Sie. Unsereins arbeitet für so einen Abend ein ganzes Jahr.'],
   skep: ['Herr Alexander. Was führt Sie zu uns hier unten?', 'Schöne Schuhe. Die kosten mehr, als ich im Jahr verdiene.', 'Wir bauen Ihre Türme, Herr Alexander. Vergessen Sie das nicht.', 'Hm. ’n Abend. Sie sind der Chef, das weiß hier jeder.'],
   furcht: ['V… verzeihen Sie, Herr Alexander. Ich hab nichts getan!', 'Bitte, Herr Alexander, ich will keinen Ärger.', 'J… ja, Herr Alexander. Natürlich, Herr Alexander.'],

@@ -2,7 +2,9 @@
    V60 · GEGNER: ANARCHISTEN UND RÄUBER
    Nicht alle in Vespera lieben den Herrn der Stadt. Eine Untergrund-Bande
    von Anarchisten will Alexander stürzen ("Nieder mit Alexander! Vespera
-   gehört dem Volk!"), und wie in jeder Großstadt gibt es Räuber und
+   gehört dem Volk!"). V66 Kanon: Ihre Wut hat Gründe (Löhne, Mieten, Kohle,
+   die Macht eines einzigen reichen Mannes); falsch sind ihre Mittel, nicht
+   jede ihrer Fragen. Und wie in jeder Großstadt gibt es Räuber und
    Taschendiebe. Ab und zu passiert in Alexanders Nähe etwas:
    - Überfall: ein Räuber bedroht einen Passanten (Hände hoch). Kommt
      Alexander, flieht er und schießt im Notfall: die Kugeln prallen ab.
@@ -63,19 +65,19 @@ const GSAY = {
   dieb: ['Meine Geldbörse! Haltet den Dieb!', 'Hey! Meine Uhr ist weg!', 'Ein Taschendieb! Dort, der Kerl mit der Mütze!', 'Meine Handtasche! Haltet ihn!'],
   diebRuf: ['Schönen Abend noch, die Herrschaften!', 'Danke für die Spende!', 'Wer zu langsam ist, zahlt.'],
   besiegt: ['Au! Schon gut, schon gut, ich ergebe mich!', 'Uff … was war das denn?', 'Ich geb auf! Ich geb auf!', 'Mein Kopf … die Sterne …', 'Nicht noch mal, bitte!', 'Das … das ist nicht fair!'],
-  besiegtAnar: ['Ihr könnt uns nicht alle aufhalten!', 'Die Revolution vergisst nicht!', 'Verflucht seist du, Alexander!', 'Das war erst der Anfang!'],
-  anarParole: ['Nieder mit Alexander!', 'Vespera gehört dem Volk!', 'Keine Götter, keine Herren!', 'Brecht die goldenen Türme!', 'Der Kristall macht ihn nicht zum König!', 'Freiheit statt Champagner!', 'Wir sind die Stadt, nicht er!', 'Für die Arbeiter! Gegen das Belmont!'],
+  besiegtAnar: ['Ihr könnt uns nicht alle aufhalten!', 'Die Revolution vergisst nicht!', 'Verflucht seist du, Alexander!', 'Das war erst der Anfang!', 'Sperr mich ein. Die Mieten bleiben trotzdem zu hoch!', 'Mein Vater hat dein Viadukt gebaut … und ist daran gestorben!'],
+  anarParole: ['Nieder mit Alexander!', 'Vespera gehört dem Volk!', 'Keine Götter, keine Herren!', 'Brecht die goldenen Türme!', 'Der Kristall macht ihn nicht zum König!', 'Freiheit statt Champagner!', 'Wir sind die Stadt, nicht er!', 'Für die Arbeiter! Gegen das Belmont!', 'Brot und Kohle statt Kronleuchter!', 'Wir haben eure Türme gebaut!', 'Oben wird getanzt, unten wird gefroren!', 'Löhne rauf, Mieten runter!'],
   anarBombe: ['Die Zündschnur brennt. Und jetzt weg!', 'Ein Gruß an den Herrn von Vespera!', 'Lauft, Genossen! Lauft!', 'Wenn das knallt, hört es das ganze Belmont!'],
-  anarAngriff: ['Da ist er! Auf ihn!', 'Zeigt ihm, wem die Stadt gehört!', 'Steine! Werft, was ihr habt!', 'Er ist auch nur ein Mensch!', 'Heute fällt der Herr von Vespera!'],
+  anarAngriff: ['Da ist er! Auf ihn!', 'Zeigt ihm, wem die Stadt gehört!', 'Steine! Werft, was ihr habt!', 'Er ist auch nur ein Mensch!', 'Heute fällt der Herr von Vespera!', 'Für jede Lohnkürzung einen Stein!'],
   anarAbprall: ['Es prallt einfach ab!', 'Er ist unverwundbar … ein Teufel!', 'Nichts hält ihn auf!', 'Rückzug! Rückzug!'],
   anarFlucht: ['Weg hier! Er ist zu stark!', 'Auseinander! Jeder für sich!', 'Wir kommen wieder, Alexander!'],
   polizei: ['Im Namen des Gesetzes, Sie sind verhaftet!', 'Mitkommen, Freundchen!', 'Das reicht jetzt. Hände auf den Rücken!', 'Ab aufs Revier mit dir!', 'Den nehmen wir mit.'],
-  polizeiDank: ['Danke, Herr Alexander! Wir übernehmen.', 'Saubere Arbeit, Herr Alexander!', 'Ohne Sie wären wir aufgeschmissen, Herr Alexander.', 'Wir kümmern uns um den Rest, Herr Alexander.'],
-  opferDank: ['Danke, Herr Alexander! Sie haben mich gerettet!', 'Mein Held! Das vergesse ich Ihnen nie!', 'Herr Alexander … ich weiß gar nicht, wie ich Ihnen danken soll!', 'Gott segne Sie, Herr Alexander!', 'Meine Brieftasche! Danke, danke, danke!'],
+  polizeiDank: ['Danke, Herr Alexander! Wir übernehmen.', 'Saubere Arbeit, Herr Alexander!', 'Ohne Sie wären wir aufgeschmissen, Herr Alexander.', 'Wir kümmern uns um den Rest, Herr Alexander.', 'Danke. Nächstes Mal lassen Sie uns bitte auch etwas übrig, Herr Alexander.'],
+  opferDank: ['Danke, Herr Alexander! Sie haben mich gerettet!', 'Das vergesse ich Ihnen nie, Herr Alexander!', 'Herr Alexander … ich weiß gar nicht, wie ich Ihnen danken soll!', 'Meine Brieftasche! Danke, danke, danke!', 'Danke. Ausgerechnet Sie … na ja. Danke trotzdem.'],
   opferVerloren: ['Weg ist er … und mein Geld auch.', 'Na wunderbar. Und jetzt?', 'So ein Schuft! Das ganze Wochengeld!'],
-  zuschauerJubel: ['Bravo, Herr Alexander!', 'Der Halunke hat’s verdient!', 'Haben Sie das gesehen? Mit einer Hand!', 'Hoch lebe Alexander!', 'So geht man mit Gesindel um!', 'Drei Hurras für Herrn Alexander!'],
+  zuschauerJubel: ['Bravo, Herr Alexander!', 'Der Halunke hat’s verdient!', 'Haben Sie das gesehen? Mit einer Hand!', 'Hoch lebe Alexander!', 'So geht man mit Gesindel um!', 'Das musste aber nicht so hart sein.', 'Der Junge war doch höchstens sechzehn …', 'Hoffentlich fragt jetzt auch mal einer, warum die Leute so verzweifelt sind.'],
   zuschauerAngst: ['Eine Bombe! Alle weg hier!', 'Runter! Runter mit euch!', 'Holt die Polizei!', 'Mein Gott, sie schießen!', 'Weg von der Straße!'],
-  bombeWeg: ['Er hat die Bombe weggeworfen! Wir sind gerettet!', 'Hoch in den Himmel! Was für ein Mann!', 'Ins Wasser damit! Bravo!', 'Puh … das war knapp.'],
+  bombeWeg: ['Er hat die Bombe weggeworfen! Wir sind gerettet!', 'Hoch in den Himmel! Gott sei Dank!', 'Ins Wasser damit! Bravo!', 'Puh … das war knapp.'],
   bombeKnall: ['Mein Gott! Ist jemand verletzt?', 'Die Fenster! Alles voller Scherben!', 'Diese verdammten Anarchisten!'],
 };
 const GWHO = { raeuber: 'Ein Räuber', dieb: 'Ein Taschendieb', anarchist: 'Ein Anarchist', anfuehrer: 'Der Anführer', polizei: 'Ein Polizist', boss: 'Der Rote Kasimir' };

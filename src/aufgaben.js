@@ -69,7 +69,7 @@ const RANDOLF_MORE = [
   { title: 'Kohlen für die Villa', text: 'Der Heizkeller braucht zwanzig Sack Kohle, Sir. Die Nächte sind lang am Kraterrand.', g: { k: 'ware', g: 'kohle', n: 20, to: 'villa' }, rw: { rep: { arbeiter: 1 } }, say: 'Sir, der Heizer lässt fragen, wegen der Kohlen.' },
 ];
 const MAYOR = [
-  { title: 'Kohle für das Arbeiterviertel', text: 'Die Kältewelle trifft das Arbeiterviertel hart. Vierzig Sack Kohle am Kneipenplatz würden hundert Familien durch den Monat bringen. Die Stadt dankt Ihnen.', g: { k: 'ware', g: 'kohle', n: 40, to: 'kneipe' }, rw: { rep: { arbeiter: 10, buerger: 2 }, wohl: 4 } },
+  { title: 'Kohle für das Arbeiterviertel', text: 'Die Kältewelle trifft das Arbeiterviertel hart. Vierzig Sack Kohle am Kneipenplatz würden hundert Familien durch den Monat bringen. Offen gesagt: Die Gewerkschaft verteilt schon Flugblätter, dass die Herren im Turm warm sitzen.', g: { k: 'ware', g: 'kohle', n: 40, to: 'kneipe' }, rw: { rep: { arbeiter: 10, buerger: 2 }, wohl: 4 } },
   { title: 'Ruhe auf den Straßen', text: 'Räuber und Taschendiebe machen die Avenue unsicher. Wenn Sie zwei von ihnen der Polizei übergeben, schläft Vespera ruhiger.', g: { k: 'gauner', stat: 'gefasst', n: 2, start: 'raub' }, rw: { rep: { buerger: 8 } } },
   { title: 'Ehrengast im Metropol', text: 'Das Varieté Metropol feiert seine hundertste Vorstellung. Ihr Erscheinen wäre die Krönung des Abends.', g: { k: 'gehen', at: 'metropol' }, rw: { rep: { elite: 5, buerger: 2 } } },
   { title: 'Die Straßenbahn-Linie Nord', text: 'Der Stadtrat hat die Pläne für die Straßenbahn-Linie Nord beschlossen, nur das Geld fehlt. Eine Stiftung von Ihnen, und wir legen morgen die Schienen.', g: { k: 'stift', id: 'tram' }, rw: { rep: { buerger: 4 } } },
@@ -81,8 +81,9 @@ const MAYOR = [
 ];
 const MAYOR_MORE = [
   { title: 'Taschendiebe am Hafen', text: 'Wieder Taschendiebe. Die Polizei ist dankbar für jede Hilfe.', g: { k: 'gauner', stat: 'gefasst', n: 1, start: 'dieb' }, rw: { rep: { buerger: 4 } } },
-  { title: 'Bier zum Feierabend', text: 'Die Brauerei streikt, und das Arbeiterviertel sitzt auf dem Trockenen. Zwanzig Fass Bier am Kneipenplatz, bitte.', g: { k: 'ware', g: 'bier', n: 20, to: 'kneipe' }, rw: { rep: { arbeiter: 5 } } },
+  { title: 'Bier zum Feierabend', text: 'Die Brauer streiken für mehr Lohn, und man kann es ihnen kaum verdenken. Bis man sich einig ist, sitzt das Arbeiterviertel auf dem Trockenen: zwanzig Fass Bier am Kneipenplatz, bitte.', g: { k: 'ware', g: 'bier', n: 20, to: 'kneipe' }, rw: { rep: { arbeiter: 5 } } },
   { title: 'Kohle, schon wieder', text: 'Die Kälte lässt nicht nach. Dreißig Sack Kohle am Kneipenplatz.', g: { k: 'ware', g: 'kohle', n: 30, to: 'kneipe' }, rw: { rep: { arbeiter: 6 }, wohl: 2 } },
+  { title: 'Neue Ventile für die Gießerei', text: 'Ein Kessel in der Gießerei hat zwei Männer verbrüht. Die Gewerkschaft verlangt neue Ventile, sonst ruht die Arbeit, und ehrlich gesagt, Herr Alexander: zu Recht. Zehn Kisten Maschinenteile am Kneipenplatz.', g: { k: 'ware', g: 'maschinen', n: 10, to: 'kneipe' }, rw: { rep: { arbeiter: 7 }, wohl: 2 } },
   { title: 'Kaffee für die Nachtschicht', text: 'Die Nachtschicht im Stahlwerk braucht Kaffee: fünfzehn Sack am Kneipenplatz.', g: { k: 'ware', g: 'kaffee', n: 15, to: 'kneipe' }, rw: { rep: { arbeiter: 4 } } },
 ];
 const BANK = [
@@ -180,9 +181,9 @@ function finishQuest(q, line) {
   ktChanged('quest');
 }
 const THANKS = {
-  buerger: ['Das vergesse ich Ihnen nie, Herr Alexander!', 'Sie sind ein Ehrenmann, Herr Alexander. Wirklich.', 'Ich werde es allen erzählen, Herr Alexander!', 'Danke … ich weiß gar nicht, was ich sagen soll.'],
+  buerger: ['Das vergesse ich Ihnen nie, Herr Alexander!', 'Ich werde es allen erzählen, Herr Alexander!', 'Danke … ich weiß gar nicht, was ich sagen soll.', 'Danke. Ich hab’ schon viel Schlechtes über Sie gehört. Heute war’s was anderes.', 'Danke, Herr Alexander. Für Sie war’s eine Kleinigkeit, für mich nicht.'],
   randolf: ['Sehr gütig, Sir. Das Haus dankt es Ihnen.', 'Vortrefflich, Sir. Ich kümmere mich um den Rest.', 'Danke, Sir. Wie immer tadellos.'],
-  mayor: ['DIE STADT VESPERA DANKT IHREM GRÜNDER STOP HOLLISTER', 'IM NAMEN DES STADTRATS UNSEREN TIEFSTEN DANK STOP', 'VESPERA IST STOLZ AUF SIE STOP HOLLISTER'],
+  mayor: ['DIE STADT VESPERA DANKT IHREM GRÜNDER STOP HOLLISTER', 'IM NAMEN DES STADTRATS UNSEREN TIEFSTEN DANK STOP', 'ERLEDIGT STOP DIE OPPOSITION IM STADTRAT GRUMMELT TROTZDEM STOP HOLLISTER'],
   bank: ['Eine kluge Entscheidung, Herr Alexander. Die Börse wird es Ihnen danken.', 'Die Bank verneigt sich, Herr Alexander.'],
 };
 

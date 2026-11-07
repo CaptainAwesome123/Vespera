@@ -504,7 +504,7 @@ export function updateOrte(dt) {
   if (S.st === 'applaus') { const u = S.t; const k = u < 0.6 ? u / 0.6 : u < 3.2 ? 1 : Math.max(0, 1 - (u - 3.2) / 0.8); for (const d of V.dancers) d.tilt = -0.42 * k; }
   // Alexander betritt den Saal: Applaus, Begrüßung durch den Conférencier (einmal je Besuch)
   const inHall = V.inHall(p.x, p.z, p.y);
-  if (inHall && !S.inside) { S.inside = true; if (S.greet <= 0) { S.greet = 90; clap(V, 5.5, true); if (V.mc.a) { setAct(V.mc, 2.3); S.mcT = 4; } say('Der Conférencier', pk(Math.random, ['Meine Damen und Herren … Alexander ist im Haus!', 'Applaus für den Herrn von Vespera: Alexander!', 'Herr Alexander! Die Loge gehört Ihnen, das ganze Haus gehört Ihnen!'])); } }
+  if (inHall && !S.inside) { S.inside = true; if (S.greet <= 0) { S.greet = 90; clap(V, 5.5, true); if (V.mc.a) { setAct(V.mc, 2.3); S.mcT = 4; } say('Der Conférencier', pk(Math.random, ['Meine Damen und Herren … Alexander ist im Haus!', 'Applaus für den Herrn von Vespera: Alexander!', 'Herr Alexander! Die Loge gehört Ihnen. Das ganze Haus übrigens auch, wie man hört!'])); } }
   if (!inHall) S.inside = false;
   if (S.greet > 0) S.greet -= dt;
   if (S.mcT > 0 && (S.mcT -= dt) <= 0 && V.mc.a) setAct(V.mc, S.st === 'nummer' ? 0.9 : 2.3);
