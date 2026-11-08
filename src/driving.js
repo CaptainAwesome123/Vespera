@@ -9,6 +9,7 @@ import { villaRoadAt, SERP, carGeoHi, COL, serpReset, parked, serpWallHit } from
 import { makeGlowPoints } from './ragdoll.js';
 import { cars } from './airships.js';
 import { carDamageAttr, glassFor } from './cars.js';
+import { doorSlot, hideDoors, setDoors, doorSound, boardIn, boardOut, carToWorld, BOARD } from './tueren.js';
 import { CARM, modelCarMeshes } from './carmodel.js';
 import { TRF, OBSTACLES, placeTrafficCar, polyAt, _q, _ce, _p, _s, _m } from './traffic.js';
 import { player, keys, touch } from './player.js';
@@ -59,11 +60,13 @@ export function groundAt(x, z, y) {
 export function initDriveState() { Object.assign(DRIVE, { body: null, gear: 0, rpm: VP.idle, shiftT: 0, revMode: false, revT: 0, delta: 0, spin: [0, 0, 0, 0], wheelA: 0, slip: 0, lock: 0, axf: 0, ayf: 0, shake: 0, wheels: null, glass: null, lights: null, stalled: false, au: null, lastW: null, fov0: 0, camP: null, splashT: 0 }); }
 export function playerCarMesh() {
   if (DRIVE.mesh) return;
-  DRIVE.mesh = new T.InstancedMesh(carGeoHi({ driver: true, noWheels: true }), MAT.carPaint, 1);
+  // V74: Karosserie mit ausgesparten Vordertüren, Innenraum dahinter; die Türen sind eigene, drehbare Teile (tueren.js)
+  DRIVE.mesh = new T.InstancedMesh(carGeoHi({ driver: true, noWheels: true, tub: true }), MAT.carPaintCut, 1);
   carDamageAttr(DRIVE.mesh);
   DRIVE.mesh.frustumCulled = false; scene.add(DRIVE.mesh);
   DRIVE.mesh.setColorAt(0, new T.Color(0.3, 0.05, 0.06));
-  DRIVE.glass = glassFor(DRIVE.mesh); DRIVE.glass.count = 1;
+  DRIVE.glass = glassFor(DRIVE.mesh, { doors: true }); DRIVE.glass.count = 1;
+  DRIVE.doorSlot = doorSlot(); DRIVE.dR = DRIVE.dL = 0; DRIVE.doorCol = [0.3, 0.05, 0.06];
   DRIVE.wheels = new T.InstancedMesh(wheelGeo(), MAT.carPaint, 4); DRIVE.wheels.frustumCulled = false; scene.add(DRIVE.wheels);
   DRIVE.wheels.instanceMatrix.setUsage(T.DynamicDrawUsage);
   const lp = [];
@@ -96,7 +99,7 @@ export function wheelGeo() {
   for (let k = 0; k < 18; k++) { const a = k / 18 * Math.PI * 2; P.push([new T.BoxGeometry(0.06, 0.03, 0.16).rotateZ(a).translate(Math.cos(a) * 0.43, Math.sin(a) * 0.43, 0), [0.05, 0.05, 0.05]]); }
   return mergeColored(P);
 }
-export function driveEnter(c) {
+export function driveEnter(c, quiet = false) {
   playerCarMesh();
   initCarAudio();
   if (c) {
@@ -108,7 +111,7 @@ export function driveEnter(c) {
     DRIVE.body = makeBody(x, Math.max(0, e[13] - 0.22), z, h);
     if (c.dyn) { Object.assign(DRIVE.body, { vx: c.dyn.vx, vz: c.dyn.vz, w: c.dyn.w, dmg: c.dyn.dmg }); BODIES.delete(c.dyn); }
     if (c.dmg) DRIVE.body.dmg = c.dmg.slice();
-    DRIVE.col = c.c;
+    DRIVE.col = c.c; DRIVE.doorCol = c.c;
     DRIVE.mesh.setColorAt(0, new T.Color(...c.c)); DRIVE.mesh.instanceColor.needsUpdate = true;
     DRIVE.wheels.setColorAt(0, new T.Color(...c.c)); for (let k = 1; k < 4; k++) DRIVE.wheels.setColorAt(k, new T.Color(...c.c)); DRIVE.wheels.instanceColor.needsUpdate = true;
     carKind(c.model);
@@ -121,18 +124,83 @@ export function driveEnter(c) {
   player.fly = false; player.on = null; player.v.set(0, 0, 0);
   player.yaw = B.h - Math.PI / 2; player.pitch = -0.16;
   DRIVE.camP = null;
-  toast(isTouch ? 'Am Steuer · Knopf ▼ Handbremse' : 'Am Steuer · W/S Gas und Bremse · Leertaste Handbremse · R Wagen aufrichten');
+  DRIVE.thrI = DRIVE.brkI = DRIVE.stI = 0;
+  if (!quiet) driveToast();
 }
-export function driveExit() {
+const driveToast = () => toast(isTouch ? 'Am Steuer · Knopf ▼ Handbremse' : 'Am Steuer · W/S Gas und Bremse · Leertaste Handbremse · R Wagen aufrichten');
+// pos: Stelle, an der man steht (nach dem Aussteige-Ablauf); sonst wie früher neben dem Wagen
+export function driveExit(pos) {
   if (!DRIVE.on) return;
-  DRIVE.on = false;
-  // links neben der Fahrertür aussteigen (Fahrer sitzt rechts, also über den Beifahrersitz, wenn die Straße frei ist)
+  DRIVE.on = false; DRIVE.anim = null; DRIVE.dR = DRIVE.dL = 0;
   const B = DRIVE.body, lx = -Math.sin(B.h), lz = -Math.cos(B.h);
-  player.p.set(B.x + lx * 2.1, Math.max(0, B.y) + 0.05, B.z + lz * 2.1);
-  if (!onIsland(player.p.x, player.p.z, 1)) player.p.set(B.x - lx * 2.1, Math.max(0, B.y) + 0.05, B.z - lz * 2.1);
+  if (pos && pos.x !== undefined) player.p.set(pos.x, pos.y, pos.z);
+  else {
+    // links neben der Fahrertür aussteigen (Fahrer sitzt rechts, also über den Beifahrersitz, wenn die Straße frei ist)
+    player.p.set(B.x + lx * 2.1, Math.max(0, B.y) + 0.05, B.z + lz * 2.1);
+    if (!onIsland(player.p.x, player.p.z, 1)) player.p.set(B.x - lx * 2.1, Math.max(0, B.y) + 0.05, B.z - lz * 2.1);
+  }
   player.v.set(0, 0, 0); player.pitch = 0;
   if (camera.fov !== DRIVE.fov0 && DRIVE.fov0) { camera.fov = DRIVE.fov0; camera.updateProjectionMatrix(); }
   toast('Ausgestiegen');
+}
+
+/* ---------- V74: Ein- und Aussteigen mit Ablauf (Tür auf, hinsetzen, Beine hinein, Tür zu) ---------- */
+// Stelle vor der Tür auf Seite s, wenn man dort stehen kann (Boden etwa auf Wagenhöhe, kein Haus)
+function doorSpot(B, s) {
+  const w = carToWorld(B.x, B.z, B.h, BOARD.p0x, s * BOARD.p0z, [0, 0]), g = groundAt(w[0], w[1], B.y + 0.5);
+  if (!g || Math.abs(g.y - B.y) > 0.9) return null;
+  for (const b of nearBoxes(w[0], w[1], 0.6)) if (w[0] > b.x0 - 0.3 && w[0] < b.x1 + 0.3 && w[1] > b.z0 - 0.3 && w[1] < b.z1 + 0.3 && b.y1 > g.y + 0.4 && b.y0 < g.y + 1.6 && (b.x1 - b.x0 > 1.2 || b.z1 - b.z0 > 1.2)) return null;
+  return { x: w[0], z: w[1], y: g.y };
+}
+// E an einem geparkten Wagen (oder am eigenen): hingehen und einsteigen
+export function driveBoard(c) {
+  if (DRIVE.on || DRIVE.anim) return;
+  const px = player.p.x, py = player.p.y, pz = player.p.z;
+  driveEnter(c, true);
+  const B = DRIVE.body; if (!B) return;
+  B.vx = B.vz = B.w = 0;
+  // Fahrertür (rechts), außer die Beifahrertür liegt deutlich näher oder rechts ist kein Platz
+  const R = doorSpot(B, 1), L = doorSpot(B, -1), d = q => q ? Math.hypot(q.x - px, q.z - pz) : 1e9;
+  const s = R && (!L || d(R) < d(L) + 2.5) ? 1 : L ? -1 : 0;
+  if (!s) { driveToast(); return; }
+  const P = s > 0 ? R : L;
+  DRIVE.anim = { mode: 'in', ph: 'walk', t: 0, s, x: px, y: py, z: pz, tx: P.x, tz: P.z, gy: P.y, r: null, yaw: null };
+  DRIVE.camP = camera.position.clone();
+}
+// E am Steuer: anhalten, aussteigen
+export function driveLeave() {
+  if (!DRIVE.on || DRIVE.anim) return;
+  const B = DRIVE.body; if (!B || player.fly) { driveExit(); return; }
+  const R = doorSpot(B, 1), L = R ? null : doorSpot(B, -1), s = R ? 1 : L ? -1 : 0;
+  if (!s || B.air || B.sunk) { driveExit(); return; }
+  const P = s > 0 ? R : L;
+  DRIVE.anim = { mode: Math.hypot(B.vx, B.vz) > 0.6 ? 'stop' : 'out', ph: 'board', t: 0, s, tx: P.x, tz: P.z, gy: P.y, r: null, yaw: null };
+}
+function updateBoard(dt) {
+  const A = DRIVE.anim, B = DRIVE.body;
+  const by = (B.gy !== undefined && !B.air ? B.gy : B.y); A.My = by + 0.22;
+  if (A.mode === 'stop') {
+    // erst anhalten (die Tür geht nicht bei voller Fahrt auf); unterwegs die Stelle neu suchen
+    if (Math.hypot(B.vx, B.vz) < 0.6) { const P = doorSpot(B, A.s) || doorSpot(B, -A.s); if (!P) { DRIVE.anim = null; driveExit(); return; } if (!doorSpot(B, A.s)) A.s = -A.s; Object.assign(A, { mode: 'out', t: 0, tx: P.x, tz: P.z, gy: P.y }); }
+    return;
+  }
+  if (A.ph === 'walk') {
+    const dx = A.tx - A.x, dz = A.tz - A.z, d = Math.hypot(dx, dz), st = 1.45 * dt;
+    A.t += dt;
+    if (d <= st || A.t > 4) { A.x = A.tx; A.z = A.tz; A.ph = 'board'; A.t = 0; A.walking = false; }
+    else { A.x += dx / d * st; A.z += dz / d * st; A.wyaw = Math.atan2(dx, dz); A.walking = true; const g = groundAt(A.x, A.z, A.y + 0.5); if (g) A.y = g.y; }
+    return;
+  }
+  A.t += dt;
+  const r = A.r = A.mode === 'in' ? boardIn(A.t, A.s, BOARD.seatZ, A.r || {}) : boardOut(A.t, A.s, BOARD.seatZ, A.r || {});
+  if (DRIVE.model) r.d = 0;   // Pierce Arrow: Türen sind Teil des Modells
+  if (A.s > 0) DRIVE.dR = r.d; else DRIVE.dL = r.d;
+  const w = carToWorld(B.x, B.z, B.h, r.x, r.z, [0, 0]);
+  if (r.d > 0.05 && !A.opened) { A.opened = true; if (!DRIVE.model) doorSound(true, w[0], A.My + 1, w[1]); }
+  if (r.slam && !A.slammed) { A.slammed = true; if (!DRIVE.model) doorSound(false, w[0], A.My + 1, w[1]); }
+  if (!r.done) return;
+  if (A.mode === 'in') { DRIVE.anim = null; DRIVE.lookT = 0; driveToast(); }
+  else { DRIVE.exitYaw = B.h + r.phi; driveExit({ x: w[0], y: A.gy, z: w[1] }); }
 }
 // Wagen aufrichten und auf die nächste Fahrspur stellen (R)
 export function driveReset() {
@@ -151,9 +219,17 @@ export function driveReset() {
 export const _dp = { x: 0, y: 0, z: 0 };
 export function updateDrive(dt) {
   if (player.fly) { driveExit(); return; }
+  // V74: beim Ein- und Aussteigen steht der Wagen mit angezogener Handbremse (beim Anhalten wird gebremst)
+  if (DRIVE.anim) { const stop = DRIVE.anim.mode === 'stop'; DRIVE.inp = { up: 0, dn: stop ? 1 : 0, st: 0, hb: !stop, boost: false }; DRIVE.thrI = DRIVE.stI = 0; updateBoard(dt); return; }
   // Eingaben sammeln; die Physik läuft in updateVehicles
   const up = (keys.KeyW || keys.ArrowUp ? 1 : 0) + Math.max(0, touch.my), dn = (keys.KeyS || keys.ArrowDown ? 1 : 0) + Math.max(0, -touch.my);
-  DRIVE.inp = { up: Math.min(1, up), dn: Math.min(1, dn), st: Math.max(-1, Math.min(1, (keys.KeyD || keys.ArrowRight ? 1 : 0) - (keys.KeyA || keys.ArrowLeft ? 1 : 0) + touch.mx)), hb: !!(keys.Space || touch.down), boost: !!(keys.ShiftLeft || keys.ShiftRight) };
+  const st = Math.max(-1, Math.min(1, (keys.KeyD || keys.ArrowRight ? 1 : 0) - (keys.KeyA || keys.ArrowLeft ? 1 : 0) + touch.mx));
+  // V74: Pedale und Lenkung mit der Tastatur weich: Gas kommt in rund 0,2 s, die Bremse baut sich auf (die Last geht erst nach vorn,
+  // so blockieren die Vorderräder nicht gleich); Lenkeinschlag folgt der Taste, zurück zur Mitte schneller
+  const D = DRIVE, ramp = (v, want, upR, dnR) => v + Math.max(-dnR * dt, Math.min(upR * dt, want - v));
+  D.thrI = ramp(D.thrI || 0, Math.min(1, up), 5, 9); D.brkI = ramp(D.brkI || 0, Math.min(1, dn), 4.5, 10);
+  const s0 = D.stI || 0, grow = Math.abs(st) > Math.abs(s0) && st * s0 >= 0, sr = grow ? 5 : 8; D.stI = ramp(s0, st, sr, sr);
+  DRIVE.inp = { up: D.thrI, dn: D.brkI, st: D.stI, hb: !!(keys.Space || touch.down), boost: !!(keys.ShiftLeft || keys.ShiftRight) };
   if (keys.KeyR && !DRIVE.rDown) driveReset();
   DRIVE.rDown = !!keys.KeyR;
 }
@@ -185,6 +261,8 @@ export function stepPlayerCar(B, dt, inp) {
   let Fd = 0;
   if (thr > 0 && D.rpm < VP.red) Fd = engineT(D.rpm) * ratio * VP.fd / VP.rw * 0.85 * thr * (inp.boost ? 1.3 : 1) * (1 - 0.55 * Math.max(0, dm[0] - 0.3)) * (D.shiftT > 0 ? 0.15 : 1);
   if (D.revMode) { Fd = -Fd * 0.6; if (u < -9) Fd = 0; }
+  // V74: Motorbremse, wenn man vom Gas geht (im kleinen Gang stärker): der Wagen rollt nicht endlos weiter
+  if (thr < 0.05 && !D.stalled && Math.abs(u) > 1) Fd -= Math.sign(u) * 900 * ratio / VP.gears[0];
   // Bremsen (60 % vorn), Handbremse blockiert die Hinterräder
   const su = Math.abs(u) < 0.25 ? 0 : Math.sign(u);
   const Fb = brk * 1.05 * VP.m * GRAV * mu;
@@ -518,6 +596,7 @@ export function drawPlayerCar(dt) {
   _p.set(B.x, by + 0.22 + Math.min(0.05, Math.abs(B.pv) * 0.02), B.z);
   const BM = D.model ? D.mMesh : D.mesh, WM = D.model ? D.mWheels : D.wheels, MD = CARM.dim;
   BM.setMatrixAt(0, _m.compose(_p, _q, _s.setScalar(1))); BM.instanceMatrix.needsUpdate = true;
+  if (D.model) hideDoors(D.doorSlot); else { setDoors(D.doorSlot, _m, D.dR || 0, D.dL || 0, D.doorCol); D.doorCol = null; }   // V74
   if (!D.model) { const da = D.mesh.geometry.attributes.aDmg; da.setXYZW(0, B.dmg[0], B.dmg[1], B.dmg[2], 1 - B.dmg[3]); da.needsUpdate = true; }
   // Radlage: eigene Limousine (Achsen ±1,55, Spur 0,86, Halbmesser 0,44) oder Pierce Arrow (aus dem Modell)
   const ax = D.model ? [MD.front, MD.rear] : [1.55, -1.55], tr = D.model ? MD.track : 0.86, wr = D.model ? MD.r : 0.44;
@@ -562,32 +641,50 @@ export function drawPlayerCar(dt) {
   } else D.lastW = null;
   D.shake = Math.max(0, D.shake - dt * 1.8);
 }
-export function driveCamera() {
+export function driveCamera(dt = 1 / 60) {
   const B = DRIVE.body;
   if (!DRIVE.fov0) DRIVE.fov0 = camera.fov;
+  dt = Math.min(0.1, Math.max(1e-4, dt));
+  if (DRIVE.anim && B && DRIVE.anim.mode !== 'stop') { boardCamera(B, dt); return; }
   const sp = B ? Math.hypot(B.vx, B.vz) : 0;
   // Kamera folgt dem Wagen mit etwas Nachlauf; bei Tempo weiter weg und weiterer Blickwinkel
-  if ((DRIVE.lookT -= 1 / 60) <= 0 && B) {
+  // V74: alles nach der echten Bildzeit (vorher fest 1/60 s je Bild: bei 30 Bildern drehte die Kamera halb so schnell nach)
+  if ((DRIVE.lookT -= dt) <= 0 && B) {
     const u = DRIVE.u || 0;
     // Blickrichtung zwischen Fahrzeugnase und Fahrtrichtung (zeigt das Driften)
     const mvH = sp > 4 ? Math.atan2(-B.vz, B.vx) : B.h;
     let dh = mvH - B.h; dh = Math.atan2(Math.sin(dh), Math.cos(dh));
     let want = B.h + dh * 0.45 - Math.PI / 2 + (u < -1 ? Math.PI : 0), cur = player.yaw;
     while (want - cur > Math.PI) want -= Math.PI * 2; while (want - cur < -Math.PI) want += Math.PI * 2;
-    player.yaw = cur + (want - cur) * Math.min(1, (1 / 60) * 3.2);
-    player.pitch += (-0.15 - player.pitch) * Math.min(1, (1 / 60) * 1.5);
+    player.yaw = cur + (want - cur) * Math.min(1, dt * 3.2);
+    player.pitch += (-0.15 - player.pitch) * Math.min(1, dt * 1.5);
   }
   const yaw = player.yaw, pitch = Math.max(-0.7, Math.min(0.35, player.pitch)), back = 7.0 + sp * 0.07;
   const fx = -Math.sin(yaw) * Math.cos(pitch), fz = -Math.cos(yaw) * Math.cos(pitch), fy = Math.sin(pitch);
   const tx = DRIVE.x - fx * back, ty = DRIVE.y + 2.3 - fy * back, tz = DRIVE.z - fz * back;
   if (!DRIVE.camP) DRIVE.camP = new T.Vector3(tx, ty, tz);
-  DRIVE.camP.lerp(_wv.set(tx, ty, tz), 0.35);
+  DRIVE.camP.lerp(_wv.set(tx, ty, tz), 1 - Math.pow(0.65, dt * 60));
   camera.position.copy(DRIVE.camP);
   camera.position.y = Math.max(camera.position.y, DRIVE.y + 0.8, WATER_Y + 0.6);
   const sh = DRIVE.shake * DRIVE.shake * 0.35;
   camera.rotation.set(pitch + (Math.random() - 0.5) * sh * 0.3, yaw + (Math.random() - 0.5) * sh * 0.3, (Math.random() - 0.5) * sh * 0.2);
   const fov = DRIVE.fov0 + Math.min(14, sp * 0.3);
-  if (Math.abs(camera.fov - fov) > 0.15) { camera.fov += (fov - camera.fov) * 0.1; camera.updateProjectionMatrix(); }
+  if (Math.abs(camera.fov - fov) > 0.15) { camera.fov += (fov - camera.fov) * (1 - Math.pow(0.9, dt * 60)); camera.updateProjectionMatrix(); }
+}
+// V74: beim Ein- und Aussteigen schräg von hinten auf die Tür; Blickrichtung geht danach in die Verfolgerkamera über
+const _bc = [0, 0], _bl = [0, 0];
+function boardCamera(B, dt) {
+  const A = DRIVE.anim, s = A.s, My = A.My ?? B.y + 0.22;
+  carToWorld(B.x, B.z, B.h, -5.4, s * 2.7, _bc); carToWorld(B.x, B.z, B.h, -0.3, s * 0.9, _bl);
+  let cy = My + 2.1;
+  for (const b of nearBoxes(_bc[0], _bc[1], 0.8)) if (_bc[0] > b.x0 - 0.5 && _bc[0] < b.x1 + 0.5 && _bc[1] > b.z0 - 0.5 && _bc[1] < b.z1 + 0.5 && b.y1 > cy - 1 && b.y0 < cy + 1) { carToWorld(B.x, B.z, B.h, -5.8, s * 0.6, _bc); cy = My + 3.4; break; }
+  if (!DRIVE.camP) DRIVE.camP = camera.position.clone();
+  DRIVE.camP.lerp(_wv.set(_bc[0], cy, _bc[1]), 1 - Math.exp(-dt * 2.8));
+  camera.position.copy(DRIVE.camP);
+  const dx = _bl[0] - camera.position.x, dy = My + 1.05 - camera.position.y, dz = _bl[1] - camera.position.z, L = Math.hypot(dx, dy, dz) || 1;
+  player.yaw = Math.atan2(-dx, -dz); player.pitch = Math.asin(dy / L);
+  camera.rotation.set(player.pitch, player.yaw, 0);
+  if (DRIVE.fov0 && Math.abs(camera.fov - DRIVE.fov0) > 0.15) { camera.fov += (DRIVE.fov0 - camera.fov) * Math.min(1, dt * 4); camera.updateProjectionMatrix(); }
 }
 
 /* ---------- Klang: Reihensechszylinder, Reifenquietschen, Blech ---------- */

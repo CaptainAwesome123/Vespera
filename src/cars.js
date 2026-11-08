@@ -1,5 +1,5 @@
 import { T, mergeGeos, scene } from './core.js';
-import { ENV } from './people-skeleton.js';
+import { ENV, mergeColored, PAINT } from './people-skeleton.js';
 import { roundBox } from './entrances.js';
 import { COL } from './serpentine.js';
 
@@ -58,11 +58,12 @@ export function carCabin(add, opts = {}) {
   add(new T.SphereGeometry(0.115, 12, 8).scale(1.05, 0.9, 1.08).translate(-1.45, 1.82, -0.35), [0.25, 0.08, 0.1], 20);
 }
 // Scheiben: Frontscheibe, Seitenfenster, Heckfenster (Variante 4: nicht beim Cabriolet)
-export function carGlassGeo() {
+// V74: doors = Wagen mit beweglichen Türen (die vorderen Seitenscheiben sitzen dann in den Türen)
+export function carGlassGeo(opts = {}) {
   const parts = [];
   const pane = (w, h, x, y, z, rz = 0, ry = 0) => parts.push(new T.BoxGeometry(0.012, h, w).rotateZ(rz).rotateY(ry).translate(x, y, z));
   pane(1.56, 0.66, 0.33, 1.615, 0, 0.28);
-  for (const sz of [-1, 1]) { parts.push(new T.BoxGeometry(0.98, 0.56, 0.012).translate(-0.24, 1.63, sz * 0.795)); parts.push(new T.BoxGeometry(0.98, 0.52, 0.012).translate(-1.33, 1.62, sz * 0.795)); }
+  for (const sz of [-1, 1]) { if (!opts.doors) parts.push(new T.BoxGeometry(0.98, 0.56, 0.012).translate(-0.24, 1.63, sz * 0.795)); parts.push(new T.BoxGeometry(0.98, 0.52, 0.012).translate(-1.33, 1.62, sz * 0.795)); }
   pane(1.3, 0.5, -1.97, 1.6, 0, -0.5);
   const g = mergeGeos(parts);
   g.setAttribute('aOpt', new T.BufferAttribute(new Float32Array(g.attributes.position.count).fill(4), 1));
@@ -93,8 +94,8 @@ export function carGlassMat() {
   return GLASS_MAT = m;
 }
 // Scheiben-Netz zu einem Karosserie-Netz: gleiche Instanzmatrizen, Farben und Schäden
-export function glassFor(bodyIM) {
-  const g = carGlassGeo();
+export function glassFor(bodyIM, opts = {}) {
+  const g = carGlassGeo(opts);
   if (bodyIM.geometry.attributes.aDmg) g.setAttribute('aDmg', bodyIM.geometry.attributes.aDmg);
   const im = new T.InstancedMesh(g, carGlassMat(), bodyIM.instanceMatrix.count);
   im.instanceMatrix = bodyIM.instanceMatrix; im.instanceColor = bodyIM.instanceColor;
@@ -170,4 +171,95 @@ export function carWheel(push, sx, z, sz, c) {
   for (let k = 0; k < 16; k++) { const g = new T.BoxGeometry(0.01, 0.48, 0.01); g.rotateZ(k * Math.PI / 16 + (k % 2) * 0.06); g.translate(sx, 0.44, z + sz * ((k % 2) ? 0.05 : -0.01)); push(g, c.chrome); }
   push(new T.SphereGeometry(0.1, 12, 6, 0, Math.PI * 2, 0, Math.PI / 2).rotateX(sz * Math.PI / 2).scale(1, 1, 0.7).translate(sx, 0.44, z + sz * 0.06), c.chrome);
   push(new T.CylinderGeometry(0.03, 0.03, 0.06, 8).rotateX(Math.PI / 2).translate(sx, 0.44, z + sz * 0.14), c.gold);
+}
+
+/* =====================================================================
+   V74 · TÜREN ZUM ÖFFNEN: die vordere Tür jeder Seite als eigenes Teil (vorn angeschlagen, wie bei den
+   zweitürigen Limousinen der Zwanziger). Im geschlossenen Zustand liegt sie genau in der Karosserie;
+   die Karosserie der Wagen mit Türen (MAT.carPaintCut) spart dieses Feld aus, dahinter liegt ein Innenraum
+   (Boden, Wände, Spritzwand), damit man durch die offene Tür hineinsieht.
+   Alle Maße im Wagenraum: x nach vorn, y nach oben, z nach rechts (Fahrer sitzt rechts).
+   ===================================================================== */
+export const DOOR = { x0: -0.8, x1: 0.56, hz: 0.865, yb: 0.635, zc: 0.5 };
+// Raster aus Punkten (Zeilen x Spalten) zu einer Fläche; flip dreht die Seite um
+function gridGeo(rows, flip) {
+  const pos = [], idx = [], R = rows.length, C = rows[0].length;
+  for (const r of rows) for (const p of r) pos.push(p[0], p[1], p[2]);
+  for (let i = 0; i < R - 1; i++) for (let j = 0; j < C - 1; j++) {
+    const a = i * C + j, b = a + 1, c = a + C, d = c + 1;
+    if (flip) idx.push(a, b, c, b, d, c); else idx.push(a, c, b, b, c, d);
+  }
+  const g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals();
+  return g;
+}
+// Querschnitt der Flanke (Superellipse des Fahrgastraums, wie carLoft in carGeoHi: w 0,865, y 0,58..1,33, Rundung 5)
+function doorProfile(inset) {
+  const w = DOOR.hz - inset, yc = 0.955, hh = 0.375 - inset * 0.6, e = 2 / 5, out = [];
+  const a0 = Math.asin(-0.672), a1 = Math.acos(0.254);
+  for (let k = 0; k <= 9; k++) { const a = a0 + (a1 - a0) * k / 9, c = Math.cos(a), sn = Math.sin(a); out.push([yc + hh * Math.sign(sn) * Math.pow(Math.abs(sn), e), w * Math.pow(Math.abs(c), e)]); }
+  return out;
+}
+// Mit z = -z spiegeln (linke Tür): Ecken umdrehen, damit die Außenseite außen bleibt
+function mirrorZ(g) {
+  g = g.clone(); g.scale(1, 1, -1);
+  if (g.index) { const I = g.index.array; for (let k = 0; k < I.length; k += 3) { const t = I[k + 1]; I[k + 1] = I[k + 2]; I[k + 2] = t; } }
+  g.computeVertexNormals(); return g;
+}
+// Teile der rechten Tür: [Geometrie, Farbe, Variante]; Variante 4 = Fensterrahmen (fehlt beim Cabriolet)
+function doorParts() {
+  const P = [], { x0, x1 } = DOOR, leather = [0.2, 0.065, 0.045], dark = [0.035, 0.035, 0.04], chrome = [0.85, 0.86, 0.88];
+  const B = (w, h, d, x, y, z, c, o = 0) => P.push([new T.BoxGeometry(w, h, d).translate(x, y, z), c, o]);
+  const po = doorProfile(0), pi = doorProfile(0.05);
+  const row = (x, pr) => pr.map(([y, z]) => [x, y, z]);
+  // Außenblech (lackiert), Türverkleidung innen (Leder), Kanten ringsum
+  P.push([gridGeo([row(x0, po), row(x1, po)], false), PAINT, 0]);
+  P.push([gridGeo([row(x0, pi), row(x1, pi)], true), leather, 0]);
+  P.push([gridGeo([row(x0, po), row(x0, pi)], true), dark, 0]);
+  P.push([gridGeo([row(x1, po), row(x1, pi)], false), dark, 0]);
+  P.push([gridGeo([[[x0, ...po[0]], [x1, ...po[0]]], [[x0, ...pi[0]], [x1, ...pi[0]]]], false), dark, 0]);   // Unterkante
+  // obere Kante als Fensterbrüstung (deckt die Schulter bis zur Innenseite)
+  B(x1 - x0 - 0.02, 0.025, 0.32, (x0 + x1) / 2, 1.312, 0.66, PAINT);
+  B(1.0, 0.04, 0.05, -0.25, 1.34, 0.6, [0.28, 0.15, 0.07]);                    // Holzleiste innen
+  // Zierleiste, Griff mit Schloss, Armlehne und Fensterkurbel innen
+  B(x1 - x0 - 0.04, 0.025, 0.02, (x0 + x1) / 2, 1.3, 0.86, chrome);
+  B(0.15, 0.03, 0.04, x0 + 0.17, 1.2, 0.885, chrome); B(0.02, 0.05, 0.05, x0 + 0.09, 1.2, 0.875, chrome);
+  P.push([new T.CylinderGeometry(0.014, 0.014, 0.012, 8).rotateX(Math.PI / 2).translate(x0 + 0.26, 1.2, 0.876), chrome, 0]);
+  B(0.5, 0.06, 0.08, -0.32, 1.06, 0.76, leather);
+  P.push([new T.CylinderGeometry(0.03, 0.03, 0.02, 10).rotateX(Math.PI / 2).translate(-0.05, 1.12, 0.79), chrome, 0]);
+  B(0.012, 0.012, 0.09, -0.05, 1.12, 0.75, chrome);
+  // Fensterrahmen: oben, hinten, vorn (schräg zur Windschutzscheibe)
+  B(1.1, 0.03, 0.035, -0.25, 1.9, 0.815, PAINT, 4);
+  B(0.04, 0.6, 0.035, -0.78, 1.6, 0.815, PAINT, 4);
+  B(0.04, 0.6, 0.035, 0.29, 1.6, 0.815, PAINT, 4);
+  B(1.06, 0.02, 0.02, -0.25, 1.33, 0.81, chrome, 4);
+  return P;
+}
+// Tür (s = 1 rechts, -1 links) als ein farbiges Netz
+export function carDoorGeo(s) {
+  const P = doorParts().map(([g, c, o]) => [s < 0 ? mirrorZ(g) : g, c, 0, 0, o]);
+  return mergeColored(P);
+}
+// Scheibe der Tür
+export function carDoorGlassGeo(s) {
+  const g = new T.BoxGeometry(1.03, 0.55, 0.012).translate(-0.25, 1.615, s * 0.8);
+  g.setAttribute('aOpt', new T.BufferAttribute(new Float32Array(g.attributes.position.count).fill(4), 1));
+  return g;
+}
+// Innenraum für Wagen mit Türen: Flächen zeigen nach innen; add(geo, farbe)
+export function carTub(add) {
+  const carpet = [0.07, 0.05, 0.045], leather = [0.2, 0.065, 0.045], dark = [0.035, 0.035, 0.04];
+  // Rechteck a b c d (umlaufend); n = Richtung, in die die sichtbare Seite zeigt
+  const quad = (a, b, c, d, n, col) => {
+    const u = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], v = [d[0] - a[0], d[1] - a[1], d[2] - a[2]];
+    const cr = [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]];
+    add(gridGeo([[a, b], [d, c]], cr[0] * n[0] + cr[1] * n[1] + cr[2] * n[2] > 0), col);
+  };
+  const { x0, x1 } = DOOR, xr = -1.95, xf = 0.42, z = 0.77, y0 = 0.64, y1 = 1.3;
+  quad([xr, y0, -z], [xf, y0, -z], [xf, y0, z], [xr, y0, z], [0, 1, 0], carpet);         // Boden
+  quad([xf, y0, -z], [xf, y1, -z], [xf, y1, z], [xf, y0, z], [-1, 0, 0], dark);          // Spritzwand
+  quad([xr, y0, -z], [xr, y1, -z], [xr, y1, z], [xr, y0, z], [1, 0, 0], leather);        // Rückwand
+  for (const s of [1, -1]) for (const [xa, xb] of [[xr, x0], [xf, x1]]) {
+    if (xb <= xa) continue;
+    quad([xa, y0, s * z], [xb, y0, s * z], [xb, y1, s * z], [xa, y1, s * z], [0, 0, -s], leather);   // Seitenwände hinter (und vor) der Tür
+  }
 }

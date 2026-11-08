@@ -22,7 +22,7 @@ import { player, updatePlayer, EYE } from './player.js';
 import { updateVenues } from './venues.js';
 import { updateOrte } from './orte.js';
 import { updateGala } from './gala.js';
-import { DRIVE, updateCarScenes, updateCarReturns } from './eating.js';
+import { DRIVE, updateCarScenes, updateCarReturns, carSceneObstacles } from './eating.js';
 import { updateDrive, updateVehicleWorld, driveCamera } from './driving.js';
 import { updateWind, WIND, windName } from './wind.js';
 import { BOAT, updateBoatInput, updateBoat, boatCamera, districtAt, showDistrict, drawMap } from './boat.js';
@@ -235,9 +235,10 @@ export function frame(now) {
   if (playing && !paused) updateKraefte(rdt, t);   // V60: Schockwelle, Schild, Levitation, Zeitlupe
   if (playing) updateVehicleWorld(dt);
   if (BAHN.obstacles) BAHN.obstacles();   // V63: Autos halten hinter der Straßenbahn
+  if (playing) carSceneObstacles();   // V74: aus- und einparkende Wagen
   if (playing) { updateSpawns(); updateLoose(dt); }   // V26: lose Dinge
   if (playing && !paused) updateBoat(dt);
-  if (playing && DRIVE.on) driveCamera();
+  if (playing && DRIVE.on) driveCamera(rdt);
   else if (playing && BOAT.on) boatCamera();
   else if (playing && IMP.st === 'helm' && HELM.cam === 'aussen') impHelmCamera(dt);   // V58: Außenansicht des Schiffs vom Steuer aus
   else if (playing && BAHN.camera && BAHN.camera(rdt)) { /* V63: Außenansicht der Bahn, Sitzplatz */ }

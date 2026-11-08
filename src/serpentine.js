@@ -14,7 +14,7 @@ import { makeGlowPoints, buildCitizens } from './ragdoll.js';
 import { lifePeds, newsCorner } from './life.js';
 import { gegnerPeds } from './gegner.js';   // V60: Anarchisten, Räuber, Polizei für die Festnahme
 import { cars } from './airships.js';
-import { carDamageAttr, carCabin, carLoft, carSweep, fenderPath, carWheel } from './cars.js';
+import { carDamageAttr, carCabin, carLoft, carSweep, fenderPath, carWheel, carTub } from './cars.js';
 import { CARM, CARM_PAINT, isModelCar, modelCarMeshes } from './carmodel.js';
 import { OBSTACLES, _m, _p, _q, _up, _s, TRUCK_N, deliveryMen, buildDrivers } from './traffic.js';
 import { dishModel, VENUE_PEDS } from './venues.js';
@@ -2490,6 +2490,19 @@ export function carGeoHi(opts = {}) {
   // Drahtspeichenräder mit Weißwandreifen
   for (const sx of opts.noWheels ? [] : [1.55, -1.55]) for (const sz of [1, -1]) carWheel((g, c) => P.push([g, c]), sx, sz * 0.86, sz, COL);
   carCabin((g, c, o = 0) => push0([g, c, 0, 0, o]), opts);
+  // V74: Innenraum für die Wagen mit beweglichen Türen (Spielerwagen, Ein- und Aussteigen)
+  if (opts.tub) carTub((g, c) => push0([g, c, 0, 0, 0]));
+  // V74: mehr Einzelheiten der Zwanziger: Suchscheinwerfer an der Fahrerseite, Scheibenwischer, Haubenscharnier,
+  // Kühlerplakette, Auspuff
+  OPT = 4;
+  P.push([new T.CylinderGeometry(0.012, 0.012, 0.26, 6).translate(0.44, 1.5, 0.86), COL.chrome]);
+  P.push([new T.SphereGeometry(0.075, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.6).rotateZ(-Math.PI / 2).scale(1.3, 1, 1).translate(0.49, 1.66, 0.88), COL.chrome]);
+  P.push([new T.CircleGeometry(0.062, 12).rotateY(Math.PI / 2).translate(0.565, 1.66, 0.88), [1.0, 0.95, 0.8]]);
+  for (const sz of [0.38, -0.32]) { B(0.012, 0.012, 0.36, 0.37, 1.86, sz, COL.dark); B(0.02, 0.04, 0.02, 0.38, 1.9, sz - 0.18, COL.dark); }
+  OPT = 0;
+  B(1.86, 0.016, 0.035, 1.47, 1.3, 0, COL.chrome);
+  P.push([new T.CylinderGeometry(0.07, 0.07, 0.015, 16).rotateZ(Math.PI / 2).translate(2.505, 1.08, 0), COL.gold]);
+  P.push([new T.CylinderGeometry(0.035, 0.04, 0.45, 8).rotateZ(Math.PI / 2).translate(-2.45, 0.5, -0.5), COL.dark]);
   return mergeColored(P);
 }
 // Ein Menschen-Satz: mehrere Kleidungsarten, jede eine InstancedMesh mit Farben pro Person
