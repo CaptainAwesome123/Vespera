@@ -1290,7 +1290,10 @@ export function getMats() {
   MAT.gold = stdMat({ color: 0xc9a258, metalness: 1, roughness: 0.4, emissive: 0x120b03, envI: 0.7 });
   MAT.brass = stdMat({ color: 0xb08a4a, metalness: 0.9, roughness: 0.38, emissive: 0x120a02 });
   MAT.chrome = stdMat({ color: 0xd8dde2, metalness: 1, roughness: 0.18 });
-  MAT.carPaint = snowy(carPaintMat(), 0.75, false);   // V30: Schnee auf Dach, Haube und Kotflügeln
+  // V74: kein Schnee im Innenraum (Sitze, Holz, Teppich sieht man jetzt durch die offene Tür)
+  const dry = m => { const pc = m.onBeforeCompile; m.onBeforeCompile = (sh, r) => { pc(sh, r); sh.fragmentShader = sh.fragmentShader.replace('snK *= snA;', 'snK *= snA * (1.0 - carIn);'); }; return m; };
+  MAT.carPaint = dry(snowy(carPaintMat(), 0.75, false));   // V30: Schnee auf Dach, Haube und Kotflügeln
+  MAT.carPaintCut = dry(snowy(carPaintMat({ cut: true }), 0.75, false));   // V74: Karosserie der Wagen mit beweglichen Türen
   MAT.cloth = paintMat({ color: 0xffffff, metalness: 0, roughness: 0.85, envI: 0.25, emissive: 0x100905 });
   // V17: Skelett, Gesten, Tänze und Stoffe im Shader (humanShader)
   { const pc = MAT.cloth.onBeforeCompile; MAT.cloth.onBeforeCompile = sh => { pc(sh); humanShader(sh); }; MAT.cloth.customProgramCacheKey = () => 'human'; }
@@ -1337,11 +1340,31 @@ export function paintMat(o) {
   return m;
 }
 // Autolack: Klarlack mit Glanzschicht, Chrom spiegelt, Reifen matt; dazu Türfugen, Zierlinie, Haubenschlitze und Straßenschmutz
-export function carPaintMat() {
+// V74: Nummernschilder der Stadt (8 Stück auf einer kleinen Leinwand, je Wagen eines nach der Farbe gewählt)
+let PLATE_TEX = null;
+function plateTex() {
+  if (PLATE_TEX) return PLATE_TEX;
+  const c = document.createElement('canvas'); c.width = 512; c.height = 128;
+  const g = c.getContext('2d'), txt = ['V 1924', 'VS 3107', 'V 77·12', 'VS 480', 'V 2·615', 'VS 1188', 'V 903', 'VS 56·21'];
+  for (let i = 0; i < 8; i++) {
+    const x = (i % 4) * 128, y = Math.floor(i / 4) * 64;
+    g.fillStyle = '#151a1f'; g.fillRect(x, y, 128, 64);
+    g.strokeStyle = '#d8cfae'; g.lineWidth = 3; g.strokeRect(x + 4, y + 4, 120, 56);
+    g.fillStyle = '#e8dfbf'; g.font = 'bold 26px Georgia, serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText(txt[i], x + 64, y + 36);
+    g.font = 'bold 9px Georgia, serif'; g.fillText('VESPERA', x + 64, y + 14);
+  }
+  PLATE_TEX = new T.CanvasTexture(c); PLATE_TEX.encoding = T.sRGBEncoding; PLATE_TEX.anisotropy = 4;
+  return PLATE_TEX;
+}
+// V74: opts.cut: Feld der vorderen Türen aussparen (dort sitzen bewegliche Türen, siehe cars.js DOOR)
+export function carPaintMat(opts = {}) {
   const m = new T.MeshPhysicalMaterial({ color: 0xffffff, metalness: 0.35, roughness: 0.32, clearcoat: 1, clearcoatRoughness: 0.07, vertexColors: true });
   if (ENV) { m.envMap = ENV; m.envMapIntensity = 0.95; }
+  if (opts.cut) m.defines = { CAR_CUT: '' };
   m.onBeforeCompile = sh => {
-    sh.vertexShader = 'attribute float aOpt; attribute vec4 aDmg; varying vec3 vObjP, vObjN, vSrc; varying float vCarVar, vDent;\nfloat dnH(vec3 p){ return fract(sin(dot(floor(p), vec3(12.9898, 78.233, 37.719))) * 43758.5453); }\n' + sh.vertexShader.replace('#include <beginnormal_vertex>', `#include <beginnormal_vertex>
+    sh.uniforms.uPlate = { value: plateTex() };
+    sh.vertexShader = 'attribute float aOpt; attribute vec4 aDmg; varying vec3 vObjP, vObjN, vSrc; varying float vCarVar, vDent, vPlate;\nfloat dnH(vec3 p){ return fract(sin(dot(floor(p), vec3(12.9898, 78.233, 37.719))) * 43758.5453); }\n' + sh.vertexShader.replace('#include <beginnormal_vertex>', `#include <beginnormal_vertex>
       vDent = 0.0;
       #ifdef USE_INSTANCING
       {
@@ -1363,8 +1386,9 @@ export function carPaintMat() {
       vObjP = position; vObjN = normal;
       #ifdef USE_INSTANCING_COLOR
         vCarVar = floor(fract(sin(dot(instanceColor, vec3(127.1, 311.7, 74.7))) * 43758.5453) * 3.0);
+        vPlate = floor(fract(sin(dot(instanceColor, vec3(43.1, 97.3, 21.9))) * 2375.13) * 8.0);
       #else
-        vCarVar = 0.0;
+        vCarVar = 0.0; vPlate = 0.0;
       #endif`)
       .replace('#include <begin_vertex>', `#include <begin_vertex>
         #ifdef USE_INSTANCING_COLOR
@@ -1384,11 +1408,15 @@ export function carPaintMat() {
           transformed.z += lf * (0.1 + 0.22 * n2) - rt * (0.1 + 0.22 * n2);
         }
         #endif`);
-    sh.fragmentShader = 'varying vec3 vObjP, vObjN, vSrc; varying float vCarVar, vDent;\n' + sh.fragmentShader
+    sh.fragmentShader = 'uniform sampler2D uPlate; varying vec3 vObjP, vObjN, vSrc; varying float vCarVar, vDent, vPlate;\n' + sh.fragmentShader
       .replace('#include <color_fragment>', `#include <color_fragment>
         float isPaint = step(2.97, vSrc.r + vSrc.g + vSrc.b);
         float isChrome = (1.0 - isPaint) * step(0.6, dot(vSrc, vec3(0.333))) * step(vSrc.r, vSrc.b);
         float isRubber = step(dot(vSrc, vec3(0.333)), 0.035) * step(abs(vSrc.b - vSrc.r), 0.005);
+        #ifdef CAR_CUT
+          // V74: hier sitzt die bewegliche Tür (eigenes Netz); Lack und Chrom der Karosserie fallen weg, Innenraum und Sitze bleiben
+          if (isPaint + isChrome > 0.5 && abs(vObjP.z) > 0.49 && vObjP.x > -0.8 && vObjP.x < 0.565 && vObjP.y > 0.632 && vObjP.y < 1.337) discard;
+        #endif
         float side = step(0.6, abs(vObjN.z));
         // Türfugen und Zierlinie an den Flanken, Lüftungsschlitze an der Haube
         float seam = side * step(0.62, vObjP.y) * step(vObjP.y, 1.3) * (step(abs(vObjP.x - 0.56), 0.008) + step(abs(vObjP.x + 0.98), 0.008) + step(abs(vObjP.y - 0.66), 0.006) * step(vObjP.x, 0.56) * step(-0.98, vObjP.x));
@@ -1406,13 +1434,31 @@ export function carPaintMat() {
         // Kratzer und abgeplatzter Lack an den Beulen: blankes Blech und Grundierung
         float scr = step(0.55, fract(sin(dot(floor(vObjP.xy * vec2(60.0, 9.0)), vec2(12.9898, 78.233))) * 43758.5453)) * smoothstep(0.15, 0.6, vDent);
         diffuseColor.rgb = mix(diffuseColor.rgb, mix(vec3(0.42, 0.42, 0.44), vec3(0.3, 0.22, 0.18), step(0.5, fract(vObjP.y * 13.0))), isPaint * scr * 0.85);
-        diffuseColor.rgb *= 1.0 - 0.35 * smoothstep(0.3, 0.9, vDent) * isPaint;`)
+        diffuseColor.rgb *= 1.0 - 0.35 * smoothstep(0.3, 0.9, vDent) * isPaint;
+        // V74: Stoffe und Flächen: Nummernschild (Leinwand), Lederpolster mit Pfeifen, Wurzelholz, geriffelte Gummimatten, Teppich
+        float isPlate = step(abs(vSrc.r - 0.85) + abs(vSrc.g - 0.82) + abs(vSrc.b - 0.7), 0.02) * step(2.4, abs(vObjP.x));
+        vec2 puv = clamp(vec2(0.5 - sign(vObjP.x) * vObjP.z / 0.34, (vObjP.y - mix(0.82, 0.78, step(0.0, vObjP.x))) / 0.12 + 0.5), 0.02, 0.98);
+        vec3 plt = texture2D(uPlate, (puv + vec2(mod(vPlate, 4.0), floor(vPlate / 4.0))) * vec2(0.25, 0.5)).rgb;
+        diffuseColor.rgb = mix(diffuseColor.rgb, plt * 0.8, isPlate);
+        float isLeather = step(abs(vSrc.r - 0.21) + abs(vSrc.g - 0.0675) + abs(vSrc.b - 0.0475), 0.03);
+        float pleat = abs(sin(vObjP.z * 31.0 + step(1.2, vObjP.y) * 0.5));
+        diffuseColor.rgb *= mix(1.0, 0.62 + 0.45 * pleat, isLeather);
+        float isWood = step(abs(vSrc.r - 0.28) + abs(vSrc.g - 0.15) + abs(vSrc.b - 0.07), 0.02);
+        float grain = sin((vObjP.z + 0.25 * sin(vObjP.y * 13.0 + vObjP.z * 4.0)) * 60.0);
+        diffuseColor.rgb *= mix(1.0, 0.78 + 0.34 * grain * grain, isWood);
+        float isMat = step(abs(vSrc.r - 0.06) + abs(vSrc.g - 0.06) + abs(vSrc.b - 0.06), 0.006);
+        diffuseColor.rgb *= mix(1.0, 0.45 + 0.9 * step(0.5, fract(vObjP.z * 38.0)), isMat);
+        float isCarpet = step(abs(vSrc.r - 0.07) + abs(vSrc.g - 0.05) + abs(vSrc.b - 0.045), 0.006);
+        diffuseColor.rgb *= mix(1.0, 0.85 + 0.3 * abs(sin(vObjP.x * 90.0) * sin(vObjP.z * 90.0)), isCarpet);
+        float carIn = clamp(isLeather + isWood + isCarpet, 0.0, 1.0);`)
       .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
-        roughnessFactor = mix(roughnessFactor, 0.1, isChrome); roughnessFactor = mix(roughnessFactor, 0.92, isRubber); roughnessFactor = mix(roughnessFactor, 0.7, isPaint * dirt);`)
+        roughnessFactor = mix(roughnessFactor, 0.1, isChrome); roughnessFactor = mix(roughnessFactor, 0.92, isRubber); roughnessFactor = mix(roughnessFactor, 0.7, isPaint * dirt);
+        roughnessFactor = mix(roughnessFactor, 0.55, isLeather); roughnessFactor = mix(roughnessFactor, 0.25, isWood); roughnessFactor = mix(roughnessFactor, 0.6, isPlate);`)
       .replace('#include <metalnessmap_fragment>', `#include <metalnessmap_fragment>
-        metalnessFactor = mix(metalnessFactor, 1.0, isChrome); metalnessFactor *= 1.0 - isRubber;`);
+        metalnessFactor = mix(metalnessFactor, 1.0, isChrome); metalnessFactor *= 1.0 - isRubber;
+        metalnessFactor *= 1.0 - clamp(isLeather + isWood + isPlate + isMat + isCarpet, 0.0, 1.0);`);
     sh.fragmentShader = sh.fragmentShader.replace('#include <lights_physical_fragment>', `#include <lights_physical_fragment>
-        material.clearcoat *= isPaint * (1.0 - dirt);`);
+        material.clearcoat *= max(isPaint * (1.0 - dirt), isWood);`);
   };
   return m;
 }

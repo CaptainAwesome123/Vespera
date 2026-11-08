@@ -128,8 +128,12 @@ PM.handWorld = out => {
 export function updatePlayerModel(dt, on) {
   if (!PM.mesh) { if (MHP.ready) buildPlayerModel(); if (!PM.mesh) return; }
   // V42: am Steuer sitzt in der Außenansicht Alexanders eigene Figur (Sitzhaltung mit Lenkrad, Pose 32 wie bei den Fahrern), nicht mehr eine Platzhalterfigur
-  const B = DRIVE.body, drive = !on && DRIVE.on && B && DRIVE.mesh && !DRIVE.model && PM.view === 'third';
+  // V74: Ein- und Aussteigen mit Ablauf (driving.js / tueren.js); am Steuer sitzt er nun in beiden Ansichten selbst (die Kamera fährt ohnehin hinterher)
+  const B = DRIVE.body, A = DRIVE.anim;
+  if (!on && DRIVE.on && B && A && A.mode !== 'stop' && (A.ph === 'walk' || A.r)) { boardPose(A, B, dt); return; }
+  const drive = !on && DRIVE.on && B && DRIVE.mesh && !DRIVE.model;
   DRIVE.selfModel = drive;
+  if (on && DRIVE.exitYaw !== undefined) { PM.yawB = DRIVE.exitYaw; DRIVE.exitYaw = undefined; }
   if (drive) {
     PM.show = true; PM.mesh.visible = true;
     AN.airW = AN.fallW = AN.prepW = AN.tkW = AN.brace = AN.brake = 0; AN.fade = 0; PM.air = 0;
@@ -225,6 +229,26 @@ function flyPose(dt) {
 
 // Kamera hinter dem Spieler, leicht über der rechten Schulter; Wände schieben sie heran
 const _t = new T.Vector3(), _c = new T.Vector3(), _f = new T.Vector3(), _r = new T.Vector3();
+// V74: Alexander geht zur Tür, öffnet sie, setzt sich, schwenkt die Beine hinein und zieht die Tür zu (und umgekehrt)
+function boardPose(A, B, dt) {
+  PM.show = true; PM.mesh.visible = true; DRIVE.selfModel = true;
+  AN.airW = AN.fallW = AN.prepW = AN.tkW = AN.brace = AN.brake = 0; PM.air = 0; PM.dance = 0;
+  if (A.ph === 'walk') {
+    if (A.walking) {
+      const cad = 1.45 / 1.366; PM.phase = (PM.phase + dt * cad * Math.PI * 2) % (Math.PI * 2 * 1000); PM.cad = cad;
+      let d = A.wyaw - PM.yawB; d = Math.atan2(Math.sin(d), Math.cos(d)); PM.yawB += d * Math.min(1, dt * 10);
+      baseState(1, 0.4, 'walk', dt);
+      PM.place(A.x, A.y, A.z, PM.yawB, { act: 1, amp: 0.4, phase: PM.phase, smile: 0.4 });
+    } else { baseState(0, 0, 'act0', dt); PM.place(A.x, A.y, A.z, PM.yawB, { act: 0, smile: 0.4 }); }
+    writeU(dt); return;
+  }
+  const r = A.r, c = Math.cos(B.h), s = Math.sin(B.h);
+  let d = B.h + r.phi - PM.yawB; d = Math.atan2(Math.sin(d), Math.cos(d)); PM.yawB += d * Math.min(1, dt * 14);
+  const act = r.sit ? 7.2 : 0, top = A.My + r.y;
+  baseState(act, 0, r.sit ? 'sit' : 'act0', dt);
+  PM.place(B.x + c * r.x + s * r.z, r.sit ? top - 0.87 * PM.sc : top + (A.gy - top) * r.gk, B.z - s * r.x + c * r.z, PM.yawB, { act, smile: 0.4, pitch: r.tilt, piv: 0 });
+  writeU(dt);
+}
 // V63: Alexander sitzt (Bank in der Straßenbahn oder Hochbahn): Sitzhaltung wie die Fahrgäste, Lage und Blickrichtung von außen
 export function playerSitAt(x, y, z, yaw, dt) {
   if (!PM.mesh) return;
