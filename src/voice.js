@@ -80,6 +80,7 @@ function profile(who, text, hint) {
   const mood = hint && hint.mood;
   if (mood === 'furcht' || /^[A-ZÄÖÜ]…|\b[A-Za-zÄÖÜäöü]… [a-zäöü]/.test(text)) { rate += 0.12; pitch += 0.06; vol *= 0.85; }
   else if (mood === 'skep' || mood === 'neid') { rate -= 0.05; pitch -= 0.04; }
+  else if (mood === 'hass') { rate -= 0.03; pitch -= 0.08; vol = Math.min(1, vol * 1.08); }   // V72: feindselig: tiefer, fester
   if (/!\s*$/.test(text) || /Extrablatt|Hilfe|Achtung/.test(text)) { vol = Math.min(1, vol + 0.15); rate += 0.05; }
   else if ((text.match(/…/g) || []).length >= 2) rate -= 0.06;
   return { fem: kid ? true : fem, kid, seed, pitch, rate, vol };

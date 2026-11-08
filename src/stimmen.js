@@ -162,7 +162,7 @@ const K_IDLE = ['Die Lichter der Stadt liegen Ihnen zu Füßen, Herr Alexander.'
 
 const ST = { t: 0, dlgT: 8, carT: 0, stillT: 0, still: 0, lp: null, rT: 40, kT: 50, lift: null, liftT: 0, liftSaid: 0, after: [], seen: new WeakMap(), pending: null };
 const posOf = pd => { const e = pd.a.m.elements; return { x: e[12], y: e[13], z: e[14] }; };
-const keyOf = pd => pd.a && pd.a.kind === 'kid' ? 'kid' : attOf(pd);
+const keyOf = pd => { if (pd.a && pd.a.kind === 'kid') return 'kid'; const k = attOf(pd); return k === 'hass' ? 'skep' : k; };   // V72: Feindselige reden in diesen Lagen wie die Skeptiker
 const free = () => shared.sayTimer <= 0.3 && !ST.pending;
 // Satz zeigen (und damit sprechen); die Stimme passt zur Figur (Mann/Frau/Kind), lauter je näher
 function line(pd, s, dur, seed) {

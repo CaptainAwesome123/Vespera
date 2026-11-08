@@ -38,6 +38,7 @@ export const SAY = {
 };
 /* ---------- V55: Haltung zu Alexander ---------- */
 // bew = bewundert ihn, neid = neidisch, skep = skeptisch, furcht = fürchtet ihn, resp = Respekt, dienst = Personal und Polizei
+// V72: hass = feindselig (nur bei schlechtem Ruf über ruf.js: wendet sich ab, mustert ihn kalt, ruft ihm etwas nach)
 export function attOf(pd) {
   if (pd.att) return pd.att;
   const k = pd.a ? pd.a.kind : pd.kind, r = Math.random(), tr = pd.cit && pd.cit.trait.k;
@@ -61,6 +62,7 @@ export const SAY_NEAR = {
   resp: ['’n Abend, Herr Alexander.', 'Respekt, Herr Alexander.', 'Abend, Herr Alexander. Gute Schicht heute.'],
   police: ['Guten Abend, Herr Alexander! Alles ruhig im Revier.', 'Zu Befehl, Herr Alexander!', 'Machen Sie Platz für Herrn Alexander!'],
   dienst: ['Zu Diensten, Herr Alexander!', 'Sehr wohl, Herr Alexander.', 'Guten Abend, Herr Alexander. Beehren Sie uns?'],
+  hass: ['Da ist er ja, der Herr der Türme. Schämen Sie sich!', 'Alles von unseren Löhnen gebaut.', 'Gehen Sie zurück in Ihr Penthouse, Alexander.', 'Kein Gruß für Sie.', 'Eines Tages gehört die Stadt uns allen.'],   // V72
 };
 // was die Nicht-Bewunderer rufen, wenn er seine Kräfte zeigt
 export const SAY_POW = {
@@ -69,6 +71,7 @@ export const SAY_POW = {
   furcht: ['Um Himmels willen!', 'Weg hier, schnell!', 'Der ist kein Mensch …', 'Bitte nicht auf uns!'],
   resp: ['Alle Achtung.', 'Respekt, Herr Alexander.', 'So eine Kraft … Hut ab.'],
   dienst: ['Sehr wohl, Herr Alexander!', 'Bravo, Herr Alexander!'],
+  hass: ['Zeigen Sie nur, was Sie können. Die Stadt gehört Ihnen trotzdem nicht.', 'Angeber! Mit unserem Geld!', 'Fliegen kann er. Zuhören nicht.'],   // V72
 };
 // was sie sagen, wenn er sie anspricht (ragdoll.js citizenSay)
 export const TALK = {
@@ -78,6 +81,7 @@ export const TALK = {
   furcht: ['V… verzeihen Sie, Herr Alexander. Ich hab nichts getan!', 'Bitte, Herr Alexander, ich will keinen Ärger.', 'J… ja, Herr Alexander. Natürlich, Herr Alexander.'],
   resp: ['’n Abend, Herr Alexander. Sie haben uns Arbeit gegeben, das vergessen wir nicht.', 'Alle Achtung, Herr Alexander. Sie sind sich nicht zu fein für unser Viertel.', 'Wenn Sie was brauchen, Herr Alexander: Wir packen an.'],
   dienst: ['Zu Diensten, Herr Alexander!', 'Sehr wohl, Herr Alexander. Kann ich etwas für Sie tun?', 'Guten Abend, Herr Alexander. Ist alles zu Ihrer Zufriedenheit?'],
+  hass: ['Mit Ihnen rede ich nicht.', 'Sie wollen reden? Zahlen Sie erst anständige Löhne.', 'Meine Schwester hat sich in Ihrer Gießerei die Hände verbrannt. Und Sie fliegen spazieren.', 'Lassen Sie mich in Ruhe, Herr Alexander. Bitte.'],   // V72
 };
 export function talkLine(pd) { const L = TALK[attOf(pd)] || TALK.bew; return L[Math.floor(Math.random() * L.length)]; }
 function showSay(who, s) {
@@ -88,6 +92,7 @@ function showSay(who, s) {
 function pickActAtt(kind, pd) {
   const att = attOf(pd), r = Math.random(), man = !pd.fem;
   if (att === 'furcht') return r < 0.55 ? 13.2 : 1.3;
+  if (att === 'hass') return r < 0.5 ? 15.3 : 12.2;   // V72
   if (att === 'skep') return r < 0.4 ? 15.3 : r < 0.65 ? 12.2 : 1.3;
   if (att === 'neid') return (kind === 'land' || kind === 'throw') && r < 0.3 ? 8.2 : r < 0.3 ? 12.2 : 1.3;
   if (att === 'resp') return man && r < 0.5 ? 5.3 : r < 0.7 ? 8.2 : 1.3;
@@ -184,10 +189,12 @@ function greet(pd, d2) {
   if (!mob) { pd.awCool = 4; AWE.smiles.push(pd); return false; }
   const keep = mob === 'keep', o = { keep, dur: 2.6 + Math.random() * 1.6, shift: keep ? 0 : 0.45 };
   if (kind === 'kid') { o.act = r < 0.7 ? 3.6 : 8.2; }
+  else if (att === 'bew' && AWE.bewHi && AWE.bewHi() && r < 0.25) o.act = 9.3;   // V72: gefeiert: manche klatschen, wenn er vorbeigeht
   else if (att === 'bew') { if (man) { if (r < 0.5) o.act = 5.3; else if (r < 0.7) o.act = 3.6; else { o.act = 1.3; o.bow = 0.25; } } else if (r < 0.45) o.act = 3.6; else { o.act = 1.3; o.bow = 0.15; } }
   else if (att === 'neid') { o.act = r < 0.35 ? 12.2 : 1.3; o.away = 1.0 + Math.random() * 0.8; }
   else if (att === 'skep') { o.act = kind === 'worker' && r < 0.4 ? 15.3 : r < 0.7 ? 12.2 : 1.3; o.lean = 0.05; o.away = r < 0.5 ? 2.2 : 0; }
   else if (att === 'furcht') { o.act = d2 < 2.5 * 2.5 && r < 0.5 ? 13.2 : 1.3; o.duck = 0.13; o.shift = keep ? 0 : 0.75; o.dur = 2.2 + Math.random() * 1.2; }
+  else if (att === 'hass') { o.act = r < 0.5 ? 15.3 : 12.2; o.lean = 0.06; o.away = 0.5 + Math.random() * 0.6; o.shift = 0; }   // V72: kalter Blick, dann abwenden
   else if (att === 'resp') { if (man) { o.act = r < 0.6 ? 5.3 : 1.3; o.bow = o.act < 2 ? 0.25 : 0; } else { o.act = 1.3; o.bow = 0.15; } }
   else { if (kind === 'police' || kind === 'sailor') o.act = 5.3; else { o.act = 1.3; o.bow = 0.6; } }   // dienst
   startAwe(pd, o);

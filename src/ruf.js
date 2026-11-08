@@ -164,7 +164,8 @@ function rufBonus(g) {
 /* ---------- Haltung der Leute (awe.js) ---------- */
 const RUF_ELITE = new Set(['tux', 'gown', 'furcoat']), RUF_STAFF = new Set(['livery', 'waiter', 'chauffeur', 'sailor']);
 const rufGroupOf = kind => kind === 'worker' ? 'arbeiter' : RUF_ELITE.has(kind) ? 'elite' : RUF_STAFF.has(kind) ? 'personal' : 'buerger';
-// Wahrscheinlichkeiten je Gruppe: [bew, resp, furcht, neid, skep]
+// Wahrscheinlichkeiten je Gruppe: [bew, resp, furcht, neid, skep, hass]
+// V72: hass (feindselig) erst bei schlechtem Ruf in der eigenen Gruppe, ein wenig auch, wenn ihn die Stadt fürchtet und nicht bewundert
 export function rufAttP(group, tr) {
   const F = rufGet('furcht'), A = rufGet('bew'), R = rufGet(group);
   const pf = clamp(0.03 + (F - 20) / 80 * 0.45, 0.02, 0.5);
@@ -172,14 +173,16 @@ export function rufAttP(group, tr) {
     let resp = 0.08 + 0.55 * R / 100, bew = Math.max(0, (R - 60) / 100) * 0.8, fu = pf + (R < 30 ? 0.08 : 0);
     if (tr === 'mürrisch') { resp *= 0.6; bew *= 0.5; }
     if (tr === 'schüchtern') fu += 0.1;
-    const sk = Math.max(0, 1 - resp - bew - fu);
-    return { bew, resp, furcht: fu, neid: 0, skep: sk };
+    const ha = Math.min(Math.max(0, 1 - resp - bew - fu), (R < 40 ? (40 - R) / 40 * 0.4 : 0) + (F > 80 && A < 30 ? 0.05 : 0));
+    const sk = Math.max(0, 1 - resp - bew - fu - ha);
+    return { bew, resp, furcht: fu, neid: 0, skep: sk, hass: ha };
   }
   // V66 Kanon: auch bei bestem Ruf bewundert ihn nie die ganze Stadt; Neid und Kritik bleiben immer
   let bew = (0.15 + 0.6 * R / 100) * (0.6 + 0.4 * A / 100), fu = group === 'elite' ? pf * 0.7 : pf;
   if (tr === 'mürrisch' || tr === 'ehrgeizig') bew *= 0.7;
-  const rest = Math.max(0, 1 - bew - fu), sk = rest * (group === 'buerger' ? (R < 40 ? 0.6 : 0.3) : 0.15);
-  return { bew, resp: 0, furcht: fu, neid: rest - sk, skep: sk };
+  const rest0 = Math.max(0, 1 - bew - fu), ha = Math.min(rest0, (R < 30 ? (30 - R) / 30 * 0.25 : 0) + (F > 80 && A < 30 ? 0.04 : 0)), rest = rest0 - ha;
+  const sk = rest * (group === 'buerger' ? (R < 40 ? 0.6 : 0.3) : 0.15);
+  return { bew, resp: 0, furcht: fu, neid: rest - sk, skep: sk, hass: ha };
 }
 function rufAttHook(k, tr) {
   if (!RUF.ready) return null;
@@ -188,7 +191,7 @@ function rufAttHook(k, tr) {
   if (RUF_STAFF.has(k)) { const P = rufGet('personal'); return P < 35 && Math.random() < 0.3 ? 'furcht' : null; }
   const P = rufAttP(rufGroupOf(k), tr);
   let r = Math.random();
-  for (const a of ['furcht', 'bew', 'resp', 'skep', 'neid']) { if ((r -= P[a]) < 0) return a; }
+  for (const a of ['furcht', 'bew', 'resp', 'hass', 'skep', 'neid']) { if ((r -= P[a] || 0) < 0) return a; }
   return k === 'worker' ? 'skep' : 'neid';
 }
 // nach großen Änderungen bilden sich die Leute ihre Meinung neu
@@ -629,7 +632,7 @@ function rufRender() {
   const s = RUF.s, A = rufAnsehen();
   el.querySelector('header h2').textContent = rufTitle();
   el.querySelector('header p').innerHTML = `Ansehen <b>${Math.round(A)}</b> / 100 · ${RUF_WESEN[rufWesen()]} · Tag ${KT.s.day}`;
-  const pc = rufAttP('buerger'), pa = rufAttP('arbeiter'), pe = rufAttP('elite'), pct = x => Math.round(x * 100) + ' %';
+  const pc = rufAttP('buerger'), pa = rufAttP('arbeiter'), pe = rufAttP('elite'), pct = x => Math.round(x * 100) + ' %', feind = P => P.hass >= 0.005 ? ` · ${pct(P.hass)} feindselig` : '';
   const posts = s.post.map(p => { const P = RUF_POST[p.k]; return `<div class="post"><small>${esc(P.from)} · Tag ${p.day}</small><b>${esc(P.t)}</b><p>${esc(P.x)}</p><div class="btns">${P.opts.map((o, i) => `<button type="button" data-act="post" data-id="${p.id}" data-i="${i}">${esc(o[0])}</button>`).join('')}</div></div>`; }).join('') || '<p class="s">Keine Post. Briefe und Einladungen kommen mit den Geschäftstagen, je nach Ruf.</p>';
   const warn = RUF_WARN.filter(w => w.ok());
   const unter = rufGet('unter'), an = GEGNER.rufAnar ?? 1, kas = BOSS.st === 'gefasst' ? 'sitzt hinter Gittern' : 'ist auf freiem Fuß';
@@ -643,9 +646,9 @@ function rufRender() {
     <div class="duo s"><span>${Math.round(rufGet('furcht'))}</span><span>${RUF_AX.furcht.r[rufRank(rufGet('furcht'))]}</span><span style="text-align:right">${RUF_AX.bew.r[rufRank(rufGet('bew'))]}</span><span>${Math.round(rufGet('bew'))}</span></div>
     <p class="s">Wer seine Kräfte für die Stadt einsetzt, wird bewundert. Wer Bürger herumwirft oder Energie in die Menge stößt, wird gefürchtet. Die Furcht legt sich mit der Zeit.</p>
     <h3 style="margin-top:12px">So begegnet man Ihnen</h3>
-    <table><tr><td>Bürger</td><td>${pct(pc.bew)} bewundernd · ${pct(pc.neid + pc.skep)} neidisch oder skeptisch · ${pct(pc.furcht)} ängstlich</td></tr>
-    <tr><td>Gesellschaft</td><td>${pct(pe.bew)} bewundernd · ${pct(pe.neid)} neidisch · ${pct(pe.furcht)} ängstlich</td></tr>
-    <tr><td>Arbeiter</td><td>${pct(pa.resp + pa.bew)} respektvoll · ${pct(pa.skep)} skeptisch · ${pct(pa.furcht)} ängstlich</td></tr></table>
+    <table><tr><td>Bürger</td><td>${pct(pc.bew)} bewundernd · ${pct(pc.neid + pc.skep)} neidisch oder skeptisch · ${pct(pc.furcht)} ängstlich${feind(pc)}</td></tr>
+    <tr><td>Gesellschaft</td><td>${pct(pe.bew)} bewundernd · ${pct(pe.neid)} neidisch · ${pct(pe.furcht)} ängstlich${feind(pe)}</td></tr>
+    <tr><td>Arbeiter</td><td>${pct(pa.resp + pa.bew)} respektvoll · ${pct(pa.skep)} skeptisch · ${pct(pa.furcht)} ängstlich${feind(pa)}</td></tr></table>
     <h3 style="margin-top:12px">Der Untergrund</h3>${rufAxis('unter', 'c')}
     <p class="s">Der Rote Kasimir ${kas}. Anarchisten tauchen ${an < 0.3 ? 'kaum noch' : an < 0.8 ? 'selten' : an < 1.2 ? 'ab und zu' : 'häufig'} auf. Unzufriedene Arbeiter stärken den Untergrund, Razzien und Kasimirs Festnahme schwächen ihn.</p>
   </section>
@@ -666,6 +669,7 @@ function rufInit() {
   rufDom();
   RUF.ready = true;
   AWE.attHook = rufAttHook;
+  AWE.bewHi = () => rufGet('bew') >= 70;   // V72: gefeiert: Applaus im Vorbeigehen
   KT.rufBonus = rufBonus;
   BLAST.onHits = rufOnHits;
   POWERS.onLetGo = rufOnLetGo;

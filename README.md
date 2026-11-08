@@ -293,6 +293,19 @@ Außenhaut, Garten, Terrassen und das Fest.
   pro Sekunde (vorher 42). Bei knapper Bildrate entsteht das Spiegelbild nur jedes zweite Bild (`REFL.half`).
 - *Aufgeräumt:* Feuerwerk, Lichtsäulen aus den Kronen und Suchscheinwerfer des Belmont (seit V33/V42 aus) entfernt.
 
+**V72: Lebendigere Stadt** (`src/strasse.js`, Haken in `life.js`).
+- *Straßenhändler* an Hauswänden und am Belmont-Platz (16 am PC, 7 am Handy): Maronenröster mit Glut, Würstchenwagen,
+  Punschstand mit Samowar, Suppenwagen im Arbeiterviertel, Blumenfrau, Schuhputzerjunge, Zigarettenmädchen. Sie rufen ihre
+  Ware aus, Kunden essen und trinken davor. E am Stand: kaufen, eine Runde spendieren oder großzügig zahlen (Kontor, Ruf);
+  Begrüßung und Dank hängen von der Haltung ab. Alle Stände sind ein Netz.
+- *Kundgebung am Kneipenplatz:* Redner auf der Kiste vor einem Transparent, Arbeiter mit Schildern, zwei Polizisten.
+  Arbeiter-Ruf ab 62: ruhig; darunter klein; unter 35 oder bei Streik (Kontor-Ereignis) groß, dazu ein Demonstrationszug
+  mit Transparent um den Block. Rede und Sprechchor im Wechsel, Rufe an Alexander je nach Ruf. E beim Redner: Löhne
+  versprechen, spenden, Rede halten oder räumen lassen (Ruf, Kurier). Schilder: ein Netz mit einer Leinwand, die Schilder
+  der Gehenden rechnet die CPU nur in der Nähe nach. `?kundgebung=0|1|2` erzwingt die Stufe.
+- *Haltung „feindselig“* (`hass`) bei schlechtem Ruf in der eigenen Gruppe: kalter Blick, abwenden, eigene Sätze; bei
+  Bewunderung ab 70 klatschen manche im Vorbeigehen. Test: `tools/strasse-test.js`.
+
 **V71: Ballsaal-Wand und Handy-Leistung.**
 - *Unsichtbare Wand vor dem Ballsaal:* die Bahnwagen-Innenräume (V63, `bahn.js`), die gerade keinem Zug gehören, standen
   unsichtbar am Ursprung, also mitten in der Belmont-Lobby vor dem Ballsaaltor, und hielten Alexander auf (am PC genauso).

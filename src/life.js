@@ -21,7 +21,8 @@ import { addCollider, nearBoxes, paintMat, mergeColored } from './people-skeleto
 import { setAct, turnHead, pedCrowd, SHIRTS, WORKWEAR, COATS, DRESSES, GOWNS } from './serpentine.js';
 import { player } from './player.js';
 
-export const LIFE = { spots: [], waiters: [], news: [], sayT: 0, mesh: null };
+export const LIFE = { spots: [], waiters: [], news: [], sayT: 0, mesh: null,
+  extraPeds: [], ticks: [] };   // V72: weitere Leute (strasse.js: Händler, Kundgebung) und ihr Takt; Figuren mit life.step bewegen sich selbst
 const near2 = (x, z, r) => (x - camera.position.x) ** 2 + (z - camera.position.z) ** 2 < r * r;
 
 /* ---------- Instrumente (lokal: +z zeigt zum Musiker) ---------- */
@@ -63,7 +64,7 @@ export function organParts() {
   P.push([CY(0.06, 0.05, 0.1, 10, 0.24, 1.36, -0.08), [0.6, 0.6, 0.62]]);
   return P;
 }
-function placeParts(parts, x, z, yaw, y = 0.22) {
+export function placeParts(parts, x, z, yaw, y = 0.22) {
   return parts.map(([g, c]) => [g.clone().rotateY(yaw).translate(x, y, z), c]);
 }
 export function lifeMesh(parts) {
@@ -73,7 +74,7 @@ export function lifeMesh(parts) {
 
 /* ---------- Plätze für die Musiker suchen ---------- */
 // frei: keine Wände/Möbel (Quader über 0,6 m), keine Bäume, Laternen, Türen, Wege der Passanten
-function freeSpot(x, z, r, loops, apart = true) {
+export function freeSpot(x, z, r, loops, apart = true) {
   if (DOORS.some(d => Math.hypot(d.x - x, d.z - z) < r + 3.5)) return false;
   if (apart && LIFE.spots.some(s => Math.hypot(s.x - x, s.z - z) < 40)) return false;
   if (trees.some(t => Math.abs(t.x - x) < r + 1.6 && Math.abs(t.z - z) < r + 1.6)) return false;
@@ -195,6 +196,7 @@ export function lifePeds(loops) {
     s.songT = 25 + rr() * 20;
   }
   if (parts.length) { LIFE.mesh = lifeMesh(parts); scene.add(LIFE.mesh); }
+  for (const f of LIFE.extraPeds) { try { out.push(...f(loops)); } catch (e) { console.warn('Leben:', e); } }   // V72
   return out;
 }
 // Zeitungsjungen an Ecken (aus buildPedestrians) bekommen denselben Wechsel aus Ausrufen und Zeitung-Zeigen
@@ -215,6 +217,7 @@ const walkOn = (pd, on) => { const g = pd.a.gait; if (on) { g[1] = 1.25 * (pd.fe
 // Kellner (st 10): drinnen – zur Tür hinaus – zu einem Tisch – Bestellung aufnehmen – zurück
 export function lifeStep(pd, dt) {
   const L = pd.life, a = pd.a; if (!a) return;
+  if (L.step) { L.step(pd, dt); return; }   // V72: Händler, Kundgebung, Demonstrationszug (strasse.js)
   const d = L.d;
   if (!near2(d.x, d.z, 260)) { L.ph = 'in'; L.t = Math.min(L.t, 6); a.on = false; return; }
   if (L.ph === 'in') {
@@ -246,6 +249,7 @@ export function lifeStep(pd, dt) {
 // Zeitungsjungen, Applaus nach dem Lied, Rufe der Musiker; aus updatePedestrians
 export function updateLife(dt) {
   LIFE.sayT -= dt;
+  for (const f of LIFE.ticks) f(dt);   // V72
   const p = player.p;
   for (const pd of LIFE.news) {
     const L = pd.life, a = pd.a; if (!a || !a.on || pd.aw || pd.rag) continue;
@@ -270,7 +274,7 @@ export function updateLife(dt) {
     }
   }
   for (const s of LIFE.spots) {
-    if (!s.peds || !near2(s.x, s.z, 110)) continue;
+    if (s.vend || !s.peds || !near2(s.x, s.z, 110)) continue;   // V72: Händlerplätze haben keine Musik
     if (s.clap > 0) {
       if ((s.clap -= dt) <= 0) for (const pd of s.peds) { if (pd.aw || !pd.a) continue; if (pd.listen) setAct(pd, pd.act); else if (pd.singer) { pd.tilt = 0; setAct(pd, 0.95); } }
       continue;
@@ -292,6 +296,6 @@ export function updateLife(dt) {
 // Nächster Musikplatz (für music.js): Art und Entfernung
 export function nearestMusic(p) {
   let best = null, bd = 1e9;
-  for (const s of LIFE.spots) { const d = Math.hypot(s.x - p.x, s.z - p.z); if (d < bd) { bd = d; best = s; } }
+  for (const s of LIFE.spots) { if (s.vend) continue; const d = Math.hypot(s.x - p.x, s.z - p.z); if (d < bd) { bd = d; best = s; } }
   return best ? { s: best, d: bd } : null;
 }

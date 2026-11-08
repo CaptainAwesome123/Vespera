@@ -61,6 +61,7 @@ import './karte.js';     // V62: Stadtkarte (Taste Y), Wegpunkt, Kompassring, Sc
 import './nebenfiguren.js'; // V63: Nebenfiguren mit eigener Geschichte (Gespräche mit E, Bekanntschaften im Ruf-Buch)
 import './wetterlage.js'; // V63: Wetterereignisse (Schneesturm, Nordlichtnacht, Eisgang, Frostnebel, Meteoritenschauer)
 import './bahn.js';      // V63: Straßenbahn und Hochbahn: Linien, Haltestellen, mitfahren (E, V), Schnellfahrt
+import './strasse.js';   // V72: Straßenhändler, Kundgebung und Demonstrationszug im Arbeiterviertel
 
 import { shared, $, renderer, scene, camera } from './core.js';
 import { layers, chunkStats } from './chunks.js';

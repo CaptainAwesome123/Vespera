@@ -45,8 +45,8 @@ let fails = 0; const ok = (c, m) => { console.log((c ? 'OK   ' : 'FEHLER ') + m)
     const f1 = RUF.s.furcht; EN.BLAST.onHits([{ kind: 'ped', ref: { a: { kind: 'suit' } } }, { kind: 'ped', ref: { a: { kind: 'lady' } } }, { kind: 'ped', ref: { gg: {}, a: { kind: 'worker' } } }]); out.stoss = +(RUF.s.furcht - f1).toFixed(2);
     // Haltungen: bei hohem und tiefem Arbeiter-Ruf
     KT.s.rep.arbeiter = 90; const hi = R.rufAttP('arbeiter'); KT.s.rep.arbeiter = 15; const lo = R.rufAttP('arbeiter');
-    out.att = { hiResp: +(hi.resp + hi.bew).toFixed(2), loResp: +(lo.resp + lo.bew).toFixed(2), loSkep: +lo.skep.toFixed(2) };
-    const sample = []; for (let i = 0; i < 200; i++) sample.push(AW.attOf({ a: { kind: 'worker' } })); out.attLow = sample.filter(a => a === 'skep' || a === 'furcht').length;
+    out.att = { hiResp: +(hi.resp + hi.bew).toFixed(2), loResp: +(lo.resp + lo.bew).toFixed(2), loSkep: +lo.skep.toFixed(2), loHass: +(lo.hass || 0).toFixed(2) };
+    const sample = []; for (let i = 0; i < 200; i++) sample.push(AW.attOf({ a: { kind: 'worker' } })); out.attLow = sample.filter(a => a === 'skep' || a === 'furcht' || a === 'hass').length;
     // neue Sätze bei niedrigem Arbeiter-Ruf (nach dem langsamen Schritt)
     RUF.slowT = 0; await wait(500); out.lowLines = AW.SAY_NEAR.skep.some(s => /brodelt/.test(s));
     // Post: Gewerkschaft taucht am neuen Tag auf, Antwort hebt den Ruf
