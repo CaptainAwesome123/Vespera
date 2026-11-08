@@ -1082,7 +1082,7 @@ export function buildVilla() {
   for (let lx = -48; lx <= 48; lx += 16) for (const lz of [-24.5, -55.5]) { put('iron', new T.CylinderGeometry(0.05, 0.07, 2.2, 6), lx, by + 1.1, lz); put('gold', new T.CylinderGeometry(0.16, 0.08, 0.3, 8), lx, by + 2.3, lz); G(lx, by + 2.65, lz, [1.6, 0.7, 0.2], 1.4); }
 
   const WUV = { hedge: 1.6, plaster: 4.2, parq: 4.0, marble: 4.2, panel: 2.0 };
-  for (const k in batch) { const g = mergeGeos(batch[k]); if (WUV[k]) worldUV(g, WUV[k]); const m = new T.Mesh(g, M[k]); m.frustumCulled = false; scene.add(m); }
+  for (const k in batch) { const g = mergeGeos(batch[k]); if (WUV[k]) worldUV(g, WUV[k]); const m = new T.Mesh(g, M[k]); m.frustumCulled = false; scene.add(m); if (k === 'statue') VILLA.statues = m; }   // V75: Statuen (110 000 Dreiecke) nur aus der Nähe, performance.js
   { const [x, z] = W(0, 20); addLight(0xffc27a, 0.95, 140, 1.4, x, by + 12, z); }
   { const [x, z] = W(0, -12); addLight(0xffd29a, 0.7, 30, 1.6, x, by + 6.5, z); }
 }
@@ -2183,7 +2183,16 @@ export function treeGeos(sp) {
       cards.push(sphereNormals(q.translate(x + d.x, y + d.y, z + d.z)));
     }
   }
-  return { bark: mergeGeos(bark), blobs: mergeGeos(blobs), cards: mergeGeos(cards), lo: mergeGeos([...blobs.map(g => g.clone()), new T.CylinderGeometry(0.15, 0.3, crownBase + 1, 5).translate(0, (crownBase + 1) / 2, 0)]) };
+  const trunk = new T.CylinderGeometry(0.15, 0.3, crownBase + 1, 5).translate(0, (crownBase + 1) / 2, 0);
+  // V75: am Handy/iPad ist die Fernform eine einzige Krone (Ikosaeder in der Größe aller Laubballen, rund 90 statt 1 100 Dreiecke);
+  // im Flug über den Parks standen sonst über tausend Fernbäume mit je allen Ballen im Bild
+  let lo;
+  if (MOBILE) {
+    const bb = new T.Box3(); for (const g of blobs) { g.computeBoundingBox(); bb.union(g.boundingBox); }
+    const c = bb.getCenter(new T.Vector3()), sz = bb.getSize(new T.Vector3());
+    lo = mergeGeos([new T.IcosahedronGeometry(0.5, 1).scale(sz.x * 0.92, sz.y * 0.92, sz.z * 0.92).translate(c.x, c.y, c.z), trunk]);
+  } else lo = mergeGeos([...blobs.map(g => g.clone()), trunk]);
+  return { bark: mergeGeos(bark), blobs: mergeGeos(blobs), cards: mergeGeos(cards), lo };
 }
 // Laub für Hecken und Buchs: dichte kleine Blätter mit Licht und Schatten
 export const HEDGE_TEX = texSet(256, (g, gr, gh, W) => {
@@ -2281,13 +2290,13 @@ export function treeDirty() { treeTimer = 0; TREE_CAP.v = -1; }
 export function updateTreeLod(dt) {
   if ((treeTimer -= dt) > 0 && TREE_CAP.v === FOGVIS.cap) return;
   treeTimer = 0.3; TREE_CAP.v = FOGVIS.cap;
-  const cp = camera.position, D2 = Math.min((MOBILE ? 110 : 230) + Math.max(0, cp.y) * 0.5, FOGVIS.cap) ** 2, F2 = Math.min(2600, FOGVIS.tall, FOGVIS.cap) ** 2;
+  const cp = camera.position, D2 = Math.min((MOBILE ? 110 : 230) + Math.max(0, cp.y) * (MOBILE ? 0.2 : 0.5), FOGVIS.cap) ** 2, F2 = Math.min(2600, FOGVIS.tall, FOGVIS.cap) ** 2;
   for (const st of TREE_SETS) {
     let a = 0, b = 0;
     st.pts.forEach((p, i) => {
       if (p.taken) return;   // V54: herausgerissen
-      const d2 = (p.x - cp.x) ** 2 + (p.z - cp.z) ** 2;
-      if (d2 < D2) { for (const im of st.hi) { im.setMatrixAt(a, p.m); if (im.userData.tint) im.setColorAt(a, p.c); } a++; }
+      const d2 = (p.x - cp.x) ** 2 + (p.z - cp.z) ** 2, h2 = MOBILE ? (cp.y - p.y) ** 2 : 0;   // V75: am Handy/iPad zählt im Flug auch die Höhe
+      if (d2 + h2 < D2) { for (const im of st.hi) { im.setMatrixAt(a, p.m); if (im.userData.tint) im.setColorAt(a, p.c); } a++; }
       else if (d2 < F2) { st.lo[0].setMatrixAt(b, p.m); st.lo[0].setColorAt(b, p.c); b++; }
     });
     for (const im of [...st.hi, ...st.lo]) { im.count = im === st.lo[0] ? b : a; im.instanceMatrix.needsUpdate = true; if (im.instanceColor) im.instanceColor.needsUpdate = true; }
@@ -2327,10 +2336,11 @@ export const parked = []; export let parkedCmp = null, parkedModelCmp = null; sh
 export function updateParked(dt) {
   if (!parkedCmp || (shared.parkedTimer -= dt) > 0) return;
   shared.parkedTimer = 0.15;
-  const cp = camera.position, D2 = Math.min(420 + Math.max(0, cp.y), FOGVIS.ped, FOGVIS.cap) ** 2;   // V27: im Nebel nur so weit, wie man sieht (V34: und aus dem Belmont nur durchs Portal)
+  // V27: im Nebel nur so weit, wie man sieht (V34: und aus dem Belmont nur durchs Portal). V75: am Handy/iPad höchstens 260 m
+  const cp = camera.position, D2 = Math.min((MOBILE ? 260 : 420) + Math.max(0, cp.y), FOGVIS.ped, FOGVIS.cap) ** 2, MF2 = CARM.modelFar2;
   const MC = parkedModelCmp;
   parkedCmp.begin(); if (MC) MC.begin();
-  for (const c of parked) { if (c.hidden) continue; const d2 = (c.x - cp.x) ** 2 + (c.z - cp.z) ** 2 + cp.y * cp.y; if (d2 < D2) (c.model && MC ? MC : parkedCmp).put(c.m, c, c.c, d2); }
+  for (const c of parked) { if (c.hidden) continue; const d2 = (c.x - cp.x) ** 2 + (c.z - cp.z) ** 2 + cp.y * cp.y; if (d2 < D2) (c.model && MC && d2 < MF2 ? MC : parkedCmp).put(c.m, c, c.c, d2); }
   parkedCmp.end(); if (MC) MC.end();
 }
 
@@ -2593,7 +2603,8 @@ export function turnHead(a, x, z) {
 }
 // V71: am Handy das feine Modell (12 000 bis 19 000 Dreiecke) nur bis 25 m: im Ballsaal standen sonst fast alle Gäste in der feinen
 // Stufe (3,4 Mio. Dreiecke allein für die Menge); auf dem kleinen Bildschirm ist eine Figur in 25 m keine 50 Bildpunkte hoch
-export const LOD_PERSON2 = (MOBILE ? 25 : 45) ** 2, LOD_CAR2 = 90 * 90, LOD_PERSON_FAR2 = 140 * 140;   // V64: Fernstufe der Menschen
+export const LOD_PERSON2 = (MOBILE ? 25 : 45) ** 2, LOD_CAR2 = (MOBILE ? 50 : 90) ** 2,   // V75: Autos am Handy/iPad ab 50 m in der einfachen Form
+  LOD_PERSON_FAR2 = 140 * 140;   // V64: Fernstufe der Menschen
 // Zwei Detailstufen hinter einer Schnittstelle: put() entscheidet nach Abstand
 // V57: optional eine dritte Stufe 'far': gleiches Netz wie lo, wirft aber keinen Schatten (die Mondschatten-Karte reicht nur
 // rund 150 m um den Blickpunkt; weiter weg kostete jeder Wagen in der Schattenkarte nur Rechenzeit)

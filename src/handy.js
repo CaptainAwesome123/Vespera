@@ -33,7 +33,7 @@ import { DINE } from './venues.js';
 import { IMP, impToggleCam } from './imperial.js';
 import { PM, toggleView, toggleDance } from './player-model.js';
 import { cycleWeather } from './atmosphere.js';
-import { ftAvg, prIdx, PR_LEVELS, togglePerf } from './performance.js';
+import { ftAvg, prIdx, PR_LEVELS, togglePerf, HANDY_DET, PR_FLOOR } from './performance.js';
 import { layers } from './chunks.js';
 import { pedCrowd } from './serpentine.js';
 import { HQ } from './people-model.js';
@@ -47,10 +47,12 @@ export const HANDY = {
 };
 export const HD_LEVELS = [
   // V71: hi = Abstand, bis zu dem Menschen als feines Modell gezeichnet werden (people-model.js HQ.hi2)
-  { range: 1, crowd: 420, bloom: true, hi: 45 },
-  { range: 0.85, crowd: 320, bloom: true, hi: 25 },
-  { range: 0.72, crowd: 240, bloom: false, hi: 19 },
-  { range: 0.6, crowd: 170, bloom: false, hi: 15 },
+  // V75: det = Anteil an der Sichtweite der Einzelteile (Schilder, Zierrat; performance.js HANDY_DET)
+  { range: 1, crowd: 420, bloom: true, hi: 45, det: 1 },
+  // V75: feine Figuren am Handy/iPad bis 20 m (vorher 25): im Ballsaal standen über 70 Tänzer mit je 13 000 bis 17 000 Dreiecken im Bild
+  { range: 0.85, crowd: 320, bloom: true, hi: 20, det: 0.9 },
+  { range: 0.72, crowd: 240, bloom: false, hi: 16, det: 0.75 },
+  { range: 0.6, crowd: 170, bloom: false, hi: 12, det: 0.6 },
 ];
 
 /* ---------- Aussehen ---------- */
@@ -226,11 +228,14 @@ function hdUpdateUI(dt) {
 }
 
 /* ---------- Leistungswächter ---------- */
+const HD_SMALL = new Set(['deco', 'furniture', 'goods', 'clutter']);
 function hdWrapLayers() {
   for (const L of layers) {
     if (L._hd || !L.radiusAt) continue;
     const f = L.radiusAt; L._hd = true;
     // nie unter 120 m (oder den eigenen kleineren Radius), damit nahe Dinge nicht verschwinden
+    // V75: Kleinkram (Zierrat, Bänke, Waren, Gerümpel) am Handy/iPad zusätzlich nur bis 80 % der Weite, nie unter 90 m
+    if (HD_SMALL.has(L.name) && MOBILE) { L.radiusAt = cam => { const r = f(cam); return Math.max(Math.min(r, 90), r * HANDY.range * 0.8); }; continue; }
     L.radiusAt = cam => { const r = f(cam); return Math.max(Math.min(r, 120), r * HANDY.range); };
   }
 }
@@ -238,6 +243,8 @@ function hdApply(i, say) {
   const S = HD_LEVELS[i]; HANDY.lvl = i; HANDY.range = S.range; HANDY.since = 0;
   if (pedCrowd) pedCrowd.far = S.crowd;
   HQ.hi2 = Math.min(S.hi, MOBILE ? 25 : 45) ** 2;
+  HANDY_DET.k = S.det;
+  if (MOBILE) PR_FLOOR.i = i < HD_LEVELS.length - 1 ? Math.max(0, PR_LEVELS.findIndex(v => v >= 0.7 - 1e-6)) : 0;
   if (!S.bloom && shared.bloomOn && composer) { shared.bloomOn = false; HANDY.bloomOff = true; }
   if (S.bloom && HANDY.bloomOff) { shared.bloomOn = true; HANDY.bloomOff = false; }
   if (say) toast(i > HANDY.base ? 'Sparmodus fürs Handy · Stufe ' + (i - HANDY.base) : 'Volle Sichtweite');
@@ -248,7 +255,9 @@ function hdGovern(dt) {
   HANDY.since += dt;
   if (paused || document.hidden || dt > 0.25 || HANDY.manual) return;
   // erst sparen, wenn die Auflösung schon ganz unten ist und es trotzdem ruckelt
-  if (prIdx === 0 && ftAvg > 26) HANDY.bad += dt; else HANDY.bad = Math.max(0, HANDY.bad - dt * 0.5);
+  // V75: am Handy/iPad schon ab Auflösung 0,7: darunter wird das Bild matschig, weniger Inhalt ist dann die bessere Wahl
+  const lowPR = prIdx === 0 || (MOBILE && PR_LEVELS[prIdx] <= 0.7 + 1e-6);
+  if (lowPR && ftAvg > 26) HANDY.bad += dt; else HANDY.bad = Math.max(0, HANDY.bad - dt * 0.5);
   const okPR = PR_LEVELS[prIdx] >= Math.min(0.9, PR_LEVELS[PR_LEVELS.length - 1]);
   if (ftAvg < 17 && okPR) HANDY.good += dt; else HANDY.good = 0;
   if (HANDY.bad > 3 && HANDY.since > 8 && HANDY.lvl < HD_LEVELS.length - 1) { HANDY.bad = 0; hdApply(HANDY.lvl + 1, true); }

@@ -29,6 +29,17 @@ export function decoLampGeo(h, lod = 0) {
   const P = [], G = [];
   const fine = lod === 0, F = fine ? (MOBILE ? 8 : 12) : 0;
   const gy0 = h - 0.76, gy1 = h - 0.04, shaftTop = gy0 - 0.3;
+  // V75: dritte Stufe (nur Handy/iPad, ab rund 150 m): Sockel, Schaft, Laterne, Haube, rund 90 statt 454 Dreiecke
+  if (lod >= 2) {
+    P.push([new T.CylinderGeometry(0.22, 0.36, 0.9, 6, 1, true).translate(0, 0.45, 0), LAMP_IRON]);
+    P.push([new T.CylinderGeometry(0.075, 0.1, shaftTop - 0.9, 5, 1, true).translate(0, 0.9 + (shaftTop - 0.9) / 2, 0), LAMP_IRON]);
+    P.push([new T.CylinderGeometry(0.25, 0.25, 0.06, 6, 1).translate(0, gy0 - 0.03, 0), LAMP_GOLD]);
+    P.push([new T.ConeGeometry(0.31, 0.5, 6).translate(0, gy1 + 0.25, 0), LAMP_IRON]);
+    G.push(new T.CylinderGeometry(0.235, 0.195, gy1 - gy0, 6, 1, true).translate(0, (gy0 + gy1) / 2, 0));
+    const out = { metal: mergeColored(P), glass: mergeColored(G.map(g => [g, [1, 1, 1]])) };
+    { const p = out.glass.attributes.position, c = out.glass.attributes.color; for (let i = 0; i < p.count; i++) { const v = 0.7 + 0.3 * (p.getY(i) - gy0) / (gy1 - gy0); c.setXYZ(i, v, v, v); } }
+    _cache.set(key, out); return out;
+  }
   // Sockel
   P.push([oct(0.36, 0.38, 0.1, 0), LAMP_IRON]);
   P.push([oct(0.31, 0.33, 0.13, 0.1), LAMP_IRON]);

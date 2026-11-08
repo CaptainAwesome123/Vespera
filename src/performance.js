@@ -78,6 +78,7 @@ export function updateLights(dt) {
 }
 // Kleine Einzelteile (Schilder, Leuchten, Zierrat) werden in großer Entfernung ausgeblendet
 export const detailCull = [];
+export const HANDY_DET = { k: 1 };   // V75: der Handy-Wächter (handy.js) verkürzt die Sichtweite der Einzelteile in den Sparstufen
 export function collectDetails() {
   const sp = new T.Sphere();
   for (const o of scene.children) {
@@ -85,14 +86,15 @@ export function collectDetails() {
     if (!o.geometry.boundingSphere) o.geometry.computeBoundingSphere();
     o.updateMatrixWorld(); sp.copy(o.geometry.boundingSphere).applyMatrix4(o.matrixWorld);
     if (sp.radius > 30) continue;
-    detailCull.push({ o, p: sp.center.clone(), d2: (320 + sp.radius * 30) ** 2 });
+    // V75: am Handy/iPad schon ab 170 m (Leuchtschilder, Zierrat): jedes Teil ist ein eigener Zeichenaufruf, und die kosten in Safari viel
+    detailCull.push({ o, p: sp.center.clone(), d2: (MOBILE ? 170 + sp.radius * 18 : 320 + sp.radius * 30) ** 2 });
   }
 }
 export let cullTimer = 0;
 export function updateDetails(dt) {
   if ((cullTimer -= dt) > 0) return;
   cullTimer = 0.3;
-  const cp = camera.position, k = 1 + Math.max(0, cp.y - 60) / 200;
+  const cp = camera.position, k = (1 + Math.max(0, cp.y - 60) / 200) * HANDY_DET.k;
   for (const d of detailCull) d.o.visible = d.p.distanceToSquared(cp) < d.d2 * k * k;
 }
 /* ---------- V27: was im Bodennebel verschwindet, wird nicht mehr gezeichnet ----------
@@ -131,6 +133,9 @@ export const PR_LEVELS = [0.5, 0.6, 0.7, 0.8, 0.9, 1, 1.15, 1.3, 1.5, 1.75, 2].f
 export const PR_START = MOBILE ? Math.min(PR_MAX, 0.9) : Math.min(PR_MAX, Math.max(PR_DEV, 1));   // V38: niedrige Stufe startet mit 1,0
 export let prIdx = PR_LEVELS.reduce((b, v, i) => Math.abs(v - PR_START) < Math.abs(PR_LEVELS[b] - PR_START) ? i : b, 0);
 export let prCeil = PR_LEVELS.length - 1, ftAvg = 16.7, prTimer = 0, goodTime = 0, lastUp = -1e9, adaptOn = true;
+// V75: untere Grenze der Auflösung. Am Handy/iPad setzt der Wächter (handy.js) sie auf 0,7, solange er noch Inhalt sparen kann;
+// erst in der sparsamsten Stufe darf das Bild bis 0,5 hinunter (vorher wurde zuerst alles matschig, dann erst gespart)
+export const PR_FLOOR = { i: 0 };
 export function setPR(v) { renderer.setPixelRatio(v); if (composer) composer.setPixelRatio(v); resize(); }
 export function adaptResolution(raw, now) {
   if (!adaptOn || raw > 0.25 || document.hidden) return;
@@ -141,7 +146,7 @@ export function adaptResolution(raw, now) {
   // V57: wird es knapp, entsteht das Spiegelbild (Hafen, nasses Pflaster) nur noch jedes zweite Bild; man sieht es kaum, es spart
   // aber fast ein ganzes zusätzliches Zeichnen der Stadt in halber Auflösung
   if (ftAvg > 19) REFL.half = true; else if (ftAvg < 15.5) REFL.half = false;
-  if (ftAvg > 20.5 && prIdx > 0) {
+  if (ftAvg > 20.5 && prIdx > PR_FLOOR.i) {
     if (now - lastUp < 5000) prCeil = prIdx - 1;
     prIdx--; setPR(PR_LEVELS[prIdx]); goodTime = 0; ftAvg = 18;
   } else if (ftAvg < 18.5) {
@@ -275,6 +280,7 @@ export function frame(now) {
   updatePentStaff(dt);   // V57: Personal im Penthouse
   const villaD = Math.hypot(camera.position.x - VILLA.x, camera.position.z - VILLA.z), nearVilla = villaD < 650;
   if (VILLA.buffet) VILLA.buffet.visible = villaD < 220;   // V64: Teller und Gläser auf dem Büfett nur aus der Nähe
+  if (VILLA.statues) VILLA.statues.visible = villaD < 600;   // V75: die Marmorstatuen (110 000 Dreiecke) wurden bis in die Stadt gezeichnet
   if (VILLA.crowd) VILLA.crowd.show(nearVilla);
   if (nearVilla) updateVilla(t); else updateVillaZones(false);
   updateLights(dt);
