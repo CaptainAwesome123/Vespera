@@ -10,14 +10,15 @@
    ===================================================================== */
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
-import { T, scene, mergeGeos, snowy, ANISO } from './core.js';
+import { T, scene, mergeGeos, snowy, ANISO, MOBILE } from './core.js';
 import { ENV } from './people-skeleton.js';
 import { resolveAsset } from './assets.js';
 
 export const CARM = {
   ready: false, share: 0.4,                  // Anteil der Pierce Arrows in Verkehr und Parkreihen
   shadow2: 210 * 210,                        // V57: bis hierhin werfen die Wagen Mondschatten (Schattenkarte: 300 m um den Blickpunkt)
-  near2: 70 * 70,                            // bis 70 m die volle Fassung (27 000 Dreiecke), dahinter die ferne (4 300)
+  near2: (MOBILE ? 35 : 70) ** 2,            // bis 70 m (V75: am Handy/iPad 35 m) die volle Fassung (27 000 Dreiecke), dahinter die ferne (4 300)
+  modelFar2: MOBILE ? 80 * 80 : Infinity,    // V75: am Handy/iPad stehen geparkte Pierce Arrows ab 80 m als schlichte Limousine (1 000 statt 4 300 Dreiecke)
   geoHi: null, geoBody: null, geoWheel: null, geoLo: null, mat: null,
   // Maße aus der Datei (extras.car); Werte hier nur, bis sie geladen ist
   dim: { len: 5.1, front: 1.85, rear: -1.85, track: 0.89, r: 0.52, axle: 0.52, lamp: [2.3, 1.22, 0.9], tail: [-2.45, 1.0, 0.72] },

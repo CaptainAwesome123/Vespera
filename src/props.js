@@ -19,7 +19,9 @@ import { decoLampGeo, decoLampMats } from './decolamp.js';
 import { REFL } from './water.js';
 
 export const PROPS_CELL = 250, PROPS_RADIUS = 700, PROPS_LOD_FAR = 260;
-export const STREET_CELL = 250, STREET_LOD = 330, LAMP_LOD = 130;              // Zellgröße und Entfernung, ab der nur noch die einfache Form steht
+export const STREET_CELL = 250, STREET_LOD = 330, LAMP_LOD = 130, LAMP_LOD_M = 35, LAMP_LOD_M2 = 150;              // Zellgröße und Entfernung, ab der nur noch die einfache Form steht (V75: _M = Handy/iPad)
+// V75: am Handy/iPad Laternenzellen von 125 m: dann stehen nur die Laternen der nächsten Viertelzellen fein da (am Belmont vorher 284 feine Kandelaber)
+export const LAMP_CELL = MOBILE ? 125 : STREET_CELL;
 export const props = { placements: [], ready: false, baked: {}, mat: null };
 
 // Modelle je Verwendung: Name im Manifest, Farben je Materialname, Zielhöhe in Metern
@@ -67,9 +69,11 @@ export function setupStreetLayers() {
     // V57: feine Kandelaber (1 656 Dreiecke) nur bis LAMP_LOD m, gemessen bis zum nächsten Rand der Zelle; dahinter die schlichte Form.
     // Kanneluren, Finnen und Rippen sind ab rund 100 m schmaler als ein Bildpunkt. Vorher galt die Grenze ab der Zellmitte
     // (330 m), also bis über 500 m: rund eine Million Dreiecke Laternen je Bild, im Spiegelbild noch einmal.
-    name: 'lamps', size: STREET_CELL, radius: cam => 400 + Math.max(0, cam.position.y) * 1.5, lods: [LAMP_LOD], lodEdge: true, lodHyst: 20,
+    // V75: am Handy und iPad nur die Zelle, in der man steht, und ganz nahe Ränder mit den feinen Kandelabern (vorher bis zu neun Zellen,
+    // rund 650 000 Dreiecke Laternen je Bild auf dem iPad), ab 150 m eine ganz schlichte dritte Form; Laderadius 280 statt 400 m
+    name: 'lamps', size: LAMP_CELL, radius: cam => (MOBILE ? 280 : 400) + Math.max(0, cam.position.y) * (MOBILE ? 0.8 : 1.5), lods: MOBILE ? [LAMP_LOD_M, LAMP_LOD_M2] : [LAMP_LOD], lodEdge: true, lodHyst: MOBILE ? 10 : 20,
     build(cx, cz, lod) {
-      const here = STREET.lamps.filter(l => !l.taken && inCell(l, cx, cz, STREET_CELL)); if (!here.length) return null;
+      const here = STREET.lamps.filter(l => !l.taken && inCell(l, cx, cz, LAMP_CELL)); if (!here.length) return null;
       for (const l of here) l._ims = [];   // V53: Telekinese nimmt Laternen heraus (beide Netze)
       // V27: Art-Déco-Kandelaber (src/decolamp.js), je Höhe ein Netz für Eisen und Gold und eins für das Milchglas
       const g = new T.Group(), M = decoLampMats(), byH = new Map();

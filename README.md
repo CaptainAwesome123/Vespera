@@ -293,6 +293,26 @@ Außenhaut, Garten, Terrassen und das Fest.
   pro Sekunde (vorher 42). Bei knapper Bildrate entsteht das Spiegelbild nur jedes zweite Bild (`REFL.half`).
 - *Aufgeräumt:* Feuerwerk, Lichtsäulen aus den Kronen und Suchscheinwerfer des Belmont (seit V33/V42 aus) entfernt.
 
+**V75: Leistung am Handy und iPad.** Am PC bleibt alles, wie es war (bis auf die Villa-Statuen, siehe unten).
+Gemessen auf einem nachgebildeten iPad (Safari-Kennung, echte Zähler von `renderer.info`, Zeichnen abgeschaltet).
+- *Laternen:* am Handy/iPad Zellen von 125 statt 250 m (`LAMP_CELL`, `props.js`), feine Kandelaber nur bis 35 m vom Zellrand,
+  dahinter die einfache Form und ab 150 m eine ganz schlichte dritte (rund 90 Dreiecke, `decoLampGeo` Stufe 2). Am Belmont-Platz
+  standen vorher 284 feine Kandelaber im Bild (650 000 Dreiecke), jetzt rund 40.
+- *Parkende Autos:* Pierce Arrows ab 80 m als schlichte Limousine (1 000 statt 4 300 Dreiecke, `CARM.modelFar2`), volle Fassung
+  bis 35 m, eigene Limousinen fein bis 50 m (`LOD_CAR2`), Parkreihen bis 260 m (vorher 420 m).
+- *Bäume:* die Fernform ist am Handy/iPad eine einzige Krone statt aller Laubballen (rund 90 statt 1 100 Dreiecke), und im Flug
+  zählt für die feine Form auch die Höhe. Im Flug über den Parks waren das vorher 1,3 Mio. Dreiecke.
+- *Einzelteile* (Leuchtschilder, Zierrat, jedes ein eigener Zeichenaufruf): am Handy/iPad nur bis rund 170 m; Kleinkram-Zellen
+  (Zierrat, Bänke, Waren, Gerümpel) laden bis 80 % der Weite.
+- *Menschen:* feine Figuren bis 20 m (vorher 25), im Sparmodus 16 und 12 m.
+- *Sparwächter* (`handy.js`): spart schon ab Auflösung 0,7 Inhalt (Sichtweite, Menge, Nachleuchten, Einzelteile), statt erst
+  bei 0,5; die Auflösung fällt erst in der sparsamsten Stufe unter 0,7 (`PR_FLOOR`, `performance.js`). Vorher wurde das Bild
+  zuerst matschig und ruckelte trotzdem.
+- *Überall:* die Marmorstatuen der Villa (110 000 Dreiecke) werden nur noch bis 600 m Abstand gezeichnet, vorher bis in die Stadt.
+- Ergebnis iPad (Dreiecke je Bild, vorher → nachher): Belmont-Platz 5,8 → 3,9 Mio., Kneipenplatz 4,4 → 3,2 Mio., Flug 5,1 → 2,8 Mio.
+- Die Neuerungen V72 bis V74 (Händler, Kundgebung, Stadtklang, Autotüren) kosten am Handy wenig: im CPU-Profil steht keine ihrer
+  Funktionen unter den 20 teuersten, die Mengen waren dort schon verkleinert.
+
 **V73: Musik und Stadtklang** (`src/klang.js`, alles live erzeugt, keine neue Datei, keine Ladezeit).
 - *Band im Ballsaal* (`music.js`): vier Stücke (Belmont Swing, Ballade der Polarnacht mit Saxophon und Besen, Charleston
   am Kratersee mit Klarinette, Mitternacht im Krater mit gedämpfter Trompete). Jedes mit festem Thema am Anfang und Ende,
