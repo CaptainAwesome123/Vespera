@@ -297,7 +297,7 @@ Außenhaut, Garten, Terrassen und das Fest.
 - *Unsichtbare Wand vor dem Ballsaal:* die Bahnwagen-Innenräume (V63, `bahn.js`), die gerade keinem Zug gehören, standen
   unsichtbar am Ursprung, also mitten in der Belmont-Lobby vor dem Ballsaaltor, und hielten Alexander auf (am PC genauso).
   Unbenutzte Wagen sind jetzt aus (`pf.off`, `player.js` überspringt sie); auch der Geisterwagen dort, wo ein Zug zuletzt war, ist weg.
-- *Handy:* Menschen als feines Modell nur bis 25 m (vorher 45 m; im Ballsaal 3,4 statt 1,1 Mio. Dreiecke), der Sparmodus
+- *Handy:* Menschen als feines Modell nur bis 25 m (vorher 45 m; am Ballsaaltor 1,1 statt 3,4 Mio. Dreiecke), der Sparmodus
   senkt das weiter auf 19 und 15 m (`HQ.hi2`); keine Lichtkegel unter den Laternen (auch nicht in der niedrigen Stufe), eine
   Nebelbank statt zwei.
 - *Allgemein:* aus dem Belmont heraus werden auch Laternen, Läden, Möbel und Zierrat nur bis zur Sichtweite durchs Portal
