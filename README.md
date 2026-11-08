@@ -293,6 +293,16 @@ Außenhaut, Garten, Terrassen und das Fest.
   pro Sekunde (vorher 42). Bei knapper Bildrate entsteht das Spiegelbild nur jedes zweite Bild (`REFL.half`).
 - *Aufgeräumt:* Feuerwerk, Lichtsäulen aus den Kronen und Suchscheinwerfer des Belmont (seit V33/V42 aus) entfernt.
 
+**V71: Ballsaal-Wand und Handy-Leistung.**
+- *Unsichtbare Wand vor dem Ballsaal:* die Bahnwagen-Innenräume (V63, `bahn.js`), die gerade keinem Zug gehören, standen
+  unsichtbar am Ursprung, also mitten in der Belmont-Lobby vor dem Ballsaaltor, und hielten Alexander auf (am PC genauso).
+  Unbenutzte Wagen sind jetzt aus (`pf.off`, `player.js` überspringt sie); auch der Geisterwagen dort, wo ein Zug zuletzt war, ist weg.
+- *Handy:* Menschen als feines Modell nur bis 25 m (vorher 45 m; im Ballsaal 3,4 statt 1,1 Mio. Dreiecke), der Sparmodus
+  senkt das weiter auf 19 und 15 m (`HQ.hi2`); keine Lichtkegel unter den Laternen (auch nicht in der niedrigen Stufe), eine
+  Nebelbank statt zwei.
+- *Allgemein:* aus dem Belmont heraus werden auch Laternen, Läden, Möbel und Zierrat nur bis zur Sichtweite durchs Portal
+  gezeichnet (Lobby 180 m, Ballsaal 110 m).
+
 **V67 bis V70: Grafik-Update aus dem Spielvideo** (Vorschlag „Vespera Grafik-Update“, ohne die teure Stufe „Ultra“).
 Regel wie immer: keine großen neuen Shader, keine Verzweigungen im Menschen-Shader, lieber beim Laden rechnen.
 - *V67 Licht innen* (`src/raumlicht.js`): weiche Flecken aus einem kleinen Bildatlas, beim Laden je Raumgruppe in zwei Netze

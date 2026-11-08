@@ -10,7 +10,7 @@
    werden die Zellen einmal neu gebaut (invalidateLayer). Fototexturen: applyTextures() hängt sie an
    die Materialien, die sich mit wantTexture() gemeldet haben (Belmont-Marmor, Gold, Fassaden-Backstein).
    ===================================================================== */
-import { T, U } from './core.js';
+import { T, U, MOBILE, LOW } from './core.js';
 import { registerLayer, invalidateLayer } from './chunks.js';
 import { manifest, loadManifest, prepareModels, instanceModel, bakeModel, applyTextures, loadTexture, GOODS_AT } from './assets.js';
 import { STREET } from './serpentine.js';
@@ -78,7 +78,8 @@ export function setupStreetLayers() {
         const G = decoLampGeo(h, lod);
         g.add(instanced(G.metal, M.metal, list, (l, i, im) => { im.setMatrixAt(i, _pm.makeTranslation(l.x, l.y, l.z)); l._ims.push([im, i]); }));
         g.add(instanced(G.glass, M.glass, list, (l, i, im) => { im.setMatrixAt(i, _pm.makeTranslation(l.x, l.y, l.z)); l._ims.push([im, i]); }));
-        if (lod === 0) { const c = instanced(coneGeo(h), coneMat(), list, (l, i, im) => { im.setMatrixAt(i, _pm.makeTranslation(l.x, l.y, l.z)); l._ims.push([im, i]); }); c.renderOrder = 3; c.userData.noRefl = true; g.add(c); }
+        // V71: am Handy und in der niedrigen Stufe ohne Lichtkegel (addiert, bildschirmgroß, wenn man unter einer Laterne steht)
+        if (lod === 0 && !MOBILE && !LOW) { const c = instanced(coneGeo(h), coneMat(), list, (l, i, im) => { im.setMatrixAt(i, _pm.makeTranslation(l.x, l.y, l.z)); l._ims.push([im, i]); }); c.renderOrder = 3; c.userData.noRefl = true; g.add(c); }
       }
       // V57: die Zelle wechselt jetzt öfter die Detailstufe; gleich ins Spiegelbild aufnehmen (sonst erst beim nächsten reflSweep nach bis zu 4 s)
       if (REFL.rt) { g.traverse(o => { if (!o.userData.noRefl) o.layers.enable(1); }); g.userData.reflSeen = true; }

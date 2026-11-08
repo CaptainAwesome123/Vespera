@@ -2543,7 +2543,7 @@ export class Crowd {
       const e = a.m.elements, d2 = (e[12] - cp.x) ** 2 + (e[13] - cp.y) ** 2 + (e[14] - cp.z) ** 2;
       if (d2 < 900 && NEAR.length < 64) NEAR.push(a);
       if (d2 < HQ.near2) this.nr[a.kind].put(a.m, a, a.color, a.gait);
-      else if (d2 < LOD_PERSON2) this.hi[a.kind].put(a.m, a, a.color, a.gait);
+      else if (d2 < (HQ.hi2 || LOD_PERSON2)) this.hi[a.kind].put(a.m, a, a.color, a.gait);
       else if (d2 < far2) (d2 < LOD_PERSON_FAR2 ? this.lo : this.fa)[a.kind].put(a.m, a, a.color, a.gait);
     }
     for (const k in this.hi) { this.nr[k].end(); this.hi[k].end(); this.lo[k].end(); this.fa[k].end(); for (const st of [this.nr, this.hi, this.lo, this.fa]) st[k].im.visible = st[k].n > 0; }
@@ -2578,7 +2578,9 @@ export function turnHead(a, x, z) {
   if (Math.abs(d) > 1.9) return;   // hinter sich schaut niemand
   a.live[0] = Math.max(-1.05, Math.min(1.05, d)); a.live[1] = U.uTime.value; a.gv = (a.gv | 0) + 1;
 }
-export const LOD_PERSON2 = 45 * 45, LOD_CAR2 = 90 * 90, LOD_PERSON_FAR2 = 140 * 140;   // V64: Fernstufe der Menschen
+// V71: am Handy das feine Modell (12 000 bis 19 000 Dreiecke) nur bis 25 m: im Ballsaal standen sonst fast alle Gäste in der feinen
+// Stufe (3,4 Mio. Dreiecke allein für die Menge); auf dem kleinen Bildschirm ist eine Figur in 25 m keine 50 Bildpunkte hoch
+export const LOD_PERSON2 = (MOBILE ? 25 : 45) ** 2, LOD_CAR2 = 90 * 90, LOD_PERSON_FAR2 = 140 * 140;   // V64: Fernstufe der Menschen
 // Zwei Detailstufen hinter einer Schnittstelle: put() entscheidet nach Abstand
 // V57: optional eine dritte Stufe 'far': gleiches Netz wie lo, wirft aber keinen Schatten (die Mondschatten-Karte reicht nur
 // rund 150 m um den Blickpunkt; weiter weg kostete jeder Wagen in der Schattenkarte nur Rechenzeit)

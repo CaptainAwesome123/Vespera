@@ -111,7 +111,9 @@ export function updateFogCull(dt) {
   FOGVIS.ped = fogHideDist(2, cp.y, dens) + 4; FOGVIS.low = fogHideDist(5, cp.y, dens) + 6; FOGVIS.tall = fogHideDist(10, cp.y, dens) + 8;
   let hid = 0;
   for (const L of layers) {
-    const lim = FOGCULL.tall.has(L.name) ? FOGVIS.tall : FOGCULL.low.has(L.name) ? FOGVIS.low : 0; if (!lim) continue;
+    // V71: aus dem Belmont heraus (FOGVIS.cap) auch Laternen, Läden, Möbel und Zierrat nur bis zur Sichtweite durchs Portal
+    let lim = FOGCULL.tall.has(L.name) ? FOGVIS.tall : FOGCULL.low.has(L.name) ? FOGVIS.low : 0; if (!lim) continue;
+    lim = Math.min(lim, FOGVIS.cap);
     for (const rec of L.chunks.values()) if (rec.obj) {
       const x0 = rec.cx * L.size, z0 = rec.cz * L.size, dx = Math.max(x0 - cp.x, 0, cp.x - x0 - L.size), dz = Math.max(z0 - cp.z, 0, cp.z - z0 - L.size);
       rec.obj.visible = dx * dx + dz * dz < lim * lim; if (!rec.obj.visible) hid++;
@@ -260,7 +262,8 @@ export function frame(now) {
   const inside = playing && (inBelmont(player.p.x, player.p.z, player.p.y) || inVillaHouse(player.p) || inImperial(player.p) || inPenthouse(player.p) || (UNTER.test && UNTER.test(player.p))) ? 1 : 0;   // V61: auch in den Verstecken unter der Stadt   // V28: auch in der Villa kein Regen, kein Bodennebel; V33: Luftschiff und Penthouse
   U.uInside.value += (inside - U.uInside.value) * Math.min(1, dt * 4);
   // V34: aus Lobby und Ballsaal sieht man nur durchs Portal hinaus: Figuren, Bäume und Autos draußen nur bis 180 m (vorher die halbe Stadt, 12 Mio. Dreiecke)
-  FOGVIS.cap = playing && inBelmont(player.p.x, player.p.z, player.p.y) ? 180 : playing && UNTER.test && UNTER.test(player.p) ? 70 : 1e9;   // V61: unter der Stadt sieht man nichts von oben
+  // V71: im Ballsaal (hinter der Trennwand) sieht man nur durch Tor und Lobby hinaus: 110 m
+  FOGVIS.cap = playing && inBelmont(player.p.x, player.p.z, player.p.y) ? (camera.position.z < -6.5 ? 110 : 180) : playing && UNTER.test && UNTER.test(player.p) ? 70 : 1e9;   // V61: unter der Stadt sieht man nichts von oben
   hemi.intensity = (0.9 + 0.12 * U.uSnowCover.value) * (1 - 0.72 * U.uInside.value); moonLight.intensity = ATMO.moonI * (1 - U.uInside.value);
   const nearBel = !playing || (Math.abs(camera.position.x) < 70 && Math.abs(camera.position.z) < 75 && camera.position.y < 45);
   if (interiorCrowd) interiorCrowd.show(nearBel);

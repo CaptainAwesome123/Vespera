@@ -36,6 +36,7 @@ import { cycleWeather } from './atmosphere.js';
 import { ftAvg, prIdx, PR_LEVELS, togglePerf } from './performance.js';
 import { layers } from './chunks.js';
 import { pedCrowd } from './serpentine.js';
+import { HQ } from './people-model.js';
 import { composer } from './bloom.js';
 
 const HD_Q = new URLSearchParams(location.search);
@@ -45,10 +46,11 @@ export const HANDY = {
   lvl: 0, base: 0, bad: 0, good: 0, since: 0, bloomOff: false, range: 1,
 };
 export const HD_LEVELS = [
-  { range: 1, crowd: 420, bloom: true },
-  { range: 0.85, crowd: 320, bloom: true },
-  { range: 0.72, crowd: 240, bloom: false },
-  { range: 0.6, crowd: 170, bloom: false },
+  // V71: hi = Abstand, bis zu dem Menschen als feines Modell gezeichnet werden (people-model.js HQ.hi2)
+  { range: 1, crowd: 420, bloom: true, hi: 45 },
+  { range: 0.85, crowd: 320, bloom: true, hi: 25 },
+  { range: 0.72, crowd: 240, bloom: false, hi: 19 },
+  { range: 0.6, crowd: 170, bloom: false, hi: 15 },
 ];
 
 /* ---------- Aussehen ---------- */
@@ -235,6 +237,7 @@ function hdWrapLayers() {
 function hdApply(i, say) {
   const S = HD_LEVELS[i]; HANDY.lvl = i; HANDY.range = S.range; HANDY.since = 0;
   if (pedCrowd) pedCrowd.far = S.crowd;
+  HQ.hi2 = Math.min(S.hi, MOBILE ? 25 : 45) ** 2;
   if (!S.bloom && shared.bloomOn && composer) { shared.bloomOn = false; HANDY.bloomOff = true; }
   if (S.bloom && HANDY.bloomOff) { shared.bloomOn = true; HANDY.bloomOff = false; }
   if (say) toast(i > HANDY.base ? 'Sparmodus fürs Handy · Stufe ' + (i - HANDY.base) : 'Volle Sichtweite');

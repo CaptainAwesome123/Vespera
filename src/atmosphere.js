@@ -181,7 +181,8 @@ export function buildPrecip() {
       }`,
   });
   const banks = new T.Group();
-  for (const y of LOW ? [3.5, 12] : [0.4, 3.5, 8, 14]) { const m = new T.Mesh(new T.PlaneGeometry(6000, 6000), mat); m.rotation.x = -Math.PI / 2; m.position.set(0, y, 0); m.renderOrder = 1; m.frustumCulled = false; m.userData.noRefl = true; banks.add(m); }
+  for (const y of MOBILE ? [5] : LOW ? [3.5, 12] : [0.4, 3.5, 8, 14])   // V71: am Handy eine Nebelbank (jede kostet eine volle Bildschirmfläche mit drei Rauschwerten)
+    { const m = new T.Mesh(new T.PlaneGeometry(6000, 6000), mat); m.rotation.x = -Math.PI / 2; m.position.set(0, y, 0); m.renderOrder = 1; m.frustumCulled = false; m.userData.noRefl = true; banks.add(m); }
   scene.add(banks); PRECIP.fogBanks = banks;
 }
 
