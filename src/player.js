@@ -29,7 +29,7 @@ export function collide(p, flying) {
   let near = player.on && player.on.air ? [] : nearBoxes(p.x, p.z, 3);
   let pg = -1e9; collideOn = null;
   for (const pf of PLATFORMS) {
-    if (!pf.boxes.length) continue;
+    if (pf.off || !pf.boxes.length) continue;   // V71: unbenutzte Bahnwagen (unsichtbar, am Ursprung = Belmont-Lobby) sind keine Wand
     const dx = p.x - pf.x, dz = p.z - pf.z;
     if (dx * dx + dz * dz > (pf.r + 3) * (pf.r + 3) || p.y < pf.y + (pf.ylo ?? -5) - 3 || p.y > pf.y + (pf.yhi ?? 20) + 3) continue;
     const cs = Math.cos(pf.ry), sn = Math.sin(pf.ry);

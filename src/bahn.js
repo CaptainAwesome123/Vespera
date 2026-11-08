@@ -520,7 +520,9 @@ function bhDetail(kind) {
   grp.add(ms, mi); grp.visible = false; scene.add(grp);
   for (const m of [ms, mi]) m.frustumCulled = false;
   const det = { kind, g: grp, boxes, seats, doors: D, car: null, snap: false };
-  det.pf = addPlatform(grp, boxes, 8, { ylo: -1, yhi: 4 });
+  // V71: solange der Wagen keinem Zug gehört, ist er aus. Vorher stand er unsichtbar am Ursprung, mitten in der Belmont-Lobby vor dem
+  // Ballsaaltor (unsichtbare Wand), oder dort, wo er zuletzt war (Geisterwagen auf der Straße)
+  det.pf = addPlatform(grp, boxes, 8, { ylo: -1, yhi: 4, off: true });
   return det;
 }
 function bhDetails() {
@@ -597,13 +599,13 @@ function bhAssign() {
   const cp = camera.position, d2 = c => (c.x - cp.x) ** 2 + (c.y - cp.y) ** 2 + (c.z - cp.z) ** 2;
   for (const kind of ['tram', 'hoch']) {
     const pool = BAHN.pool[kind];
-    for (const d of pool) if (d.car && d2(d.car) > 80 * 80 && player.on !== d.pf && !(BAHN.sit && BAHN.sit.det === d)) { d.car.det = null; d.car = null; d.g.visible = false; }
+    for (const d of pool) if (d.car && d2(d.car) > 80 * 80 && player.on !== d.pf && !(BAHN.sit && BAHN.sit.det === d)) { d.car.det = null; d.car = null; d.g.visible = false; d.pf.off = true; }
     let cand = null;
     for (const d of pool) {
       if (d.car) continue;
       cand = cand || BAHN.cars.filter(c => c.kind === kind && !c.det && d2(c) < 62 * 62).sort((a, b) => d2(a) - d2(b));
       const c = cand.shift(); if (!c) break;
-      d.car = c; c.det = d; d.g.visible = true; d.snap = true;
+      d.car = c; c.det = d; d.g.visible = true; d.snap = true; d.pf.off = false;
     }
   }
 }
@@ -835,7 +837,7 @@ function bhBoardable(p) {
 }
 function bhBoard(B) {
   const c = B.c;
-  if (!c.det) { const pool = BAHN.pool[c.kind], d = pool.find(q => !q.car) || pool.find(q => player.on !== q.pf && !(BAHN.sit && BAHN.sit.det === q)); if (!d) return; if (d.car) d.car.det = null; d.car = c; c.det = d; d.g.visible = true; d.snap = true; d.g.position.set(c.x, c.y, c.z); d.g.rotation.y = c.ry; d.g.updateMatrix(); pfRead(d.pf); pfSave(d.pf); }
+  if (!c.det) { const pool = BAHN.pool[c.kind], d = pool.find(q => !q.car) || pool.find(q => player.on !== q.pf && !(BAHN.sit && BAHN.sit.det === q)); if (!d) return; if (d.car) d.car.det = null; d.car = c; c.det = d; d.g.visible = true; d.snap = true; d.pf.off = false; d.g.position.set(c.x, c.y, c.z); d.g.rotation.y = c.ry; d.g.updateMatrix(); pfRead(d.pf); pfSave(d.pf); }
   const [x, z] = bhWorld(c, B.dx, 0.35);
   player.p.set(x, c.y + BH_FY + 0.02, z); player.v.set(0, 0, 0); player.fly = false; player.on = c.det.pf;
   player.yaw = c.ry;   // Blick in den Wagen
