@@ -10,6 +10,7 @@ import { SND, audioCtx, audioBus, toggleSound, soundMuted, updateSound } from '.
 import { VENUES } from './venues.js';
 import { ORTE, inOrt } from './orte.js';
 import { nearestMusic } from './life.js';
+import { updateKlang, klApplaus } from './klang.js';   // V73: Stadtklang, Wetter, Mischpult
 
 /* =====================================================================
    MUSIK: sanfte Akkorde über Web Audio (nur nach Klick)
@@ -43,41 +44,80 @@ export function initAudio() {
   a.jiv = setInterval(() => scheduleJazz(a), 60);
   return a;
 }
-// Kleine Jazzband: Walking Bass, Becken, Besen, Klavier-Comping, gedämpfte Trompete
+// Kleine Jazzband: Walking Bass, Becken, Besen, Klavier-Comping, Trompete, Saxophon oder Klarinette
 export const PROG = [[53, 'M7'], [50, '7'], [55, 'm7'], [48, '7'], [57, 'm7'], [50, '7'], [55, 'm7'], [48, '7']];
-export const CHORD = { M7: [0, 4, 7, 11, 14], '7': [0, 4, 7, 10, 14], m7: [0, 3, 7, 10, 14] };
+export const CHORD = { M7: [0, 4, 7, 11, 14], '7': [0, 4, 7, 10, 14], m7: [0, 3, 7, 10, 14], '6': [0, 4, 7, 9, 14] };
+/* V73: das Repertoire der Band. Jedes Stück: Thema (immer gleich), Soli (Bläser, dann Klavier), Thema, Schlussakkord;
+   danach Beifall im Saal und eine kurze Pause, dann das nächste Stück. feel: swing, ballad (Besen), two (Charleston, Zweierbass) */
+export const JAZZ_SONGS = [
+  { n: 'Belmont Swing', bpm: 138, lead: 'trp', feel: 'swing', ch: 4, prog: PROG },
+  { n: 'Ballade der Polarnacht', bpm: 72, lead: 'sax', feel: 'ballad', ch: 3, prog: [[51, 'M7'], [48, 'm7'], [53, 'm7'], [46, '7'], [51, '6'], [56, 'M7'], [53, 'm7'], [46, '7']] },
+  { n: 'Charleston am Kratersee', bpm: 196, lead: 'clar', feel: 'two', ch: 4, prog: [[48, '6'], [48, '6'], [57, '7'], [57, '7'], [50, '7'], [55, '7'], [48, '6'], [55, '7']] },
+  { n: 'Mitternacht im Krater', bpm: 118, lead: 'trp', mute: true, feel: 'swing', ch: 4, prog: [[50, 'm7'], [50, 'm7'], [55, 'm7'], [55, 'm7'], [57, '7'], [55, 'm7'], [52, 'm7'], [57, '7']] },
+];
+// fester Zufall fürs Thema: dieselbe Melodie am Anfang und am Ende eines Stücks
+export const jzHash = n => { const x = Math.sin(n * 12.9898 + 78.233) * 43758.5453; return x - Math.floor(x); };
 export function scheduleJazz(a) {
   const ctx = a.ctx;
   if (a.jazz.gain.value < 0.002 && a.jazzTarget < 0.002) { a.next = 0; return; }
-  const spb = 60 / 138;
   if (!a.next || a.next < ctx.currentTime) a.next = ctx.currentTime + 0.05;
   if (a.pub === 'organ') { scheduleOrgan(a); return; }   // V55: Leierkasten auf der Straße
   if (a.pub) { scheduleStride(a); return; }   // V46: in der Brass Lantern spielt ein verstimmtes Kneipenklavier
+  if (a.gap) { if (ctx.currentTime < a.gap) return; a.gap = 0; a.next = ctx.currentTime + 0.05; }
+  const si = a.song || 0, S = JAZZ_SONGS[si], spb = 60 / S.bpm, bars = S.ch * 8;
   while (a.next < ctx.currentTime + 0.25) {
-    const t = a.next, b = a.beat, bar = Math.floor(b / 4) % 8, bi = b % 4;
-    const [root, q] = PROG[bar], tones = CHORD[q];
-    const nextRoot = PROG[(bar + 1) % 8][0];
-    // Bass
-    const bn = bi === 0 ? root : bi === 3 ? nextRoot + (R() < 0.5 ? 1 : -1) : root + tones[1 + Math.floor(R() * 2)] - (R() < 0.3 ? 12 : 0);
-    jzTone(a, mtof(bn - 24), t, 0.42, 'triangle', 0.5, 700);
-    // Ride mit Swing, Hi-Hat auf 2 und 4
-    jzNoise(a, t, 0.22, 7000, 0.12);
-    if (bi === 1 || bi === 3) { jzNoise(a, t + spb * 0.66, 0.15, 7000, 0.08); jzNoise(a, t, 0.05, 9000, 0.1); jzNoise(a, t, 0.14, 2500, 0.05); }
-    // Klavier: Charleston-Rhythmus, Terz-Septime-None
-    if (bi === 0 || (bi === 1 && R() < 0.7) || (bi === 2 && R() < 0.25)) {
-      const tt = bi === 1 ? t + spb * 0.66 : t;
-      for (const iv of [tones[1], tones[3], tones[4]]) jzTone(a, mtof(root + iv + 12), tt, 0.5, 'triangle', 0.07, 2600);
+    const t = a.next, b = a.beat, bar = Math.floor(b / 4), bi = b % 4;
+    if (bar >= bars) {   // Schluss: ein langer Akkord, Becken, dann Beifall und das nächste Stück
+      const [root, q] = S.prog[0], tones = CHORD[q];
+      jzTone(a, mtof(root - 24), t, 2.8, 'triangle', 0.5, 700);
+      for (const iv of [0, tones[1], tones[3], tones[4]]) jzTone(a, mtof(root + 12 + iv), t, 2.6, 'triangle', 0.06, 2600);
+      jzLead(a, mtof(root + 24 + tones[1]), t, 2.4, S);
+      jzNoise(a, t, 2.4, 6000, 0.14); jzTone(a, 58, t, 0.4, 'sine', 0.4, 300);
+      a.song = (si + 1) % JAZZ_SONGS.length; a.beat = 0; a.gap = t + 9.5; a.next = 0;
+      if (a.onEnd) a.onEnd(t + 1.6);
+      return;
     }
-    // Trompete mit Phrasen und Pausen
+    const chorus = Math.floor(bar / 8), b8 = bar % 8, head = chorus === 0 || chorus === S.ch - 1, pSolo = !head && chorus % 2 === 0;
+    const [root, q] = S.prog[b8], tones = CHORD[q], nextRoot = S.prog[(b8 + 1) % 8][0];
+    // Bass
+    if (S.feel === 'two') { if (bi % 2 === 0) jzTone(a, mtof(root - 24 + (bi === 2 ? 7 : 0)), t, spb * 1.5, 'triangle', 0.55, 650); }
+    else if (S.feel === 'ballad') { if (bi % 2 === 0) jzTone(a, mtof(root - 24 + (bi === 2 ? 7 : 0)), t, spb * 1.8, 'triangle', 0.42, 600); }
+    else {
+      const bn = bi === 0 ? root : bi === 3 ? nextRoot + (R() < 0.5 ? 1 : -1) : root + tones[1 + Math.floor(R() * 2)] - (R() < 0.3 ? 12 : 0);
+      jzTone(a, mtof(bn - 24), t, 0.42, 'triangle', 0.5, 700);
+    }
+    // Schlagzeug
+    if (S.feel === 'ballad') { jzNoise(a, t, spb * 0.9, 3200, 0.045); if (bi % 2) jzNoise(a, t, 0.14, 1800, 0.05); }
+    else if (S.feel === 'two') { jzNoise(a, t, 0.04, 9000, 0.07); if (bi % 2) jzNoise(a, t, 0.11, 2100, 0.11); else jzTone(a, 62, t, 0.2, 'sine', 0.3, 400); }
+    else {
+      jzNoise(a, t, 0.22, 7000, 0.12);
+      if (bi === 1 || bi === 3) { jzNoise(a, t + spb * 0.66, 0.15, 7000, 0.08); jzNoise(a, t, 0.05, 9000, 0.1); jzNoise(a, t, 0.14, 2500, 0.05); }
+    }
+    if (b8 === 7 && bi === 3) for (let k = 0; k < 3; k++) jzNoise(a, t + k * spb / 3, 0.09, 2000, 0.06 + k * 0.025);   // Wirbel vor dem nächsten Chorus
+    // Klavier: Charleston-Rhythmus, in der Ballade gebrochene Akkorde, im Charleston Nachschläge
+    const vc = [tones[1], tones[3], tones[4]], cv = pSolo ? 0.045 : 0.07;
+    if (S.feel === 'ballad') { if (bi === 0 || bi === 2) vc.forEach((iv, k) => jzTone(a, mtof(root + iv + 12), t + k * 0.09, spb * 1.8, 'triangle', cv * 0.8, 2200)); }
+    else if (S.feel === 'two') { if (bi % 2) for (const iv of vc) jzTone(a, mtof(root + iv + 12), t, 0.25, 'triangle', cv, 2600); }
+    else if (bi === 0 || (bi === 1 && R() < 0.7) || (bi === 2 && R() < 0.25)) {
+      const tt = bi === 1 ? t + spb * 0.66 : t;
+      for (const iv of vc) jzTone(a, mtof(root + iv + 12), tt, 0.5, 'triangle', cv, 2600);
+    }
+    // Melodie: im Thema fest (jzHash), in den Soli frei; Phrasen enden in Takt 4 und 8
+    if (head && b8 === 0 && bi === 0) { a.mel = 72; a.rest = 0; }
+    const rr = k => head ? jzHash(si * 4099 + b8 * 37 + bi * 7 + k) : R();
+    const breath = head && (b8 === 3 || b8 === 7) && bi >= 2;
     if (a.rest > 0) a.rest--;
-    else for (const sub of [0, 0.66]) {
-      if (R() < 0.62) {
+    else if (!breath) for (const sub of [0, 0.66]) {
+      const k0 = sub ? 3 : 0;
+      if (rr(k0) < (S.feel === 'ballad' ? (sub ? 0.25 : 0.7) : 0.62)) {
         const pool = tones.map(v => root + 12 + v).concat(tones.map(v => root + 24 + v));
-        let best = pool[0]; for (const n of pool) if (Math.abs(n - a.mel - (R() - 0.5) * 6) < Math.abs(best - a.mel)) best = n;
+        let best = pool[0]; for (const n of pool) if (Math.abs(n - a.mel - (rr(k0 + 1) - 0.5) * 6) < Math.abs(best - a.mel)) best = n;
         a.mel = Math.max(64, Math.min(86, best));
-        jzLead(a, mtof(a.mel), t + spb * sub, spb * (sub ? 0.34 : 0.66) * (R() < 0.3 ? 2 : 1));
+        const dur = spb * (sub ? 0.34 : 0.66) * (rr(k0 + 2) < 0.3 ? 2 : 1) * (S.feel === 'ballad' ? 1.6 : 1);
+        if (pSolo) jzTone(a, mtof(a.mel + 12), t + spb * sub, dur * 1.3, 'triangle', 0.075, 3400);
+        else jzLead(a, mtof(a.mel), t + spb * sub, dur, S);
       }
-      if (R() < 0.05) a.rest = 4 + Math.floor(R() * 4);
+      if (!head && R() < 0.05) a.rest = 4 + Math.floor(R() * 4);
     }
     a.next += spb; a.beat++;
   }
@@ -133,11 +173,17 @@ export function jzNoise(a, t, dur, f, vol) {
   g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0008, t + dur);
   s.connect(fl); fl.connect(g); g.connect(a.jazz); s.start(t, Math.random() * 0.5); s.stop(t + dur + 0.02);
 }
-export function jzLead(a, f, t, dur) {
+// Bläser: Trompete (offen oder gedämpft), Saxophon (weich, mehr Vibrato), Klarinette (hohl, Rechteck)
+export function jzLead(a, f, t, dur, S) {
+  const ins = S ? S.lead : 'trp', mute = S && S.mute;
   const o = a.ctx.createOscillator(), g = a.ctx.createGain(), fl = a.ctx.createBiquadFilter(), lfo = a.ctx.createOscillator(), lg = a.ctx.createGain();
-  o.type = 'sawtooth'; o.frequency.value = f; lfo.frequency.value = 5.5; lg.gain.value = f * 0.006; lfo.connect(lg); lg.connect(o.frequency);
-  fl.type = 'bandpass'; fl.frequency.value = 1300; fl.Q.value = 1.6;
-  g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.09, t + 0.04); g.gain.setValueAtTime(0.08, t + dur * 0.7); g.gain.linearRampToValueAtTime(0, t + dur);
+  o.type = ins === 'clar' ? 'square' : 'sawtooth'; o.frequency.value = f;
+  lfo.frequency.value = ins === 'sax' ? 4.8 : 5.5; lg.gain.value = f * (ins === 'sax' ? 0.009 : ins === 'clar' ? 0.003 : 0.006); lfo.connect(lg); lg.connect(o.frequency);
+  if (ins === 'clar') { fl.type = 'lowpass'; fl.frequency.value = 2300; fl.Q.value = 0.7; }
+  else if (ins === 'sax') { fl.type = 'bandpass'; fl.frequency.value = 850; fl.Q.value = 0.9; }
+  else { fl.type = 'bandpass'; fl.frequency.value = mute ? 1750 : 1300; fl.Q.value = mute ? 4 : 1.6; }
+  const v = ins === 'clar' ? 0.05 : ins === 'sax' ? 0.11 : mute ? 0.11 : 0.09, at = ins === 'sax' ? 0.07 : 0.04;
+  g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(v, t + at); g.gain.setValueAtTime(v * 0.9, t + dur * 0.7); g.gain.linearRampToValueAtTime(0, t + dur);
   o.connect(fl); fl.connect(g); g.connect(a.jazz); g.connect(a.room); o.start(t); lfo.start(t); o.stop(t + dur + 0.05); lfo.stop(t + dur + 0.05);
 }
 // V38: Taste M schaltet den ganzen Ton (src/audio.js); die Band spielt von selbst, sobald man eintritt
@@ -148,8 +194,11 @@ export let bandHint = false;
 // die ruhige Salonmusik aus src/audio.js statt der Band
 export const BAND_AT = { x: 1.5, y: 2, z: -43.5 };
 export function updateAudio(dt) {
-  if (SND.started && !audio && SND.ctx) { audio = initAudio(); if (audio) audio.master.gain.setTargetAtTime(1, audio.ctx.currentTime, 1.2); }
-  updateSound(dt);
+  if (SND.started && !audio && SND.ctx) {
+    audio = initAudio();
+    if (audio) { audio.master.gain.setTargetAtTime(1, audio.ctx.currentTime, 1.2); audio.onEnd = t => { if (!audio.pub && audio.jazzTarget > 0.2) klApplaus(Math.min(1, audio.jazzTarget * 1.2), t); }; }   // V73: Beifall nach jedem Stück
+  }
+  updateSound(dt); updateKlang(dt);
   const p = player.p;
   const inBall = inBelmont(p.x, p.z, p.y) && p.z < -5, inLobby = inBelmont(p.x, p.z, p.y) && !inBall;
   let jz = 0, cut = 8000;
@@ -181,6 +230,7 @@ export function updateAudio(dt) {
   if (jz > 0.4 && soundMuted() && !bandHint && playing) { bandHint = true; toast('Die Band spielt · M schaltet den Ton ein'); }
   if (!audio) return;
   if (audio.pub !== pub) { audio.pub = pub; audio.next = 0; }
+  if (inBall && !pub && jz > 0.45 && !audio.gap && audio.told !== (audio.song || 0) && SND.on) { audio.told = audio.song || 0; toast('Die Band spielt · ' + JAZZ_SONGS[audio.told].n); }   // V73
   const t = audio.ctx.currentTime;
   audio.jazzTarget = jz;
   audio.jazz.gain.setTargetAtTime(jz, t, 0.6);
