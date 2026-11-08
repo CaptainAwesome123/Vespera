@@ -43,11 +43,16 @@ export function audioCtx() {
   // sanfter Begrenzer am Ende, damit sich viele Quellen nie übersteuern
   const lim = ctx.createDynamicsCompressor(); lim.threshold.value = -10; lim.knee.value = 8; lim.ratio.value = 6; lim.attack.value = 0.004; lim.release.value = 0.25;
   lim.connect(ctx.destination);
-  const master = SND.master = ctx.createGain(); master.gain.value = 0; master.connect(lim);
+  const master = SND.master = ctx.createGain(); master.gain.value = 0;
+  // V73: Mischpult mit eigenen Reglern (Pausenmenü „Klang“): gesamt · Musik · Stadt und Wetter · Effekte; dazu ein Dämpfer für Nebel und Schnee
+  const MX = SND.mix = { all: ctx.createGain(), music: ctx.createGain(), amb: ctx.createGain(), sfx: ctx.createGain(), fog: ctx.createBiquadFilter() };
+  master.connect(MX.all); MX.all.connect(lim);
+  for (const k of ['music', 'amb', 'sfx']) MX[k].connect(master);
+  MX.fog.type = 'lowpass'; MX.fog.frequency.value = 20000; MX.fog.Q.value = 0.5; MX.fog.connect(MX.amb);
   const B = SND.bus;
-  for (const k of ['music', 'near', 'sfx']) { B[k] = ctx.createGain(); B[k].connect(master); }
+  for (const k of ['music', 'near', 'sfx']) { B[k] = ctx.createGain(); B[k].connect(MX[k === 'near' ? 'amb' : k]); }
   // draußen: alles, was im Haus nur gedämpft durch Wände und Fenster kommt
-  B.outF = ctx.createBiquadFilter(); B.outF.type = 'lowpass'; B.outF.frequency.value = 16000; B.outF.Q.value = 0.4; B.outF.connect(master);
+  B.outF = ctx.createBiquadFilter(); B.outF.type = 'lowpass'; B.outF.frequency.value = 16000; B.outF.Q.value = 0.4; B.outF.connect(MX.fog);
   B.out = ctx.createGain(); B.out.connect(B.outF);
   // Nachhall für Marmorhallen (Lobby, Ballsaal, Villa): kurzer erzeugter Raum, auf dem Handy aus
   if (!MOBILE) {
@@ -61,7 +66,23 @@ export function audioCtx() {
   SND.noise = ctx.createBuffer(1, len, ctx.sampleRate); const w = SND.noise.getChannelData(0); for (let i = 0; i < len; i++) w[i] = Math.random() * 2 - 1;
   SND.brown = ctx.createBuffer(1, len, ctx.sampleRate); const b = SND.brown.getChannelData(0); let l = 0;
   for (let i = 0; i < len; i++) { l = (l + 0.02 * (Math.random() * 2 - 1)) / 1.02; b[i] = l * 3.5; }
+  sndMixApply(0);
   return ctx;
+}
+/* ---------- V73: Lautstärken (0..1, gespeichert) ---------- */
+export const SND_VOL_KEY = 'vespera-mix';
+export const SND_VOL = { all: 0.9, music: 0.8, amb: 0.9, sfx: 0.9, voice: 1 };
+try { const v = JSON.parse(localStorage.getItem(SND_VOL_KEY) || 'null'); if (v) for (const k in SND_VOL) if (typeof v[k] === 'number') SND_VOL[k] = Math.max(0, Math.min(1, v[k])); } catch (e) { /* ohne Speicher: Standard */ }
+// Regler hören sich gleichmäßig an, wenn der Wert quadratisch auf die Verstärkung geht
+export function sndMixApply(tc = 0.08) {
+  const MX = SND.mix; if (!MX) return;
+  for (const k of ['all', 'music', 'amb', 'sfx']) { const v = SND_VOL[k] * SND_VOL[k] * (k === 'all' ? 1.2 : 1.1); if (tc) sndSet(MX[k].gain, v, tc); else MX[k].gain.value = v; }
+}
+export function setSndVol(k, v) {
+  if (!(k in SND_VOL)) return;
+  SND_VOL[k] = Math.max(0, Math.min(1, v));
+  try { localStorage.setItem(SND_VOL_KEY, JSON.stringify(SND_VOL)); } catch (e) { /* privat */ }
+  sndMixApply();
 }
 export function audioBus(name) { return audioCtx() ? SND.bus[name] || SND.master : null; }
 export function soundMuted() { return !SND.on; }
@@ -325,7 +346,7 @@ export function updateSound(dt) {
 
   // Salonmusik und Knistern: Villa, Penthouse, Salon des Luftschiffs
   // V57: im Penthouse spielt der Pianist (Pause zwischen den Stücken: SND.pianoK), das Kaminknistern hängt von der Nähe zum Feuer ab (SND.fireK)
-  const sal = z === 'villa' ? 0.5 : z === 'pent' ? 0.45 * (SND.pianoK ?? 1) : z === 'ship' ? 0.32 : z === 'terrace' ? 0.12 * (SND.pianoK ?? 1) : 0;
+  const sal = z === 'villa' ? 0.3 : z === 'pent' ? 0.45 * (SND.pianoK ?? 1) : z === 'ship' ? 0.32 : z === 'terrace' ? 0.12 * (SND.pianoK ?? 1) : 0;
   SND.salon.want = sal; sndSet(SND.salon.g.gain, sal, sal > SND.salon.g.gain.value ? 1.2 : 0.8);
   sndSet(L.crackle.gain, sal ? (0.25 + sal * 0.4) * (SND.fireK ?? 1) : 0, 1);
   SND.salonOn = sal;
