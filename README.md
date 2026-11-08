@@ -293,6 +293,19 @@ Außenhaut, Garten, Terrassen und das Fest.
   pro Sekunde (vorher 42). Bei knapper Bildrate entsteht das Spiegelbild nur jedes zweite Bild (`REFL.half`).
 - *Aufgeräumt:* Feuerwerk, Lichtsäulen aus den Kronen und Suchscheinwerfer des Belmont (seit V33/V42 aus) entfernt.
 
+**V73: Musik und Stadtklang** (`src/klang.js`, alles live erzeugt, keine neue Datei, keine Ladezeit).
+- *Band im Ballsaal* (`music.js`): vier Stücke (Belmont Swing, Ballade der Polarnacht mit Saxophon und Besen, Charleston
+  am Kratersee mit Klarinette, Mitternacht im Krater mit gedämpfter Trompete). Jedes mit festem Thema am Anfang und Ende,
+  Soli dazwischen (Bläser, dann Klavier), Wirbel vor jedem Chorus, Schlussakkord, Beifall im Saal, kurze Pause.
+- *Wetter:* im Schneesturm Heulen, Grollen, Böen, klappernde Läden, knarrendes Holz; Schnee und Frostnebel schlucken die
+  Höhen der Stadt (Dämpfer `SND.mix.fog`); Nebelhorn vom Leuchtfeuer bei Nebel; leiser gläserner Klang unter dem
+  Polarlicht; Zischen bei Sternschnuppen.
+- *Stadt und Orte:* Schienenstöße von Straßenbahn und Hochbahn, Brunnen auf dem Belmont-Platz, Glockenboje und Taue am Hafen,
+  Fabrikpfeife im Arbeiterviertel, Lachen in der Menge, Rezeptionsglocke und Fahrstuhlgong in der Lobby, Standuhr in der
+  (jetzt leiseren) Villa, Wind am Glas im Penthouse. Die Turmuhr des Belmont schlägt zur Viertelstunde (Uhr des Rechners).
+- *Mischpult:* Pausenmenü „Klang“ oder Shift+M: Gesamt, Musik, Stadt und Wetter, Effekte, Stimmen (`SND_VOL`, gespeichert
+  unter `vespera-mix`). Im Hintergrund-Tab angehalten, nach einer Unterbrechung am Handy beim nächsten Tippen wieder an.
+
 **V72: Lebendigere Stadt** (`src/strasse.js`, Haken in `life.js`).
 - *Straßenhändler* an Hauswänden und am Belmont-Platz (16 am PC, 7 am Handy): Maronenröster mit Glut, Würstchenwagen,
   Punschstand mit Samowar, Suppenwagen im Arbeiterviertel, Blumenfrau, Schuhputzerjunge, Zigarettenmädchen. Sie rufen ihre

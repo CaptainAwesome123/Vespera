@@ -20,7 +20,7 @@
    Pause schalten sie mit stumm.
    ===================================================================== */
 import { $ } from './core.js';
-import { SND } from './audio.js';
+import { SND, SND_VOL } from './audio.js';
 import { paused } from './input.js';
 import { FIRST_F, FIRST_M } from './ragdoll.js';
 import { toast } from './boat.js';
@@ -118,7 +118,7 @@ export function speak(who, text, hint) {
   const P = profile(who, text, hint), V = voiceFor(P), u = new window.SpeechSynthesisUtterance(spokenText(text));
   u.lang = V.v ? V.v.lang : 'de-DE'; if (V.v) u.voice = V.v;
   u.pitch = Math.max(0.1, Math.min(2, P.pitch * V.shift)); u.rate = Math.max(0.6, Math.min(1.5, P.rate));
-  u.volume = Math.max(0.05, Math.min(1, P.vol * (hint && hint.vol != null ? hint.vol : 1)));
+  u.volume = Math.max(SND_VOL.voice > 0 ? 0.02 : 0, Math.min(1, P.vol * (hint && hint.vol != null ? hint.vol : 1) * (SND_VOL.voice * SND_VOL.all * 1.1)));   // V73: Regler Stimmen
   u.onend = u.onerror = () => { if (VOICE.cur === u) { VOICE.cur = null; VOICE.speaking = false; } };
   // ein neuer Satz löst den alten ab (die Blase zeigt auch nur den neuesten)
   const go = () => { if (!voiceReady()) return; VOICE.cur = u; VOICE.speaking = true; try { window.speechSynthesis.speak(u); VOICE.said++; } catch (e) { /* ohne Stimme weiter */ } };
