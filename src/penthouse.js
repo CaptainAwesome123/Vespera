@@ -6,6 +6,7 @@ import { FURN, placeFurn, roundBox, lathe, tube, movOn, movOff } from './entranc
 import { poolWaterMat } from './water.js';
 import { player } from './player.js';
 import { addLight } from './performance.js';
+import { shadeBegin, shadeEnd, shadeRoom, shadeQuad, shadeEdge, shadeWall, shadeColumn, shadeDisc, lightPool, wallWash, lightBand, roughTex, addSheen } from './raumlicht.js';
 import { BEL, boxW, marbleTex } from './belmont.js';
 import { inlayFloorTex, travertineTex, decoRugTex, damaskTex, veneerTex, onyxTex, cofferTex2, booksTex, tileTex, mosaicTex, glowRoomTex, paintingTex, RUNNER_TEX } from './deco-tex.js';
 import { SPAWNS } from './physics.js';
@@ -58,8 +59,9 @@ export function buildPenthouse() {
   const floor1T = inlayFloorTex(40, 40, { seed: 31, fields: [[1.2, 20.6, 38.8, 38.8], [14, 4.4, 26, 13.6]], stars: [[20, 9, 1.9], [20, 29.5, 3.2]], checker: [[0.3, 0.3, 13, 14]] });
   const floor2T = inlayFloorTex(40, 19.5, { res: 1200, seed: 32, fields: [[1, 1, 14.6, 18.6], [15.4, 3.6, 24.6, 15.8]], wood: [[25, 0.05, 39.95, 19.45]] });
   const M = {
-    floor1: stdMat({ map: floor1T, roughness: 0.22, metalness: 0.05, envI: 0.9, ...off }),
-    floor2: stdMat({ map: floor2T, roughness: 0.28, metalness: 0.05, envI: 0.8, ...off }),
+    // V67: Rauheitskarte mit Adern statt glatt 0,22 (grelle Lichtflecken auf dem Schachbrett und dem Marmor)
+    floor1: stdMat({ map: floor1T, roughnessMap: roughTex(512, 512, { base: 0.82, vari: 0.14, seed: 31 }), roughness: 0.4, metalness: 0.05, envI: 0.9, ...off }),
+    floor2: stdMat({ map: floor2T, roughnessMap: roughTex(512, 250, { base: 0.82, vari: 0.14, seed: 32 }), roughness: 0.42, metalness: 0.05, envI: 0.8, ...off }),
     terr: stdMat({ map: travertineTex(), roughness: 0.75, envI: 0.3, ...off }),
     white: stdMat({ map: whiteT, roughness: 0.18, metalness: 0.03, envI: 0.75 }),
     dark: wantTexture(stdMat({ map: blackT, roughness: 0.12, metalness: 0.05, envI: 0.85 }), { map: 'marble-color', normalMap: 'marble-normal', roughnessMap: 'marble-rough', repeat: [2, 2], normalScale: 0.5, roughness: 0.45, color: 0xfff4e4 }),
@@ -164,6 +166,7 @@ export function buildPenthouse() {
     const far = new T.Mesh(new T.BoxGeometry(38.4, TOP - F1 - 0.4, 38.4), new T.MeshBasicMaterial({ map: t, color: new T.Color(0.9, 0.78, 0.62), transparent: true, opacity: 0.75, depthWrite: false }));
     far.position.set(0, (F1 + TOP) / 2, 0); far.renderOrder = 1; scene.add(far); PH.far = far; }
 
+  for (const k of ['velvet', 'champ', 'cream', 'bordeaux']) addSheen(M[k], 0.5);   // V70: Samtschein für Polster und Vorhänge
   /* ================= Böden, Decken, Galerie, Kern ================= */
   const st = PH.stair, HX = 2.75, hz0 = st.z - 2.75, hz1 = st.z + 2.75;
   put('floor1', rectXZ(-W, W, -W, W, F1 + 0.02, [-20, -20, 40, 40]));
@@ -197,6 +200,12 @@ export function buildPenthouse() {
       if (axis === 'x') { put(matA, boxW(L, h, 0.1, m, ym, c - 0.05, 2)); put(matB, boxW(L, h, 0.1, m, ym, c + 0.05, 2)); col(p0, y0, c - 0.1, p1, y1, c + 0.1); }
       else { put(matA, boxW(0.1, h, L, c - 0.05, ym, m, 2)); put(matB, boxW(0.1, h, L, c + 0.05, ym, m, 2)); col(c - 0.1, y0, p0, c + 0.1, y1, p1); }
       put('gold', axis === 'x' ? BOX(L, 0.12, 0.24, m, y0 + 0.06, c) : BOX(0.24, 0.12, L, c, y0 + 0.06, m));
+      // V67: Raumschatten beidseitig an Boden- und Deckenkante
+      for (const n of [-1, 1]) {
+        const f = c + n * 0.12, nx = axis === 'x' ? 0 : n, nz = axis === 'x' ? n : 0, A = axis === 'x' ? [p0, f, p1, f] : [f, p0, f, p1];
+        shadeEdge(A[0], A[1], A[2], A[3], y0 + 0.05, nx, nz, 0.8, 0.42); shadeWall(A[0], A[1], A[2], A[3], y0, 0.7, nx, nz, 0.34);
+        shadeWall(A[0], A[1], A[2], A[3], y1, -0.8, nx, nz, 0.28);
+      }
     }
     for (const [g0, g1] of gaps) for (const e of [g0, g1]) put('gold', axis === 'x' ? BOX(0.1, y1 - y0, 0.26, e, (y0 + y1) / 2, c) : BOX(0.26, y1 - y0, 0.1, c, (y0 + y1) / 2, e));
   };
@@ -268,6 +277,7 @@ export function buildPenthouse() {
   const MAP = (up, extra = {}) => ({ up, frame: 'gold', wood: 'veneer', lamp: 'lamp', cloth: 'linen', leaf: 'leaf', ...extra });
   const furn = (parts, mp, x, y, z, ry = 0, where = 'inner') => placeFurn(parts, mp, (k, g) => put(k, g, where), x, y, z, ry);
   movOn();   // V52: die Möbel der Suite sind mit Telekinese greifbar
+  shadeBegin();   // V67: Kontaktschatten und Raumschatten (raumlicht.js)
   const palm = (x, y, z, h = 3.0, s = 1, where = 'inner') => {
     put('gold', CYL(0.5 * s, 0.36 * s, 0.85 * s, x, y + 0.425 * s, z), where);
     put('trunk', CYL(0.07 * s, 0.13 * s, h, x, y + 0.85 * s + h / 2, z, 6), where);
@@ -290,11 +300,13 @@ export function buildPenthouse() {
     }
     put('crystal', new T.ConeGeometry(r * 0.22, 1.4, 12).rotateX(Math.PI).translate(x, y - 0.7, z));
     glow(x, y + 0.5, z, [1.2, 0.85, 0.45], r * 4);
+    lightPool(x, drop > 3 ? F1 : F2, z, r * 2.6, [1, 0.72, 0.42], 0.14);   // V67
   };
   const table = (x, y, z, w, d, h = 0.76, mat = 'veneer', where = 'inner') => {
     put(mat, boxW(w, 0.06, d, x, y + h - 0.03, z, 1.5), where); put('gold', BOX(w + 0.02, 0.025, d + 0.02, x, y + h - 0.07, z), where);
     for (const sx of [-1, 1]) put(mat, boxW(0.14, h - 0.06, d * 0.7, x + sx * (w / 2 - 0.3), y + (h - 0.06) / 2, z, 1), where);
     col(x - w / 2, y, z - d / 2, x + w / 2, y + h, z + d / 2);
+    shadeQuad(x, y + 0.055, z, w + 0.45, d + 0.45, 0, 0.34, 0);   // V67: Kontaktschatten
   };
 
   // ---------- Salon (doppelte Höhe) ----------
@@ -354,7 +366,16 @@ export function buildPenthouse() {
   // ---------- Küche ----------
   {
     const y = F1, H = 0.92;
-    const counter = (x0, x1, z0, z1) => { const w = x1 - x0, d = z1 - z0, x = (x0 + x1) / 2, z = (z0 + z1) / 2; put('cab', boxW(w, H - 0.06, d, x, y + (H - 0.06) / 2, z, 1)); put('dark', boxW(w + 0.04, 0.06, d + 0.04, x, y + H - 0.03, z, 1.5)); put('lacquer', BOX(w - 0.04, 0.1, d - 0.04, x, y + 0.05, z)); col(x0, y, z0, x1, y + H, z1); };
+    const counter = (x0, x1, z0, z1) => { const w = x1 - x0, d = z1 - z0, x = (x0 + x1) / 2, z = (z0 + z1) / 2; put('cab', boxW(w, H - 0.06, d, x, y + (H - 0.06) / 2, z, 1)); put('dark', boxW(w + 0.04, 0.06, d + 0.04, x, y + H - 0.03, z, 1.5)); put('lacquer', BOX(w - 0.04, 0.1, d - 0.04, x, y + 0.05, z)); col(x0, y, z0, x1, y + H, z1);
+      // V70: Fugen zwischen den Schranktüren und eine Schubladenfuge, dazu Raumschatten am Sockel
+      const ax = w >= d, L = ax ? w : d;
+      for (const sd of [-1, 1]) {
+        const f = ax ? z + sd * (d / 2 + 0.004) : x + sd * (w / 2 + 0.004);
+        for (let k = 0.6; k < L - 0.1; k += 0.6) put('lacquer', ax ? BOX(0.014, H - 0.2, 0.01, x0 + k, y + 0.1 + (H - 0.2) / 2, f) : BOX(0.01, H - 0.2, 0.014, f, y + 0.1 + (H - 0.2) / 2, z0 + k));
+        put('lacquer', ax ? BOX(w - 0.06, 0.012, 0.01, x, y + H - 0.24, f) : BOX(0.01, 0.012, d - 0.06, f, y + H - 0.24, z));
+        if (ax) shadeEdge(x0, z + sd * (d / 2 + 0.01), x1, z + sd * (d / 2 + 0.01), y + 0.05, 0, sd, 0.5, 0.4); else shadeEdge(x + sd * (w / 2 + 0.01), z0, x + sd * (w / 2 + 0.01), z1, y + 0.05, sd, 0, 0.5, 0.4);
+      }
+    };
     counter(-19.7, -8.3, -19.75, -19.05); counter(-19.75, -19.05, -19.05, -12.4);
     for (let x = -19.2; x < -8.4; x += 0.6) put('gold', BOX(0.16, 0.025, 0.03, x + 0.3, y + 0.72, -19.03));
     for (let z = -18.6; z < -12.5; z += 0.6) put('gold', BOX(0.03, 0.025, 0.16, -19.03, y + 0.72, z + 0.3));
@@ -552,6 +573,7 @@ export function buildPenthouse() {
     for (let k = -3; k <= 3; k++) put('gold', BOX(0.03, 0.5, 0.02).translate(0, 0.25, 0).rotateZ(k * 0.18).rotateY(ry).translate(x + nx * 0.06, y + 0.04, z + nz * 0.06), where);
     put('lamp', new T.ConeGeometry(0.14, 0.26, 10, 1, true).rotateX(Math.PI).translate(x + nx * 0.16, y + 0.2, z + nz * 0.16), where);
     glow(x + nx * 0.25, y + 0.35, z + nz * 0.25, [1.35, 0.95, 0.55], 1.1);
+    if (where === 'inner') wallWash(x, y + 0.35, z, nx, nz, 1.9, 3.4, [1, 0.74, 0.46], 0.26);   // V67: Lichtfächer an der Wand
   };
   // Schwerer Samtvorhang: fünf Bahnen vom Boden bis unter die Decke, goldene Raffhalter
   const curtain = (x, y, z, h, along = 'x', mat = 'velvet') => {
@@ -733,6 +755,19 @@ export function buildPenthouse() {
   ];
   SPAWNS.push({ x: 0, z: 0, y0: F1 - 40, items: I1, y: 2.2, floor: F1, pent: true }, { x: 0, z: 0, y0: F1 - 40, items: I2, y: 2.2, floor: F2, pent: true });   // y ist relativ zu floor (updateSpawns addiert)
 
+  /* ================= V67: Raumschatten an den Glaswänden, Säulenfüße, warme Deckenvouten im Salon ================= */
+  { const w = W - 0.15, warm = [1, 0.72, 0.42];
+    shadeRoom(-w, w, -w, w, F1, { a: 0.3, w: 0.8, wh: 0.5 });
+    shadeRoom(-w, w, -w, -0.62, F2, { a: 0.3, w: 0.8, wh: 0.5, sides: 'nwe' });
+    for (const x of [-14.5, -5.5, 5.5, 14.5]) shadeColumn(x, F1, -0.3, 0.58, 0.5);
+    // Salon (doppelte Höhe, z -0,5 bis W): Leuchtband unter der Decke an drei Seiten und Lichtschleier auf der Kassettendecke
+    for (const [x0, z0, x1, z1, nx, nz] of [[-w + 0.3, w - 0.3, w - 0.3, w - 0.3, 0, -1], [-w + 0.3, -0.2, -w + 0.3, w - 0.3, 1, 0], [w - 0.3, -0.2, w - 0.3, w - 0.3, -1, 0]]) {
+      put('lamp', BOX(Math.max(0.05, Math.abs(x1 - x0)), 0.05, Math.max(0.05, Math.abs(z1 - z0)), (x0 + x1) / 2, TOP - 0.35, (z0 + z1) / 2));
+      lightBand(x0, z0, x1, z1, TOP - 0.08, nx, nz, 2.6, warm, 0.3);
+    }
+    for (const [x0, x1] of [[-w, -5.2], [5.2, w]]) lightBand(x0, -0.38, x1, -0.38, TOP - 0.08, 0, 1, 2.2, warm, 0.26);
+  }
+
   /* ================= Netze bauen ================= */
   movOff();
   for (const where in B) {
@@ -742,6 +777,7 @@ export function buildPenthouse() {
       const m = new T.Mesh(mergeGeos(geos), M[k]); if (k === 'glass') m.renderOrder = 3; parent.add(m);   // V34: wieder nach Sichtfeld aussortiert
     }
   }
+  shadeEnd(inner);
   // V41: Stoffe, die von außen "beleuchtet" erscheinen sollen: Eigenleuchten = warme Lampenfarbe mal Grundfarbe
   for (const k in M) { const m = M[k]; if (!m.isMeshStandardMaterial || m.transparent || k === 'onyx' || k === 'mirror' || k === 'chrome') continue;
     const base = m.map ? new T.Color(0.75, 0.68, 0.58) : m.color.clone(); const c1 = base.multiply(new T.Color(0.62, 0.5, 0.34));

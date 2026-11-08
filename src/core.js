@@ -76,6 +76,7 @@ setupReverseZ(renderer, camera, T);
 export const MOON_DIR = new T.Vector3(-0.42, 0.42, -0.8).normalize();
 export const U = {
   uTime: { value: 0 },
+  uInside: { value: 0 },   // V67: 0 draußen, 1 in Belmont und Penthouse (Tonkurve in bloom.js)
   uFogColor: { value: FOG_COLOR },
   uFogDensity: { value: FOG_DENSITY },
   uMoonDir: { value: MOON_DIR },

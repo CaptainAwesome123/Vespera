@@ -146,7 +146,7 @@ export function buildBelmontLuxe({ IG, P, G1, G2, LOBBY_H, BALL_H, put, col, glo
   for (const z of [-15.5, -10]) { sconce(-47.85, P + 5.2, z, 1, 0, 0.9); sconce(47.85, P + 5.2, z, -1, 0, 0.9); }
   for (const x of [-30, -20, 20, 30]) sconce(x, P + 5.0, -6.1, 0, -1, 0.9);
   // auf den Galerien
-  for (const y of [G1, G2]) for (const sx of [-1, 1]) for (const z of [-40, -34, -28, -22, -16]) sconce(sx * 47.85, y + 2.4, z, -sx, 0, 0.75);
+  for (const y of [G1, G2]) for (const sx of [-1, 1]) for (const z of [-40, -34, -28, -22, -16]) sconce(sx * 47.85, y + 2.4, z, -sx, 0, 0.95);   // V67: größer, hellerer Fächer (Galerien waren fast schwarz)
   // Lichtvouten unter der Decke des Ballsaals
   coveRun(-48, -47.9, 48, -47.9, BALL_H, 0, 1, 8); coveRun(-47.9, -48, -47.9, -6, BALL_H, 1, 0, 8); coveRun(47.9, -48, 47.9, -6, BALL_H, -1, 0, 8); coveRun(-48, -6.1, 48, -6.1, BALL_H, 0, -1, 4);
   // Bühne: warmer Schein auf dem Vorhang (Rampenlicht) und Lichtfächer neben der Musikmuschel

@@ -15,6 +15,7 @@ export function fxSet(name, max, additive) {
     uniforms: { uScale: { value: 600 }, uTime: U.uTime },
     vertexShader: `attribute vec4 aCol; attribute float aSize; uniform float uScale; varying vec4 vC; varying float vR;
       void main(){ vec4 mv = modelViewMatrix * vec4(position, 1.0); gl_Position = projectionMatrix * mv; vC = aCol;
+        vC.a *= smoothstep(0.6, 2.5, -mv.z);   // V69: dicht vor der Kamera ausblenden (sonst bildschirmgroße Flecken)
         vR = fract(sin(dot(position.xz, vec2(12.9898, 78.233))) * 43758.5453);
         gl_PointSize = clamp(aSize * uScale / max(0.5, -mv.z), 0.0, 380.0); }`,
     fragmentShader: additive
@@ -22,7 +23,7 @@ export function fxSet(name, max, additive) {
       : `varying vec4 vC; varying float vR; void main(){ vec2 p = gl_PointCoord - 0.5; float r = length(p);
           // weiche, ballige Wolke mit etwas Struktur
           float n = sin((p.x + vR) * 13.0) * sin((p.y - vR) * 11.0) * 0.12;
-          float a = smoothstep(0.5, 0.08, r + n); if (a < 0.01) discard; gl_FragColor = vec4(vC.rgb, vC.a * a); }`,
+          float a = smoothstep(0.5, 0.0, r + n); if (a < 0.01) discard; gl_FragColor = vec4(vC.rgb, vC.a * a); }`,   // V69: weicherer Rand
     transparent: true, depthWrite: false, blending: additive ? T.AdditiveBlending : T.NormalBlending,
   });
   const pts = new T.Points(g, mat); pts.frustumCulled = false; pts.renderOrder = 4; pts.userData.noRefl = true; scene.add(pts);
@@ -44,7 +45,8 @@ export const FX_KIND = {
   glass: { set: 'glow', col: [0.6, 0.75, 0.8, 0.8], s: [0.06, 0.05], life: [0.5, 0.9], grav: 9.8, drag: 0.2 },
   // V33: Schimmer des Meteoritenkristalls (Alexanders Kräfte) und aufgewirbelter Schnee bei der Landung
   crystal: { set: 'glow', col: [0.75, 2.1, 1.95, 0.9], s: [0.07, 0.015], life: [0.5, 1.1], grav: -0.25, drag: 1.4 },
-  snowburst: { set: 'soft', col: [0.86, 0.9, 0.95, 0.5], s: [0.5, 3.2], life: [1.0, 1.9], grav: 0.4, drag: 1.9 },
+  // V69: Schneewolken im Mondlicht bläulich und dünner (vorher hellgrau und halb deckend: große graue Flecken über dem Boden)
+  snowburst: { set: 'soft', col: [0.42, 0.5, 0.6, 0.26], s: [0.35, 2.2], life: [0.9, 1.7], grav: 0.4, drag: 1.9 },
 };
 export function buildFX() {
   fxSet('soft', MOBILE ? 500 : 1400, false);

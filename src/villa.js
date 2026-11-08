@@ -6,6 +6,7 @@ import { VILLA } from './harbour.js';
 import { movOn, movOff, FURN, placeFurn, lathe, FAN_TEX } from './entrances.js';
 import { worldUV, wallpaperTex, texSet, roundBoxGeo } from './serpentine.js';
 import { addLight } from './performance.js';
+import { shadeBegin, shadeEnd, shadeEdge, shadeWall, addSheen } from './raumlicht.js';
 import { INTERACT } from './music.js';
 import { toast } from './boat.js';
 import { player } from './player.js';
@@ -269,6 +270,7 @@ export function buildVillaRooms(ctx) {
   const { W, V, G, colL, pl, by, ry, M } = ctx;
   VR.by = by; VR.cs = Math.cos(ry); VR.sn = Math.sin(ry);
   const mats = VR.mats = villaMats(M);
+  addSheen(mats.sofa, 0.5); addSheen(mats.velvet, 0.4);   // V70: Samtschein
   const B = {};
   // Geometrie lokal setzen; die Weltlage kommt beim Zusammenbau je Netz dazu
   const A = (zone, mat, g, lx = 0, y = 0, lz = 0, a = 0) => { if (a) g.rotateY(a); g.translate(lx, y, lz); (B[zone + '|' + mat] ||= []).push(g); return g; };
@@ -293,6 +295,15 @@ export function buildVillaRooms(ctx) {
       if (o.col !== false) { if (ax === 'x') col(p0, y0 + b0, c - thk / 2, p1, y0 + b1, c + thk / 2); else col(c - thk / 2, y0 + b0, p0, c + thk / 2, y0 + b1, p1); }
     }
     // Sockelleiste und Goldfries an der Innenseite (nur bei sichtbaren Wänden)
+    // V67: Raumschatten an Boden- und Deckenkante beider Wandseiten (nur Wandstücke, die am Boden stehen)
+    if (mat && o.trim !== false) for (const [p0, p1, b0, b1] of pieces) {
+      if (b0 > 0) continue;
+      for (const sd of (o.side ? [o.side] : [-1, 1])) {
+        const f = c + sd * (thk / 2 + 0.02), nx = ax === 'x' ? 0 : sd, nz = ax === 'x' ? sd : 0, A_ = ax === 'x' ? [p0, f, p1, f] : [f, p0, f, p1];
+        shadeEdge(A_[0], A_[1], A_[2], A_[3], y0 + 0.06, nx, nz, 0.8, 0.38); shadeWall(A_[0], A_[1], A_[2], A_[3], y0 + 0.03, 0.7, nx, nz, 0.3);
+        if (b1 >= h) shadeWall(A_[0], A_[1], A_[2], A_[3], y0 + h, -0.8, nx, nz, 0.26);
+      }
+    }
     if (mat && o.trim !== false) for (const [p0, p1, b0] of pieces) {
       if (b0 > 0) continue;
       const L = p1 - p0, m = (p0 + p1) / 2, t2 = thk / 2 + 0.07;
@@ -419,6 +430,7 @@ export function buildVillaRooms(ctx) {
   const FM = { up: 'sofa', frame: 'gold', wood: 'wood', lamp: 'lamp', leaf: 'hedge', cloth: 'velvet' }, FL = { ...FM, up: 'leather' }, FC = { ...FM, up: 'linen' };
   const furn = (zone, parts, map, lx, y, lz, a = 0) => placeFurn(parts, map, (k, g) => A(zone, k, g), lx, y, lz, a);
   movOn({ x: VILLA.x, y: by, z: VILLA.z, ry });   // V52: Möbel der Villa sind mit Telekinese greifbar (lokales System, siehe entrances.js)
+  shadeBegin();   // V67: Kontaktschatten und Raumschatten (raumlicht.js), lokale Koordinaten der Villa
   // Palme im Kübel: Stamm aus Zylindern, Wedel aus flachen Kästen
   const palm = (zone, lx, lz, y, h = 3.2) => {
     A(zone, 'stone', lathe([[0.5, 0], [0.55, 0.1], [0.45, 0.8], [0.6, 0.9]], 14), lx, y, lz);
@@ -1155,6 +1167,9 @@ export function buildVillaRooms(ctx) {
     const m = new T.Mesh(g, mat); m.frustumCulled = false; m.renderOrder = mk === 'glassW' || mk === 'tealG' ? 3 : 0;
     (VR.groups[zone] ||= new T.Group()).add(m);
   }
+  // V67: Raumschatten und Kontaktschatten je Geschoss (Keller, Erdgeschoss, Obergeschoss), gedreht und verschoben wie die Netze
+  { const G = VR.groups, mx = new T.Matrix4().makeRotationY(ry).setPosition(VILLA.x, by, VILLA.z);
+    shadeEnd(null, { matrix: mx, pick: y => y < -0.4 ? G.kel : y < Y1 - 0.6 ? G.eg : G.og }); }
   for (const z in VR.groups) { VR.groups[z].visible = false; scene.add(VR.groups[z]); }
   // Randolf ansprechen
   INTERACT.push({

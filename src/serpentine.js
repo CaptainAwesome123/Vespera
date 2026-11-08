@@ -1203,7 +1203,7 @@ export function buildMountains() {
         // V44: Eis- und Schneebänder in den Steilwänden (gefrorene Klippen der Polarnacht), den Schichten folgend
         float bands = smoothstep(0.66, 0.86, vnoise(vec2(vW.y*0.16 + fbm(vW.xz*0.01)*5.0, (vW.x + vW.z)*0.02))) * smoothstep(0.35, 0.75, steep) * smoothstep(0.0, 8.0, vW.y);
         snow = max(snow, bands * 0.75 * clamp(0.5 + uSnowCover, 0.0, 1.0));
-        vec3 snowCol = vec3(0.16, 0.2, 0.27) + vec3(0.55, 0.62, 0.78)*pow(moon, 1.4) + uTeal*0.06;
+        vec3 snowCol = vec3(0.15, 0.19, 0.26) + vec3(0.42, 0.49, 0.63)*pow(moon, 1.4) + uTeal*0.06;   // V69: Mondseite weniger grell (blendete als weißer Fleck)
         snowCol += vec3(0.07, 0.26, 0.14) * uAurora * 0.45 * max(n.y, 0.0);   // V44: Polarlicht schimmert auf dem Schnee
         snow *= 1.0 - 0.55 * gIce;   // auf dem Gletscher weht der Schnee ab, das Eis bleibt sichtbar
         vec3 col = mix(rock, snowCol, snow);
@@ -1212,6 +1212,8 @@ export function buildMountains() {
         float face = max(dot(n, toCity), 0.0);
         col += uTeal * 0.32 * face * exp(-max(vW.y + 180.0, 0.0)/420.0);
         col += vec3(0.9, 0.6, 0.3) * 0.22 * exp(-distance(vW, uVilla)/110.0);
+        // V69: Tiefenstaffelung: ferne Hänge werden bläulich und flacher, nahe bleiben kräftig
+        col = mix(col, uFogColor * 1.8 + vec3(0.015, 0.025, 0.04), smoothstep(1200.0, 5200.0, vD) * 0.4);
         float fogF = vespFog(vD, vW.y, uCam.y, uFogDensity, 0.07);
         vec3 fogCol = mix(uFogColor*1.35, uFogColor*0.5, smoothstep(0.0, 900.0, vW.y));
         gl_FragColor = vec4(mix(col, fogCol, clamp(fogF, 0.0, 1.0)), 1.0);
@@ -1812,17 +1814,19 @@ export function flushInstances() {
   const neonMat = new T.MeshBasicMaterial({ color: 0xd2d2d2, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -3 });
   neonMat.onBeforeCompile = sh => {
     sh.uniforms.uScale = U.uScale;
-    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nuniform float uScale; varying float vDim;').replace('#include <project_vertex>', `
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nuniform float uScale; varying float vDim; varying float vShade;').replace('#include <project_vertex>', `
   vec3 sc = vec3(length(instanceMatrix[0].xyz), length(instanceMatrix[1].xyz), length(instanceMatrix[2].xyz));
   vec4 c0 = modelViewMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0);
   vec3 grow = max(vec3(1.0), (max(-c0.z, 1.0) / uScale * 1.6) / sc);
   float mx = max(sc.x, max(sc.y, sc.z)); grow = mix(grow, vec3(1.0), step(mx, sc));
   vDim = 1.0 / max(grow.x, max(grow.y, grow.z));
+  // V68: Goldleisten mit Glanzverlauf (oben heller) und matteren Seitenflächen statt gleichmäßig gelber Klötze
+  vShade = mix(1.0, 0.74 + 0.46 * (position.y + 0.5), step(2.5, sc.y) * step(sc.y, 30.0)) * (1.0 - 0.2 * abs(normal.x));
   vec4 mvPosition = modelViewMatrix * instanceMatrix * vec4(transformed * grow, 1.0);
   gl_Position = projectionMatrix * vec4(mvPosition.xyz * 0.9995, 1.0);`);
-    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vDim;').replace('#include <color_fragment>', '#include <color_fragment>\n  diffuseColor.rgb *= vDim;');
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vDim; varying float vShade;').replace('#include <color_fragment>', '#include <color_fragment>\n  diffuseColor.rgb *= vDim * vShade;');
   };
-  neonMat.customProgramCacheKey = () => 'neonPull40';
+  neonMat.customProgramCacheKey = () => 'neonPull68';
   const nm = new T.InstancedMesh(box, neonMat, neons.length);
   const col = new T.Color();
   neons.forEach((n, i) => { if (n.ry || n.rz) m.compose(_p.set(n.x, n.y, n.z), _q.setFromEuler(_e.set(0, n.ry || 0, n.rz || 0)), _s.set(n.sx, n.sy, n.sz)); else m.makeScale(n.sx, n.sy, n.sz).setPosition(n.x, n.y, n.z); nm.setMatrixAt(i, m); nm.setColorAt(i, col.setRGB(n.c[0], n.c[1], n.c[2])); });
@@ -2607,7 +2611,9 @@ export const TWEEDS = [[0.24, 0.18, 0.12], [0.3, 0.24, 0.16], [0.16, 0.14, 0.12]
 export const TROUSERS = [[0.16, 0.14, 0.12], [0.2, 0.19, 0.17], [0.12, 0.12, 0.13], [0.22, 0.17, 0.12], [0.18, 0.18, 0.2]];   // V56: Wollhosen zu Hemdsärmeln
 export const FLAPPERS = [[0.05, 0.05, 0.06], [0.78, 0.66, 0.42], [0.04, 0.3, 0.22], [0.4, 0.06, 0.1], [0.55, 0.56, 0.6], [0.06, 0.08, 0.26], [0.86, 0.82, 0.72], [0.3, 0.1, 0.3]];
 export const FURCOATS = [[0.36, 0.07, 0.1], [0.05, 0.2, 0.21], [0.07, 0.07, 0.09], [0.22, 0.12, 0.28], [0.6, 0.48, 0.32], [0.88, 0.85, 0.8], [0.06, 0.26, 0.16], [0.08, 0.1, 0.22]];
-export const GOWNS = [[0.75, 0.6, 0.35], [0.85, 0.78, 0.62], [0.6, 0.62, 0.66], [0.45, 0.05, 0.08], [0.04, 0.22, 0.24], [0.06, 0.06, 0.07], [0.7, 0.45, 0.4], [0.9, 0.86, 0.8]];
+// V70: mehr Farben in der Menge (Smaragd, Saphir, Pflaume, Altrosa, Silbergrau, Bernstein) neben Champagner, Schwarz und Rot
+export const GOWNS = [[0.75, 0.6, 0.35], [0.85, 0.78, 0.62], [0.6, 0.62, 0.66], [0.45, 0.05, 0.08], [0.04, 0.22, 0.24], [0.06, 0.06, 0.07], [0.7, 0.45, 0.4], [0.9, 0.86, 0.8],
+  [0.05, 0.3, 0.17], [0.08, 0.12, 0.4], [0.3, 0.08, 0.26], [0.78, 0.52, 0.55], [0.48, 0.5, 0.54], [0.7, 0.42, 0.12]];
 /* ---------- Passanten auf den Gehsteigen ---------- */
 export const peds = [];
 export let pedCrowd;
