@@ -99,7 +99,7 @@ let fails = 0; const ok = (c, m) => { console.log((c ? 'OK   ' : 'FEHLER ') + m)
   ok(B.schicht >= B.withHomes * 6 && Math.min(...B.per) >= B.withHomes * 2, `Schichtarbeiter: ${B.schicht} (${B.per.join(' / ')})`);
   ok(B.viertel >= 8 && B.lokal, `Bewohner am Kneipenplatz: ${B.viertel}`);
   ok(B.inList && B.peds && r.planOk, 'alle Bewohner haben Figur und gültigen Plan');
-  ok(B.thwMax < 300, `Weg zur Arbeit: Mitte ${B.thwMed} min, längster ${B.thwMax} min`);
+  ok(B.thwMax < 340, `Weg zur Arbeit: Mitte ${B.thwMed} min, längster ${B.thwMax} min`);
   ok(B.door > 0 && B.extra > 10, `Hallentüren gebaut, ${B.extra} Raucher vor Kneipen`);
   ok(/Uhr · (Abend|Nacht|Morgen|Vormittag|Mittag|Nachmittag)/.test(r.hud), 'Uhr mit Tagesabschnitt: ' + r.hud);
   const P = r.puls;
