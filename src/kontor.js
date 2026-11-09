@@ -88,7 +88,7 @@ const FACTORY = {
   'MASCHINENFABRIK': [680000, 'maschinen', 1], 'BRAUEREI': [300000, 'bier', 24], 'DRUCKEREI': [220000, null, 0], 'KABELWERK': [400000, null, 0],
   'GLASHÜTTE': [380000, 'glas', 6], 'RADIOWERK': [520000, null, 0], 'LOKOMOTIVBAU': [800000, 'maschinen', 1], 'MÜHLE': [180000, null, 0],
 };
-export const SECTORS = { luxus: 'Luxus', gastro: 'Gastronomie', handel: 'Handel', industrie: 'Industrie', verkehr: 'Verkehr', kultur: 'Kultur', hotel: 'Hotel', privat: 'Privat' };
+export const SECTORS = { luxus: 'Luxus', gastro: 'Gastronomie', handel: 'Handel', industrie: 'Industrie', verkehr: 'Verkehr', kultur: 'Kultur', hotel: 'Hotel', wohnen: 'Wohnungen', privat: 'Privat' };
 export const BIZ = {};   // id -> { n, sec, price, inc, ort, prod, start, max, staff }
 function ktBiz(id, o) { BIZ[id] = { max: 5, staff: 6, ...o }; }
 const TC_SMALL = new Set(['de', 'du', 'la', 'le', 'und', 'zum', 'zur', 'der', 'des', 'am', 'im', 'an']);
@@ -97,6 +97,7 @@ function ktBuildBiz() {
   ktBiz('belmont', { n: 'The Belmont', sec: 'hotel', price: 25000000, inc: 42000, ort: 'Belmont-Platz', start: 3, staff: 220, upK: 0.05, note: 'Das höchste Haus der Stadt. Ihr Hotel, Ihr Ballsaal, Ihre Penthouse-Suite.' });
   ktBiz('villa', { n: 'Bergvilla', sec: 'privat', price: 8000000, inc: -3500, ort: 'Am Kraterrand', start: 1, max: 1, staff: 14, note: 'Randolf und das Personal. Kostet nur, bringt nichts als Ruhe.' });
   ktBiz('imperial', { n: 'Aurora Imperial', sec: 'privat', price: 12000000, inc: -6200, ort: 'Ankermast', start: 1, max: 1, staff: 26, note: 'Ihr Luftschiff mit Besatzung und Bordservice.' });
+  ktBiz('wohnbau', { n: 'Vespera Wohnungsbau', sec: 'wohnen', price: 2400000, inc: 9000, ort: 'Arbeiterviertel und Bürgerstraßen', start: 1, max: 3, staff: 30, upK: 0.2, note: 'Die Mietshäuser der Stadt. Alexander hat sie gebaut, die Mieten legt er fest (Reiter Imperium).' });   // V76
   ktBiz('lager', { n: 'Lagerhaus am Güterkai', sec: 'handel', price: 60000, inc: -300, ort: 'Güterkai', start: 1, staff: 4, note: 'Fasst 200 Einheiten je Ausbaustufe.' });
   SHOPS.forEach(S => {
     const id = 'laden:' + S.name; if (BIZ[id]) return;
@@ -173,13 +174,14 @@ export const EVENTS = [
 export const KT = {
   s: null,          // gespeicherter Zustand (siehe ktFresh)
   open: false, tab: 'uebersicht', post: null, ready: false, dirty: false, saveT: 0, hudT: 0, near: null, lastCash: 0,
-  tabs: {},         // weitere Reiter (aufgaben.js)
+  tabs: {},         // weitere Reiter (aufgaben.js, imperium.js)
+  acts: {},         // V76: weitere Schalter im Buch (data-act -> Funktion)
   hooks: [],        // Rückrufe bei Änderungen (aufgaben.js prüft Ziele)
 };
 function ktFresh() {
   const s = {
     v: 1, cash: 3200000, day: 1, t: 0,
-    own: { belmont: { lvl: 3, lohn: 1 }, villa: { lvl: 1, lohn: 2 }, imperial: { lvl: 1, lohn: 2 }, lager: { lvl: 1, lohn: 1 } },
+    own: { belmont: { lvl: 3, lohn: 1 }, villa: { lvl: 1, lohn: 2 }, imperial: { lvl: 1, lohn: 2 }, lager: { lvl: 1, lohn: 1 }, wohnbau: { lvl: 1, lohn: 1 } },
     lager: {}, items: [], shares: { bank: 12000 }, cost: { bank: 300 },
     rep: { elite: 80, buerger: 60, arbeiter: 38 }, wohl: 45, proj: {},
     mk: {}, gp: {}, cp: {}, hist: {}, sec: {}, ev: [], log: [], q: null,
@@ -255,13 +257,15 @@ export function bizIncome(id) {
   const B = BIZ[id], o = KT.s.own[id]; if (!B || !o) return 0;
   if (B.inc < 0) return B.inc;
   const lv = 1 + 0.3 * (o.lvl - 1), sec = (KT.s.sec[B.sec] || 1) * evMult('s', B.sec), wohl = 0.8 + 0.4 * KT.s.wohl / 100;
-  return B.inc * lv * sec * wohl * LOHN[o.lohn ?? 1].m;
+  const base = B.inc * lv * sec * wohl;
+  return KT.incFn ? KT.incFn(id, base, o) : base * LOHN[o.lohn ?? 1].m;   // V76: imperium.js rechnet Umsatz, Löhne, Material und Unterhalt einzeln
 }
 export function netWorth() {
   const s = KT.s; let v = s.cash;
   for (const id in s.own) v += bizValue(id);
   for (const c in s.shares) v += s.shares[c] * s.cp[c];
   for (const g in s.lager) v += s.lager[g] * GOODS[g].p * s.gp[g];
+  if (s.imp && s.imp.kredit) v -= s.imp.kredit;   // V76: Schulden bei der Vespera-Bank
   return v;
 }
 
@@ -300,7 +304,7 @@ export function ktBuyBiz(id) {
   return true;
 }
 export function ktSellBiz(id) {
-  const B = BIZ[id]; if (!B || !KT.s.own[id] || B.sec === 'privat' || id === 'belmont' || id === 'lager') return false;
+  const B = BIZ[id]; if (!B || !KT.s.own[id] || B.sec === 'privat' || id === 'belmont' || id === 'lager' || id === 'wohnbau') return false;
   const v = Math.round(bizValue(id) * 0.85);
   delete KT.s.own[id]; ktCash(v, B.n + ' verkauft'); toast(`${B.n} verkauft: ${fmM(v)}`);
   return true;
@@ -358,7 +362,7 @@ function ktNewDay() {
     const B = BIZ[id]; if (!B) continue;
     const v = bizIncome(id); sum += v; if (Math.abs(v) > 2000) parts.push(`${B.n} ${v > 0 ? '+' : ''}${fmN(v)}`);
     if (B.inc > 0) { lohnRep += LOHN[s.own[id].lohn ?? 1].rep * B.staff; staff += B.staff; }
-    if (B.prod) {   // Fabriken liefern ins Lager, was nicht passt, geht ab Werk weg
+    if (B.prod && !(KT.stillFn && KT.stillFn(id))) {   // Fabriken liefern ins Lager, was nicht passt, geht ab Werk weg (V76: im Streik steht das Werk still)
       const room = lagerCap() - lagerUsed(), n = Math.round(B.prod.n * (1 + 0.3 * (s.own[id].lvl - 1)));
       const put = Math.min(room, n); if (put > 0) s.lager[B.prod.g] = (s.lager[B.prod.g] || 0) + put;
       if (n > put) sum += (n - put) * GOODS[B.prod.g].p * s.gp[B.prod.g] * 0.85;
@@ -401,7 +405,7 @@ function ktNewDay() {
 }
 
 /* ---------- Kontorbuch (HTML) ---------- */
-const TABS = [['uebersicht', 'Übersicht'], ['besitz', 'Besitz'], ['handel', 'Handel'], ['boerse', 'Börse'], ['stiftungen', 'Stiftungen'], ['aufgaben', 'Aufgaben']];
+const TABS = [['uebersicht', 'Übersicht'], ['imperium', 'Imperium'], ['besitz', 'Besitz'], ['handel', 'Handel'], ['boerse', 'Börse'], ['stiftungen', 'Stiftungen'], ['aufgaben', 'Aufgaben']];
 function ktCss() {
   const st = document.createElement('style');
   st.textContent = `
@@ -493,6 +497,7 @@ function ktClick(e) {
   else if (a === 'shares') ktShares(id, n);
   else if (a === 'fund') ktFund(id);
   else if (a === 'reset') { if (b.dataset.sure) ktReset(); else { b.dataset.sure = 1; b.textContent = 'Wirklich alles zurücksetzen?'; } }
+  else if (KT.acts[a]) KT.acts[a](id, n, b);   // V76: Schalter anderer Teile (imperium.js)
   else if (KT.tabs[KT.tab] && KT.tabs[KT.tab].click) KT.tabs[KT.tab].click(a, id, b);
 }
 function spark(h, w = 90, hh = 22) {
@@ -523,7 +528,7 @@ const RENDER = {
       <div class="tile"><small>Vermögen</small><b>${fmM(netWorth())}</b></div>
       <div class="tile"><small>Ertrag am Tag</small><b class="${inc + div >= 0 ? 'up' : 'dn'}">${inc + div >= 0 ? '+' : ''}${fmM(inc + div)}</b><p>nächste Abrechnung in ${Math.floor(next / 60)}:${String(next % 60).padStart(2, '0')} min</p></div>
       <div class="tile"><small>Besitz</small><b>${nOwn} Häuser und Firmen</b><p>Lager ${fmN(lagerUsed())} / ${fmN(lagerCap())}</p></div>
-    </div>
+    </div>${KT.uebTop ? KT.uebTop() : ''}
     <h3>Ansehen in Vespera</h3>
     <div class="grid">${repBar('Elite', s.rep.elite)}${repBar('Bürger', s.rep.buerger)}${repBar('Arbeiter', s.rep.arbeiter)}${repBar('Wohlstand der Stadt', s.wohl)}</div>
     <p>Ansehen gibt bis zu 6 % bessere Preise an den Handelsplätzen der jeweiligen Leute. Wohlstand hebt die Erträge aller Firmen. Großzügige Löhne, Stiftungen und erledigte Aufgaben heben beides.</p>
@@ -571,7 +576,7 @@ const RENDER = {
   },
   boerse() {
     const s = KT.s;
-    return `<h3>Börse von Vespera</h3><p>Per Telefon von überall. Große Orders bewegen den Kurs. Dividende: 0,4 % des Kurses am Tag. Gebühr 1 %.</p>
+    return `${KT.boerseTop ? KT.boerseTop() : ''}<h3>Börse von Vespera</h3><p>Per Telefon von überall. Große Orders bewegen den Kurs. Dividende: 0,4 % des Kurses am Tag. Gebühr 1 %.</p>
     <table><tr><th>Gesellschaft</th><th class="r">Kurs</th><th class="hide-s">Verlauf</th><th class="r">Ihre Aktien</th><th></th></tr>${Object.keys(COS).map(c => {
       const C = COS[c], h = s.hist[c], p = s.cp[c], ch = h.length > 1 ? (p / h[h.length - 2] - 1) * 100 : 0, have = s.shares[c] || 0, pct = have / CO_SHARES * 100;
       const pl = have && s.cost[c] ? (p / s.cost[c] - 1) * 100 : 0;
@@ -590,6 +595,7 @@ const RENDER = {
     }).join('')}</table>`;
   },
   aufgaben() { return '<p>Die Aufgaben werden geladen …</p>'; },
+  imperium() { return '<p>Das Imperium wird geladen …</p>'; },
 };
 
 /* ---------- Anzeige oben rechts ---------- */
