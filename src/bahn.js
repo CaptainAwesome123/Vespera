@@ -547,6 +547,7 @@ function bhMove(v, dt) {
   const tr = v.tr, L = tr.len;
   if (v.st === 'halt') {
     v.dwell -= dt;
+    if (KT.bahnStill) v.dwell = Math.max(v.dwell, 4);   // V76: Bahnerstreik, die Wagen bleiben mit offenen Türen an den Haltestellen
     if (v.dwell > 1.8) v.door = Math.min(1, v.door + dt / 1.3); else v.door = Math.max(0, v.door - dt / 1.3);
     // Tür aufhalten, solange Alexander in der Tür steht
     if (v.dwell < 2.4 && v.held < 8 && bhInDoor(v, player.p)) { v.dwell += dt; v.held += dt; }
@@ -863,6 +864,7 @@ function bhStationMenu(sd) {
 function bhTravel(from, to) {
   if (!to || BAHN.travel) return false;
   if (DRIVE.on || BOAT.on || IMP.st === 'helm') { toast('Erst aussteigen.'); return false; }
+  if (KT.bahnStill) { toast('Die Bahner streiken. Heute fährt keine Bahn (Kontor · Imperium).'); return false; }   // V76
   BAHN.travel = to; const f = $('fade'); if (f) f.style.opacity = 1;
   setTimeout(() => {
     BAHN.travel = null; if (BAHN.sit) BAHN.sit = null;
