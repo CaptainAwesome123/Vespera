@@ -204,7 +204,7 @@ function rufRefreshAtt(force) {
 }
 
 /* ---------- Neue Sätze je Rang und Tat ---------- */
-const RUF_LINES = [
+export const RUF_LINES = [   // V76: imperium.js hängt eigene Sätze an
   { on: () => RUF.s.deeds.kasimir, L: { 'SAY_NEAR.bew': ['Sie haben den Roten Kasimir geschnappt! Endlich kann man wieder ruhig schlafen.', 'Herr Alexander! Das mit Kasimir, das war großartig!'], 'SAY_NEAR.resp': ['Kasimir hinter Gittern … das hat er sich selbst eingebrockt.'], 'TALK.bew': ['Seit Kasimir hinter Gittern sitzt, gehe ich wieder abends spazieren. Danke, Herr Alexander!'], 'SAY_NEAR.skep': ['Kasimir sitzt. Die Mieten sind trotzdem zu hoch.', 'Einen Mann kann man einsperren. Den Hunger im Viertel nicht.'], 'TALK.skep': ['Sie haben Kasimir gefasst, schön. Aber gehört hat ihm das halbe Viertel, und warum, das fragt keiner.'] } },
   { on: () => RUF.s.deeds.gala, L: { 'SAY_NEAR.bew': ['Der Goldene Stern steht Ihnen, Herr Alexander!', 'Ich habe das Feuerwerk über dem Belmont gesehen. Herrlich!'], 'TALK.dienst': ['Die Gala war ein Triumph, Herr Alexander. Das ganze Haus spricht davon.'] } },
   { on: () => KT.s && KT.s.proj.spital, L: { 'SAY_NEAR.bew': ['Das Hospital am Kraterrand hat meiner Mutter das Leben gerettet, Herr Alexander!'], 'TALK.resp': ['Im neuen Hospital haben sie meinen Jungen wieder zusammengeflickt. Das vergess’ ich Ihnen nicht.'] } },
