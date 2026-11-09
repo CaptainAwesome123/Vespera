@@ -5,6 +5,7 @@ import { stdMat, MAT, addCollider, glowTex, paintMat, mergeColored, PAINT, perso
 import { lamps, trees, addGlow, NEON, addNeon, addSeg, shafts, spires, neons, segs, dedupeSegs, facadeMat, glowPts, roofs, curbs } from './facade-shader.js';
 import { buildGroundMask, groundGrass, COAST, ISL, buildSidewalks, blocks, inRect, PLAZA, MEDIAN, BRIDGE_LOOPS, CANAL, rectPath } from './island.js';
 import { IB, FACTORY_LOOPS, FACTORY_IDLERS } from './shops.js';
+import { buildKronen } from './stadtbild.js';
 import { makeSignTex, FAN_TEX, lathe, crownFins, caps, domes, DOORS, TERRACE, CLOCKS } from './entrances.js';
 import { WATER_Y, setDance, placeCouple } from './dance.js';
 import { poolWaterMat, fountainJet } from './water.js';
@@ -1832,41 +1833,7 @@ export function flushInstances() {
   neons.forEach((n, i) => { if (n.ry || n.rz) m.compose(_p.set(n.x, n.y, n.z), _q.setFromEuler(_e.set(0, n.ry || 0, n.rz || 0)), _s.set(n.sx, n.sy, n.sz)); else m.makeScale(n.sx, n.sy, n.sz).setPosition(n.x, n.y, n.z); nm.setMatrixAt(i, m); nm.setColorAt(i, col.setRGB(n.c[0], n.c[1], n.c[2])); });
   nm.frustumCulled = false; scene.add(nm);
 
-  // Turmspitzen
-  const cone = new T.ConeGeometry(0.5, 1, 4, 1); cone.rotateY(Math.PI / 4); cone.translate(0, 0.5, 0);
-  const sm = new T.InstancedMesh(cone, new T.MeshStandardMaterial({ color: 0xc8a060, metalness: 0.85, roughness: 0.32, emissive: 0x2c1c08 }), spires.length);
-  spires.forEach((s, i) => { m.makeScale(s.b * 1.414, s.h, s.b * 1.414).setPosition(s.x, s.y0, s.z); sm.setMatrixAt(i, m); });
-  sm.frustumCulled = false; scene.add(sm);
-
-  // Walmdächer aus grüner Kupferpatina oder Blattgold, Kuppeln mit Laterne
-  const roofCapGeo = new T.ConeGeometry(0.7071, 1, 4, 1); roofCapGeo.rotateY(Math.PI / 4); roofCapGeo.translate(0, 0.5, 0);
-  // V23: dritte Sorte Dach: Schiefer auf den Arbeiter- und Reihenhäusern (ohne Warnlicht)
-  for (const kind of ['copper', 'gold', 'slate']) {
-    const list = caps.filter(c => (c.slate ? 'slate' : c.gold ? 'gold' : 'copper') === kind); if (!list.length) continue;
-    const cm = new T.InstancedMesh(roofCapGeo, kind === 'gold' ? MAT.gold : kind === 'slate' ? stdMat({ color: 0x3a3d44, metalness: 0.15, roughness: 0.6, envI: 0.45 }) : stdMat({ color: 0x3e8a7c, metalness: 0.35, roughness: 0.45, envI: 0.6 }), list.length);
-    list.forEach((c, i) => { cm.setMatrixAt(i, m.makeScale(c.w, c.h, c.d).setPosition(c.x, c.y, c.z)); if (!c.slate) addGlow(c.x, c.y + c.h + 0.6, c.z, [1.4, 0.15, 0.1], 1.4, R(), 1); });
-    cm.frustumCulled = false; scene.add(cm);
-  }
-  // V23: Zifferblätter der Uhrtürme (vier Seiten, leuchtend)
-  if (CLOCKS.length) {
-    const faces = [], hands = [];
-    for (const c of CLOCKS) for (let k = 0; k < 4; k++) {
-      const a = k * Math.PI / 2, ox = Math.sin(a) * c.half, oz = Math.cos(a) * c.half;
-      faces.push(new T.CircleGeometry(c.r, 28).rotateY(a).translate(c.x + ox, c.y, c.z + oz));
-      hands.push(new T.TorusGeometry(c.r + 0.08, 0.09, 5, 28).rotateY(a).translate(c.x + ox * 1.01, c.y, c.z + oz * 1.01));
-      addGlow(c.x + ox * 1.15, c.y, c.z + oz * 1.15, [1.3, 1.1, 0.8], c.r * 1.6);
-    }
-    const fm = new T.Mesh(mergeGeos(faces), new T.MeshBasicMaterial({ map: CLOCK_TEX, color: new T.Color(1.25, 1.15, 0.95), polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -4 }));
-    const hm = new T.Mesh(mergeGeos(hands), MAT.gold);
-    fm.frustumCulled = hm.frustumCulled = false; scene.add(fm, hm);
-  }
-  if (domes.length) {
-    const dg = mergeGeos([new T.SphereGeometry(1, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2), new T.CylinderGeometry(0.12, 0.16, 0.35, 10).translate(0, 1.12, 0), new T.ConeGeometry(0.1, 0.4, 8).translate(0, 1.48, 0)]);
-    const dm = new T.InstancedMesh(dg, stdMat({ color: 0x3e8a7c, metalness: 0.4, roughness: 0.4, envI: 0.7 }), domes.length);
-    const ribs = new T.InstancedMesh(new T.SphereGeometry(1.012, 12, 12, 0, Math.PI * 2, 0, Math.PI / 2), new T.MeshBasicMaterial({ color: new T.Color(0.9, 0.66, 0.3), wireframe: true }), domes.length);
-    domes.forEach((d, i) => { m.makeScale(d.r, d.r * 1.1, d.r).setPosition(d.x, d.y, d.z); dm.setMatrixAt(i, m); ribs.setMatrixAt(i, m); addGlow(d.x, d.y + d.r * 1.75, d.z, [1.3, 0.95, 0.5], 2.5); });
-    dm.frustumCulled = ribs.frustumCulled = false; scene.add(dm, ribs);
-  }
+  buildTowerTops();
 
   // Laternen: Art-Deco-Kandelaber (Sockel, kannelierter Schaft, Laterne), Lichtfleck, Lichtkegel, nasse Spiegelung
   const byH = new Map();
@@ -1914,6 +1881,46 @@ export function flushInstances() {
   buildStreetFurniture();
   buildPedestrians();
   STREET.glow = makeGlowPoints(glowPts); scene.add(STREET.glow);
+}
+// V76: Turmspitzen, Dächer, Uhren, Kuppeln und die neuen Kronen als eigene Funktion (auch fürs Turm-Labor)
+export function buildTowerTops() {
+  const m = new T.Matrix4();
+  // Turmspitzen
+  const cone = new T.ConeGeometry(0.5, 1, 4, 1); cone.rotateY(Math.PI / 4); cone.translate(0, 0.5, 0);
+  const sm = new T.InstancedMesh(cone, new T.MeshStandardMaterial({ color: 0xc8a060, metalness: 0.85, roughness: 0.32, emissive: 0x2c1c08 }), spires.length);
+  spires.forEach((s, i) => { m.makeScale(s.b * 1.414, s.h, s.b * 1.414).setPosition(s.x, s.y0, s.z); sm.setMatrixAt(i, m); });
+  sm.frustumCulled = false; scene.add(sm);
+
+  // Walmdächer aus grüner Kupferpatina oder Blattgold, Kuppeln mit Laterne
+  const roofCapGeo = new T.ConeGeometry(0.7071, 1, 4, 1); roofCapGeo.rotateY(Math.PI / 4); roofCapGeo.translate(0, 0.5, 0);
+  // V23: dritte Sorte Dach: Schiefer auf den Arbeiter- und Reihenhäusern (ohne Warnlicht)
+  for (const kind of ['copper', 'gold', 'slate']) {
+    const list = caps.filter(c => (c.slate ? 'slate' : c.gold ? 'gold' : 'copper') === kind); if (!list.length) continue;
+    const cm = new T.InstancedMesh(roofCapGeo, kind === 'gold' ? MAT.gold : kind === 'slate' ? stdMat({ color: 0x3a3d44, metalness: 0.15, roughness: 0.6, envI: 0.45 }) : stdMat({ color: 0x3e8a7c, metalness: 0.35, roughness: 0.45, envI: 0.6 }), list.length);
+    list.forEach((c, i) => { cm.setMatrixAt(i, m.makeScale(c.w, c.h, c.d).setPosition(c.x, c.y, c.z)); if (c.v76) { if (c.v76 === 1) addGlow(c.x, c.y + c.h + 0.6, c.z, [1.4, 0.15, 0.1], 1.4, 0.37, 1); } else if (!c.slate) addGlow(c.x, c.y + c.h + 0.6, c.z, [1.4, 0.15, 0.1], 1.4, R(), 1); });
+    cm.frustumCulled = false; scene.add(cm);
+  }
+  // V23: Zifferblätter der Uhrtürme (vier Seiten, leuchtend)
+  if (CLOCKS.length) {
+    const faces = [], hands = [];
+    for (const c of CLOCKS) for (let k = 0; k < 4; k++) {
+      const a = k * Math.PI / 2, ox = Math.sin(a) * c.half, oz = Math.cos(a) * c.half;
+      faces.push(new T.CircleGeometry(c.r, 28).rotateY(a).translate(c.x + ox, c.y, c.z + oz));
+      hands.push(new T.TorusGeometry(c.r + 0.08, 0.09, 5, 28).rotateY(a).translate(c.x + ox * 1.01, c.y, c.z + oz * 1.01));
+      addGlow(c.x + ox * 1.15, c.y, c.z + oz * 1.15, [1.3, 1.1, 0.8], c.r * 1.6);
+    }
+    const fm = new T.Mesh(mergeGeos(faces), new T.MeshBasicMaterial({ map: CLOCK_TEX, color: new T.Color(1.25, 1.15, 0.95), polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -4 }));
+    const hm = new T.Mesh(mergeGeos(hands), MAT.gold);
+    fm.frustumCulled = hm.frustumCulled = false; scene.add(fm, hm);
+  }
+  if (domes.length) {
+    const dg = mergeGeos([new T.SphereGeometry(1, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2), new T.CylinderGeometry(0.12, 0.16, 0.35, 10).translate(0, 1.12, 0), new T.ConeGeometry(0.1, 0.4, 8).translate(0, 1.48, 0)]);
+    const dm = new T.InstancedMesh(dg, stdMat({ color: 0x3e8a7c, metalness: 0.4, roughness: 0.4, envI: 0.7 }), domes.length);
+    const ribs = new T.InstancedMesh(new T.SphereGeometry(1.012, 12, 12, 0, Math.PI * 2, 0, Math.PI / 2), new T.MeshBasicMaterial({ color: new T.Color(0.9, 0.66, 0.3), wireframe: true }), domes.length);
+    domes.forEach((d, i) => { m.makeScale(d.r, d.r * 1.1, d.r).setPosition(d.x, d.y, d.z); dm.setMatrixAt(i, m); ribs.setMatrixAt(i, m); addGlow(d.x, d.y + d.r * 1.75, d.z, [1.3, 0.95, 0.5], 2.5); });
+    dm.frustumCulled = ribs.frustumCulled = false; scene.add(dm, ribs);
+  }
+  buildKronen();
 }
 
 /* ---------- Dachaufbauten: Wassertürme, Schornsteine, Antennen ---------- */

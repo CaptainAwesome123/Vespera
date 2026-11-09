@@ -497,7 +497,7 @@ void main(){
   vec3 gold = vec3(0.95, 0.7, 0.32);
   vec3 goldLit = gold*(0.1 + 0.28*moon + 0.55*flood*exp(-hy/60.0) + 0.12*exp(-vWorld.y/30.0));
   col = mix(col, goldLit, band);
-  col += flood * vec3(1.0, 0.66, 0.3) * 0.2 * exp(-hy/38.0) * (1.0 - inWin*0.6);
+  col += flood * mix(vec3(1.0, 0.66, 0.3), vRib, ribOn * 0.55) * 0.2 * exp(-hy/38.0) * (1.0 - inWin*0.6);   // V76: Türme mit Lichtrippen werden in deren Farbe angestrahlt (Türkis)
 
   if (ln.y > 0.5) {
     // Flachdach: Teerpappe in Bahnen oder Kies, Oberlichter, Lüftungshauben, Pfützen; Brüstung am Rand

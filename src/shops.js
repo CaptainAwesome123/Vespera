@@ -2,6 +2,7 @@ import { registerLayer, chunkKey } from './chunks.js';
 import { decoPilaster } from './deco.js';
 import { shared, MOBILE, canvasTex, freeAfterUpload, T, mulberry32, scene, pick, camera, R, rand, mergeGeos, U } from './core.js';
 import { addCollider, paintMat, mergeColored } from './people-skeleton.js';
+import { KRONEN } from './stadtbild.js';
 import { FL, addSeg, addGlow, addNeon, NEON, curbs, lamps, trees, steamPts, segs, towers, shafts, neons, spires, glowPts, roofs } from './facade-shader.js';
 import { BR_SPOTS } from './island.js';
 import { bandC, pickW, DOORS, lathe, placeFurn, FURN, decoBuilding, caps, domes, signDefs } from './entrances.js';
@@ -606,7 +607,7 @@ export const FACTORIES = [], FACTORY_LOOPS = [], FACTORY_IDLERS = [], DEPOTS = [
 export const IND_STATIC = [], IND_GLASS = [];
 export const FACTORY_NAMES = ['STAHLWERK', 'GIESSEREI', 'TURBINENBAU', 'LUFTSCHIFFWERFT', 'MASCHINENFABRIK', 'BRAUEREI', 'DRUCKEREI', 'KABELWERK', 'GLASHÜTTE', 'RADIOWERK', 'LOKOMOTIVBAU', 'MÜHLE'];
 export const isFactoryZone = b => (b.tier || 'fabric') === 'fabric' && !b.park && b.d > 650 && (b.x0 + b.x1) / 2 > 700 && (b.z0 + b.z1) / 2 < 420;
-export function snapArrays() { return [segs, towers, shafts, neons, spires, glowPts, lamps, trees, steamPts, roofs, curbs, DOORS, caps, domes, signDefs, BR_SPOTS].map(a => [a, a.length]); }
+export function snapArrays() { return [segs, towers, shafts, neons, spires, glowPts, lamps, trees, steamPts, roofs, curbs, DOORS, caps, domes, signDefs, BR_SPOTS, KRONEN.fans, KRONEN.drums].map(a => [a, a.length]); }
 export const IB = (w, h, d, x, y, z) => new T.BoxGeometry(w, h, d).translate(x, y, z);
 export function buildFactory(b, rf, idx) {
   addCollider(b.x0, 0, b.z0, b.x1, 0.22, b.z1);

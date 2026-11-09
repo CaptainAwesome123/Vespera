@@ -1,6 +1,7 @@
 import { T, mergeGeos, scene, pick, R, rand, mulberry32, canvasTex, freeAfterUpload } from './core.js';
 import { stdMat, MAT, addCollider } from './people-skeleton.js';
 import { addGlow, addSeg, addNeon, NEON, STONES, RIBS, spires, towers, roofs, neonPool, shafts, steamPts, segs, neons } from './facade-shader.js';
+import { plan76, lightBand, towerPiers, setbackPylons, sunCrown, lanternCrown, mastCrown, stepCrown, FORCE76, KRONEN } from './stadtbild.js';
 import { BR_SPOTS } from './island.js';
 import { addArcade, addOriels, addBalconies, houseDoor } from './building-forms.js';
 import { BRICK, wantShop, shopFloor, tier, facadeRelief } from './shops.js';
@@ -148,7 +149,9 @@ export function decoBuilding(cx, cz, w, d, H, dist, edges, worker = false) {
   else if (!worker && H <= 26 && Math.max(w, d) > 26) form = pickW(rr, [['classic', 3], ['row', 1.4]]);
   else if (worker && H > 14) form = pickW(rr, [['classic', 2.6], ['stream', 0.8], ['row', Math.max(w, d) > 18 ? 2.4 : 0]]);
   else if (worker) form = pickW(rr, [['classic', 2], ['row', Math.max(w, d) > 18 ? 2.2 : 0]]);
+  if (FORCE76.form) form = FORCE76.form;
   if (form === 'row') return rowHouses(cx, cz, w, d, H, dist, edges, worker, tint, rr);
+  const P76 = plan76(seed, cx, cz, H, dist, worker, form);   // V76: Lisenen, Leuchtpylone, angestrahlte Stufen, neue Kronen (eigener Zufall)
   // Rundturm: kreisrunder Schaft auf quadratischer Grundfläche, nach oben gestaffelt
   if (form === 'rotunda') { w = d = Math.min(w, d); n = Math.max(n, 3); fr = n === 3 ? [0.5, 0.82, 1] : [0.42, 0.66, 0.86, 1]; sc = n === 3 ? [1, 0.8, 0.6] : [1, 0.82, 0.66, 0.5]; }
   if (form === 'blade' || form === 'tiara') n = Math.max(n, 3);
@@ -169,7 +172,11 @@ export function decoBuilding(cx, cz, w, d, H, dist, edges, worker = false) {
     let sw = w * (form === 'twin' ? 1 : sc[i]), sd = d * (form === 'twin' ? 1 : (slab ? Math.min(1, sc[i] + 0.25) : sc[i]));
     if (form === 'blade') { const k = Math.min(i, 3), L = [1, 0.95, 0.9, 0.86][k], S = [1, 0.6, 0.47, 0.4][k]; sw = w * (w >= d ? L : S); sd = d * (w >= d ? S : L); }
     const c = form === 'rotunda' ? (i === 0 ? Math.min(sw, sd) * 0.18 : Math.min(sw, sd) / 2) : form === 'stream' ? Math.max(2.4, Math.min(sw, sd) * 0.24) : Math.max(1.5, Math.min(sw, sd) * (corner === 'notch' ? 0.12 : 0.16));
-    tier(cx, cz, sw, sd, y, form === 'twin' ? towerTop : y1, { tint, seed: seed + i, style, dens, flood: 0, rib }, corner, c);
+    const fl76 = P76 && i > 0 ? P76.lit : 0;
+    tier(cx, cz, sw, sd, y, form === 'twin' ? towerTop : y1, { tint, seed: seed + i, style, dens, flood: fl76, rib }, corner, c);
+    const band76 = P76 && i > 0 && P76.band ? lightBand(P76, cx, cz, sw, sd, y, y1, tint, seed + 420 + i * 10, corner, c, fl76) : 0;
+    if (P76 && i > 0 && P76.piers) towerPiers(P76, cx, cz, sw, sd, y, y1, style, tint, seed + 400 + i * 10, corner, c, fl76, band76);
+    if (P76 && P76.pylons && i < n - 1) { const nw = w * sc[i + 1], nd = d * (slab ? Math.min(1, sc[i + 1] + 0.25) : sc[i + 1]); setbackPylons(P76, cx, cz, sw, sd, nw, nd, y1 + 0.2, tint, seed + 450 + i); }
     if (form === 'twin') y1 = towerTop;
     if (!worker || i === n - 1) tier(cx, cz, sw + 0.9, sd + 0.9, y1 - 0.8, y1 + 0.26 + (seed % 5) * 0.035, { tint: cTint, seed: seed + 50, style: 3, dens: 0, flood: 0 }, corner, bandC(corner, c, 0.9), false);
     if (!worker && form !== 'twin') decoCornice(cx, cz, sw + 0.9, sd + 0.9, y1 + 0.26 + (seed % 5) * 0.035, 1.06 + (seed % 5) * 0.035, corner, bandC(corner, c, 0.9), dist < 520 ? 2 : 1, H > 60);   // V38: Zinnen und Goldfries
@@ -252,29 +259,45 @@ export function decoBuilding(cx, cz, w, d, H, dist, edges, worker = false) {
   if (!worker && firstTop > 20 && dist < 760) BR_SPOTS.push({ x: cx, z: cz, w, d, top: firstTop });
   const nc = rib[0] + rib[1] + rib[2] > 0 ? rib.map(v => v * 1.5) : NEON[pick(neonPool)];
   if (tall || top.done) towers.push({ x: top.x, z: top.z, w: top.w, d: top.d, H });
+  const nFin0 = neons.length;
   if (tall && (rib[0] + rib[1] + rib[2] > 0)) {
     crownFins(top.x, top.z, top.w, top.d, H, 4 + H * 0.05, rib);
     if (R() < 0.6) shafts.push({ x: top.x, z: top.z, y: H, h: 260 + H * 1.2, w: Math.min(top.w, top.d) * 0.7, c: rib });
   }
+  const nFinEnd = neons.length; KRONEN.last = null;
   if (tall) {
     const r = R();
     const tx = top.x, tz = top.z;
     if (form === 'dome' || form === 'rotunda') { if (r < 0.38) rand(0, 1); addGlow(tx, form === 'dome' ? H + 6 + Math.min(top.w, top.d) * 0.36 + 1 : H + 5 + top.w * 0.32 + 1, tz, [1.4, 0.15, 0.1], 2.5, R(), 1); }
     else if (r < 0.38) {
-      const bw = Math.min(top.w, top.d) * 0.55, sh = H * rand(0.16, 0.28);
-      spires.push({ x: tx, z: tz, y0: H, h: sh, b: bw });
-      addCollider(tx - bw / 4, H, tz - bw / 4, tx + bw / 4, H + sh * 0.6, tz + bw / 4);
-      addGlow(tx, H + sh + 0.5, tz, [1.4, 0.15, 0.1], 3, R(), 1);
+      const bw = Math.min(top.w, top.d) * 0.55, sh = H * rand(0.16, 0.28), ph = R();
+      // V76: gut die Hälfte dieser Türme trägt statt der glatten Spitze eine Sonnenkrone
+      if (P76 && Math.min(top.w, top.d) >= 9 && (FORCE76.crown ? FORCE76.crown === 'sonne' : P76.crown < 0.6)) addGlow(tx, sunCrown(top, H, tint, cTint, seed, P76) + 0.5, tz, [1.4, 0.15, 0.1], 3, ph, 1);
+      else {
+        spires.push({ x: tx, z: tz, y0: H, h: sh, b: bw });
+        addCollider(tx - bw / 4, H, tz - bw / 4, tx + bw / 4, H + sh * 0.6, tz + bw / 4);
+        addGlow(tx, H + sh + 0.5, tz, [1.4, 0.15, 0.1], 3, ph, 1);
+      }
     } else if (r < 0.7) {
-      const lw = top.w * 0.4, ld = top.d * 0.4;
-      tier(tx, tz, lw, ld, H, H + 9, { tint, seed: seed + 9, style: 2, dens: 0.95, flood: 0.4 }, corner === 'square' ? 'square' : 'chamfer', Math.min(lw, ld) * 0.2);
-      neonFrame(tx, H + 9, tz, lw, ld, nc);
-      if (rr() < 0.45) caps.push({ x: tx, z: tz, y: H + 9, w: lw, d: ld, h: Math.min(lw, ld) * 0.8, gold: rr() < 0.6 });
-      addGlow(tx, H + 10, tz, [1.4, 0.15, 0.1], 2.5, R(), 1);
+      const lw = top.w * 0.4, ld = top.d * 0.4, ph = R(), k76 = P76 ? P76.crown : 1, want = FORCE76.crown;
+      // V76: Leuchtlaterne aus Glastrommeln oder Stufenkrone statt des einfachen Aufsatzes
+      if (P76 && Math.min(top.w, top.d) >= 10 && (want ? want === 'laterne' : k76 < 0.42)) addGlow(tx, lanternCrown(top, H, tint, cTint, seed, P76) + 1.2, tz, [1.4, 0.15, 0.1], 2.5, ph, 1);
+      else if (P76 && Math.min(top.w, top.d) >= 12 && corner === 'square' && (want ? want === 'stufen' : k76 < 0.68)) addGlow(tx, stepCrown(top, H, tint, cTint, seed, P76) + 0.5, tz, [1.4, 0.15, 0.1], 2.5, ph, 1);
+      else {
+        tier(tx, tz, lw, ld, H, H + 9, { tint, seed: seed + 9, style: 2, dens: 0.95, flood: 0.4 }, corner === 'square' ? 'square' : 'chamfer', Math.min(lw, ld) * 0.2);
+        neonFrame(tx, H + 9, tz, lw, ld, nc);
+        if (rr() < 0.45) caps.push({ x: tx, z: tz, y: H + 9, w: lw, d: ld, h: Math.min(lw, ld) * 0.8, gold: rr() < 0.6 });
+        addGlow(tx, H + 10, tz, [1.4, 0.15, 0.1], 2.5, ph, 1);
+      }
     } else {
+      const ph = R();
       neonFrame(tx, H + 0.3, tz, top.w + 0.9, top.d + 0.9, nc);
-      addGlow(tx, H + 1, tz, [1.4, 0.15, 0.1], 2.5, R(), 1);
+      // V76: jeder zweite dieser Türme bekommt einen Ankermast
+      if (P76 && Math.min(top.w, top.d) >= 9 && (FORCE76.crown ? FORCE76.crown === 'mast' : P76.crown < 0.55)) addGlow(tx, mastCrown(top, H, tint, cTint, seed, P76) + 0.5, tz, [1.4, 0.15, 0.1], 2.5, ph, 1);
+      else addGlow(tx, H + 1, tz, [1.4, 0.15, 0.1], 2.5, ph, 1);
     }
+    // V76: unter einer neuen Krone bleiben die Lichtflossen am Dachrand niedrig, damit sie die Krone nicht verdecken
+    if (KRONEN.last) for (let k = nFin0; k < nFinEnd; k++) { const f = neons[k]; f.y = H + f.sy * 0.2; f.sy *= 0.4; }
   } else if (!worker && H > 24 && form !== 'corner' && form !== 'clock' && form !== 'zigtop' && !top.done && rr() < 0.3) {
     caps.push({ x: cx, z: cz, y: H + 0.3, w: top.w * 0.7, d: top.d * 0.7, h: Math.min(top.w, top.d) * 0.32, gold: false });
   }
