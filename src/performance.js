@@ -1,6 +1,6 @@
 import { updateChunks, layers } from './chunks.js';
 import { UNTER } from './unter-hook.js';
-import { shared, T, scene, camera, MOBILE, LOW, renderer, U, FOG_DENSITY, hemi, moonLight, $, FOGVIS, fogHideDist, REVZ } from './core.js';
+import { shared, T, scene, camera, MOBILE, LOW, renderer, U, FOG_DENSITY, hemi, moonLight, $, FOGVIS, fogHideDist, REVZ, TREE } from './core.js';
 import { skipDepthResolve } from './depth.js';
 import { updateIndustry, updateShops } from './shops.js';
 import { inBelmont, interiorCrowd, updateBelmontDoor } from './belmont.js';
@@ -10,7 +10,7 @@ import { updateCrystal, crystalAura } from './crystal.js';
 import { WATER_Y, updateInterior } from './dance.js';
 import { REFL, updateWaves, harborWater, renderReflection } from './water.js';
 import { updatePort, carryPlayer, VILLA, terrainHeight } from './harbour.js';
-import { updateVilla, updateParked, updateLampLod, updateTreeLod } from './serpentine.js';
+import { updateVilla, updateParked, updateLampLod, updateTreeLod, viewPlanes } from './serpentine.js';
 import { inVillaHouse, updateVillaZones } from './villa.js';
 import { inImperial, IMP, HELM, impHelmInput, impHelmCamera } from './imperial.js';
 import { updatePedestrians, CLOCK, citizenNear, citizenDoing } from './ragdoll.js';
@@ -118,10 +118,68 @@ export function updateFogCull(dt) {
     lim = Math.min(lim, FOGVIS.cap);
     for (const rec of L.chunks.values()) if (rec.obj) {
       const x0 = rec.cx * L.size, z0 = rec.cz * L.size, dx = Math.max(x0 - cp.x, 0, cp.x - x0 - L.size), dz = Math.max(z0 - cp.z, 0, cp.z - z0 - L.size);
-      rec.obj.visible = dx * dx + dz * dz < lim * lim; if (!rec.obj.visible) hid++;
+      rec.fogVis = dx * dx + dz * dz < lim * lim; if (!rec.fogVis) { rec.obj.visible = false; hid++; }   // V77: sichtbar schaltet updateChunkView
     }
   }
   FOGCULL.hidden = hid;
+}
+/* ---------- V77: Zellen der Welt, die nicht im Blickfeld liegen, werden nicht gezeichnet ----------
+   Laternen, Stadtmöbel, Waren, Kleinkram, Läden, Fassadenschmuck und Gassen sind Instanzen und verschmolzene Netze ohne
+   eigene Sichtprüfung: bisher ging jede geladene Zelle im Umkreis an die Grafikkarte, auch die hinter dem Rücken. Jede Zelle
+   bekommt einmal einen Quader um alles, was sie wirklich enthält (auch überstehende Gesimse und Gassen); liegt er außerhalb
+   der vier Seitenflächen des Blickfelds, bleibt die Zelle unsichtbar. Im Umkreis von 60 m bleibt alles wie bisher (Schatten),
+   der Quader gilt gespiegelt auch für das Spiegelbild im nassen Pflaster. */
+const _cs = new T.Vector3();
+function chunkBox(obj) {
+  const b = { x0: 1e9, y0: 1e9, z0: 1e9, x1: -1e9, y1: -1e9, z1: -1e9, n: obj.children.length, bad: false };
+  const grow = (x, y, z, r) => { if (!(r >= 0) || !isFinite(x + y + z + r)) { b.bad = true; return; } b.x0 = Math.min(b.x0, x - r); b.y0 = Math.min(b.y0, y - r); b.z0 = Math.min(b.z0, z - r); b.x1 = Math.max(b.x1, x + r); b.y1 = Math.max(b.y1, y + r); b.z1 = Math.max(b.z1, z + r); };
+  obj.updateMatrixWorld(true);
+  obj.traverse(o => {
+    const g = o.geometry; if (!g || b.bad) return;
+    if (g.isInstancedBufferGeometry || o.isSkinnedMesh) { b.bad = true; return; }
+    if (!g.boundingSphere) g.computeBoundingSphere();
+    const s = g.boundingSphere, w = o.matrixWorld.elements, ws = Math.sqrt(Math.max(w[0] * w[0] + w[1] * w[1] + w[2] * w[2], w[4] * w[4] + w[5] * w[5] + w[6] * w[6], w[8] * w[8] + w[9] * w[9] + w[10] * w[10]));
+    if (o.isInstancedMesh) {
+      const a = o.instanceMatrix.array, c = s.center;
+      for (let i = 0; i < o.count; i++) {
+        const k = i * 16, sc = Math.sqrt(Math.max(a[k] * a[k] + a[k + 1] * a[k + 1] + a[k + 2] * a[k + 2], a[k + 4] * a[k + 4] + a[k + 5] * a[k + 5] + a[k + 6] * a[k + 6], a[k + 8] * a[k + 8] + a[k + 9] * a[k + 9] + a[k + 10] * a[k + 10]));
+        _cs.set(a[k] * c.x + a[k + 4] * c.y + a[k + 8] * c.z + a[k + 12], a[k + 1] * c.x + a[k + 5] * c.y + a[k + 9] * c.z + a[k + 13], a[k + 2] * c.x + a[k + 6] * c.y + a[k + 10] * c.z + a[k + 14]).applyMatrix4(o.matrixWorld);
+        grow(_cs.x, _cs.y, _cs.z, s.radius * sc * ws);
+      }
+    } else { _cs.copy(s.center).applyMatrix4(o.matrixWorld); grow(_cs.x, _cs.y, _cs.z, s.radius * ws); }
+  });
+  if (b.x1 < b.x0) b.bad = true;
+  // 3 m Rand (Windbewegung, Lichtschein); in der Höhe gespiegelt, damit derselbe Quader für das Spiegelbild stimmt
+  b.x0 -= 3; b.z0 -= 3; b.x1 += 3; b.z1 += 3; const h = Math.max(Math.abs(b.y0), Math.abs(b.y1)) + 3; b.y0 = -h; b.y1 = h;
+  return b;
+}
+export function boxOutOfView(P, b) {
+  for (let i = 0; i < 16; i += 4) {
+    const nx = P[i], ny = P[i + 1], nz = P[i + 2];
+    if (nx * (nx > 0 ? b.x1 : b.x0) + ny * (ny > 0 ? b.y1 : b.y0) + nz * (nz > 0 ? b.z1 : b.z0) + P[i + 3] < 0) return true;
+  }
+  return false;
+}
+export const VIEWCULL = { skip: new Set(['props']), hidden: 0 };
+export function updateChunkView() {
+  const P = TREE.ok ? viewPlanes() : null, cp = camera.position; let hid = 0;
+  for (const L of layers) {
+    const cull = P !== null && !VIEWCULL.skip.has(L.name);
+    for (const rec of L.chunks.values()) {
+      const o = rec.obj; if (!o) continue;
+      let v = rec.fogVis !== false;
+      if (v && cull) {
+        let b = o.userData.vbox; if (!b || b.n !== o.children.length) b = o.userData.vbox = chunkBox(o);
+        if (!b.bad) {
+          const dx = Math.max(b.x0 - cp.x, 0, cp.x - b.x1), dz = Math.max(b.z0 - cp.z, 0, cp.z - b.z1);
+          if (dx * dx + dz * dz > 3600 && boxOutOfView(P, b)) v = false;
+        }
+      }
+      if (o.visible !== v) o.visible = v;
+      if (!v) hid++;
+    }
+  }
+  VIEWCULL.hidden = hid;
 }
 // Auflösung passt sich der Bildrate an: unter etwa 42 Bildern pro Sekunde eine Stufe tiefer,
 // bei ruhigem Lauf langsam wieder höher, aber nie über eine Stufe, die schon zu langsam war.
@@ -287,6 +345,7 @@ export function frame(now) {
   updateDetails(dt);
   updateChunks(rdt);
   updateFogCull(rdt);
+  updateChunkView();   // V77: Zellen außerhalb des Blickfelds
   updateParked(dt);
   updateLampLod(dt); updateTreeLod(dt);
   updateInteract();

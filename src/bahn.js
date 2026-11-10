@@ -135,7 +135,7 @@ export function buildBahn() {
   // Oberleitungsmasten (ausreißbar wie früher) und Fahrdraht
   if (poles.length) {
     const pole = mergeGeos([new T.CylinderGeometry(0.1, 0.16, 7, 8).translate(0, 3.5, 0), new T.SphereGeometry(0.2, 8, 6).translate(0, 7.05, 0), new T.CylinderGeometry(0.22, 0.22, 0.5, 8).translate(0, 0.25, 0)]);
-    const pm = new T.InstancedMesh(pole, MAT.brass, poles.length);
+    const pm = new T.InstancedMesh(pole, MAT.brass.clone(), poles.length);
     poles.forEach(([px, pz], i) => {
       const m0 = new T.Matrix4().makeTranslation(px, 0.2, pz); pm.setMatrixAt(i, m0);
       addCollider(px - 0.2, 0, pz - 0.2, px + 0.2, 7, pz + 0.2);

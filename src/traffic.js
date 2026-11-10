@@ -1,11 +1,11 @@
-import { shared, rand, MOBILE, T, pick, scene, camera, U, mergeGeos, R, FOGVIS } from './core.js';
+import { shared, rand, MOBILE, T, pick, scene, camera, U, mergeGeos, R, FOGVIS, TREE } from './core.js';
 import { MAT, mergeColored, paintMat, addCollider, PAINT, stdMat } from './people-skeleton.js';
 import { addSeg, addNeon, NEON, addGlow, steamPts } from './facade-shader.js';
 import { offsetPoly, resample, NET, bez, AV, ST, blockAt, inRect, PLAZA } from './island.js';
 import { IB, DEPOTS } from './shops.js';
 import { DOORS, makeSignTex } from './entrances.js';
 import { ROAD_Z0, VIA, deckY } from './harbour.js';
-import { carGeo, carGeoHi, lodCompactor, LOD_CAR2, Crowd, COATS, serpCarStep, COL, compactor, pedCrowd } from './serpentine.js';
+import { carGeo, carGeoHi, lodCompactor, LOD_CAR2, Crowd, COATS, serpCarStep, COL, compactor, pedCrowd, viewPlanes, outOfView } from './serpentine.js';
 import { makeGlowPoints } from './ragdoll.js';
 import { cars } from './airships.js';
 import { carDamageAttr, glassFor } from './cars.js';
@@ -254,6 +254,7 @@ export function updateCars(dt) {
   updateTraffic(dt, U.uTime.value);
   const pos = shared.carLights.geometry.attributes.position.array, cp = camera.position;
   shared.carCmp.begin(); const MC = TRF.modelCmp; if (MC) MC.begin();
+  const VP = TREE.ok ? viewPlanes() : null;   // V77: Wagen außerhalb des Blickfelds nicht an die Grafikkarte (serpentine.js)
   cars.forEach((car, i) => {
     let x, z, ly, yaw, hidden = false, pitch = 0, roll = 0;
     if (car.graph) {
@@ -284,7 +285,7 @@ export function updateCars(dt) {
     _p.set(x, 0.22 + ly, z);
     car._x = x; car._y = 0.22 + ly; car._z = z; car._yr = car._yaw === undefined ? 0 : Math.atan2(Math.sin(yaw - car._yaw), Math.cos(yaw - car._yaw)) / Math.max(dt, 1e-3); car._yaw = yaw; car._hid = hidden;
     const cd2 = (x - cp.x) ** 2 + (z - cp.z) ** 2 + (_p.y - cp.y) ** 2;
-    if (!hidden && cd2 < Math.min(CAR_DIST2, FOGVIS.ped * FOGVIS.ped, FOGVIS.cap * FOGVIS.cap)) (car.model && MC ? MC : shared.carCmp).put(_m.compose(_p, _q, _s.setScalar(1)), car, car.col, cd2);
+    if (!hidden && cd2 < Math.min(CAR_DIST2, FOGVIS.ped * FOGVIS.ped, FOGVIS.cap * FOGVIS.cap) && !(cd2 > 1600 && VP !== null && outOfView(VP, x, _p.y + 1, z, 6 + cd2 * 0.0002))) (car.model && MC ? MC : shared.carCmp).put(_m.compose(_p, _q, _s.setScalar(1)), car, car.col, cd2);
     const fx = Math.cos(yaw), fz = -Math.sin(yaw), sx = -fz, sz = fx, y = hidden ? -50 : 0.95 + ly;
     const o = i * 12, dmg = car.dmg, hl0 = dmg && dmg[0] > 0.55 ? -60 : 0, hl1 = dmg && dmg[0] > 0.8 ? -60 : 0;
     // Scheinwerfer und Rücklichter (V39: beim Pierce Arrow an seinen Lampen)

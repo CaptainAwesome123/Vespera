@@ -65,7 +65,7 @@ import './strasse.js';   // V72: Straßenhändler, Kundgebung und Demonstrations
 import './alltag.js';    // V76: Tagesabläufe: Schichtarbeiter, Schichtwechsel, Stadtpuls nach der Uhr, Streikposten
 import './imperium.js';  // V76: Alexanders Imperium (Kontor · Reiter Imperium): Sparten, Löhne, Preise, Arbeitszeit, Streiks, Konjunktur, Kredit
 
-import { shared, $, renderer, scene, camera } from './core.js';
+import { shared, $, renderer, scene, camera, TREE } from './core.js';
 import { layers, chunkStats } from './chunks.js';
 import { assetStats, manifest } from './assets.js';
 import { setupProps } from './props.js';
@@ -98,6 +98,7 @@ export async function start(data) {
   await build();
   setupProps().catch(e => console.warn('Requisiten:', e));
   await precompile();
+  scene.updateMatrixWorld(true); TREE.skip = TREE.ok;   // V77: ab jetzt überspringt der Szenenbaum unsichtbare Äste (core.js)
   $('enter').disabled = false;
   $('loading').textContent = isTouch ? 'Links ziehen zum Gehen, rechts zum Umsehen. Rechts unten: Stoß, Kraft und Fliegen.' : 'Klicke, um die Maus zu fangen. Esc gibt sie frei.';
   requestAnimationFrame(t => { shared.last = t; frame(t); });

@@ -1,4 +1,4 @@
-import { T, U, scene, LOW } from './core.js';
+import { T, U, scene, LOW, TREE } from './core.js';
 
 /* =====================================================================
    HIMMEL DER POLARNACHT (V25): Vespera liegt am Nordpol, die Sonne geht nie auf.
@@ -112,7 +112,10 @@ export function buildSky() {
         gl_FragColor = vec4(col, 1.0);
       }`,
   }));
-  sky.renderOrder = -10;
+  // V77: der Himmel wird als Letztes der undurchsichtigen Teile gezeichnet (vorher als Erstes). Er liegt ohnehin ganz hinten
+  // (gl_Position.z = w) und besteht den Tiefentest nur dort, wo nichts davor steht: Sterne, Mond und Polarlicht werden nicht
+  // mehr für die Bildpunkte gerechnet, die danach Türme, Berge und Straßen überdecken. Das Bild bleibt gleich.
+  sky.renderOrder = TREE.ok ? 30 : -10;
   scene.add(sky);
   return sky;
 }

@@ -26,7 +26,25 @@ export const T = THREE;
     upd.call(this);
   };
   P.add = function (...objs) { for (const o of objs) if (o && o._mc) o._mc[0] = NaN; return add.apply(this, objs); };
+  /* ---------- V77: unsichtbare Äste des Szenenbaums überspringen ----------
+     Rund 2500 der 3500 Objekte sind fast immer unsichtbar (Lokale, Boote, Villa und Penthouse aus der Ferne, Schilder).
+     three.js läuft trotzdem in jedem Bild durch alle hindurch. Jetzt endet der Lauf an einem unsichtbaren Objekt; es merkt
+     sich das und rechnet sich und seine Kinder nach, sobald es wieder sichtbar ist (die Eltern könnten sich bewegt haben).
+     Erst nach dem Aufbau eingeschaltet (TREE.skip), damit jede Matrix einmal gerechnet ist. Kameras laufen immer mit. */
+  P.updateMatrixWorld = function (force) {
+    if (this.visible === false && TREE.skip && this.parent !== null && this.isCamera !== true) { this._mwStale = true; return; }
+    if (this._mwStale === true) { this._mwStale = false; force = true; }
+    if (this.matrixAutoUpdate) this.updateMatrix();
+    if (this.matrixWorldNeedsUpdate || force) {
+      if (this.parent === null) this.matrixWorld.copy(this.matrix); else this.matrixWorld.multiplyMatrices(this.parent.matrixWorld, this.matrix);
+      this.matrixWorldNeedsUpdate = false; force = true;
+    }
+    const ch = this.children;
+    for (let i = 0, l = ch.length; i < l; i++) { const c = ch[i]; if (c.matrixWorldAutoUpdate === true || force === true) c.updateMatrixWorld(force); }
+  };
 }
+// V77: Schalter der Grundsanierung; ?alt schaltet beides aus (zum Vergleichen)
+export const TREE = { skip: false, single: !/[?&]alt\b/.test(location.search), ok: !/[?&]alt\b/.test(location.search) };
 // Zustand, den mehrere Dateien schreiben (frühere gemeinsame Variablen der einen großen Datei)
 export const shared = { SINK: undefined, carBodyGeo: undefined, carMesh: undefined, carMeshHi: undefined, carCmp: undefined, carLights: undefined, parkedTimer: undefined, bloomOn: undefined, lastDistrict: undefined, districtTimer: undefined, toastTimer: undefined, sayTimer: undefined, last: undefined };
 export const $ = id => document.getElementById(id);
@@ -72,6 +90,27 @@ export const camera = new T.PerspectiveCamera(70, window.innerWidth / window.inn
 camera.rotation.order = 'YXZ';
 // V40: umgekehrte Gleitkomma-Tiefe gegen das Flackern ferner Fassadenschichten (src/depth.js); ohne EXT_clip_control bleibt alles wie bisher
 setupReverseZ(renderer, camera, T);
+/* ---------- V77: durchsichtige, beidseitige Flächen in einem Zug zeichnen ----------
+   three.js (r147) zeichnet jedes durchsichtige, beidseitige Teil zweimal (erst Rück-, dann Vorderseiten) und sucht dafür
+   in jedem Bild zweimal das passende Shader-Programm neu heraus. Bei Leuchtflächen (additiv, ohne Tiefenschreiben) und bei
+   ebenen Scheiben ist das Ergebnis in einem Zug dasselbe: die Summe hängt nicht von der Reihenfolge ab, und von einer
+   ebenen Fläche ist immer nur eine Seite zu sehen. Das spart je Teil einen Zeichenaufruf und zwei Programmsuchen, dazu
+   die beiden einseitigen Shader-Fassungen, die sonst beim ersten Anblick übersetzt wurden. */
+{
+  let one = null;
+  T.Material.prototype.onBeforeRender = function (r, sc, cam, geo) {
+    one = TREE.single && this.transparent === true && this.side === T.DoubleSide && this.depthWrite === false
+      && (this.blending === T.AdditiveBlending || geo.type === 'PlaneGeometry') ? this : null;
+  };
+  const rbd = renderer.renderBufferDirect;
+  renderer.renderBufferDirect = function (cam, sc, geo, mat, obj, grp) {
+    if (mat === one) {
+      if (mat.side === T.BackSide) return;        // erster der beiden Züge entfällt
+      one = null; mat.side = T.DoubleSide; mat.version -= 2;   // three hat die Fassung zweimal hochgezählt: zurück, nichts hat sich geändert
+    }
+    rbd(cam, sc, geo, mat, obj, grp);
+  };
+}
 
 export const MOON_DIR = new T.Vector3(-0.42, 0.42, -0.8).normalize();
 export const U = {
