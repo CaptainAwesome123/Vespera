@@ -334,7 +334,8 @@ const INV_IC = {
 const invSvg = k => `<svg viewBox="0 0 24 24" aria-hidden="true">${INV_IC[k] || INV_IC.kasten}</svg>`;
 
 /* ---------- Oberfläche (HTML) ---------- */
-const INV_TABS = [['taschen', 'Taschen'], ['schluessel', 'Schlüssel'], ['sammlung', 'Sammlung'], ['zuhause', 'Zuhause']];
+const INV_TABS = [['taschen', 'Taschen'], ['schluessel', 'Schlüssel'], ['sammlung', 'Sammlung'], ['zuhause', 'Zuhause'], ['krater', 'Krater']];
+export const INV_EXTRA = {};   // V78: weitere Reiter: { list: () => [...], render: (slot, sel) => [slotsHtml, infoHtml] } (krater.js)
 function invCss() {
   const st = document.createElement('style');
   st.textContent = `
@@ -409,6 +410,7 @@ function invList() {
   if (INV.tab === 'taschen') return KT.s.items;
   if (INV.tab === 'zuhause') return v.home;
   if (INV.tab === 'schluessel') return invKeys();
+  if (INV_EXTRA[INV.tab]) return INV_EXTRA[INV.tab].list();
   return INV_MEDS;
 }
 function invClick(e) {
@@ -464,6 +466,8 @@ function invRender() {
     list.forEach((K, i) => { h += slot(i, 'schluessel', K.n.replace(/^Schlüssel:? ?(der |des |zum )?/, '').replace(/^(Generalschlüssel|Bordschlüssel) (des|der) /, '')); });
     const K = list[INV.sel];
     if (K) d = `<h3>${esc(K.n)}</h3><small>Schlüsselbund</small><p>${esc(K.t)}</p>${K.go ? `<div class="btns"><button type="button" class="b gold" data-act="go">${esc(K.d)}</button></div>` : ''}<p style="font-size:11px;margin-top:14px">Was Alexander kauft (Kontor · Besitz), kommt an diesen Bund.</p>`;
+  } else if (INV_EXTRA[INV.tab]) {
+    [h, d] = INV_EXTRA[INV.tab].render(slot, INV.sel);
   } else if (INV.tab === 'sammlung') {
     INV_MEDS.forEach((M, i) => { const got = v.med[M.id]; h += slot(i, 'medaille', got ? M.n.replace('Medaille des ', '').replace('Medaille der ', '') : '?', '', got ? '' : ' zu'); });
     const M = INV_MEDS[INV.sel], got = M && v.med[M.id], n = Object.keys(v.med).length;
@@ -524,7 +528,7 @@ if (typeof window !== 'undefined') {
       const list = invList(), cols = Math.max(1, Math.round(($('inv').querySelector('.slots').clientWidth - 32) / 100));
       if (e.code === 'Escape' || (e.code === 'KeyI' && e.shiftKey)) invClose();
       else if (e.code === 'KeyI') { invClose(); ktOpen(); }
-      else if (/^Digit[1-4]$/.test(e.code)) { INV.tab = INV_TABS[+e.code.slice(5) - 1][0]; INV.sel = 0; INV.read = null; invRender(); }
+      else if (/^Digit[1-5]$/.test(e.code)) { INV.tab = INV_TABS[+e.code.slice(5) - 1][0]; INV.sel = 0; INV.read = null; invRender(); }
       else if (e.code === 'ArrowRight' || e.code === 'KeyD') { INV.sel = Math.min(list.length - 1, INV.sel + 1); INV.read = null; invRender(); }
       else if (e.code === 'ArrowLeft' || e.code === 'KeyA') { INV.sel = Math.max(0, INV.sel - 1); INV.read = null; invRender(); }
       else if (e.code === 'ArrowDown' || e.code === 'KeyS') { INV.sel = Math.min(list.length - 1, INV.sel + cols); INV.read = null; invRender(); }

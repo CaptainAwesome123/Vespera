@@ -42,6 +42,7 @@ src/                der Spielcode als ES-Module, ein Abschnitt pro Datei
   water.js            Wellen (Gerstner, acht Wellenzüge), Spiegelung, Gischt am Kai
   harbour.js          Kai, Jachthafen, Fähre, Luftschiffhafen
   serpentine.js       Bergstraße zur Villa, Villa außen, Garten, Fest, Berge
+  krater.js           Krater außerhalb der Stadt (V78): altes Expeditionslager, zwei Gletscherhöhlen, zwölf Fundstücke; Labor ?lab=krater
   landscape.js        Landschaft um den Krater (V44): feines Netz für die Felswand am See, Wasserfälle mit Bachbett, Gischt und Eiszapfen, zwei Gletscher, Eissaum, Eisschollen, Schären; Labor ?lab=landschaft, Vergleich ?ohnelandschaft
   villa.js            Innenräume der Villa auf drei Ebenen: Halle, Ballsaal, Salon, Speisesaal, Küche, OG, Keller, Schwimmhalle (V28)
   ragdoll.js          Gliederpuppen-Physik
@@ -293,6 +294,20 @@ Außenhaut, Garten, Terrassen und das Fest.
 - *Auflösung:* am PC Start mit der echten Bildschirmauflösung statt 1,3-fach, Stufe tiefer schon unter 49 Bildern
   pro Sekunde (vorher 42). Bei knapper Bildrate entsteht das Spiegelbild nur jedes zweite Bild (`REFL.half`).
 - *Aufgeräumt:* Feuerwerk, Lichtsäulen aus den Kronen und Suchscheinwerfer des Belmont (seit V33/V42 aus) entfernt.
+
+**V78: Der Krater außerhalb der Stadt** (`src/krater.js`, Labor `?lab=krater`, Prüfung `tools/krater-test.js`). Am westlichen
+Kraterrand, hinter der Felswand über dem See:
+- *Das alte Expeditionslager* (Lager Nordstern, 1919): Zelte, Schlitten, Vorratsschuppen mit Kartentisch, Fahnenmast,
+  Steinmann mit der Gedenktafel des Polarclubs, am Felsrand der Claim-Pflock. Der Platz wird beim Planen der Landschaft
+  gesucht und sanft geebnet (`LAND.planHooks`), dort wachsen keine Bäume.
+- *Zwei Gletscherhöhlen* in den Gletschertälern: die Blaue Grotte (Eisdom, gefrorener Wasserfall) und die Kristallspalte
+  (enger Riss, Splitterkammer). E am Eistor führt hinein, E am Ausgang hinaus. Die Höhlen liegen 60 m unter dem Tor,
+  werden erst beim ersten Betreten gebaut und hängen am selben Haken wie die Verstecke (`UNTER`).
+- *Zwölf Fundstücke* der fünf Expeditionsmitglieder und drei Meteoritensplitter (glimmen, geben aber keine Kraft). Inventar
+  Umschalt+I, Reiter Krater (`INV_EXTRA`); sind alle gefunden, entscheidet Alexander am Steinmann: Stadtmuseum,
+  Vitrine im Penthouse oder Polarclub (Ruf und Kurier reagieren). Lager und Höhlen stehen auf der Stadtkarte
+  (`KARTE.placeHooks`) mit Schnellreise.
+- *Leistung:* ein neues Material (Eis), Lampen über den Lampen-Pool, Lager bis 900 m, Tore bis 800 m, Funde bis 160 m sichtbar.
 
 **V77: Leistung, Grundsanierung.** Gleiche Stadt, gleiches Bild, weniger Arbeit je Bild (Handy, iPad und PC). Mit `?alt`
 läuft zum Vergleich das alte Verhalten.

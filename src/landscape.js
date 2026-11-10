@@ -15,7 +15,7 @@ import { SERP, serpSink, MOUNT, sstep } from './serpentine.js';
 import { stdMat } from './people-skeleton.js';
 import { landDist } from './island.js';
 
-export const LAND = { NA: MOBILE ? 540 : 1080, shore: null, falls: [], glaciers: [], ready: false, mats: {}, stats: {} };
+export const LAND = { NA: MOBILE ? 540 : 1080, shore: null, falls: [], glaciers: [], ready: false, mats: {}, stats: {}, planHooks: [] };   // V78: planHooks laufen am Ende von planLandscape (krater.js ebnet sein Lager)
 const Z0 = 100;   // der Krater ist um 100 m nach Norden versetzt (terrainInfo: z + 100)
 // Punkt in Richtung ang (0 = Norden, wie terrainInfo) im Quadrat-Abstand m (met = max(|x|, |z+100|))
 export function landRay(ang, m) { const dx = Math.sin(ang), dz = -Math.cos(ang), k = m / Math.max(Math.abs(dx), Math.abs(dz)); return [dx * k, dz * k - Z0]; }
@@ -80,6 +80,7 @@ export function planLandscape() {
   LAND.ready = true;
   LAND_HOOK.carve = landCarve;
   LAND_HOOK.avoid = landAvoid;
+  for (const f of LAND.planHooks) try { f(); } catch (e) { console.warn('Landschaft:', e); }
 }
 // Bachbett (Parabelrinne, bis 270 m bergauf, mäandernd) und Gletschertal (breite Mulde) ins Gelände graben
 export function landCarve(wx, wz, h) {

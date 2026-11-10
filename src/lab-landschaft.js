@@ -68,11 +68,34 @@ export async function startLandscapeLab(params) {
     see: [[-520, 4, -1040], [-760, 90, -1480]],
     sued: [[0, 60, 700], [0, 300, 2200]],
   };
-  window.labView = name => { const v = V[name] || V.uebersicht; camera.position.set(...v[0]); camera.lookAt(new T.Vector3(...v[1])); player.p.copy(camera.position); player.p.y -= 1.6; U.uInside.value = 0; hemi.intensity = 0.9; };
+  // V78: ?lab=krater: Lager, Eistore und beide Höhlen (in 60 m Tiefe, wie im Spiel) mit echten Lampen
+  let cave = null;
+  if (params.get('lab') === 'krater') {
+    const KM = await import('./krater.js'), KR = KM.KR; KR.lab = true; KM.kraterPlace();
+    const C = KR.camp, PL = (c, i, d, x, y, z) => { const l = new T.PointLight(c, i, d, 1.6); l.position.set(x, y, z); scene.add(l); };
+    if (C) for (const [lx, y, lz] of C.lights) { const [x, z] = C.w(lx, lz); PL(0xffb35c, 2.2, 16, x, C.y + y, z); }
+    for (const H of KR.caves) { KM.buildCave(H); for (const [x, y, z, c, i, d] of H.lights) PL(c, i * 1.2, d, H.ox + x, H.oy + y, H.oz + z); }
+    for (const F of KM.FUNDE) { if (!F.g) KM.kraterBuildFind(F); if (F.g) F.g.visible = true; }
+    const cw = (lx, h, lz) => { const [x, z] = C.w(lx, lz); return [x, C.y + C.gy(lx, lz) + h, z]; };
+    if (C) Object.assign(V, { lager: [cw(-4, 9, 22), cw(0, 0, 0)], lagernah: [cw(9, 2.2, 9), cw(-3, 0.8, -1)], schuppen: [cw(-1.5, 1.8, 2.8), cw(-6.5, 0.9, -0.6)], denkmal: [cw(1.6, 1.7, 4.2), cw(0, 0.8, 7.5)],
+      pflock: [[C.pflock[0] + (C.pflock[0] - C.x) * -0.08, C.pflock[1] + 2.5, C.pflock[2] + (C.pflock[2] - C.z) * -0.08], [C.pflock[0] * 0.6, WATER_Y + 40, (C.pflock[2] + 100) * 0.6 - 100]],
+      lagerfern: [cw(30, 60, 140), cw(0, 0, 0)] });
+    for (const H of KR.caves) {
+      const tor = [H.ex + H.dx * 14, H.ey + 3, H.ez + H.dz * 14], at = [H.ex, H.ey + 1.5, H.ez];
+      V['tor_' + H.id] = [tor, at];
+      V['torfern_' + H.id] = [[H.ex + H.dx * 160, H.ey + 60, H.ez + H.dz * 160], at];
+      const P = (x, y, z) => [H.ox + x, H.oy + y, H.oz + z];
+      if (H.id === 'blau') Object.assign(V, { grotte: [P(0, 1.7, 3), P(0, 2.5, 18)], dom: [P(4, 2.2, 13), P(-5, 3, 23)], grottehinten: [P(-1, 1.6, 23), P(0.5, 0.8, 30)] });
+      else Object.assign(V, { spalte: [P(0, 1.7, 3), P(0, 2, 16)], kammer: [P(-2.5, 1.8, 31), P(0.5, 1, 38.5)], kammernah: [P(3.4, 1.4, 35.5), P(0, 0.9, 38)] });
+    }
+    cave = name => /^(grotte|dom|grottehinten|spalte|kammer|kammernah)$/.test(name);
+    window.labKrater = () => KR.stats;
+  }
+  window.labView = name => { const v = V[name] || V.uebersicht; camera.position.set(...v[0]); camera.lookAt(new T.Vector3(...v[1])); player.p.copy(camera.position); player.p.y -= 1.6; U.uInside.value = 0; hemi.intensity = cave && cave(name) ? 0.2 : 0.9; };
   const LABV = { t: params.get('t') != null ? +params.get('t') : null };
   window.labTime = t => { LABV.t = t; };
   window.labView(params.get('view') || 'uebersicht');
-  window.labStats = () => ({ ...LAND.stats, falls: LAND.falls.map(f => ({ ang: +f.ang.toFixed(2), top: Math.round(f.top), w: Math.round(f.w), h: Math.round(f.hFall || 0), run: Math.round(f.run || 0) })), glaciers: LAND.glaciers, drawCalls: renderer.info.render.calls, tris: renderer.info.render.triangles });
+  window.labStats = () => ({ krater: window.labKrater ? window.labKrater() : undefined, ...LAND.stats, falls: LAND.falls.map(f => ({ ang: +f.ang.toFixed(2), top: Math.round(f.top), w: Math.round(f.w), h: Math.round(f.hFall || 0), run: Math.round(f.run || 0) })), glaciers: LAND.glaciers, drawCalls: renderer.info.render.calls, tris: renderer.info.render.triangles });
   const ray = new T.Raycaster();
   window.labPick = (u, v) => { ray.setFromCamera(new T.Vector2(u * 2 - 1, 1 - v * 2), camera); const h = ray.intersectObjects(scene.children, true).filter(i => i.object.visible)[0]; return h ? [h.object.material && h.object.material.name, h.object.type, h.point.toArray().map(x => +x.toFixed(2)), h.distance.toFixed(2)] : null; };
   $('overlay').hidden = true;
