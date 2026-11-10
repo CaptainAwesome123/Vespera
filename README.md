@@ -28,6 +28,7 @@ src/                der Spielcode als ES-Module, ein Abschnitt pro Datei
   people-skeleton.js  Skelett im Shader, Gang, Laufen, Tanzen, Sitzen (V18); Gelenkmaße je Körper (HRIG, V22)
   people-mh.js        Menschen aus MakeHuman (V22): lädt assets/people, setzt die Figuren je Kleidungsart zusammen; V39: Frisur-Sets je Art, echte Fedoras, Pelzmantel
   facade-shader.js    Fassaden: Fenster, Goldbänder, Ladenzeilen, Flutlicht
+  stadtbild.js        Stadtbild (V76): Turmkronen (Sonnenkrone, Leuchtlaterne, Ankermast, Stufenkrone), Lisenen, Lichtbänder, Leuchtpylone; Labor ?lab=turm (lab-turm.js)
   deco.js             Fassadenschmuck als Chunk-Schicht (V38): Sonnenfächer, Goldfriese, Zinnen, Kapitelle, beleuchtete Vordächer, Laternen, Türen der Ringhäuser, Dachreklame, Wandreklame; Fassaden-Labor ?lab=fassade
   island.js           Stadtplan und Insel mit Ringstraße
   building-forms.js   Erker, Balkone, Arkaden, Haustüren (V19)
@@ -292,6 +293,20 @@ Außenhaut, Garten, Terrassen und das Fest.
 - *Auflösung:* am PC Start mit der echten Bildschirmauflösung statt 1,3-fach, Stufe tiefer schon unter 49 Bildern
   pro Sekunde (vorher 42). Bei knapper Bildrate entsteht das Spiegelbild nur jedes zweite Bild (`REFL.half`).
 - *Aufgeräumt:* Feuerwerk, Lichtsäulen aus den Kronen und Suchscheinwerfer des Belmont (seit V33/V42 aus) entfernt.
+
+**V76: Stadtbild** (`src/stadtbild.js`, Haken in `entrances.js`; der Stadtplan, Höhen, Läden und Eingänge bleiben gleich,
+gewürfelt wird nur mit einem eigenen Zufall je Turm).
+- *Kronen* für Türme über 70 m: Sonnenkrone (goldene Pyramide mit je vier gestaffelten Bögen und leuchtenden
+  Dreiecksfenstern), Leuchtlaterne (drei achteckige Glastrommeln mit Goldflossen), Ankermast, Stufenkrone. Bögen und
+  Trommeln sind zwei Sammelnetze mit einem kleinen Programm ohne Licht, alles andere nutzt vorhandene Bauteile.
+- *Schäfte:* Lisenen an den oberen Stufen, die als kleine Zinnen über die Brüstung ragen; bei 40 % der Türme ein Lichtband
+  aus hohen Bogenfenstern in der Mitte jeder Seite; Leuchtpylone auf den Ecken der Rücksprünge.
+- *Licht:* die Stufen über dem Sockel werden bei 80 % der hohen Türme angestrahlt; Türme mit Lichtrippen in deren Farbe
+  (eine Zeile im Fassaden-Shader). Unter einer neuen Krone bleiben die Lichtflossen am Dachrand niedrig.
+- *Innenräume:* Vespera-Bank mit Petrol-Marmor (Kassetten im Goldrahmen, Sockel, Schachbrett), Zickzackfries,
+  Goldkanneluren und Bodenstern; Foyer des Varieté Metropol mit Lackfeldern, Strahlenfächern und Fries (alles im Bausatz).
+- Labor: `?lab=turm` (Ansichten `alle`, `flug`, `fern`, je Turm `sonne|laterne|mast|stufen|blade|strom|zig` mit den
+  Endungen `nah`, `stufe`, `unten`), z. B. `LAB=turm node tools/lab-shot.js URL out/t alle,sonnenah`.
 
 **V75: Leistung am Handy und iPad.** Am PC bleibt alles, wie es war (bis auf die Villa-Statuen, siehe unten).
 Gemessen auf einem nachgebildeten iPad (Safari-Kennung, echte Zähler von `renderer.info`, Zeichnen abgeschaltet).

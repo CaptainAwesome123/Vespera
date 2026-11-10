@@ -81,6 +81,29 @@ function sconce(K, x, y, z, nx, nz) {
   K.add('lit', new T.SphereGeometry(0.09, 8, 6).translate(x + nx * 0.14, y + 0.3, z + nz * 0.14), [1.7, 1.2, 0.65]);
   addGlow(x + nx * 0.3, y + 0.3, z + nz * 0.3, [1.3, 0.85, 0.45], 0.8);
 }
+// V76: Art-Déco-Zierrat für die Innenräume, alles im Bausatz (keine neuen Materialien, keine Zeichenaufrufe)
+const PETROL = [0.1, 0.24, 0.26];
+// Zickzackfries aus Gold an einer Wand entlang (Wand läuft in x, wenn alongX, sonst in z); off = Abstand vor der Wand samt Richtung
+function chevrons(K, a, b, y, fix, alongX, step = 0.8) {
+  for (let u = a + step / 2; u < b; u += step) for (const s of [-1, 1]) {
+    const g = new T.BoxGeometry(alongX ? step * 0.74 : 0.04, 0.07, alongX ? 0.04 : step * 0.74);
+    alongX ? g.rotateZ(s * 0.72) : g.rotateX(s * 0.72);
+    K.add('gold', g.translate(alongX ? u + s * step * 0.25 : fix, y, alongX ? fix : u + s * step * 0.25));
+  }
+  K.add('gold', alongX ? Bx(b - a, 0.05, 0.05, (a + b) / 2, y - 0.36, fix, 1) : Bx(0.05, 0.05, b - a, fix, y - 0.36, (a + b) / 2, 1));
+  K.add('gold', alongX ? Bx(b - a, 0.05, 0.05, (a + b) / 2, y + 0.36, fix, 1) : Bx(0.05, 0.05, b - a, fix, y + 0.36, (a + b) / 2, 1));
+}
+// Wandfeld: dunkle Platte mit Goldrahmen an einer Wand in z-Richtung (x fest), k = Material der Platte
+function wallPanel(K, k, x, y0, y1, z0, z1, c = PETROL) {
+  K.add(k, Bx(0.04, y1 - y0, z1 - z0, x, (y0 + y1) / 2, (z0 + z1) / 2, 1.5), c);
+  for (const yy of [y0, y1]) K.add('gold', Bx(0.07, 0.06, z1 - z0 + 0.06, x, yy, (z0 + z1) / 2, 1));
+  for (const zz of [z0, z1]) K.add('gold', Bx(0.07, y1 - y0, 0.06, x, (y0 + y1) / 2, zz, 1));
+}
+// Strahlenfächer aus Goldstäben auf einer Wand in z-Richtung, Fußpunkt (x, y, z), Radius r
+function sunFan(K, x, y, z, r, n = 11) {
+  for (let k = 0; k < n; k++) { const a = Math.PI * (k + 0.5) / n, len = r * (k % 2 ? 0.78 : 1); K.add('gold', new T.BoxGeometry(0.05, len, 0.045).translate(0, len / 2 + r * 0.2, 0).rotateX(a - Math.PI / 2).translate(x, y, z)); }
+  K.add('gold', new T.TorusGeometry(r * 0.2, 0.035, 6, 16, Math.PI).rotateY(Math.PI / 2).translate(x, y, z));
+}
 const ped = (o) => { const p = { st: 4, v: 0, sc: 1, ...o }; VENUE_PEDS.push(p); return p; };
 function say(who, s) {
   const el = $('say'); if (!el) return;
@@ -202,6 +225,13 @@ function buildTheater(b, rr) {
   for (let k = 0; k < ST; k++) { const x0 = xF + k * sd, y1 = F + (k + 1) * sh; K.add('carpet', Bx(xT - x0, y1 - F, Z1 - Z0 - 1, (x0 + xT) / 2, (F + y1) / 2, cz, 3), [0.7, 0.35, 0.35]); K.add('gold', Bx(0.04, 0.03, Z1 - Z0 - 1, x0 + 0.02, y1 - 0.015, cz, 1)); addCollider(x0, F, Z0 + 0.5, xT, y1, Z1 - 0.5); }
   for (const zz of [cz - 2.6, cz + 2.6, Z0 + 1.3, Z1 - 1.3]) { for (let k = 0; k <= ST; k += 2) K.add('gold', new T.CylinderGeometry(0.02, 0.02, 0.95, 6).translate(xF + k * sd, F + k * sh + 0.48, zz)); K.add('gold', new T.CylinderGeometry(0.025, 0.025, Math.hypot(xT - xF, LY - F), 6).rotateZ(Math.PI / 2 - Math.atan2(LY - F, xT - xF)).translate((xF + xT) / 2, (F + LY) / 2 + 0.95, zz)); }
   V.station = { x: xT + 1.0, z: Z1 - 1.6 };
+  // V76: Saalwand als Schauwand: petrolfarbene Lackfelder im Goldrahmen, Strahlenfächer in der Mitte, Zickzackfries unter der Decke
+  { const wx = xT - 0.18;
+    wallPanel(K, 'leather', wx, LY + 0.5, F + HF - 1.2, cz - 3.0, cz + 3.0, [0.07, 0.17, 0.19]); sunFan(K, wx - 0.04, LY + 0.62, cz, 2.6);
+    for (const s of [-1, 1]) { const za = cz + s * 6.6, zb = s < 0 ? Z0 + 1.4 : Z1 - 1.4; wallPanel(K, 'leather', wx, LY + 0.5, F + HF - 1.2, Math.min(za, zb), Math.max(za, zb), [0.07, 0.17, 0.19]); sunFan(K, wx - 0.04, LY + 0.62, (za + zb) / 2, 1.8, 9); }
+    chevrons(K, Z0 + 0.8, Z1 - 0.8, F + HF - 0.66, wx - 0.03, false);
+    for (const zz of [Z0 + 0.34, Z1 - 0.34]) chevrons(K, X0 + 0.8, xT - 0.6, F + HF - 0.66, zz, true);
+  }
   // Saalwand zum Foyer: zwei Türöffnungen mit Samtvorhang, Oberlicht "SAAL"
   { const wz = (a, b) => { K.add('inWood', Bx(0.3, H - 0.2, b - a, xT, F + (H - 0.2) / 2 + 0.1, (a + b) / 2, 1.3), wood); addCollider(xT - 0.15, F, a, xT + 0.15, F + H, b); };
     wz(Z0 + 0.5, cz - 5.6); wz(cz - 3.6, cz + 3.6); wz(cz + 5.6, Z1 - 0.5);
@@ -373,10 +403,26 @@ function buildBank(b, rr) {
   // ---- Schalterhalle: Marmorboden im Schachbrett, Kassettendecke, Pilaster, Kronleuchter, Uhr
   const ix0 = X0 + 0.6, ix1 = X1 - 0.6, iz0 = hz0 + 0.6, iz1 = hz1 - 0.6, hx = (ix0 + ix1) / 2;
   K.add('marble', Bx(ix1 - ix0, 0.04, iz1 - iz0, hx, F + 0.02, cz, 2), [0.9, 0.88, 0.84]);
-  for (let x = ix0 + 1; x < ix1 - 0.5; x += 2) for (let z = iz0 + 1; z < iz1 - 0.5; z += 2) if (((x + z) / 2 | 0) % 2 === 0) K.add('marble', Bx(1.9, 0.05, 1.9, x + 0.5, F + 0.025, z + 0.5, 2), [0.22, 0.2, 0.2]);
+  for (let x = ix0 + 1; x < ix1 - 0.5; x += 2) for (let z = iz0 + 1; z < iz1 - 0.5; z += 2) if (((x + z) / 2 | 0) % 2 === 0) K.add('marble', Bx(1.9, 0.05, 1.9, x + 0.5, F + 0.025, z + 0.5, 2), [0.12, 0.25, 0.26]);   // V76: Petrol statt Schwarz
   K.add('ceil', Bx(ix1 - ix0, 0.2, iz1 - iz0, hx, F + H - 0.1, cz), [1, 1, 1]);
   for (let x = ix0 + 2; x < ix1; x += 4) K.add('gold', Bx(0.14, 0.3, iz1 - iz0, x, F + H - 0.2, cz, 1)); for (let z = iz0 + 2; z < iz1; z += 4) K.add('gold', Bx(ix1 - ix0, 0.3, 0.14, hx, F + H - 0.2, z, 1));
   for (let x = ix0 + 4; x < ix1 - 1; x += 4) for (let z = iz0 + 4; z < iz1 - 1; z += 4) { K.add('lit', Bx(0.6, 0.04, 0.6, x, F + H - 0.33, z), [1.2, 1.0, 0.75]); }
+  // V76: Kassetten aus petrolfarbenem Marmor im Goldrahmen, Sockel aus dunklem Marmor, Zickzackfries, Goldkanneluren an den Pilastern, Bodenstern
+  for (let x = ix0 + 4; x < ix1 - 1; x += 4) for (let z = iz0 + 4; z < iz1 - 1; z += 4) {
+    K.add('marble', Bx(3.1, 0.04, 3.1, x, F + H - 0.22, z, 2), PETROL);
+    for (const s of [-1, 1]) { K.add('gold', Bx(3.2, 0.05, 0.07, x, F + H - 0.25, z + s * 1.55, 1)); K.add('gold', Bx(0.07, 0.05, 3.2, x + s * 1.55, F + H - 0.25, z, 1)); K.add('gold', Bx(1.5, 0.045, 0.05, x, F + H - 0.25, z + s * 0.75, 1)); K.add('gold', Bx(0.05, 0.045, 1.5, x + s * 0.75, F + H - 0.25, z, 1)); }
+  }
+  for (const [zz, sg] of [[iz0, 1], [iz1, -1]]) {
+    K.add('marble', Bx(ix1 - ix0, 1.06, 0.07, hx, F + 0.53, zz + sg * 0.035, 2), PETROL);
+    chevrons(K, ix0 + 0.6, ix1 - 0.4, F + H - 1.35, zz + sg * 0.05, true, 1.0);
+    for (let x = ix0 + 3; x < ix1 - 1; x += 5) for (const dx of [-0.26, 0, 0.26]) K.add('gold', Bx(0.05, H - 2.2, 0.03, x + dx, F + 1.2 + (H - 2.2) / 2, zz + sg * 0.41, 1));
+  }
+  for (const [za, zb] of [[iz0, cz - 2.4], [cz + 2.4, iz1]]) K.add('marble', Bx(0.07, 1.06, zb - za, ix1 - 0.035, F + 0.53, (za + zb) / 2, 2), PETROL);
+  { const mx = hx + 3, r = 3.4;
+    K.add('marble', new T.CylinderGeometry(r, r, 0.02, 40).translate(mx, F + 0.062, cz), PETROL);
+    K.add('gold', new T.TorusGeometry(r, 0.05, 6, 48).rotateX(Math.PI / 2).translate(mx, F + 0.075, cz)); K.add('gold', new T.CylinderGeometry(0.7, 0.7, 0.02, 24).translate(mx, F + 0.08, cz));
+    for (let k = 0; k < 16; k++) { const len = k % 2 ? 1.6 : 2.5; K.add('gold', new T.BoxGeometry(len, 0.012, 0.09).translate(0.75 + len / 2, 0, 0).rotateY(k / 16 * 6.2832).translate(mx, F + 0.078, cz)); }
+  }
   chandelier(K, hx - 6, F + H - 1.2, cz, 1.4); chandelier(K, hx + 6, F + H - 1.2, cz, 1.4);
   addLight(0xffe4c0, 1.5, 24, 1.4, hx - 6, F + H - 2.4, cz, true); addLight(0xffe4c0, 1.5, 24, 1.4, hx + 6, F + H - 2.4, cz, true);   // warmes Licht unter den Kronleuchtern
   for (const zz of [iz0, iz1]) for (let x = ix0 + 3; x < ix1 - 1; x += 5) { K.add('marble', Bx(0.9, H - 0.3, 0.4, x, F + (H - 0.3) / 2, zz + (zz < cz ? 0.2 : -0.2), 1), [0.86, 0.84, 0.8]); K.add('gold', Bx(1.0, 0.5, 0.5, x, F + H - 0.6, zz + (zz < cz ? 0.2 : -0.2), 1)); sconce(K, x + 2.5, F + 3.2, zz, 0, zz < cz ? 1 : -1); }
