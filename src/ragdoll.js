@@ -375,6 +375,7 @@ export function updatePedestrians(dt, t) {
 export const CLOCK = { min: 19 * 60 + 30 };   // Spielzeit in Minuten; eine echte Sekunde ist eine Spielminute
 export const citizens = [];
 export const CIT_HOOKS = [];   // V63: Nebenfiguren übernehmen beim Aufbau einzelne Bewohner (list, places)
+export const CIT_SAY = [];     // V76: weitere Sätze beim Ansprechen (alltag.js: Schicht, Feierabend, Tageszeit); f(c) liefert Text oder nichts
 export const FIRST_M = ['Anton', 'Bruno', 'Carl', 'Emil', 'Felix', 'Franz', 'Georg', 'Hans', 'Karl', 'Ludwig', 'Max', 'Otto', 'Paul', 'Richard', 'Theo', 'Walter', 'Wilhelm', 'Oskar', 'Fritz', 'Konrad', 'Leo', 'Victor', 'Henri', 'Jules', 'Arthur', 'Edgar', 'Josef', 'Rudolf'];
 export const FIRST_F = ['Anna', 'Berta', 'Clara', 'Dora', 'Elsa', 'Frieda', 'Greta', 'Hedwig', 'Ida', 'Käthe', 'Lotte', 'Marlene', 'Martha', 'Paula', 'Rosa', 'Ruth', 'Trude', 'Vera', 'Lilli', 'Edith', 'Mila', 'Irene', 'Josephine', 'Louise', 'Nora', 'Hilde', 'Ella', 'Margot'];
 export const LAST = ['Adler', 'Bauer', 'Brandt', 'Falk', 'Fischer', 'Graf', 'Hartmann', 'Keller', 'König', 'Lang', 'Lorenz', 'Mayer', 'Neumann', 'Roth', 'Schmidt', 'Seidel', 'Sommer', 'Stein', 'Vogel', 'Wagner', 'Weiß', 'Winter', 'Ziegler', 'Hoffmann', 'Marchetti', 'Dubois', 'Novak', 'Kowalski', 'Lindqvist', 'O’Hara', 'Petrov', 'Moreau'];
@@ -507,6 +508,7 @@ export function citizenGoal(c) {
 }
 export const ACT_TEXT = { work: ['arbeitet in', 'auf dem Weg zur Arbeit in'], bar: ['trinkt etwas in', 'auf dem Weg in'], eat: ['isst in', 'auf dem Weg zum Essen in'], home: ['ist zu Hause', 'geht nach Hause'] };
 export function citizenDoing(c) {
+  if (c.doingFn) { const s = c.doingFn(c); if (s) return s; }   // V76: Schichtarbeiter (alltag.js)
   const key = c.st === 'walk' && c.doing ? c.doing : (c.place === c.at[c.goal] ? c.goal : (Object.keys(c.at).find(k => c.at[k] === c.place) || c.goal));
   const p = c.at[key], A = ACT_TEXT[key];
   if (key === 'home') return c.st === 'walk' ? A[1] : A[0];
@@ -532,7 +534,7 @@ export function updateCitizens(dt) {
         c.tk = { x: fx + ux * o[0] + tx * o[1], z: fz + uz * o[0] + tz * o[1], yaw: o[2], act: act + 0.1 + Math.random() * 0.35, t: 40 + Math.random() * 70 };
         c.st = 'out'; c.k = 0;
       }
-      else if (c.wait <= 0 && !c.place.loop && Math.random() < dt * 0.003) {
+      else if (c.wait <= 0 && !c.place.loop && !c.res && Math.random() < dt * 0.003) {   // V76: Schichtarbeiter (alltag.js) bleiben bei ihrem Plan
         // kleine Besorgung zwischendurch, danach zurück
         const ks = ['bar', 'eat', 'work'].filter(k => c.at[k] !== c.place); c.errand = ks[Math.floor(Math.random() * ks.length)]; c.st = 'out'; c.k = 0;
       }
@@ -605,7 +607,8 @@ export function citizenNear(p, r = 4) {
 }
 export function citizenSay(c) {
   // V55: meist spricht man Alexander direkt an, je nach Haltung (bewundernd, neidisch, skeptisch, ängstlich, respektvoll); sonst Alltag
-  const lines = c.trait.say, s = Math.random() < 0.6 ? talkLine(c.ped) : lines[Math.floor(Math.random() * lines.length)].replace('{bar}', c.at.bar.name).replace('{work}', c.at.work.name);
+  let own = null; for (const f of CIT_SAY) { try { own = f(c); } catch (e) { own = null; } if (own) break; }   // V76: Tagesablauf (alltag.js)
+  const lines = c.trait.say, s = own || (Math.random() < 0.6 ? talkLine(c.ped) : lines[Math.floor(Math.random() * lines.length)].replace('{bar}', c.at.bar.name).replace('{work}', c.at.work.name));
   greetNow(c.ped);
   const el = $('say'); el.innerHTML = '<b></b><span></span>'; el.querySelector('b').textContent = c.name; el.querySelector('span').textContent = '„' + s + '“';
   el.style.opacity = 1; shared.sayTimer = 5;

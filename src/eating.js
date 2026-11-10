@@ -126,16 +126,18 @@ export function stepPath(pd, dt, sp = 1.25) {
 export function updateGuestFlow(V, dt) {
   // ab und zu bricht jemand auf, kurz darauf kommt ein neuer Gast herein
   if ((V.flowT = (V.flowT ?? 6 + Math.random() * 8) - dt) <= 0) {
-    V.flowT = 14 + Math.random() * 18;
     const seated = V.peds.filter(p => p.seat && !p.g && p.a), out = V.peds.filter(p => p.g === 'gone');
-    if (out.length && Math.random() < 0.6) {
+    // V76: Zielbelegung nach der Uhrzeit (alltag.js): ist das Lokal zu leer oder zu voll, wechseln die Gäste schneller
+    const dir = V.occN == null ? 0 : Math.sign(V.occN - seated.length - V.peds.filter(p => p.g === 'in' || p.g === 'sitdown').length);
+    V.flowT = dir ? 2.5 + Math.random() * 3.5 : 14 + Math.random() * 18;
+    if (out.length && (dir > 0 || (!dir && Math.random() < 0.6))) {
       const free = V.seats.filter(s => !s.taken);
       if (free.length) {
         const pd = pick(out), s = pick(free);
         s.taken = pd; pd.seat = s; pd.g = 'in'; pd.x = V.x; pd.z = V.z1 + 3.5; pd.y = V.F; setSit(pd, false);
         pd.path = exitPath(V, s).reverse(); pd.path.shift(); pd.path.push([s.x, s.z]);
       }
-    } else if (seated.length) {
+    } else if (seated.length && dir <= 0) {
       const pd = pick(seated);
       pd.g = 'out'; pd.seat.taken = null; pd.path = exitPath(V, pd.seat); pd.seat = null; setSit(pd, false); pd.y = V.F;
       if (pd.dish) pd.dish.visible = false;

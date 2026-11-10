@@ -315,7 +315,7 @@ export function frame(now) {
       hudSet('head', 'Kurs ' + ['N', 'NO', 'O', 'SO', 'S', 'SW', 'W', 'NW'][Math.round(deg / 45) % 8] + ' · Wind ' + Math.round(WIND.s + WIND.gust * 6) + ' m/s aus ' + windName(WIND.a + Math.PI));
       drawMap();
       const hh = Math.floor(CLOCK.min / 60), mm = Math.floor(CLOCK.min % 60);
-      hudSet('clock', String(hh).padStart(2, '0') + ':' + String(mm).padStart(2, '0') + ' Uhr');
+      hudSet('clock', shared.clockText ? shared.clockText() : String(hh).padStart(2, '0') + ':' + String(mm).padStart(2, '0') + ' Uhr');   // V76: mit Tagesabschnitt (alltag.js)
       const c = player.fly ? null : citizenNear(player.p, 8), card = $('npc');
       if (c) {
         const a = c.name + ', ' + c.age, b = c.job + ' · ' + c.trait.k, d = citizenDoing(c), key = a + '|' + b + '|' + d;

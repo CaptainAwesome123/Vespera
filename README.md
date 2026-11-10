@@ -447,3 +447,14 @@ python3 tools/build-single.py single/vespera-v21.html       # Einzeldatei (seit 
 ```
 
 `tools/test.js` braucht Playwright mit Chromium; `THREE_DIR=/pfad/zu/node_modules/three` bedient das CDN lokal.
+
+**V76: Lebende Stadt mit Tagesabläufen** (`src/alltag.js`, Haken in `ragdoll.js`, `life.js`, `eating.js`).
+- Die Stadtuhr gibt den Takt (eine echte Sekunde ist eine Spielminute, oben rechts mit Tagesabschnitt).
+- Schichtarbeiter: jede Fabrik hat Früh-, Spät- und Nachtschicht (6, 14, 22 Uhr). Die Arbeiter wohnen hinter echten Haustüren,
+  kommen kurz vor der Sirene durchs Werkstor und gehen danach in ihre Stammkneipe oder nach Hause. Dazu Leute vom Kneipenplatz.
+- Stadtpuls: Passanten, Grüppchen vor Lokalen und Terrassengäste sind je nach Stunde und Viertel da (gewechselt wird außer Sicht);
+  von 19 bis 21 Uhr ist die Stadt so voll wie bisher. Brass Lantern, Aurora und Café Kranich füllen sich nach der Uhr.
+- Streik (Kontor-Ereignis oder Ruf bei den Arbeitern unter 30): Streikposten und Transparent am Werkstor, leere Höfe.
+  E am Werkstor: zum Schichtwechsel mit den Arbeitern reden, bei Streik verhandeln. Empfang am Tor und in der Kneipe je nach Ruf.
+- Pausenmenü „Stadt und Leute“: Stadtuhr eine Stunde vorstellen, bis zum Schichtwechsel warten. `?uhr=13:50`, `?streik=1`.
+  Test: `tools/alltag-test.js`.

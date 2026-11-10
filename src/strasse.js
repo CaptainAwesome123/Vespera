@@ -322,7 +322,8 @@ const HIM = {
   streik: ['Herr Alexander! Es geht nicht gegen Sie persönlich. Es geht um gerechten Lohn!', 'Herr Alexander, reden Sie mit uns, dann gehen wir zurück an die Arbeit!'],
   angst: ['Pst … er ist hier.', 'Ruhig, Leute. Keine Dummheiten, der hebt Autos hoch.'],
 };
-function strike() { try { return !!(KT.s && KT.s.ev && KT.s.ev.some(e => EVENTS[e.i] && EVENTS[e.i].streik)); } catch (e) { return false; } }
+function strike() { try { return !!(KT.s && KT.s.ev && KT.s.ev.some(e => EVENTS[e.i] && EVENTS[e.i].streik)) || !!(KT.streikFn && KT.streikFn()); }   // V76: auch Streiks in Alexanders eigenen Betrieben
+   catch (e) { return false; } }
 function unmut() {
   if (STR.force != null) return STR.force;
   if (STR.clearT > 0) return 0;
@@ -458,6 +459,7 @@ function rallyMenu() {
       STR.calmT = 300; say('Der Redner', 'Wir nehmen Sie beim Wort, Herr Alexander. Vor allen Leuten hier.', 4.5);
       news('Alexander verspricht Streikenden höhere Löhne', 'Am Kneipenplatz trat Alexander vor die Kundgebung der Arbeiter und versprach bessere Löhne. Die Menge hörte zu, skeptisch, aber still. Ob den Worten Taten folgen, wird das Viertel genau beobachten.', 6, 'Extrablatt! Alexander verspricht höhere Löhne!');
       cheer(R, 0.5);
+      try { KT.onVersprechen && KT.onVersprechen(); } catch (e) { /* ohne Imperium */ }   // V76: das Wort wird nachgehalten
     } else if (i === 1) {
       if (!KT.s || KT.s.cash < 2000) { toast('Dafür reicht das Bargeld nicht'); STR.talkT = 0; return; }
       ktCash(-2000, 'Spende an die Streikkasse'); rufAdd({ arbeiter: 4, presse: 1, elite: -1 }, 'Für die Streikkasse gespendet', { key: 'demo:spende' });
@@ -474,6 +476,7 @@ function rallyMenu() {
       rufAdd({ arbeiter: -9, furcht: 4, presse: -3, elite: 1, unter: 3 }, 'Kundgebung von der Polizei geräumt', { key: 'demo:raeumen' });
       say('Ein Polizist', 'Zu Befehl, Herr Alexander! Auseinander, Leute, die Kundgebung ist beendet!', 4);
       STR.clearT = 600;
+      try { KT.onRaeumung && KT.onRaeumung(); } catch (e) { /* ohne Imperium */ }   // V76: bricht einen laufenden Streik
       news('Polizei räumt Kundgebung am Kneipenplatz', 'Auf Alexanders Wunsch löste die Polizei die Kundgebung der Arbeiter am Kneipenplatz auf. Es blieb friedlich, doch im Viertel ist die Stimmung gereizt. „So behandelt man die, die seine Türme bauen“, sagte ein Arbeiter dem Kurier.', 7, 'Extrablatt! Polizei räumt den Kneipenplatz!');
     }
   });
