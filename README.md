@@ -294,6 +294,27 @@ Außenhaut, Garten, Terrassen und das Fest.
   pro Sekunde (vorher 42). Bei knapper Bildrate entsteht das Spiegelbild nur jedes zweite Bild (`REFL.half`).
 - *Aufgeräumt:* Feuerwerk, Lichtsäulen aus den Kronen und Suchscheinwerfer des Belmont (seit V33/V42 aus) entfernt.
 
+**V77: Leistung, Grundsanierung.** Gleiche Stadt, gleiches Bild, weniger Arbeit je Bild (Handy, iPad und PC). Mit `?alt`
+läuft zum Vergleich das alte Verhalten.
+- *Szenenbaum* (`core.js`): unsichtbare Äste (rund 2500 von 3500 Objekten) werden beim Aktualisieren der Lage übersprungen
+  und erst wieder gerechnet, wenn sie sichtbar werden.
+- *Durchsichtiges in einem Zug* (`core.js`): Lichtscheine und flache Leuchtflächen (doppelseitig, ohne Tiefenschreiben)
+  zeichnete three.js zweimal und suchte dabei jedes Mal das Programm neu; jetzt ein Aufruf. `boot.js` übersetzt die
+  passende Programmvariante schon beim Laden vor.
+- *Passanten* (`ragdoll.js`): von rund 4400 sind meist keine 800 in Sichtweite. Wer außerhalb steht, kommt nur jedes achte
+  Bild an die Reihe und bekommt die aufgelaufene Zeit; sichtbare ferne Figuren jedes zweite oder vierte Bild. Staunende,
+  Kellner, Händler und Kundgebung laufen immer voll. Stoßen und Anrempeln sehen nur noch die nahe Liste durch (`pedsNear`).
+- *Blickfeld* (`serpentine.js`, `traffic.js`, `performance.js`): Figuren, fahrende Wagen und Stadtzellen außerhalb des
+  Blickfelds gehen nicht mehr an die Grafikkarte (im Umkreis von 40 m bzw. 60 m bleibt alles wie bisher).
+- *Laternenlicht* (`serpentine.js`): Streifen und Lichtkegel bekommen nur die Laternen im Umkreis von 280 m statt aller 9000.
+- *Belmont* (`belmont.js`): Lobby und Ballsaal sind getrennte Gruppen; von außen wird nur gezeichnet, was man durch das
+  Portal sehen kann.
+- *Reihenfolge*: Himmel, Berge und Kraterrand kommen zuletzt (die Stadt verdeckt sie großteils); Instanz-Materialien sind
+  von den Einzel-Materialien getrennt, damit das Programm nicht ständig wechselt.
+- *Laden*: jede Möbelform wird nur einmal gebaut (`entrances.js`), Instanzpuffer laden nur den belegten Teil hoch.
+- Gemessen (iPad-Nachbildung, ohne Rasterung): Rechenzeit je Bild an sechs Orten von 10 bis 14 ms auf 6 bis 9 ms,
+  Dreiecke rund 20 % weniger, Laden rund 3 s kürzer.
+
 **V76: Stadtbild** (`src/stadtbild.js`, Haken in `entrances.js`; der Stadtplan, Höhen, Läden und Eingänge bleiben gleich,
 gewürfelt wird nur mit einem eigenen Zufall je Turm).
 - *Kronen* für Türme über 70 m: Sonnenkrone (goldene Pyramide mit je vier gestaffelten Bögen und leuchtenden

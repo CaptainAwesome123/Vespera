@@ -1,4 +1,4 @@
-import { shared, MOBILE, T, scene, camera, mulberry32, $, U } from './core.js';
+import { shared, MOBILE, T, scene, camera, mulberry32, $, U, TREE, FOGVIS } from './core.js';
 import { aweStep, aweEnd, talkLine, greetNow } from './awe.js';
 import { lifeStep, updateLife } from './life.js';
 import { updateGegner } from './gegner.js';   // V60
@@ -303,6 +303,11 @@ export function loopDist2(lp, cp) {
   const dx = Math.max(b[0] - cp.x, 0, cp.x - b[2]), dz = Math.max(b[1] - cp.z, 0, cp.z - b[3]);
   return dx * dx + dz * dz;
 }
+export const PED_TURN = { n: 0, slow: new Uint8Array(0), acc: new Float32Array(0) };
+// V77: die Passanten in und nahe der Sichtweite (alle außer den weit entfernten). Stoßen, Anrempeln und lose Dinge sehen nur
+// diese Liste durch statt in jedem Bild alle 4400; pedsNear() liefert vor dem ersten Bild noch alle.
+const PED_NEAR = [];
+export const pedsNear = () => PED_NEAR.length ? PED_NEAR : peds;
 export function updatePedestrians(dt, t) {
   if (!pedCrowd) return;
   updateCitizens(dt);
@@ -312,10 +317,32 @@ export function updatePedestrians(dt, t) {
   // V29: Rundwege, die ganz außerhalb der Sichtweite der Passanten liegen (pedCrowd.far, Nebel nicht mitgerechnet), brauchen
   // keine neue Lage: die Leute laufen weiter (t), aber Ort und Matrix werden erst gerechnet, wenn der Weg wieder in Reichweite ist
   const cp = camera.position, farR = pedCrowd.far + Math.max(0, cp.y) + 40, far2 = farR * farR;
-  for (const pd of peds) {
-    const lp = pd.lp;
-    if (pd.st === 5 || pd.st === 6 || pd.rag || pd.back) continue;
-    if (pd.st === 11) continue;   // V60: Gegner und ihre Polizisten bewegt gegner.js
+  // V77: von rund 4400 Passanten sind meist keine 800 in Sichtweite. Wer außerhalb steht (Sichtweite der Figuren samt Nebel und
+  // Innenraumgrenze + 70 m), kommt nur noch jedes achte Bild an die Reihe (reihum verteilt) und bekommt dann die aufgelaufene
+  // Zeit: er lebt weiter (Wege, Türen, Begegnungen), kostet aber nur ein Achtel. Bei 100 m/s im Flug sind acht Bilder 13 m,
+  // der Rand von 70 m reicht also. Sichtbare, aber entfernte Figuren (über 60 m jedes zweite, über 150 m jedes vierte Bild)
+  // rücken in Schritten von wenigen Zentimetern vor, kleiner als ein Bildpunkt; die Schrittbewegung läuft im Shader weiter.
+  const drawR = Math.min(pedCrowd.far + Math.max(0, cp.y) * 0.5, FOGVIS.ped, FOGVIS.cap) + 70, slow2 = drawR * drawR;
+  const turn = (PED_TURN.n = (PED_TURN.n + 1) & 7), dt0 = dt, tiers = TREE.ok, near = PED_NEAR; near.length = 0;
+  // Stufe und aufgelaufene Zeit je Passant in zwei flachen Feldern (Platz in peds); kommen Passanten dazu, wachsen sie mit
+  if (PED_TURN.slow.length < peds.length) { const s = new Uint8Array(peds.length + 256), a = new Float32Array(peds.length + 256); s.set(PED_TURN.slow); a.set(PED_TURN.acc); PED_TURN.slow = s; PED_TURN.acc = a; }
+  const SLOW = PED_TURN.slow, ACC = PED_TURN.acc;
+  for (let i = 0, N = peds.length; i < N; i++) {
+    const pd = peds[i], lp = pd.lp, mk = SLOW[i];
+    if (pd.st === 5 || pd.st === 6 || pd.rag || pd.back || pd.st === 11) {   // V60: Gegner und ihre Polizisten bewegt gegner.js
+      if (mk) { SLOW[i] = 0; ACC[i] = 0; pd.a.far8 = false; }   // wen ein anderes System führt, der zählt wieder in jedem Bild
+      near.push(pd); continue;
+    }
+    // Staunende, Kellner, Händler, Kundgebung und Demonstrationszug schalten sich selbst ein und aus: immer jedes Bild (wenige)
+    if (pd.st === 9 || pd.st === 10) { if (mk) { SLOW[i] = 0; ACC[i] = 0; pd.a.far8 = false; } near.push(pd); if (pd.st === 9) aweStep(pd, dt0); else lifeStep(pd, dt0); continue; }
+    if (mk !== 7) near.push(pd);
+    dt = dt0;
+    if (mk) { if ((i & mk) !== (turn & mk)) { ACC[i] += dt0; continue; } dt = dt0 + ACC[i]; ACC[i] = 0; }
+    if (tiers && pd.a.k6 !== undefined) {
+      const e = pd.a.m.elements, dx = e[12] - cp.x, dy = e[13] - cp.y, dz = e[14] - cp.z, d2 = dx * dx + dz * dz, d3 = d2 + dy * dy;
+      const nk = d2 > slow2 ? 7 : d3 > 22500 ? 3 : d3 > 3600 ? 1 : 0;
+      if (nk !== mk) { SLOW[i] = nk; if ((nk === 7) !== (mk === 7)) pd.a.far8 = nk === 7; }
+    }
     if (pd.st === 9) { aweStep(pd, dt); continue; }   // V52: steht und staunt über Alexander
     if (pd.st === 10) { lifeStep(pd, dt); continue; }   // V55: Kellner auf der Terrasse
     if (pd.st === 4) { pedCrowd.set(pd.a, pd.x, pd.y - (pd.yo || 0), pd.z, pd.yaw, pd.sc, pd.tilt || 0); continue; }
@@ -367,6 +394,7 @@ export function updatePedestrians(dt, t) {
     const [x, z, dirx, dirz] = loopRound(lp, pd.t, Math.sign(pd.v)), lat = pd.lat || 0;
     pedCrowd.set(pd.a, x + dirz * lat, lp.y, z - dirx * lat, Math.atan2(dirx, dirz), pd.sc);
   }
+  dt = dt0;
   updateGegner(dt);   // V60: Anarchisten, Räuber, Festnahmen
   pedCrowd.flag();
 }

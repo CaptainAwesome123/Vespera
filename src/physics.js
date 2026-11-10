@@ -28,7 +28,7 @@ import { VILLA } from './harbour.js';
 import { WATER_Y } from './dance.js';
 import { TRF } from './traffic.js';
 import { peds, turnHead } from './serpentine.js';
-import { knockDown } from './ragdoll.js';
+import { knockDown, pedsNear } from './ragdoll.js';
 import { player } from './player.js';
 import { PM } from './player-model.js';
 import { INTERACT } from './music.js';
@@ -337,7 +337,7 @@ function furnShow(e) {
 export function furnBody(e) {
   if (!e || e.taken || LOOSE.bodies.length >= MAX_BODIES) return null;
   const I = furnInfo(e), W = movWorld(e), f = e.frame;
-  const parts = FURN[e.type](...e.args).map(([g, role]) => [g.rotateY(e.a), role]);
+  const parts = FURN[e.type](...e.args).map(([g, role]) => [g.clone().rotateY(e.a), role]);   // V77: Formen sind geteilt, erst kopieren
   // lokaler Grundriss (für die Villa-Quader), dann die Weltlage
   const lb = new T.Box3(); for (const [g] of parts) { g.computeBoundingBox(); lb.union(g.boundingBox); }
   if (f) for (const [g] of parts) g.rotateY(f.ry);
@@ -821,7 +821,7 @@ const KIN = [];   // { type: 'cap', x, y0, y1, z, r, v } | { type: 'car', x, y, 
 function gatherKinematic(cx, cz, R) {
   KIN.length = 0;
   if (!player.fly && !DRIVE.on) KIN.push({ type: 'cap', x: player.p.x, z: player.p.z, y0: player.p.y + 0.06, y1: player.p.y + 1.8, r: 0.32, v: player.v.clone(), player: true });
-  for (const pd of peds) {
+  for (const pd of pedsNear()) {   // V77: nur Passanten in Sichtweite (ragdoll.js)
     if (!pd.a || !pd.a.on || pd.rag) continue;
     const e = pd.a.m.elements; if ((e[12] - cx) ** 2 + (e[14] - cz) ** 2 > R * R) continue;
     KIN.push({ type: 'cap', x: e[12], z: e[14], y0: e[13] + 0.1, y1: e[13] + 1.7, r: 0.24, v: new T.Vector3(), pd });

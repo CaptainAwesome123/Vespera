@@ -1,4 +1,4 @@
-import { shared, canvasTex, freeAfterUpload, mulberry32, T, mergeGeos, scene, MOBILE, U, pick, R, rand, camera, ANISO, FOG_GLSL, FOGVIS, snowy } from './core.js';
+import { shared, canvasTex, freeAfterUpload, mulberry32, T, mergeGeos, scene, MOBILE, U, pick, R, rand, camera, ANISO, FOG_GLSL, FOGVIS, snowy, TREE } from './core.js';
 import { planDeco } from './deco.js';
 import { personGeoHi, personShare, HQ } from './people-model.js';
 import { stdMat, MAT, addCollider, glowTex, paintMat, mergeColored, PAINT, personLook } from './people-skeleton.js';
@@ -465,7 +465,7 @@ export function buildSerpTerrain(mat) {
     pos.setXYZ(i, x, terrainHeight(x, z), z);
   }
   g.computeVertexNormals();
-  const m = new T.Mesh(g, mat); m.frustumCulled = false; scene.add(m);
+  const m = new T.Mesh(g, mat); m.frustumCulled = false; m.renderOrder = 20; scene.add(m);
 }
 
 /* ---------- Verkehr: Gäste fahren zur Villa hinauf und wieder hinunter ---------- */
@@ -1221,7 +1221,10 @@ export function buildMountains() {
       }`,
   });
   mat.extensions.derivatives = true;
-  const m = new T.Mesh(geo, mat); m.position.set(0, 0, -100); m.frustumCulled = false; scene.add(m);
+  // V77: Berge nach der Stadt zeichnen (renderOrder): three ordnet undurchsichtige Teile zuerst nach Material, die Berge kamen
+  // so oft vor den Türmen an die Reihe, und ihr teurer Fels- und Schneeshader lief auch für alle Bildpunkte, die danach ein
+  // Haus verdeckt. Am Bild ändert die Reihenfolge nichts (Tiefenpuffer), sie spart nur Rechenzeit der Grafikkarte.
+  const m = new T.Mesh(geo, mat); m.position.set(0, 0, -100); m.frustumCulled = false; m.renderOrder = 20; scene.add(m);
   MOUNT.geo = geo; MOUNT.mat = mat; MOUNT.mesh = m;
   // V33: die Dreiecke um die Villa bekommen ein eigenes Netz, das im Hausgrundriss verworfen wird (discard nur dort, nicht im ganzen Gelände)
   if (VILLA.y) {
@@ -1233,7 +1236,7 @@ export function buildMountains() {
     const g2 = new T.BufferGeometry(); for (const k in geo.attributes) g2.setAttribute(k, geo.attributes[k]); g2.setIndex(cut);
     geo.setIndex(keep);
     const mc = mat.clone(); mc.uniforms = U; mc.defines = { VILLA_CUT: 1 }; mc.extensions.derivatives = true;
-    const m2 = new T.Mesh(g2, mc); m2.position.copy(m.position); m2.frustumCulled = false; scene.add(m2);
+    const m2 = new T.Mesh(g2, mc); m2.position.copy(m.position); m2.frustumCulled = false; m2.renderOrder = 20; scene.add(m2);
   }
   buildSerpTerrain(mat);
   // Tannenwald im Tal und an den unteren Hängen
@@ -1708,6 +1711,7 @@ export function updateLampLod(dt) {
   if ((lampTimer -= dt) > 0) return;
   lampTimer = 0.25;
   updateStreetLamps(camera.position);
+  updateLampFx();
   const cp = camera.position, D2 = (260 + Math.max(0, cp.y) * 1.5) ** 2;
   for (const st of LAMP_SETS) {
     let n = 0;
@@ -1717,12 +1721,30 @@ export function updateLampLod(dt) {
   }
 }
 /* ---------- Licht in der feuchten Nachtluft: Lichtkegel unter den Laternen, Spiegelungen auf dem nassen Pflaster ---------- */
+// V77: vorher gingen in jedem Bild alle rund 9000 Laternen der Stadt durch den Vertex-Shader (400 000 Dreiecke), der fast alle
+// wieder verwarf (Streifen sichtbar bis 240 m, Kegel bis 150 m). Jetzt bekommt die Grafikkarte viermal je Sekunde nur die
+// Laternen im Umkreis von 280 m; das Bild ist dasselbe. LAMPFX.src bleibt die vollständige Liste (lampFx schaltet darin).
+export const LAMPFX = { src: null, live: null, n: 0, geos: [], cap: 0 };
+export function updateLampFx() {
+  const F = LAMPFX; if (!F.src) return;
+  const cp = camera.position, S = F.src.array, L = F.live.array, r2 = 280 * 280; let k = 0;
+  if (cp.y < 400) for (let i = 0; i < F.n && k < F.cap; i++) {
+    const o = i * 4, dx = S[o] - cp.x, dz = S[o + 2] - cp.z;
+    if (dx * dx + dz * dz < r2) { const q = k++ * 4; L[q] = S[o]; L[q + 1] = S[o + 1]; L[q + 2] = S[o + 2]; L[q + 3] = S[o + 3]; }
+  }
+  for (const g of F.geos) g.instanceCount = k;
+  for (const m of F.meshes) m.visible = k > 0;
+  if (k) { F.live.updateRange.offset = 0; F.live.updateRange.count = k * 4; F.live.needsUpdate = true; }
+}
 export function buildLampFx(heads) {
-  const n = heads.length, attr = new Float32Array(n * 4);
-  heads.forEach((h, i) => attr.set([h[0], h[4], h[2], h[1] - h[4]], i * 4));
+  const n = heads.length, src = new Float32Array(n * 4), cap = Math.min(n, 2048);
+  heads.forEach((h, i) => src.set([h[0], h[4], h[2], h[1] - h[4]], i * 4));
+  const attr = new Float32Array(cap * 4);
+  LAMPFX.src = { array: src, needsUpdate: false }; LAMPFX.n = n; LAMPFX.cap = cap;
   // Spiegelstreifen: liegen flach auf dem Boden und zeigen immer vom Laternenfuß zum Betrachter
   const sg = new T.InstancedBufferGeometry().copy(new T.PlaneGeometry(1, 1, 1, 4).translate(0, 0.5, 0));
-  sg.instanceCount = n; sg.setAttribute('aL', new T.InstancedBufferAttribute(attr, 4));
+  LAMPFX.live = new T.InstancedBufferAttribute(attr, 4); LAMPFX.live.setUsage(T.DynamicDrawUsage);
+  sg.instanceCount = 0; sg.setAttribute('aL', LAMPFX.live);
   const streaks = new T.Mesh(sg, new T.ShaderMaterial({
     uniforms: U, transparent: true, depthWrite: false, blending: T.AdditiveBlending, side: T.DoubleSide,
     vertexShader: `attribute vec4 aL; uniform vec3 uCam; uniform float uFogDensity; varying vec2 vUv; varying float vA;
@@ -1748,7 +1770,7 @@ export function buildLampFx(heads) {
   streaks.frustumCulled = false; streaks.renderOrder = 2; scene.add(streaks);
   // Lichtkegel: offener Kegel von der Laterne zum Boden, nur in der Nähe sichtbar
   const cg = new T.InstancedBufferGeometry().copy(new T.ConeGeometry(1, 1, 18, 1, true).translate(0, -0.5, 0));
-  cg.instanceCount = n; cg.setAttribute('aL', new T.InstancedBufferAttribute(attr, 4));
+  cg.instanceCount = 0; cg.setAttribute('aL', LAMPFX.live);
   const cones = new T.Mesh(cg, new T.ShaderMaterial({
     uniforms: U, transparent: true, depthWrite: false, blending: T.AdditiveBlending, side: T.DoubleSide,
     vertexShader: `attribute vec4 aL; uniform vec3 uCam; varying float vT; varying float vA; varying vec3 vN; varying vec3 vV;
@@ -1773,7 +1795,7 @@ export function buildLampFx(heads) {
       }`,
   }));
   cones.frustumCulled = false; cones.renderOrder = 3; scene.add(cones);
-  STREET.fxAttrs = [sg.attributes.aL, cg.attributes.aL];
+  STREET.fxAttrs = [LAMPFX.src]; LAMPFX.geos = [sg, cg]; LAMPFX.meshes = [streaks, cones]; updateLampFx();
 }
 // V53: Licht einer Laterne aus/an (Telekinese): Lichtkegel und Spiegelstreifen, Lichtfleck am Boden, Leuchtpunkt
 export function lampFx(l, on) {
@@ -1896,7 +1918,7 @@ export function buildTowerTops() {
   // V23: dritte Sorte Dach: Schiefer auf den Arbeiter- und Reihenhäusern (ohne Warnlicht)
   for (const kind of ['copper', 'gold', 'slate']) {
     const list = caps.filter(c => (c.slate ? 'slate' : c.gold ? 'gold' : 'copper') === kind); if (!list.length) continue;
-    const cm = new T.InstancedMesh(roofCapGeo, kind === 'gold' ? MAT.gold : kind === 'slate' ? stdMat({ color: 0x3a3d44, metalness: 0.15, roughness: 0.6, envI: 0.45 }) : stdMat({ color: 0x3e8a7c, metalness: 0.35, roughness: 0.45, envI: 0.6 }), list.length);
+    const cm = new T.InstancedMesh(roofCapGeo, kind === 'gold' ? (MAT.goldInst || (MAT.goldInst = MAT.gold.clone())) : kind === 'slate' ? stdMat({ color: 0x3a3d44, metalness: 0.15, roughness: 0.6, envI: 0.45 }) : stdMat({ color: 0x3e8a7c, metalness: 0.35, roughness: 0.45, envI: 0.6 }), list.length);
     list.forEach((c, i) => { cm.setMatrixAt(i, m.makeScale(c.w, c.h, c.d).setPosition(c.x, c.y, c.z)); if (c.v76) { if (c.v76 === 1) addGlow(c.x, c.y + c.h + 0.6, c.z, [1.4, 0.15, 0.1], 1.4, 0.37, 1); } else if (!c.slate) addGlow(c.x, c.y + c.h + 0.6, c.z, [1.4, 0.15, 0.1], 1.4, R(), 1); });
     cm.frustumCulled = false; scene.add(cm);
   }
@@ -2522,6 +2544,23 @@ export function carGeoHi(opts = {}) {
   P.push([new T.CylinderGeometry(0.035, 0.04, 0.45, 8).rotateZ(Math.PI / 2).translate(-2.45, 0.5, -0.5), COL.dark]);
   return mergeColored(P);
 }
+/* ---------- V77: nur ins Bild, was im Blickfeld steht ----------
+   Figuren und fahrende Wagen sind Instanzen ohne eigene Sichtprüfung: bisher ging jede im Umkreis an die Grafikkarte, auch die
+   hinter dem Rücken (rund die Hälfte). outOfView prüft gegen die vier Seitenflächen des Blickfelds, mit Rand (r), einmal je Bild
+   vorbereitet. Im Umkreis von 40 m bleibt alles wie bisher (Schatten, Spiegelung, schnelle Kopfdrehung). */
+const VIEW = { t: -1, pl: new Float64Array(16), fr: new T.Frustum(), m: new T.Matrix4() };
+export function viewPlanes() {
+  const t = U.uTime.value;
+  if (VIEW.t !== t) {
+    VIEW.t = t; camera.updateMatrixWorld();
+    VIEW.fr.setFromProjectionMatrix(VIEW.m.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
+    for (let i = 0; i < 4; i++) { const p = VIEW.fr.planes[i]; VIEW.pl[i * 4] = p.normal.x; VIEW.pl[i * 4 + 1] = p.normal.y; VIEW.pl[i * 4 + 2] = p.normal.z; VIEW.pl[i * 4 + 3] = p.constant; }
+  }
+  return VIEW.pl;
+}
+export function outOfView(P, x, y, z, r) {
+  return P[0] * x + P[1] * y + P[2] * z + P[3] < -r || P[4] * x + P[5] * y + P[6] * z + P[7] < -r || P[8] * x + P[9] * y + P[10] * z + P[11] < -r || P[12] * x + P[13] * y + P[14] * z + P[15] < -r;
+}
 // Ein Menschen-Satz: mehrere Kleidungsarten, jede eine InstancedMesh mit Farben pro Person
 export class Crowd {
   constructor(kinds, max) { this.nr = {}; this.hi = {}; this.lo = {}; this.fa = {}; this.list = []; this.max = max; this.kinds = kinds; this.vis = true; this.far = 320; }
@@ -2568,10 +2607,12 @@ export class Crowd {
     const cp = camera.position, far2 = Math.min(this.far + Math.max(0, cp.y) * 0.5, FOGVIS.ped, FOGVIS.cap) ** 2;
     for (const k in this.hi) { this.nr[k].begin(); this.hi[k].begin(); this.lo[k].begin(); this.fa[k].begin(); }
     glances(this);
+    const VP = TREE.ok ? viewPlanes() : null;
     for (const a of this.list) {
-      if (!a.on) continue;
+      if (!a.on || a.far8 === true) continue;   // V77: far8 = weit außerhalb der Sichtweite (setzt updatePedestrians)
       const e = a.m.elements, d2 = (e[12] - cp.x) ** 2 + (e[13] - cp.y) ** 2 + (e[14] - cp.z) ** 2;
       if (d2 < 900 && NEAR.length < 64) NEAR.push(a);
+      if (d2 > 1600 && VP !== null && outOfView(VP, e[12], e[13] + 1, e[14], 4 + d2 * 0.0002)) continue;   // V77: steht nicht im Blickfeld
       if (d2 < HQ.near2) this.nr[a.kind].put(a.m, a, a.color, a.gait);
       else if (d2 < (HQ.hi2 || LOD_PERSON2)) this.hi[a.kind].put(a.m, a, a.color, a.gait);
       else if (d2 < far2) (d2 < LOD_PERSON_FAR2 ? this.lo : this.fa)[a.kind].put(a.m, a, a.color, a.gait);
@@ -2630,7 +2671,12 @@ export function compactor(im) {
       if (DA) { const d = k.dmg; if (d || DA.getX(n) + DA.getY(n) + DA.getZ(n) > 0 || DA.getW(n) < 1) { DA.setXYZW(n, d ? d[0] : 0, d ? d[1] : 0, d ? d[2] : 0, d ? 1 - d[3] : 1); this.dDirty = true; } }
       if (key[n] !== k || gv[n] !== (k.gv | 0)) { key[n] = k; gv[n] = k.gv | 0; im.setColorAt(n, _cc.setRGB(c[0], c[1], c[2])); const ga = im.geometry.attributes.aGait; if (ga && gait) ga.setXYZW(n, gait[0], gait[1], gait[2], gait[3] || 0); const la = im.geometry.attributes.aLive; if (la) { const l = k.live; if (l) la.setXYZW(n, l[0], l[1], l[2], l[3]); else la.setXYZW(n, 0, -9, 0, 1); } this.dirty = true; }
     },
-    end() { im.count = this.n; im.instanceMatrix.needsUpdate = true; if (this.dDirty && DA) { DA.needsUpdate = true; this.dDirty = false; } if (this.dirty && im.instanceColor) { im.instanceColor.needsUpdate = true; if (im.geometry.attributes.aGait) im.geometry.attributes.aGait.needsUpdate = true; if (im.geometry.attributes.aLive) im.geometry.attributes.aLive.needsUpdate = true; this.dirty = false; } },
+    end() {
+      // V77: nur den belegten Teil der Lagen hochladen (vorher jedes Bild der ganze Puffer, auch für Figuren, die es gerade nicht gibt);
+      // ist die Stufe leer und war es schon, gar nichts
+      if (this.n === 0 && im.count === 0) { if (!this.dirty && !this.dDirty) return; }
+      im.count = this.n; const ur = im.instanceMatrix.updateRange; ur.offset = 0; ur.count = this.n > 0 ? this.n * 16 : -1;
+      if (this.n > 0) im.instanceMatrix.needsUpdate = true; if (this.dDirty && DA) { DA.needsUpdate = true; this.dDirty = false; } if (this.dirty && im.instanceColor) { im.instanceColor.needsUpdate = true; if (im.geometry.attributes.aGait) im.geometry.attributes.aGait.needsUpdate = true; if (im.geometry.attributes.aLive) im.geometry.attributes.aLive.needsUpdate = true; this.dirty = false; } },
   };
 }
 export const _e = new T.Euler();

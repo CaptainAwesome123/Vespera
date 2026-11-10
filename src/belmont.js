@@ -1,5 +1,5 @@
 import { wantTexture } from './assets.js';
-import { canvasTex, T, scene, mulberry32, ANISO, mergeGeos, pick, R, rand, MOBILE, camera } from './core.js';
+import { canvasTex, T, scene, mulberry32, ANISO, mergeGeos, pick, R, rand, MOBILE, camera, TREE } from './core.js';
 import { RUNNER_TEX, decoRugTex, friezeTex, muralTex, damaskTex } from './deco-tex.js';
 import { addCollider, stdMat, MAT } from './people-skeleton.js';
 import { addSeg, addNeon, addGlow, NEON, shafts, spires, lamps, trees, FL } from './facade-shader.js';
@@ -276,7 +276,11 @@ export function updateBelmontDoor(dt) {
   const c = camera.position;
   if (BALL_DECO.g) BALL_DECO.g.visible = Math.abs(c.x) < 70 && Math.abs(c.z) < 75 && c.y < 45;
   // durch das offene Portal sieht man die Lobby auch vom Platz und von der Allee aus
-  if (BEL_IN.g) BEL_IN.g.visible = c.y < 120 && Math.hypot(c.x, c.z) < 420;
+  // V77: Lobby und Saal haben keine Fenster nach außen; von hinten und von den Seiten verdeckt sie der Turm. Die Lobby sieht man
+  // nur von vorn (Platz, Allee), den Saal dahinter nur im Sichtkeil durch Portal (16 m breit bei z = 48) und Saaltor (18 m bei z = -5).
+  const inTower = Math.abs(c.x) < 52 && Math.abs(c.z) < 52 && c.y < 120;
+  if (BEL_IN.g) BEL_IN.g.visible = c.y < 120 && Math.hypot(c.x, c.z) < 420 && (!TREE.ok || inTower || c.z > 20);
+  if (BEL_IN.ball) BEL_IN.ball.visible = !TREE.ok || inTower || (c.z > 0 && Math.abs(c.x) < 12 + 0.32 * Math.max(0, c.z - 48));
   if (!BDOOR.wings) return;
   const p = player.p, d = Math.hypot(p.x, p.z - 49);
   // Drehtür dreht, wenn jemand näher als 7 m ist, langsam auslaufend
@@ -717,7 +721,15 @@ export function buildBelmontInterior() {
   belmontShade({ P, G1, G2, LOBBY_H, BALL_H, S0, tables, put, M });
 
   movOff();
-  for (const k in batch) IG.add(new T.Mesh(mergeGeos(batch[k]), M[k]));
+  // V77: was ganz hinter der Trennwand liegt (Ballsaal mit Galerien), kommt in eine eigene Gruppe. Von draußen sieht man den
+  // Saal nur in der Achse durch Portal, Lobby und Saaltor; überall sonst wird er nicht mehr gezeichnet (updateBelmontDoor).
+  const ball = BEL_IN.ball = new T.Group(); IG.add(ball);
+  for (const k in batch) {
+    const front = [], back = [];
+    for (const g of batch[k]) { if (!g.boundingBox) g.computeBoundingBox(); (g.boundingBox.max.z < -5.9 ? back : front).push(g); }
+    if (front.length) IG.add(new T.Mesh(mergeGeos(front), M[k]));
+    if (back.length) ball.add(new T.Mesh(mergeGeos(back), M[k]));
+  }
   if (fanGeos.length) IG.add(new T.Mesh(mergeGeos(fanGeos), fanM));
   shadeEnd(IG);
 
@@ -814,7 +826,7 @@ export function buildBelmontInterior() {
 export const BALL_DECO = { g: null };
 // V65: Galerien des Ballsaals: Treppe zur zweiten Galerie (x0 oben, x1 unten, z0 offene Kante), Tische der ersten Galerie, VIP-Logen der zweiten
 export const GAL = { stair: { x0: 7.6, x1: 20.8, z0: -9.4 }, tables: [], seats: [] };
-export const BEL_IN = { g: null };   // V34: Lobby und Ballsaal (nur in der Nähe sichtbar)
+export const BEL_IN = { g: null, ball: null };   // V34: Lobby und Ballsaal (nur in der Nähe sichtbar)
 // V67: Lobby und Ballsaal bekommen Raumtiefe ohne Schatten im Shader: dunklere Boden- und Deckenkanten an den Wänden,
 // weiche Dunkelheit unter den Galerien, Flecken an Säulenfüßen, unter Tischen, Tresen und Bühne, warme Lichtflecken unter
 // den Kronleuchtern und auf den Tischtüchern. Dazu Teppichläufer auf den Galerien (vorher schwarzer Marmor, fast unsichtbar).

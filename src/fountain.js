@@ -56,7 +56,7 @@ export function buildFountain(P = FOUNT.P) {
   at(new T.Mesh(lathe([[0.3, 6.04], [0.22, 6.2], [0.12, 6.36], [0.07, 6.42], [0.0, 6.42]], 24), gold));
   // Düsen am Rand: goldene Wasserspeier, zur Mitte geneigt
   const nozGeo = new T.ConeGeometry(0.12, 0.42, 10).rotateZ(Math.PI / 2 - 0.6);   // Spitze nach -x und schräg nach oben
-  const noz = new T.InstancedMesh(nozGeo, gold, F.n), mm = new T.Matrix4(), q = new T.Quaternion(), up = new T.Vector3(0, 1, 0);
+  const noz = new T.InstancedMesh(nozGeo, gold.clone(), F.n), mm = new T.Matrix4(), q = new T.Quaternion(), up = new T.Vector3(0, 1, 0);
   const jets = [];
   for (let i = 0; i < F.n; i++) {
     const a = (i + 0.5) / F.n * Math.PI * 2, ca = Math.cos(a), sa = Math.sin(a);

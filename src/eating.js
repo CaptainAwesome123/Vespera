@@ -118,6 +118,7 @@ export function exitPath(V, s) {
   return s.stool ? [[sp.x, sp.z], [cx, s.z], [cx, wz], [V.x, wz], [V.x, V.z1 + 3.5]] : [[sp.x, sp.z], [sp.x, lane], [cx, lane], [cx, wz], [V.x, wz], [V.x, V.z1 + 3.5]];
 }
 export function stepPath(pd, dt, sp = 1.25) {
+  if (!pd.path || !pd.path.length) return true;   // V77: Weg schon weg (ein anderes System hat die Figur übernommen): gilt als angekommen, sonst blieb das Bild stehen
   const [px, pz] = pd.path[0], dx = px - pd.x, dz = pz - pd.z, d = Math.hypot(dx, dz), st = sp * dt;
   if (d <= st) { pd.x = px; pd.z = pz; pd.path.shift(); }
   else { pd.x += dx / d * st; pd.z += dz / d * st; pd.yaw = Math.atan2(dx, dz); }

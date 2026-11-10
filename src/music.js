@@ -1,4 +1,4 @@
-import { rand, R, $ } from './core.js';
+import { rand, R, $, TREE } from './core.js';
 import { inBelmont, BEL, BI } from './belmont.js';
 import { PH } from './penthouse.js';
 import { citizenNear, citizenSay } from './ragdoll.js';
@@ -253,7 +253,10 @@ export function buildInteractions() {
   for (const z of [12, 22, 32]) INTERACT.push({ test: p => p.x > 44.3 && Math.abs(p.z - z) < 2.2 && p.y < 3, label: 'Privater Fahrstuhl in die Penthouse-Suite · 250 m', act: () => travel([0, PH.F1, -14.4], Math.PI, -0.05, 'Penthouse-Suite · Willkommen zu Hause, Alexander') });
   INTERACT.push({ test: p => Math.abs(p.x) < 2.2 && p.z > -16.6 && p.z < -13.4 && Math.abs(p.y - PH.F1) < 2, label: 'Fahrstuhl hinunter in die Lobby', act: () => travel([44.4, BI.P, 22], Math.PI / 2, 0, 'The Belmont · Lobby') });
 }
+let interactTick = 0;
 export function updateInteract() {
+  // V77: jedes dritte Bild genügt (20-mal je Sekunde bei 60 Bildern): die Prüfungen laufen über alle Türen, Plätze und losen Dinge
+  if (TREE.ok && (interactTick = (interactTick + 1) % 3) !== 0) return;
   let u = null;
   if (playing && !paused && !player.fly) for (const it of INTERACT) if (it.test(player.p)) { u = it; break; }
   if (!u && playing && !paused && !player.fly) { const c = citizenNear(player.p, 3.2); if (c) u = c.use ||= { label: 'Ansprechen: ' + c.name, act: () => citizenSay(c) }; }

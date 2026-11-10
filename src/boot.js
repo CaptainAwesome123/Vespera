@@ -65,7 +65,7 @@ import './strasse.js';   // V72: Straßenhändler, Kundgebung und Demonstrations
 import './alltag.js';    // V76: Tagesabläufe: Schichtarbeiter, Schichtwechsel, Stadtpuls nach der Uhr, Streikposten
 import './imperium.js';  // V76: Alexanders Imperium (Kontor · Reiter Imperium): Sparten, Löhne, Preise, Arbeitszeit, Streiks, Konjunktur, Kredit
 
-import { shared, $, renderer, scene, camera } from './core.js';
+import { shared, $, renderer, scene, camera, TREE, T } from './core.js';
 import { layers, chunkStats } from './chunks.js';
 import { assetStats, manifest } from './assets.js';
 import { setupProps } from './props.js';
@@ -98,6 +98,7 @@ export async function start(data) {
   await build();
   setupProps().catch(e => console.warn('Requisiten:', e));
   await precompile();
+  scene.updateMatrixWorld(true); TREE.skip = TREE.ok;   // V77: ab jetzt überspringt der Szenenbaum unsichtbare Äste (core.js)
   $('enter').disabled = false;
   $('loading').textContent = isTouch ? 'Links ziehen zum Gehen, rechts zum Umsehen. Rechts unten: Stoß, Kraft und Fliegen.' : 'Klicke, um die Maus zu fangen. Esc gibt sie frei.';
   requestAnimationFrame(t => { shared.last = t; frame(t); });
@@ -120,9 +121,14 @@ async function precompile() {
     };
   }
   // die Szene wird im Spiel in Zwischenbilder gezeichnet (Composer, Spiegelung): gleiche Shader-Variante wie dort übersetzen
+  // V77: additive, beidseitige Leuchtflächen zeichnet core.js jetzt in einem Zug mit der beidseitigen Shader-Fassung. three würde
+  // hier stattdessen die beiden einseitigen Fassungen übersetzen (die niemand mehr braucht) und die beidseitige erst beim ersten
+  // Anblick. Für die Dauer des Übersetzens gelten diese Materialien deshalb als undurchsichtig: derselbe Shader, richtige Fassung.
+  const oneSide = [];
+  if (TREE.single) scene.traverse(o => { for (const m of Array.isArray(o.material) ? o.material : [o.material]) if (m && m.transparent === true && m.side === T.DoubleSide && m.depthWrite === false && m.blending === T.AdditiveBlending) { m.transparent = false; oneSide.push(m); } });
   try { renderer.setRenderTarget(composer ? composer.renderTarget1 : null); renderer.compile(scene, camera); }
   catch (e) { console.warn('Shader vorbereiten:', e); }
-  finally { delete gl.getProgramParameter; renderer.setRenderTarget(rt); }
+  finally { delete gl.getProgramParameter; renderer.setRenderTarget(rt); for (const m of oneSide) m.transparent = true; }
   const tC = performance.now(), mats = [];
   const collect = o => { if (Array.isArray(o.material)) mats.push(...o.material); else mats.push(o.material); mats.push(o.customDepthMaterial, o.customDistanceMaterial); };
   if (faked.size) scene.traverse(collect);

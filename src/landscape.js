@@ -156,7 +156,7 @@ function buildCliffRing() {
     }
   }
   const g = new T.BufferGeometry(); g.setAttribute('position', new T.BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals();
-  const m = new T.Mesh(g, MOUNT.mat); m.frustumCulled = false; scene.add(m);
+  const m = new T.Mesh(g, MOUNT.mat); m.frustumCulled = false; m.renderOrder = 20; scene.add(m);   // V77: nach der Stadt zeichnen, siehe buildMountains
   // Ausschnitt im groben Netz: Dreiecke, deren Mitte im Band [Ufer − 30, Ufer + 470] liegt (nicht an der Villa)
   const G = MOUNT.geo, ix = G.index.array, P = G.attributes.position.array, keep = [];
   for (let t = 0; t < ix.length; t += 3) {
@@ -323,7 +323,7 @@ function buildIce() {
     if (E0.ok && E1.ok) { tri(E0.i, E1.o, E1.i); tri(E0.i, E0.o, E1.o); tri(E0.o, E0.b, E1.o); tri(E1.o, E0.b, E1.b); nSeg++; }
     E0 = E1;
   }
-  if (pos.length) { const g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); g.computeVertexNormals(); const m = new T.Mesh(g, ice); m.frustumCulled = false; scene.add(m); }
+  if (pos.length) { const g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); g.computeVertexNormals(); const m = new T.InstancedMesh(g, ice, 1); m.setMatrixAt(0, new T.Matrix4()); m.frustumCulled = false; scene.add(m); }   // V77: als Instanz, wie die anderen Eisteile mit diesem Material (sonst suchte three in jedem Bild zweimal ein anderes Shader-Programm heraus)
   // Eisschollen: drei Formen, verteilt im Seering, dichter vor den Gletschern, nicht im Süden (Hafen, Boote), nicht nah an der Insel
   const shapes = [floeGeo(rnd), floeGeo(rnd), floeGeo(rnd)], lists = [[], [], []], N = MOBILE || LOW ? 150 : 420;
   const mm = new T.Matrix4(), qq = new T.Quaternion(), ee = new T.Euler(), vv = new T.Vector3(), ss = new T.Vector3();

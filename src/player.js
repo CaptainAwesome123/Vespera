@@ -9,7 +9,7 @@ import { DINE, standUp } from './venues.js';
 import { travel } from './music.js';
 import { LOOSE } from './physics.js';
 import { peds, turnHead } from './serpentine.js';
-import { knockDown } from './ragdoll.js';
+import { knockDown, pedsNear } from './ragdoll.js';
 import { toast } from './boat.js';
 import { landed, flightBump, heroLock, takeoffHold } from './powers.js';
 import { UNTER } from './unter-hook.js';   // V61: Verstecke unter der Stadt
@@ -162,7 +162,7 @@ export function updatePlayer(dt) {
 // V26: Menschen sind kein Nebel mehr: man rempelt sie an und muss um sie herum; wer im vollen Lauf hineinrennt, wirft sie um
 export function bumpPeople(dt) {
   const p = player.p, sp = Math.hypot(player.v.x, player.v.z);
-  for (const pd of peds) {
+  for (const pd of pedsNear()) {   // V77: nur Passanten in Sichtweite (ragdoll.js)
     if (!pd.a || !pd.a.on || pd.rag) continue;
     const e = pd.a.m.elements, dx = p.x - e[12], dz = p.z - e[14];
     if (dx * dx + dz * dz > 0.36 || Math.abs(p.y - e[13]) > 1.2) continue;
