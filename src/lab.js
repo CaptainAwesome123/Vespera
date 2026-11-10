@@ -14,6 +14,7 @@ import { PL_U } from './people-skeleton.js';
 export const LAB = { crowd: null, t: null, views: {} };
 export function startLab(params) {
   if (params.get('lab') === 'fassade') { import('./deco.js').then(D => D.startFacadeLab(params)); return; }   // V38: Fassaden-Labor
+  if (params.get('lab') === 'turm') { import('./lab-turm.js').then(L => L.startTurmLab(params)); return; }   // V76: Turmkronen, Lisenen, Leuchtpylone
   if (params.get('lab') === 'penthouse') { import('./lab-penthouse.js').then(L => L.startPenthouseLab(params)); return; }   // V41: Penthouse-Labor
   if (params.get('lab') === 'villa') { import('./lab-villa.js').then(L => L.startVillaLab(params)); return; }   // V41: Villa-Labor
   if (params.get('lab') === 'strassen') { import('./lab-strassen.js').then(L => L.startRoadsLab(params)); return; }   // V42: Straßen-Labor
