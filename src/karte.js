@@ -50,6 +50,7 @@ export const KARTE = {
   open: false, ready: false, gen: null, base: null, E: null, view: { cx: 0, cz: -200, k: 0.3 }, el: null, st: null, lv: null,
   W: 0, H: 0, dpr: 1, dirty: true, liveT: 0, hudT: 0, places: [], placeT: 0, card: null, hover: null, travel: null,
   districts: [], waterLabels: [], s: { v: {}, wp: null, ring: true, lay: { orte: true, handel: true, gegner: true, aufgaben: true, figuren: true, laeden: false, bezirke: true, bahn: true } },
+  placeHooks: [],  // V78: weitere feste Orte mit Schnellreise: f(add)
   liveHooks: [],   // V63: weitere lebende Punkte (Nebenfiguren): f(liste, ebenen)
   mk: null, visitT: 0, fromPause: false, stats: {},
 };
@@ -347,6 +348,7 @@ function kaPlaces() {
       ziele: [{ t: 'Hinfliegen', a: { x: sd.x + sd.nx * (sd.lc + 1.4), y: sd.y, z: sd.z + sd.nz * (sd.lc + 1.4) } }] }); }
   // Verstecke (erst wenn entdeckt)
   for (const H of VERST.list) if (H.ok && H.known) add({ id: 'verst:' + H.id, cat: 'gegner', icon: H.cleared ? 'versteckAus' : 'versteck', n: H.name, sub: H.cleared ? 'Ausgehoben' : (H.def && H.def.sub || 'Versteck') + ' · Eingang hier', x: H.ex, z: H.ez, prio: 8, ziele: [{ t: 'Hinfliegen', a: { x: H.ex + 4, y: 0.3, z: H.ez + 4 } }] });
+  for (const f of KARTE.placeHooks) try { f(add); } catch (e) { /* Ort fehlt */ }   // V78: Orte anderer Teile (Krater)
   return P;
 }
 // lebende Punkte: Ärger, Aufgaben, Luftschiff

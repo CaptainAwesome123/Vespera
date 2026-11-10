@@ -64,6 +64,7 @@ import './bahn.js';      // V63: Straßenbahn und Hochbahn: Linien, Haltestellen
 import './strasse.js';   // V72: Straßenhändler, Kundgebung und Demonstrationszug im Arbeiterviertel
 import './alltag.js';    // V76: Tagesabläufe: Schichtarbeiter, Schichtwechsel, Stadtpuls nach der Uhr, Streikposten
 import './imperium.js';  // V76: Alexanders Imperium (Kontor · Reiter Imperium): Sparten, Löhne, Preise, Arbeitszeit, Streiks, Konjunktur, Kredit
+import './krater.js';    // V78: Der Krater außerhalb der Stadt: altes Expeditionslager, zwei Gletscherhöhlen, zwölf Fundstücke
 
 import { shared, $, renderer, scene, camera, TREE, T } from './core.js';
 import { layers, chunkStats } from './chunks.js';

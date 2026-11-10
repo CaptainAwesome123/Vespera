@@ -30,6 +30,7 @@ export function startLab(params) {
   if (params.get('lab') === 'orte') { import('./lab-orte.js').then(L => L.startOrteLab(params)); return; }   // V58: Theater, Bank, Café
   if (params.get('lab') === 'kraft') { import('./lab-kraft.js').then(L => L.startKraftLab(params)); return; }   // V52: Telekinese-Möbel und staunende Leute
   if (params.get('lab') === 'wasser') { import('./lab-wasser.js').then(L => L.startWaterLab(params)); return; }   // V58: gefrorener Kanal, Güterkai, Boote
+  if (params.get('lab') === 'krater') { import('./lab-landschaft.js').then(L => L.startLandscapeLab(params)); return; }   // V78: Expeditionslager, Eistore, Gletscherhöhlen
   if (params.get('lab') === 'landschaft') { import('./lab-landschaft.js').then(L => L.startLandscapeLab(params)); return; }   // V44: Landschafts-Labor
   buildEnv(); getMats();
   scene.fog.density = 0.0002;
