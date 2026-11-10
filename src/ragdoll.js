@@ -333,6 +333,8 @@ export function updatePedestrians(dt, t) {
       if (mk) { SLOW[i] = 0; ACC[i] = 0; pd.a.far8 = false; }   // wen ein anderes System führt, der zählt wieder in jedem Bild
       near.push(pd); continue;
     }
+    // Staunende, Kellner, Händler, Kundgebung und Demonstrationszug schalten sich selbst ein und aus: immer jedes Bild (wenige)
+    if (pd.st === 9 || pd.st === 10) { if (mk) { SLOW[i] = 0; ACC[i] = 0; pd.a.far8 = false; } near.push(pd); if (pd.st === 9) aweStep(pd, dt0); else lifeStep(pd, dt0); continue; }
     if (mk !== 7) near.push(pd);
     dt = dt0;
     if (mk) { if ((i & mk) !== (turn & mk)) { ACC[i] += dt0; continue; } dt = dt0 + ACC[i]; ACC[i] = 0; }

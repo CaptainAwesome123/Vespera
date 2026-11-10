@@ -337,7 +337,7 @@ function furnShow(e) {
 export function furnBody(e) {
   if (!e || e.taken || LOOSE.bodies.length >= MAX_BODIES) return null;
   const I = furnInfo(e), W = movWorld(e), f = e.frame;
-  const parts = FURN[e.type](...e.args).map(([g, role]) => [g.rotateY(e.a), role]);
+  const parts = FURN[e.type](...e.args).map(([g, role]) => [g.clone().rotateY(e.a), role]);   // V77: Formen sind geteilt, erst kopieren
   // lokaler Grundriss (für die Villa-Quader), dann die Weltlage
   const lb = new T.Box3(); for (const [g] of parts) { g.computeBoundingBox(); lb.union(g.boundingBox); }
   if (f) for (const [g] of parts) g.rotateY(f.ry);

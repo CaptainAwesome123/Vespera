@@ -93,7 +93,10 @@ export const FURN = {
   },
 };
 // V52: jedes Möbelstück weiß, welche Form es ist (für die Telekinese: Sofas, Sessel, Stühle, Tische, Lampen sind greifbar)
-for (const k of Object.keys(FURN)) { const f = FURN[k]; FURN[k] = (...a) => { const P = f(...a); P.furn = { type: k, args: a }; return P; }; }
+// V77: jede Form (Art + Maße) wird nur einmal gebaut. Die Stadt stellt rund 2000 Möbel auf, aber nur einige Dutzend verschiedene;
+// placeFurn kopiert die Teile ohnehin beim Aufstellen. Wer die Teile selbst verändert, muss sie vorher kopieren (g.clone()).
+const FURN_CACHE = new Map();
+for (const k of Object.keys(FURN)) { const f = FURN[k]; FURN[k] = (...a) => { const key = k + '|' + a.join(','); let P = FURN_CACHE.get(key); if (!P) { P = f(...a); P.furn = { type: k, args: a }; FURN_CACHE.set(key, P); } return P; }; }
 /* V52: Verzeichnis der beweglichen Möbel. Solange MOV.frame gesetzt ist (movOn), merkt sich placeFurn jedes Stück:
    Art, Maße, Ort, Drehung, Materialzuordnung und (über mergeGeos in core.js) die Eckenbereiche in den zusammengefassten
    Netzen. Packt Alexander ein Stück mit Telekinese, fallen diese Ecken in sich zusammen (das Stück verschwindet aus dem
