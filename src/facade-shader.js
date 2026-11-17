@@ -1,4 +1,4 @@
-import { T, U, FOG_GLSL, SCHNEE } from './core.js';
+import { T, U, FOG_GLSL, SCHNEE, REGENGLAS } from './core.js';
 import { addCollider } from './people-skeleton.js';
 
 /* =====================================================================
@@ -31,6 +31,8 @@ void main(){
 export const facadeFS = `
 #define ROOMSTYLE ${INNEN ? '2.5' : '1.5'}
 ${SCHNEE ? '#define SCHNEE 1' : ''}
+${REGENGLAS ? '#define REGENGLAS 1' : ''}
+uniform float uRain;
 uniform vec4 uWind;
 #define BRICK_MEAN vec3(0.519, 0.287, 0.184)
 uniform float uTime; uniform vec3 uFogColor; uniform float uFogDensity; uniform vec3 uMoonDir; uniform vec3 uTeal; uniform vec3 uCam; uniform sampler2D uBrick; uniform float uBrickOn; uniform sampler2D uStone; uniform float uStoneOn; uniform float uWet; uniform float uSnowCover; uniform float uIce;
@@ -446,6 +448,21 @@ void main(){
   float edgeF = step(wx*0.5 - 0.055, abs(g.x - 0.5)) + step(wy*0.5 - 0.045, abs(g.y - 0.5));
   float frame = clamp(mullV + mullH + edgeF, 0.0, 1.0) * (1.0 - smoothstep(0.05, 0.13, px));
   vec3 frameC = mix(vec3(0.05, 0.04, 0.035), vec3(0.16, 0.14, 0.12), step(0.5, hash(vec2(seed, 44.0)))) * (0.4 + 0.6*moon) + warm*bright*lit*0.06;
+#ifdef REGENGLAS
+  // V98: Regentropfen und Rinnsale auf den Fensterscheiben, nur aus der Nähe (Fenster größer als etwa 25 Bildpunkte);
+  // die Tropfen fangen das Zimmerlicht oder den Nebel und haben einen dunklen Rand
+  float wgF = clamp(smoothstep(0.4, 0.8, uWet) * 0.7 + uRain, 0.0, 1.0) * (1.0 - smoothstep(0.02, 0.05, px)) * step(0.5, inWinG);
+  if (wgF > 0.02) {
+    vec2 gp = g * cellSz * 18.0; vec2 gi = floor(gp), gf = fract(gp) - 0.5;
+    vec2 bc = (vec2(hash(gi + 3.1), hash(gi + 5.7)) - 0.5) * 0.4; float bd = length(gf - bc);
+    float bead = step(hash(gi + seed), 0.4 * wgF) * (1.0 - smoothstep(0.16, 0.26, bd));
+    float rh = hash(vec2(floor(gp.x * 0.5), seed + 9.0)), rv = fract(gp.y * 0.04 + uTime * (0.2 + 0.3 * rh) + rh * 7.0);
+    float run = step(0.75, rh) * uRain * (1.0 - smoothstep(0.03, 0.09, abs(fract(gp.x * 0.5) - 0.5))) * smoothstep(0.5, 0.97, rv) * (1.0 - smoothstep(0.97, 1.0, rv));
+    float wd = max(bead, run) * wgF;
+    vec3 dropC = warm * bright * lit * 0.55 + glass * 1.8 + uFogColor * 0.6 + vec3(0.02, 0.025, 0.03);
+    winCol = mix(winCol, dropC * (1.0 - 0.6 * smoothstep(0.1, 0.24, bd) * bead), wd * 0.8);
+  }
+#endif
   winCol = mix(winCol, frameC, frame);
   // Laibung: der Blick trifft die Seitenwand der Öffnung. Oben der Sturz im Schatten, unten die Bank im Mondlicht, seitlich halbhell; etwas Licht aus dem Raum fällt hinein
   float revTop = step(0.5 + wy*0.5, g.y), revBot = step(g.y, 0.5 - wy*0.5);

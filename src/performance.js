@@ -1,6 +1,6 @@
 import { updateChunks, layers } from './chunks.js';
 import { UNTER } from './unter-hook.js';
-import { shared, T, scene, camera, MOBILE, LOW, renderer, U, FOG_DENSITY, hemi, moonLight, $, FOGVIS, fogHideDist, REVZ, TREE } from './core.js';
+import { shared, T, scene, camera, MOBILE, LOW, renderer, U, FOG_DENSITY, hemi, moonLight, $, FOGVIS, fogHideDist, REVZ, TREE, REGENGLAS } from './core.js';
 import { skipDepthResolve } from './depth.js';
 import { updateIndustry, updateShops } from './shops.js';
 import { inBelmont, interiorCrowd, updateBelmontDoor } from './belmont.js';
@@ -364,6 +364,8 @@ export function frame(now) {
   updateCarScenes(dt); updateCarReturns(dt);
   updateBeamSpots();   // V38: Lichtfleck des Luftschiff-Scheinwerfers
   // V38: im Dunst und bei Niederschlag leuchten die Lichter weicher und weiter (Nachleuchten etwas stärker, Schwelle tiefer)
+  // V98: im Flug durch Regen sammeln sich Tropfen auf der Kamera; sie bleiben nach dem Regen noch eine Weile und trocknen dann ab
+  if (REGENGLAS) { const lt = player.fly && U.uInside.value < 0.5 && !ATMO.inside ? Math.min(1, U.uRain.value * 1.3) : 0, lv = U.uLens.value; U.uLens.value = lv + (lt - lv) * Math.min(1, rdt * (lt > lv ? 0.5 : 0.18)); if (U.uLens.value < 0.004) U.uLens.value = 0; }
   if (bloomPass) { const mist = Math.min(U.uMist.value, 2.3), wet = U.uRain.value + U.uSnow.value; bloomPass.strength = 0.66 + 0.1 * mist + 0.12 * wet; bloomPass.threshold = 0.72 - 0.06 * mist * 0.5; }
 
   if (playing) {

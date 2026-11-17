@@ -115,6 +115,7 @@ setupReverseZ(renderer, camera, T);
 export const MOON_DIR = new T.Vector3(-0.42, 0.42, -0.8).normalize();
 export const U = {
   uTime: { value: 0 },
+  uLens: { value: 0 },   // V98: Tropfen auf der Kamera (0 trocken, 1 voll), performance.js
   uInside: { value: 0 },   // V67: 0 draußen, 1 in Belmont und Penthouse (Tonkurve in bloom.js)
   uFogColor: { value: FOG_COLOR },
   uFogDensity: { value: FOG_DENSITY },
@@ -220,6 +221,8 @@ T.ShaderChunk.fog_fragment = `#ifdef USE_FOG
 // V97: Schnee auf der Stadt: auch Fassadenschmuck, Stadtmobiliar, Laternen am Bahndamm, Eingänge und Arbeiterhäuser tragen Schnee,
 // er glitzert aus der Nähe, an der Wetterseite der Wände klebt angewehter Schnee, am Fuß der Häuser liegen Schneewehen.
 // ?schnee=aus = Stand V96 (der alte Schnee auf Dächern, Simsen, Laternen und Autos bleibt).
+// V98: Regen auf Glas: Tropfen und Rinnsale an Autoscheiben und Fenstern, im Flug Tropfen auf der Kamera (uLens). ?regenglas=aus = Stand V97.
+export const REGENGLAS = new URLSearchParams(location.search).get('regenglas') !== 'aus';
 export const SCHNEE = new URLSearchParams(location.search).get('schnee') !== 'aus';
 export const snowyNeu = (mat, k, still, minY) => SCHNEE ? snowy(mat, k, still, minY) : mat;
 // minY (V97): unterhalb dieser Höhe kein Schnee (Teppiche und Stufen vor den Portalen werden freigekehrt)

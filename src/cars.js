@@ -1,4 +1,4 @@
-import { T, mergeGeos, scene } from './core.js';
+import { T, U, mergeGeos, scene, REGENGLAS } from './core.js';
 import { ENV, mergeColored, PAINT } from './people-skeleton.js';
 import { roundBox } from './entrances.js';
 import { COL } from './serpentine.js';
@@ -75,6 +75,7 @@ export function carGlassMat() {
   const m = new T.MeshPhysicalMaterial({ color: 0x9fb8c0, metalness: 0.0, roughness: 0.04, transparent: true, opacity: 0.22, envMapIntensity: 1.6, depthWrite: false, side: T.DoubleSide });
   if (ENV) m.envMap = ENV;
   m.onBeforeCompile = sh => {
+    sh.uniforms.uRain = U.uRain; sh.uniforms.uWet = U.uWet; sh.uniforms.uTime = U.uTime;
     sh.vertexShader = 'attribute float aOpt; attribute vec4 aDmg; varying vec3 vGp; varying float vCrack;\n' + sh.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
       vGp = position; vCrack = 0.0;
       #ifdef USE_INSTANCING_COLOR
@@ -82,7 +83,18 @@ export function carGlassMat() {
         if (cv == 1.0) transformed = vec3(0.0);
         vCrack = aDmg.x * step(0.2, position.x) + aDmg.y * step(position.x, -1.8) + aDmg.z * step(position.z, -0.7) + (1.0 - aDmg.w) * step(0.7, position.z);
       #endif`);
-    sh.fragmentShader = 'varying vec3 vGp; varying float vCrack;\nfloat ckH(vec2 p){ return fract(sin(dot(p, vec2(41.3, 289.1))) * 43758.5453); }\n' + sh.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>
+    sh.fragmentShader = 'uniform float uRain; uniform float uWet; uniform float uTime; varying vec3 vGp; varying float vCrack;\nfloat ckH(vec2 p){ return fract(sin(dot(p, vec2(41.3, 289.1))) * 43758.5453); }\n' + sh.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>
+      ${REGENGLAS ? `// V98: Regentropfen auf den Scheiben (Perlen, nach Regen noch eine Weile) und herablaufende Rinnsale bei Regen
+      { float wg = clamp(smoothstep(0.4, 0.8, uWet) * 0.7 + uRain, 0.0, 1.0);
+        if (wg > 0.02) {
+          vec2 gp = vec2(vGp.x + vGp.z, vGp.y) * 26.0; vec2 gi = floor(gp), gf = fract(gp) - 0.5;
+          float bead = step(ckH(gi), 0.45 * wg) * (1.0 - smoothstep(0.14, 0.26, length(gf - (vec2(ckH(gi + 3.1), ckH(gi + 5.7)) - 0.5) * 0.4)));
+          float rc = floor(gp.x * 0.5), rh = ckH(vec2(rc, 9.0));
+          float rv = fract(gp.y * 0.045 + uTime * (0.25 + 0.35 * rh) + rh * 7.0);
+          float run = step(0.72, rh) * uRain * (1.0 - smoothstep(0.03, 0.09, abs(fract(gp.x * 0.5) - 0.5))) * smoothstep(0.55, 0.98, rv) * (1.0 - smoothstep(0.98, 1.0, rv));
+          float wd = max(bead, run);
+          diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.78, 0.86, 0.9), wd * 0.6); diffuseColor.a = mix(diffuseColor.a, 0.6, wd);
+        } }` : ''}
       // gesprungene Scheibe: Netz aus Rissen um einen Einschlag
       if (vCrack > 0.35) {
         vec2 q = vGp.zy * 14.0; vec2 c = floor(q), f = fract(q);
