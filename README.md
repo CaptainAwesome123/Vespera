@@ -52,6 +52,7 @@ src/                der Spielcode als ES-Module, ein Abschnitt pro Datei
                       Qualitätsstufe hoch/niedrig: core.js QUALITY (?qualitaet=niedrig, Taste K, Knopf im Startbild) (V38)
   airships.js         Luftschiffe, Lichtsäulen, Bodennebel, Dunstschichten zwischen den Türmen und Scheinwerfer-Lichtfleck (V38)
   carlight.js         Scheinwerferkegel und Lichtteppich der nächsten Automobile (V38)
+  lichtschatten.js    Weiche Schatten von Laternen und Scheinwerfern (V102): Leute, Alexander und Wagen werfen Schatten aufs Pflaster, ?lichtschatten=aus
   cars.js             Autos mit Innenraum und Insassen
   traffic.js          Verkehr auf dem Straßennetz
   player.js           Spieler: Gehen, Schwerkraft, Fliegen
