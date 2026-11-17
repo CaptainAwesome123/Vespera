@@ -857,7 +857,7 @@ void humanShape(inout vec3 p, float L, float fem, float fid, float op) {
       q.z += 0.004 * fat * exp(-pow((ax - 0.04) / 0.02, 2.0) - pow((q.y - mouthY - 0.012) / 0.022, 2.0)) * fr;
       q.z += 0.003 * brw * exp(-pow((ax - 0.03) / 0.02, 2.0) - pow((q.y - eyeY - 0.022) / 0.008, 2.0)) * fr;   // Brauenwulst
       q.z += 0.0022 * lip * exp(-pow(q.x / 0.02, 2.0) - pow((q.y - mouthY) / 0.008, 2.0)) * fr;              // Lippen voll oder schmal
-      q.z -= 0.006 * fh * smoothstep(eyeY + 0.03, 0.09, q.y) * fr;                                // fliehende Stirn
+      q.z -= 0.006 * max(0.0, fh) * smoothstep(eyeY + 0.03, 0.09, q.y) * fr;                      // fliehende Stirn (V79: nie vorgewölbt, das stach durch anliegendes Haar)
       q.x += sign(q.x) * 0.0025 * eyS * exp(-pow((ax - 0.031) / 0.014, 2.0) - pow((q.y - eyeY) / 0.012, 2.0)) * fr;   // Augenabstand
       q.y += 0.002 * asy * sign(q.x) * exp(-pow((ax - 0.031) / 0.014, 2.0) - pow((q.y - eyeY) / 0.012, 2.0));         // ungleiche Augen
       // Ohren stehen ab
@@ -973,7 +973,7 @@ export const HUM_VS_RIG = `
   if (hSk > 0.5 && hSk < 1.5) {
     float hm = floor(aSoft.z / 16.0), want = mod(floor(aGait.w / 7680.0), 3.0), hc = rHeadC;
     float on = step(7.5, hm) + mod(floor(hm / pow(2.0, want)), 2.0);
-    if (on > 0.5) { vec3 c = vec3(0.0, hc, rHeadZ); vec3 d = hP - c; float up = smoothstep(0.0, 0.06, d.y); hP = c + d * mix(1.0, 0.9, up); hSw *= 0.3; }
+    if (on > 0.5) { vec3 c = vec3(0.0, hc, rHeadZ); vec3 d = hP - c; float up = smoothstep(-0.01, 0.05, d.y); hP = c + d * mix(1.0, 0.8, up); hSw *= 0.3; }
     else {
       float bald = (1.0 - hFemV) * step(0.55, hh(aGait.x * 4.4 + 0.3) + hElder * 0.35);
       vec3 d = hP - vec3(0.0, hc, rHeadZ);
@@ -1060,6 +1060,8 @@ export const HUM_VS_POS = `
           if (abs(vari - want) > 0.1 || (grp > 2.5 && (act > 1.5 || carryK > 0.5 || runK > 0.5))) transformed = vec3(0.0);
         }
         vFaceUV = uv; vFaceId = mod(aGait.w, 7680.0) + 7680.0 * gPlayer; vClP = position; vPnt = step(2.97, color.r + color.g + color.b); vSoft = aSoft;
+        // V79: Kopfhaut unter der Frisur dieser Figur (Gewicht je Frisur in der Farbe der Hautecken, siehe people-mh.js)
+        if (abs(aMH.z - 2.0) < 0.5 || aMH.z > 5.5) { float st = mod(floor(aGait.w / 23040.0), 3.0); vSoft.y = st < 0.5 ? color.r : st < 1.5 ? color.g : color.b; }
         // Atlas der MakeHuman-Figuren: Haut je Figur aus vier Bildern (jung, mittel, alt, dunkel)
         vTexUV = aMH.xy; vTexK = aMH.z;
         if (aMH.z > 1.5 && aMH.z < 2.5) { float idv = mod(aGait.w, 7680.0), fid = mod(idv, 64.0), tone = mod(floor(idv / 64.0), 5.0), age = fract(fid * 0.754877 + 0.13);
@@ -1095,14 +1097,14 @@ export const HUM_FS_COLOR = () => `
             if (tK < 1.5) { float pk = 1.0 - smoothstep(0.55, 0.8, tx.a); diffuseColor.rgb = mix(tx.rgb, diffuseColor.rgb * tx.r * 2.2, pk); }
             else if (tK < 2.5) { vec3 ref = tone < 2.5 ? vec3(0.97, 0.9, 0.84) : vec3(0.62, 0.48, 0.38); diffuseColor.rgb = tx.rgb * clamp(T5 / ref, 0.55, 1.35); }
             else if (tK > 5.5) diffuseColor.rgb = tx.rgb;                                   // V24: Spieler, feste Haut
-            else if (tK < 3.5 || tK > 4.5) { if (tx.a < (tK > 4.5 ? 0.35 : 0.5)) discard; diffuseColor.rgb = HC * tx.r * (tK > 4.5 ? 1.2 : 1.9); if (plF > 0.5 && tK < 3.5) diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.82, 0.62, 0.34) * tx.r * 1.5, smoothstep(0.45, 0.8, tx.r) * 0.4); }
+            else if (tK < 3.5 || tK > 4.5) { if (tx.a < (tK > 4.5 ? 0.14 : 0.4) + (tK > 4.5 ? 0.3 : 0.25) * fract(52.9829 * fract(dot(gl_FragCoord.xy, vec2(0.06711, 0.00584))))) discard; diffuseColor.rgb = HC * tx.r * (tK > 4.5 ? 0.6 : 0.4 + 1.1 * tx.r); if (plF > 0.5 && tK < 3.5) diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.82, 0.62, 0.34) * tx.r * 1.5, smoothstep(0.45, 0.8, tx.r) * 0.4); }
             else {
               // V24: Auge: Iris je Figur gefärbt (braun, dunkel, blau, grün, grau, haselnuss), beim Lidschlag deckt das Lid
               float mx = max(tx.r, max(tx.g, tx.b)), sat = mx > 0.0 ? (mx - min(tx.r, min(tx.g, tx.b))) / mx : 0.0, ir = smoothstep(0.18, 0.4, sat) * step(mx, 0.85);
               float ic = floor(hh2(fid * 3.1 + 0.7) * 6.0);
               vec3 IC = ic < 0.5 ? vec3(0.42, 0.25, 0.13) : ic < 1.5 ? vec3(0.22, 0.13, 0.07) : ic < 2.5 ? vec3(0.3, 0.48, 0.66) : ic < 3.5 ? vec3(0.34, 0.47, 0.3) : ic < 4.5 ? vec3(0.45, 0.48, 0.52) : vec3(0.5, 0.36, 0.16);
-              vec3 e = mix(tx.rgb, IC * dot(tx.rgb, vec3(0.3, 0.59, 0.11)) * 2.6, ir);
-              diffuseColor.rgb = mix(e, vec3(0.78, 0.56, 0.46) * T5 * 0.85, clamp(vBlink, 0.0, 1.0));
+              vec3 e = mix(tx.rgb, IC * dot(tx.rgb, vec3(0.3, 0.59, 0.11)) * 4.2, ir);
+              diffuseColor.rgb = mix(e, vec3(0.78, 0.56, 0.46) * T5 * 0.85, clamp(vBlink, 0.0, 1.0)); hSpark = step(0.985, min(tx.r, min(tx.g, tx.b))) * (1.0 - clamp(vBlink, 0.0, 1.0)) * 0.06;   // V79: Glanzpunkt im Auge
             }
           }
           float aa = clamp(1.6 - fwidth(vClP.y) * 260.0, 0.0, 1.0), aa2 = clamp(1.6 - fwidth(vClP.y) * 700.0, 0.0, 1.0);
@@ -1118,7 +1120,7 @@ export const HUM_FS_COLOR = () => `
             // V24: Poren und feine Hautlinien (Relief), auf Stirn, Nase und Wangen dichter; Haut lässt Licht durch
             // V44: bei MakeHuman-Haut kommt das Relief (Poren, Lippenlinien, Knöchelfalten) aus dem Alphakanal des Atlas (128 = eben),
             // gemalt in tools/make-people.mjs; das Rauschen je Bildpunkt bleibt nur für die gebauten Figuren ohne Atlas
-            if (tK < 3.5 || tK > 5.5) { hSSS = 1.0; if (tK > 0.5) hB += (tx.a - 0.5) * 0.55; else hB += ((vN3(vClP * 1500.0) - 0.5) * 0.35 + (vN3(vClP * vec3(300.0, 2400.0, 300.0)) - 0.5) * 0.12) * clamp(1.6 - fwidth(vClP.y) * 1400.0, 0.0, 1.0); }
+            if (tK < 3.5 || tK > 5.5) { hSSS = 1.0; if (tK > 0.5) { hB += (tx.a - 0.5) * 0.3; diffuseColor.rgb *= mix(vec3(1.0), vec3(dot(HC, vec3(0.6, 1.2, 0.6))) + 0.12, vSoft.y * 0.9); } else hB += ((vN3(vClP * 1500.0) - 0.5) * 0.35 + (vN3(vClP * vec3(300.0, 2400.0, 300.0)) - 0.5) * 0.12) * clamp(1.6 - fwidth(vClP.y) * 1400.0, 0.0, 1.0); }
             if (vFaceUV.x >= 0.0) {
               vec2 cell = vec2(mod(fid, 8.0), floor(fid / 8.0)), fuv = (cell + clamp(vFaceUV, 0.01, 0.99)) / 8.0;
               vec4 f = texture2D(uFaces, fuv); vec3 m = texture2D(uFaceMat, fuv).rgb;
@@ -1127,7 +1129,9 @@ export const HUM_FS_COLOR = () => `
                 // V24: MakeHuman-Köpfe bekommen Schminke, Bart, Falten, Rötungen und Lippen aus dem Gesichteratlas;
                 // gemalte Augen und Brauen entfallen (Augäpfel und Brauen sind eigene Netze)
                 vec2 fp = (vFaceUV - 0.5) * vec2(${HL.fw.toFixed(3)}, ${HL.fh.toFixed(3)}) + vec2(0.0, ${HL.fy.toFixed(3)});
-                if (cls > 0.83 || (cls > 0.17 && cls < 0.5 && abs(fp.x) < 0.05 && fp.y > ${(HL.eyeY + 0.007).toFixed(4)})) f.a = 0.0;
+                // V79: vom gemalten Gesicht bleibt am MakeHuman-Kopf nur der Bart (Haarfarbe, unterhalb der Nase). Schatten, Falten, Glanzfleck
+                // und Lippen saßen auf dem echten Kopf schief (Augenringe, Kritzel auf der Stirn); Lippen und Lider sind jetzt in die Haut gemalt
+                if (!(cls > 0.17 && cls < 0.5 && fp.y < ${HL.noseY.toFixed(4)})) { f.a = 0.0; m = vec3(0.0, 0.5, m.b); }
               }
               if (cls < 0.17) diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * f.rgb * 2.0, f.a);
               else if (cls < 0.5) diffuseColor.rgb = mix(diffuseColor.rgb, HC * (0.65 + 0.5 * f.r), f.a);
@@ -1142,7 +1146,11 @@ export const HUM_FS_COLOR = () => `
             }
           } else if (fab < 2.5) {
             // Haar: Farbe der Figur, Strähnen quer zur Wuchsrichtung, dunkler am Ansatz, Glanzband
-            if (tK > 0.5) { vec3 c = diffuseColor.rgb; c += HC * 0.5 * pow(1.0 - nv, 3.0); diffuseColor.rgb = c; hRough = plF > 0.5 ? 0.3 : 0.45; hB = (tx.r - 0.5) * (plF > 0.5 ? 0.45 : 0.8); } else {
+            if (tK > 0.5) {
+              // V79: Glanzband der Strähnen (Haar wächst abwärts: Tangente = Lot in der Fläche), statt des leuchtenden Rands
+              vec3 hN = normalize(vNormal), hUp = normalize((viewMatrix * vec4(0.0, 1.0, 0.0, 0.0)).xyz), hT = normalize(hUp - hN * dot(hN, hUp) + 1e-4), hH = normalize(vd + hUp * 0.8);
+              float hTH = dot(hT, hH), band = pow(max(0.0, 1.0 - hTH * hTH), 24.0) * smoothstep(-0.2, 0.5, dot(hN, hUp) + nv);
+              vec3 c = diffuseColor.rgb * (0.8 + 0.2 * nv); c += (HC * 0.9 + 0.06) * band * tx.r * 0.9; diffuseColor.rgb = c; hRough = plF > 0.5 ? 0.42 : 0.55; hB = (tx.r - 0.5) * (plF > 0.5 ? 0.6 : 0.8); } else {
             float across = -vFaceUV.x, along = vFaceUV.y;
             float ac = across * 7.0, fa = clamp(1.0 - fwidth(ac) * 1.5, 0.0, 1.0);
             float st = vN3(vec3(ac, along * 2.0, vClP.y * 6.0)), clump = vN3(vClP * 60.0);
@@ -1224,7 +1232,7 @@ export const HUM_FS_COLOR = () => `
 // in die Licht ein paar Millimeter eindringt; Glanzlicht bleibt wie es ist
 const SSS_CHUNK = T.ShaderChunk.lights_physical_pars_fragment.replace('reflectedLight.directDiffuse += irradiance * BRDF_Lambert( material.diffuseColor );',
   `vec3 irrD = irradiance;
-  if (hSSS > 0.0) { float nl = dot(geometry.normal, directLight.direction); vec3 w = clamp((vec3(nl) + vec3(0.5, 0.3, 0.22)) / vec3(1.5, 1.3, 1.22), 0.0, 1.0); irrD = mix(irradiance, pow(w, vec3(1.5)) * directLight.color * vec3(1.0, 0.96, 0.94), hSSS); }
+  if (hSSS > 0.0) { float nl = dot(geometry.normal, directLight.direction); vec3 w = clamp((vec3(nl) + vec3(0.4, 0.3, 0.25)) / vec3(1.4, 1.3, 1.25), 0.0, 1.0); irrD = mix(irradiance, pow(w, vec3(1.5)) * directLight.color * vec3(1.0, 0.96, 0.94), hSSS); }
   reflectedLight.directDiffuse += irrD * BRDF_Lambert( material.diffuseColor );`);
 if (SSS_CHUNK === T.ShaderChunk.lights_physical_pars_fragment) console.warn('Hautlicht: Licht-Baustein von three.js nicht gefunden');
 // Glanz, Metall und Relief nach den Stoffarten
@@ -1243,7 +1251,7 @@ export function humanShader(sh) {
     .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\n if (hRough >= 0.0) roughnessFactor = hRough;')
     .replace('#include <metalnessmap_fragment>', '#include <metalnessmap_fragment>\n if (hMetal >= 0.0) metalnessFactor = hMetal;')
     .replace('#include <normal_fragment_maps>', '#include <normal_fragment_maps>\n { vec2 dh = vec2(dFdx(hB), dFdy(hB)) * 0.0022; normal = hPerturb(-vViewPosition, normal, dh, faceDirection); }')
-    .replace('totalEmissiveRadiance *= vColor * 3.0;', 'totalEmissiveRadiance *= vColor * 3.0;\n totalEmissiveRadiance += diffuseColor.rgb * hSpark * 6.0 + vec3(1.0, 0.9, 0.7) * hSpark * 0.6;');
+    .replace('totalEmissiveRadiance *= vColor * 3.0;', 'totalEmissiveRadiance *= hSSS > 0.5 ? diffuseColor.rgb * 2.4 : vColor * 3.0;\n totalEmissiveRadiance += diffuseColor.rgb * hSpark * 6.0 + vec3(1.0, 0.9, 0.7) * hSpark * 0.6;');
 }
 
 // Aussehen einer Figur in einer Zahl: Gesicht (0-63), Hautton (5), Haarfarbe (6)

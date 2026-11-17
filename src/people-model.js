@@ -727,7 +727,8 @@ export function personBuild(kind, q) {
       arms(1.31, 0.54, PAINT, { spread: 0.178, hand: Math.random() < 0.5 ? [0.92, 0.9, 0.86] : COL.skin, cuff: [0.32, 0.25, 0.2] });
     }
     head(1.58);
-    if (kind === 'gown') { TAG = 'hat'; tor(0.09, 0.005, 1.648, -0.012, COL.gold, 1.12, 0.3); sph(0.011, 0.055, 1.672, 0.06, [0.85, 0.95, 1.0], 1, 1, 0.6, 8, 6, FAB.metal); for (const sx of [-1, 1]) { sph(0.004, sx * 0.073, 1.555, -0.006, COL.gold, 1, 1, 1, 4, 3); P0(hTube([[sx * 0.073, 1.553, -0.006], [sx * 0.0735, 1.535, -0.006], [sx * 0.0735, 1.518, -0.005]], [0.0018, 0.0018, 0.0018], { seg: 4, n: 4, swayKind: 5, sway: v => v * 0.6 }), COL.gold, FAB.metal); sph(0.0075, sx * 0.0735, 1.512, -0.005, [0.95, 0.93, 0.88], 1, 1.25, 1, 8, 6, FAB.satin); } TAG = 'body'; }
+    if (kind === 'gown') { TAG = 'hat'; if (!PB.mh) { tor(0.09, 0.005, 1.648, -0.012, COL.gold, 1.12, 0.3); sph(0.011, 0.055, 1.672, 0.06, [0.85, 0.95, 1.0], 1, 1, 0.6, 8, 6, FAB.metal); }   // V79: das Diadem versank im Haar der neuen Köpfe
+      for (const sx of [-1, 1]) { sph(0.004, sx * 0.073, 1.555, -0.006, COL.gold, 1, 1, 1, 4, 3); P0(hTube([[sx * 0.073, 1.553, -0.006], [sx * 0.0735, 1.535, -0.006], [sx * 0.0735, 1.518, -0.005]], [0.0018, 0.0018, 0.0018], { seg: 4, n: 4, swayKind: 5, sway: v => v * 0.6 }), COL.gold, FAB.metal); sph(0.0075, sx * 0.0735, 1.512, -0.005, [0.95, 0.93, 0.88], 1, 1.25, 1, 8, 6, FAB.satin); } TAG = 'body'; }
     else if (kind === 'dress') { hats(1.58, [headband, cloche([0.3, 0.06, 0.08]), null]); earrings(1.58, 0); }
     else { hats(1.58, [cloche(COL.dark), wideBrim([0.15, 0.12, 0.1]), turban([0.28, 0.18, 0.32])]); earrings(1.58, 1); carry(1.31, ['umbrella', 'bag', 'paper']); }
   }
