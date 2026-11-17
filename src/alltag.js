@@ -373,7 +373,7 @@ function seatNow(V, pd) {
   const fr = V.seats.filter(s => !s.taken && s !== DINE.seat); if (!fr.length) return false;
   const s = pick(fr);
   s.taken = pd; pd.seat = s; pd.g = null; pd.st = 4; pd.x = s.x; pd.y = s.y; pd.z = s.z; pd.yaw = s.yaw; setSit(pd, true);
-  pd.act = Math.random() < 0.5 ? 11.4 : 7.8; setAct(pd, pd.act); pd.dineT = 4 + Math.random() * 14; pd.path = null;
+  pd.act = [11.4, 7.8, 46.2, 46.2, 45.8, 44.8][Math.floor(Math.random() * 6)]; setAct(pd, pd.act);   // V79: auch mit Messer und Gabel, Tasse, anstoßen pd.dineT = 4 + Math.random() * 14; pd.path = null;
   if (pd.dish) { pd.dish.position.set(s.tx, s.ty, s.tz); pd.dish.rotation.y = s.yaw; pd.dish.visible = true; }
   return true;
 }

@@ -69,7 +69,7 @@ const DARK_TROUSERS = [0.07, 0.07, 0.08], GLOVE_SATIN = [0.92, 0.9, 0.86];
 // (Farbe des Filzes dazu). shoes2 = braune Halbschuhe (shoes04).
 const FED_DARK = [0.16, 0.14, 0.13], FED_BLACK = [0.05, 0.05, 0.06], FED_GREY = [0.24, 0.23, 0.22];
 // V56: Cloche-Farben (Filz): dunkles Bordeaux, Schwarz, Creme
-const CLO_DARK = [0.26, 0.09, 0.1], CLO_BLACK = [0.05, 0.05, 0.06], CLO_CREAM = [0.62, 0.55, 0.42];
+const CLO_DARK = [0.26, 0.09, 0.1], CLO_BLACK = [0.05, 0.05, 0.06], CLO_CREAM = [0.62, 0.55, 0.42], CLO_PLUM = [0.2, 0.1, 0.22];
 // V56: Grundkachel je Kleidungsteil; eine andere Kachel der Art (K.tile) wird durch Verschieben und Skalieren der Atlas-UV erreicht
 const BASE_TILE = { 'suit-m': 'suit', 'work-m': 'work', 'lady-f': 'lady', 'flapper-f': 'flapper', 'braces-m': 'braces', 'jacket-m': 'jacket' };
 export const MH_KIND = {
@@ -83,7 +83,7 @@ export const MH_KIND = {
   worker:    { g: 'm', parts: ['work-m', 'boots-m'], tile: 'work', keep: ['hat', 'props'], hair: ['C', 'E', 'A'] },
   sailor:    { g: 'm', parts: ['work-m', 'boots-m'], tile: 'work', keep: ['hat', 'props'], hair: ['C', 'A', 'E'] },
   kid:       { g: 'm', parts: ['work-m', 'boots-m'], tile: 'work', keep: ['hat', 'carry', 'props'], hair: ['A', 'C', 'D'] },
-  lady:      { g: 'f', parts: ['lady-f', 'heels-f'], tile: 'lady', keep: ['hat', 'carry', 'props'], hair: ['A', 'B', 'E'], mhHat: { 1: ['cloche-f', CLO_DARK] } },
+  lady:      { g: 'f', parts: ['lady-f', 'heels-f'], tile: 'lady', keep: ['hat', 'carry', 'props'], hair: ['A', 'B', 'E'], mhHat: { 1: ['cloche-f', CLO_DARK], 3: ['cloche-f', CLO_PLUM] } },   // V79: Glockenhut statt des gerippten Turbans
   gown:      { g: 'f', parts: ['heels-f'], keep: ['body', 'hat', 'props'], cover: { from: 0.02, to: 1.366, mg: 0.012 }, gloves: GLOVE_SATIN, longGloves: true, hair: ['A', 'B', 'D'] },
   dress:     { g: 'f', parts: ['heels-f'], keep: ['body', 'hat', 'props'], cover: { from: 0.42, to: 1.366, mg: 0.01 } , hair: ['B', 'A', 'C'] },
   // V39: Dame im langen Pelzmantel (Wintermantel mit Pelzkragen, -manschetten und -saum; Stoff in der Farbe der Figur), Hüte und Taschen wie das Kostüm
@@ -315,9 +315,15 @@ export function mhPersonGeo(kind, q) {
   const bits = meta.hideBits; let mask = 0; for (const p of K.parts) mask |= bits[p] || 0;
   const inCover = (src, i) => cover && src.position[i * 3 + 1] > cover.y0 && src.position[i * 3 + 1] < cover.y1;
   // V24: Kopf und Hals vorn bekommen Gesichtskoordinaten (gemalte Schminke, Bärte, Falten); der Spieler hat sein eigenes Gesicht
-  const fm = K.player ? null : faceMapper(gk), r = rig, chin = r.face ? r.face.chinY - 0.045 : r.neck - 0.05;
+  // V79: das gemalte Gesicht (FACE_ATLAS) liegt nicht mehr auf den MakeHuman-Köpfen: Lider, Brauenschatten und Lippen sind in die
+  // Hautkacheln gemalt (tools/make-people.mjs, faceFinish) und sitzen dort genau; der Shader spart zwei Texturzugriffe je Bildpunkt
+  const fm = null, r = rig, chin = r.face ? r.face.chinY - 0.045 : r.neck - 0.05;
   const face = fm ? i => { const g = bodySrc._reg[i], y = bodySrc.position[i * 3 + 1]; return (g === 1 || g === 2) && y > chin ? fm(bodySrc.position[i * 3], y, bodySrc.position[i * 3 + 2]) : null; } : null;
-  add(bodySrc, { isBody: true, face, drop: i => (bodySrc._hide[i] & mask) !== 0 || (inCover(bodySrc, i) && bodySrc._reg[i] !== 4 && bodySrc._reg[i] !== 5 && bodySrc._reg[i] !== 6 && bodySrc._reg[i] !== 1) });
+  // V79: Farbe der Hautecken = Gewicht "Kopfhaut unter dem Haar" für die drei Frisuren der Art (r, g, b); der Shader nimmt das der
+  // gewählten Frisur und färbt die Haut dort in der Haarfarbe (sonst 0: reine Haut)
+  const HL5 = 'ABCDE', hs = K.player ? ['A', 'A', 'A'] : (K.hair || ['A', 'B', 'C']), scq = bodySrc._scalp, sce = bodySrc._scalq;
+  const scalpCol = scq ? i => hs.map(h => { const k = HL5.indexOf(h); return k < 4 ? scq[i * 4 + k] : sce[i]; }) : [0, 0, 0];
+  add(bodySrc, { isBody: true, face, color: scalpCol, drop: i => (bodySrc._hide[i] & mask) !== 0 || (inCover(bodySrc, i) && bodySrc._reg[i] !== 4 && bodySrc._reg[i] !== 5 && bodySrc._reg[i] !== 6 && bodySrc._reg[i] !== 1) });
   add(S('eyes-' + gk));
   if (K.player) add(S('hairP-m') || S(`hairB-${gk}`), { opt0: true });       // V32: glatt zurückgekämmt mit Seitenscheitel (MakeHuman short04), immer; V48: mit mehr Fülle (hairP-m)
   else (K.hair || ['A', 'B', 'C']).forEach((h, i) => add(S(`hair${h}-${gk}`) || S(`hair${'ABC'[i]}-${gk}`), { opt: 11 + i }));   // V39: Frisur-Set der Art, Variante 11..13

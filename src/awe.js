@@ -112,7 +112,7 @@ const wrapA = a => Math.atan2(Math.sin(a), Math.cos(a));
 // Hut ziehen (5) und nach oben zeigen (16) sind im Shader Zyklen von 7 bzw. 12 s; die Zeitverschiebung der Figur (gait[0]) wird
 // so gewählt, dass die Geste jetzt beginnt (tt = uTime·(0,9 + 0,2·fract(g·3,7)) + 7·g, siehe people-skeleton.js)
 function phaseFor(act, g0) {
-  const P = act < 6 ? 7 : 12, s0 = act < 6 ? 0.0 : 0.05, t = U.uTime.value, fr = x => x - Math.floor(x);
+  const P = act > 40 ? 8 : act < 6 ? 7 : 12, s0 = act < 6 || act > 40 ? 0.0 : 0.05, t = U.uTime.value, fr = x => x - Math.floor(x);
   for (let n = 0; n < 240; n++) { const g = g0 + n * 0.0417, tt = t * (0.9 + 0.2 * fr(g * 3.7)) + g * 7, f = fr(tt / P); if (f >= s0 && f < s0 + 0.025) return g; }
   return g0;
 }
@@ -127,6 +127,7 @@ function startAwe(pd, o) {
     bow: o.bow || 0, duck: o.duck || 0, sx, sz, away: o.away || 0, lean: o.lean || 0 };
   if (!o.keep && pd.st === 0) pd.st = 9;   // Gehende auf ihrer Runde (Bewohner laufen über updateCitizens)
   if (A.act > 4.5 && A.act < 5.5) { g[0] = phaseFor(5, g[0]); A.dur = Math.max(A.dur, 3.4); }
+  else if (A.act > 47.5 && A.act < 48.5) { g[0] = phaseFor(48, g[0]); A.dur = Math.max(A.dur, 3.2); }   // V79: Hut ziehen von vorn beginnen
   else if (A.act > 15.5 && A.act < 16.5) { g[0] = phaseFor(16, g[0]); A.dur = Math.max(A.dur, 6.5); }
   setAct(pd, A.act); a.gv = (a.gv | 0) + 1;
   return A;
@@ -195,7 +196,8 @@ function greet(pd, d2) {
   else if (att === 'skep') { o.act = kind === 'worker' && r < 0.4 ? 15.3 : r < 0.7 ? 12.2 : 1.3; o.lean = 0.05; o.away = r < 0.5 ? 2.2 : 0; }
   else if (att === 'furcht') { o.act = d2 < 2.5 * 2.5 && r < 0.5 ? 13.2 : 1.3; o.duck = 0.13; o.shift = keep ? 0 : 0.75; o.dur = 2.2 + Math.random() * 1.2; }
   else if (att === 'hass') { o.act = r < 0.5 ? 15.3 : 12.2; o.lean = 0.06; o.away = 0.5 + Math.random() * 0.6; o.shift = 0; }   // V72: kalter Blick, dann abwenden
-  else if (att === 'resp') { if (man) { o.act = r < 0.6 ? 5.3 : 1.3; o.bow = o.act < 2 ? 0.25 : 0; } else { o.act = 1.3; o.bow = 0.15; } }
+  else if (att === 'resp') { if (man) { o.act = r < 0.3 ? 48.3 : r < 0.6 ? 5.3 : 1.3;   // V79: manche ziehen den Hut
+    o.bow = o.act < 2 ? 0.25 : 0; } else { o.act = 1.3; o.bow = 0.15; } }
   else { if (kind === 'police' || kind === 'sailor') o.act = 5.3; else { o.act = 1.3; o.bow = 0.6; } }   // dienst
   startAwe(pd, o);
   return true;

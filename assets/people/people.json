@@ -43,8 +43,8 @@
     "mouthY": 1.5976,
     "mouthZ": 0.1624,
     "mouthW": 0.0218,
-    "chinY": 1.5588,
-    "chinZ": 0.153
+    "chinY": 1.5595,
+    "chinZ": 0.1543
    },
    "hand": [
     [
@@ -215,13 +215,13 @@
    "face": {
     "eyeX": 0.0287,
     "eyeY": 1.5498,
-    "browY": 1.5701,
-    "noseY": 1.5195,
+    "browY": 1.5706,
+    "noseY": 1.5203,
     "noseZ": 0.1557,
-    "mouthY": 1.4912,
-    "mouthZ": 0.1466,
-    "mouthW": 0.0206,
-    "chinY": 1.4617,
+    "mouthY": 1.4913,
+    "mouthZ": 0.1471,
+    "mouthW": 0.0208,
+    "chinY": 1.4627,
     "chinZ": 0.1348
    },
    "hand": [
@@ -396,9 +396,9 @@
     "browY": 1.6838,
     "noseY": 1.6247,
     "noseZ": 0.1718,
-    "mouthY": 1.5982,
-    "mouthZ": 0.1627,
-    "mouthW": 0.0225,
+    "mouthY": 1.5981,
+    "mouthZ": 0.1624,
+    "mouthW": 0.0217,
     "chinY": 1.5578,
     "chinZ": 0.1557
    },
@@ -551,7 +551,7 @@
  },
  "atlas": {
   "w": 2048,
-  "h": 9216,
+  "h": 10240,
   "tile": 512,
   "rect": {
    "skin_m": [
@@ -596,7 +596,7 @@
     1,
     1
    ],
-   "face_p": [
+   "hairC_m": [
     1,
     7,
     1,
@@ -704,38 +704,14 @@
     1,
     1
    ],
-   "hairA_m": [
-    2,
-    16,
-    0.5,
-    0.5
-   ],
-   "hairB_m": [
-    2.5,
-    16,
-    0.5,
-    0.5
-   ],
-   "hairC_m": [
-    2,
-    16.5,
-    0.5,
-    0.5
-   ],
-   "hairD_m": [
-    2.5,
-    16.5,
-    0.5,
-    0.5
-   ],
    "hairE_m": [
-    3,
+    2,
     16,
-    0.5,
-    0.5
+    1,
+    1
    ],
    "fedora": [
-    3.5,
+    3,
     16,
     0.5,
     0.5
@@ -748,9 +724,9 @@
    ],
    "cloche": [
     3.5,
-    16.5,
+    16,
     0.5,
-    0.5
+    1
    ],
    "shoes": [
     0,
@@ -764,29 +740,53 @@
     0.5,
     0.5
    ],
-   "brows_m": [
-    1,
-    17,
-    0.25,
-    0.25
-   ],
-   "brows_f": [
-    1.25,
-    17,
-    0.25,
-    0.25
-   ],
-   "lashes": [
-    1,
-    17.25,
-    0.5,
-    0.25
-   ],
    "heels": [
     1.5,
     17,
     0.25,
     0.25
+   ],
+   "brows_m": [
+    0,
+    18,
+    1,
+    1
+   ],
+   "brows_f": [
+    1,
+    18,
+    1,
+    1
+   ],
+   "lashes": [
+    2,
+    18,
+    1,
+    1
+   ],
+   "face_p": [
+    3,
+    18,
+    1,
+    2
+   ],
+   "hairA_m": [
+    0,
+    19,
+    1,
+    1
+   ],
+   "hairB_m": [
+    1,
+    19,
+    1,
+    1
+   ],
+   "hairD_m": [
+    2,
+    19,
+    1,
+    1
    ]
   },
   "skinTiles": 4
@@ -913,20 +913,20 @@
    "tris": 384
   },
   "lashes-m": {
-   "verts": 250,
-   "tris": 736
+   "verts": 130,
+   "tris": 384
   },
   "lashes-f": {
-   "verts": 250,
-   "tris": 736
+   "verts": 130,
+   "tris": 384
   },
   "heels-f": {
    "verts": 2454,
    "tris": 4290
   },
   "cloche-f": {
-   "verts": 319,
-   "tris": 560
+   "verts": 396,
+   "tris": 704
   },
   "straps-f": {
    "verts": 60,
@@ -941,15 +941,15 @@
    "tris": 519
   },
   "body-m@1": {
-   "verts": 2348,
+   "verts": 2349,
    "tris": 4012
   },
   "body-f@1": {
-   "verts": 2344,
+   "verts": 2346,
    "tris": 4012
   },
   "body-p@1": {
-   "verts": 4544,
+   "verts": 4545,
    "tris": 8026
   },
   "suit-m@1": {
@@ -973,7 +973,7 @@
    "tris": 664
   },
   "heels-f@1": {
-   "verts": 697,
+   "verts": 693,
    "tris": 1072
   },
   "eyes-m@1": {
@@ -985,48 +985,48 @@
    "tris": 172
   },
   "hairA-m@1": {
-   "verts": 773,
-   "tris": 1946
+   "verts": 778,
+   "tris": 1978
   },
   "hairB-m@1": {
-   "verts": 453,
-   "tris": 836
+   "verts": 438,
+   "tris": 804
   },
   "hairP-m@1": {
-   "verts": 436,
-   "tris": 800
+   "verts": 450,
+   "tris": 816
   },
   "hairC-m@1": {
    "verts": 685,
    "tris": 1838
   },
   "hairA-f@1": {
-   "verts": 548,
-   "tris": 1324
+   "verts": 540,
+   "tris": 1320
   },
   "hairB-f@1": {
-   "verts": 1599,
-   "tris": 3708
+   "verts": 1600,
+   "tris": 3704
   },
   "hairC-f@1": {
-   "verts": 889,
-   "tris": 2070
+   "verts": 884,
+   "tris": 2054
   },
   "hairD-m@1": {
-   "verts": 369,
-   "tris": 1144
+   "verts": 370,
+   "tris": 1150
   },
   "hairE-m@1": {
-   "verts": 300,
-   "tris": 824
+   "verts": 298,
+   "tris": 822
   },
   "hairD-f@1": {
-   "verts": 492,
-   "tris": 1478
+   "verts": 499,
+   "tris": 1504
   },
   "hairE-f@1": {
-   "verts": 688,
-   "tris": 1596
+   "verts": 691,
+   "tris": 1608
   },
   "fedora-m@1": {
    "verts": 224,
@@ -1037,8 +1037,8 @@
    "tris": 373
   },
   "coat-f@1": {
-   "verts": 1161,
-   "tris": 1325
+   "verts": 1158,
+   "tris": 1323
   },
   "shoes2-m@1": {
    "verts": 350,
@@ -1057,8 +1057,8 @@
    "tris": 1498
   },
   "cloche-f@1": {
-   "verts": 169,
-   "tris": 279
+   "verts": 209,
+   "tris": 351
   },
   "straps-f@1": {
    "verts": 60,
