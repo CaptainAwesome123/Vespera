@@ -1,4 +1,4 @@
-import { T, mergeGeos, scene, pick, R, rand, mulberry32, canvasTex, freeAfterUpload } from './core.js';
+import { T, mergeGeos, scene, pick, R, rand, mulberry32, canvasTex, freeAfterUpload, snowyNeu } from './core.js';
 import { stdMat, MAT, addCollider } from './people-skeleton.js';
 import { addGlow, addSeg, addNeon, NEON, STONES, RIBS, spires, towers, roofs, neonPool, shafts, steamPts, segs, neons } from './facade-shader.js';
 import { plan76, lightBand, towerPiers, setbackPylons, sunCrown, lanternCrown, mastCrown, stepCrown, FORCE76, KRONEN } from './stadtbild.js';
@@ -524,7 +524,7 @@ export function buildSigns() {
       frames.push(new T.BoxGeometry(wd + 0.2, h + 0.2, 0.1).translate(0, 0, -0.1).rotateY(ry).translate(px, 4.5 + h / 2 + 0.2, pz));
     }
   }
-  if (frames.length) { const fm = new T.Mesh(mergeGeos(frames), stdMat({ color: 0x3a2a16, metalness: 0.7, roughness: 0.4, envI: 0.6 })); fm.frustumCulled = false; scene.add(fm); }
+  if (frames.length) { const fm = new T.Mesh(mergeGeos(frames), snowyNeu(stdMat({ color: 0x3a2a16, metalness: 0.7, roughness: 0.4, envI: 0.6 }), 0.8)); fm.frustumCulled = false; scene.add(fm); }
 }
 export function hexToArr(hex, k = 1) { const c = new T.Color(hex); return [c.r * k, c.g * k, c.b * k]; }
 

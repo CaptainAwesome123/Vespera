@@ -217,7 +217,13 @@ T.ShaderChunk.fog_fragment = `#ifdef USE_FOG
    Polarnacht: eine leichte Schneedecke liegt immer (uSnowCover hat in atmosphere.js eine Untergrenze), bei Schneefall wird sie dicker.
    snowy(mat, k, still) legt sie auf ein Standardmaterial: auf Flächen mit Normale nach oben, fleckig nach Weltlage (still = false:
    ohne Flecken, für Dinge, die sich bewegen wie Autos). Nur für Außenmaterialien verwenden, sonst schneit es in die Räume. */
-export function snowy(mat, k = 1, still = true) {
+// V97: Schnee auf der Stadt: auch Fassadenschmuck, Stadtmobiliar, Laternen am Bahndamm, Eingänge und Arbeiterhäuser tragen Schnee,
+// er glitzert aus der Nähe, an der Wetterseite der Wände klebt angewehter Schnee, am Fuß der Häuser liegen Schneewehen.
+// ?schnee=aus = Stand V96 (der alte Schnee auf Dächern, Simsen, Laternen und Autos bleibt).
+export const SCHNEE = new URLSearchParams(location.search).get('schnee') !== 'aus';
+export const snowyNeu = (mat, k, still, minY) => SCHNEE ? snowy(mat, k, still, minY) : mat;
+// minY (V97): unterhalb dieser Höhe kein Schnee (Teppiche und Stufen vor den Portalen werden freigekehrt)
+export function snowy(mat, k = 1, still = true, minY = -1e4) {
   const prev = mat.onBeforeCompile, pk = mat.customProgramCacheKey();
   mat.onBeforeCompile = (sh, r) => {
     if (prev) prev.call(mat, sh, r);
@@ -231,13 +237,17 @@ export function snowy(mat, k = 1, still = true) {
       float snNo = mix(mix(SNH(snI), SNH(snI + vec2(1.0, 0.0)), snF.x), mix(SNH(snI + vec2(0.0, 1.0)), SNH(snI + vec2(1.0, 1.0)), snF.x), snF.y);
       #undef SNH` : 'float snNo = 0.6;'}
       float snK = smoothstep(0.5 - 0.25 * snA, 0.85 - 0.2 * snA, snN.y) * smoothstep(0.15, 0.45, snA + snNo * 0.5 - 0.25);
-      snK *= snA;
+      snK *= snA${minY > -1e3 ? ` * smoothstep(${minY.toFixed(2)}, ${(minY + 0.15).toFixed(2)}, snP.y)` : ''};
       diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.72, 0.78, 0.88), snK);
+      ${SCHNEE && still ? `// V97: Glitzern aus der Nähe (feste Körner, nur bis etwa 12 m, damit es in der Ferne nicht rauscht)
+      vec2 snGi = floor(snP.xz * 28.0);
+      float snG = step(0.993, fract(sin(dot(snGi, vec2(12.9898, 78.233))) * 43758.5453)) * (1.0 - smoothstep(6.0, 12.0, length(vViewPosition)));
+      totalEmissiveRadiance += vec3(0.55, 0.65, 0.85) * snG * snK * (0.6 + 0.4 * sin(dot(snGi, vec2(3.1, 1.7)) + dot(normalize(vViewPosition), vec3(9.0))));` : ''}
       roughnessFactor = mix(roughnessFactor, 0.7, snK); metalnessFactor = mix(metalnessFactor, 0.0, snK);
     }
     #include <lights_physical_fragment>`);
   };
-  mat.customProgramCacheKey = () => pk + '|snow' + k + still;
+  mat.customProgramCacheKey = () => pk + '|snow' + k + still + minY;
   return mat;
 }
 

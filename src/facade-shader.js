@@ -1,4 +1,4 @@
-import { T, U, FOG_GLSL } from './core.js';
+import { T, U, FOG_GLSL, SCHNEE } from './core.js';
 import { addCollider } from './people-skeleton.js';
 
 /* =====================================================================
@@ -30,6 +30,8 @@ void main(){
 }`;
 export const facadeFS = `
 #define ROOMSTYLE ${INNEN ? '2.5' : '1.5'}
+${SCHNEE ? '#define SCHNEE 1' : ''}
+uniform vec4 uWind;
 #define BRICK_MEAN vec3(0.519, 0.287, 0.184)
 uniform float uTime; uniform vec3 uFogColor; uniform float uFogDensity; uniform vec3 uMoonDir; uniform vec3 uTeal; uniform vec3 uCam; uniform sampler2D uBrick; uniform float uBrickOn; uniform sampler2D uStone; uniform float uStoneOn; uniform float uWet; uniform float uSnowCover; uniform float uIce;
 varying vec3 vWorld; varying vec3 vN; varying vec3 vLN; varying vec3 vT; varying vec3 vTint; varying vec4 vParams; varying vec3 vRib; varying vec3 vLocal; varying vec3 vScale; varying float vFogDepth; varying vec4 vEdge;
@@ -599,6 +601,18 @@ void main(){
 
   // V25: nasse Wände dunkeln unten nach (Spritzwasser), Schnee legt sich auf Gesimse
   col *= 1.0 - 0.18 * uWet * smoothstep(5.0, 0.4, vWorld.y) * step(ln.y, 0.5);
+#ifdef SCHNEE
+  // V97: angewehter Schnee an der Wetterseite: die Wand gegen den Wind fängt Schnee in waagerechten Streifen (Fugen, Kanten, unter Simsen).
+  // Wächst mit der Schneedecke (uSnowCover: 0,4 immer, bis 1 bei Schneefall) und taut mit ihr. Erdgeschoss (Läden, Markisen) bleibt frei.
+  if (abs(ln.y) < 0.5 && uSnowCover > 0.5) {
+    float heavy = smoothstep(0.5, 1.0, uSnowCover);
+    vec3 snC = vec3(0.17, 0.19, 0.22) + vec3(0.32, 0.35, 0.4) * moon + uTeal * 0.05 + flood * vec3(0.12, 0.08, 0.04) * exp(-hy / 30.0);
+    float wwd = smoothstep(0.1, 0.7, -dot(n.xz, normalize(uWind.xy + vec2(1e-4))));
+    float dn = vnoise(vec2(um * 0.9, vWorld.y * 6.0) + seed) * 0.65 + vnoise(vec2(um * 0.25, vWorld.y * 0.8) - seed) * 0.35;
+    float dust = heavy * wwd * smoothstep(0.66, 0.8, dn + 0.12 * heavy) * (1.0 - inWin) * (1.0 - ground) * step(4.6, hy) * mix(0.5, 1.0, midFade);
+    col = mix(col, snC, dust * 0.75);
+  }
+#endif
   float fogF = vespFog(vFogDepth, vWorld.y, uCam.y, uFogDensity, 1.0);
   vec3 fogCol = mix(uFogColor*2.2, uFogColor, smoothstep(0.0, 140.0, vWorld.y));
   gl_FragColor = vec4(mix(col, fogCol, clamp(fogF, 0.0, 1.0)), 1.0);

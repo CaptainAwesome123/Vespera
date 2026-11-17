@@ -1,4 +1,4 @@
-import { T, scene, camera, MOBILE, R, mergeGeos, canvasTex, $ } from './core.js';
+import { T, scene, camera, MOBILE, R, mergeGeos, canvasTex, $, snowyNeu } from './core.js';
 import { MAT, mergeColored, paintMat, addCollider, stdMat, removeColliders } from './people-skeleton.js';
 import { addGlow } from './facade-shader.js';
 import { AV, ST } from './island.js';
@@ -125,7 +125,7 @@ export function buildBahn() {
   for (const s of BAHN.stations) s.change = [...new Set(BAHN.stations.filter(o => o.line !== s.line && Math.hypot(o.x - s.x, o.z - s.z) < 140).map(o => o.line.name))];
   // Gleise, Bett, Viadukt
   const railM = stdMat({ color: 0x9aa0a6, metalness: 1, roughness: 0.22, envI: 1.2 });
-  const bedM = stdMat({ color: 0x1b1f22, roughness: 0.7, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+  const bedM = snowyNeu(stdMat({ color: 0x1b1f22, roughness: 0.7, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }), 0.7);   // V97: Schnee zwischen den Schienen
   const add = (list, mat) => { if (!list.length) return null; const m = new T.Mesh(mergeGeos(list), mat); m.frustumCulled = false; scene.add(m); return m; };
   add(rails, railM); add(beds, bedM);
   if (deck.length) { const m = new T.Mesh(mergeColored(deck), paintMat({ color: 0xffffff, metalness: 0.55, roughness: 0.55, envI: 0.5, side: T.DoubleSide })); m.frustumCulled = false; scene.add(m); }

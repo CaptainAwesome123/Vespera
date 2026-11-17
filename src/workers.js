@@ -1,4 +1,4 @@
-import { T, scene, mulberry32, shared, MOBILE, canvasTex } from './core.js';
+import { T, scene, mulberry32, shared, MOBILE, canvasTex, snowyNeu } from './core.js';
 import { stdMat, addCollider } from './people-skeleton.js';
 import { registerLayer } from './chunks.js';
 import { addGlow, addSeg, lamps, trees, glowPts, steamPts, segs, roofs } from './facade-shader.js';
@@ -46,7 +46,7 @@ export function planWorkerAlley(x, z0, z1, Hc, b) {
 /* ---------- Materialien: Backstein mit Fotozeichnung (three.js-Beispiel, MIT), Rest aus dem Bausatz (harbour.js) ---------- */
 export function workMats() {
   if (WORK.mats) return WORK.mats;
-  const brick = wantTexture(stdMat({ vertexColors: true, color: 0x8a5040, roughness: 0.92, envI: 0.25 }), { map: 'brick-color', bumpMap: 'brick-bump', bumpScale: 0.04, repeat: [1.6, 1.6], color: 0xe2d6cc });
+  const brick = wantTexture(snowyNeu(stdMat({ vertexColors: true, color: 0x8a5040, roughness: 0.92, envI: 0.25 }), 0.85), { map: 'brick-color', bumpMap: 'brick-bump', bumpScale: 0.04, repeat: [1.6, 1.6], color: 0xe2d6cc });
   return WORK.mats = { brick };
 }
 
