@@ -744,7 +744,7 @@ export function buildBelmontInterior() {
   const anyone = (x, y, z, yaw, v) => act((R() < 0.5 ? tux : gown)(x, y, z, yaw), v);
   const sitAt = (x, seatY, z, yaw, v) => { const m = R() < 0.5; return act((m ? tux : gown)(x, seatY - (m ? 0.87 : 0.8), z, yaw), v); };
   const dens = MOBILE ? 0.55 : 1;   // auf dem Handy weniger Zuschauer und Galeriegäste
-  const standAct = () => { const r = R(); return r < 0.45 ? 0.6 : r < 0.8 ? 5.3 : 0.2; };
+  const standAct = () => { const r = R(); return r < 0.45 ? 0.6 : r < 0.65 ? 5.3 : r < 0.8 ? 44.3 : 0.2; };   // V79: manche stoßen an
   // Band
   const face = Math.PI * 0 + 0;
   const band = [
@@ -768,7 +768,7 @@ export function buildBelmontInterior() {
   // V51: Gäste sitzen auf den Stühlen an den Tischen (vorher standen sie daneben), dazu ein paar Stehende
   for (const [x, z] of tables) {
     const n = 2 + Math.floor(R() * 3);
-    for (let k = 0; k < 4; k++) { if (k >= n) break; const a = k * Math.PI / 2 + 0.4; sitAt(x + Math.cos(a) * 1.45, P + 0.52, z + Math.sin(a) * 1.45, -a - Math.PI / 2, R() < 0.5 ? 11.4 : 7.8); }
+    for (let k = 0; k < 4; k++) { if (k >= n) break; const a = k * Math.PI / 2 + 0.4; sitAt(x + Math.cos(a) * 1.45, P + 0.52, z + Math.sin(a) * 1.45, -a - Math.PI / 2, [11.4, 7.8, 7.8, 46.2, 45.8, 44.8][Math.floor(R() * 6)]); }   // V79: auch Messer und Gabel, Tasse, anstoßen
     if (R() < 0.3) { const a = 0.4 + Math.PI * 0.25 + Math.floor(R() * 4) * Math.PI / 2; anyone(x + Math.cos(a) * 1.9, P, z + Math.sin(a) * 1.9, Math.atan2(-Math.cos(a), -Math.sin(a)), 0.6); }
   }
   // Zuschauer am Rand der Tanzfläche: klatschen, trinken, plaudern

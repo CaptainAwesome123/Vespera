@@ -546,7 +546,19 @@ void humanPose(float fem, float gs, float elder) {
     } else {
       // die Handlungen von früher (u: Oberarm, f: Ellbogen, a: Abspreizen, hp: Kopf)
       float uR = 0.04, uL = 0.04, fR = -0.2, fL = -0.2, aR = 0.0, aL = 0.0, hp = 0.0;
-      if (act < 2.5) { float lg = max(0.0, sin(tt * 0.9)); hp = -0.08 - 0.16 * lg - 0.05 * abs(sin(tt * 12.0)) * lg; uR = -0.25; fR = -1.5; fL = -0.35; jawO = 0.6 * lg; spP = -0.05 * lg; }
+      if (act > 43.5) {
+        // V79: neue Handlungen. 44 anstoßen und trinken, 45 Tasse mit Untertasse, 46 mit Messer und Gabel essen (Sitz), 47 auf die
+        // Taschenuhr sehen, 48 den Hut ziehen, 49 Zeitung lesen. Nachkommateil über 0,5: im Sitzen (44, 45)
+        float cy = fract(tt / 8.0), k = smoothstep(0.42, 0.52, cy) * (1.0 - smoothstep(0.64, 0.76, cy)), ts = smoothstep(0.04, 0.14, cy) * (1.0 - smoothstep(0.26, 0.36, cy));
+        sitK = step(0.5, actI) * step(act, 45.5);
+        if (act < 44.5) { uR = -0.3 - 0.95 * ts - 0.5 * k; fR = -1.0 + 0.35 * ts - 1.3 * k; aR = 0.1 * ts; fL = -0.3; hp = -0.15 * k - 0.05 * ts; fgC.x = 0.9; }
+        else if (act < 45.5) { uR = -0.35 - 0.5 * k; fR = -1.25 - 1.1 * k; uL = -0.3; fL = -1.35; hp = 0.06 - 0.16 * k; fgC = vec2(0.95, 0.5); }
+        else if (act < 46.5) { float cut = 1.0 - smoothstep(0.34, 0.42, cy), sw = sin(tt * 9.0) * cut; sitK = 1.0; uR = -0.6 - 0.3 * k + 0.04 * sw; fR = -0.7 - 1.5 * k - 0.08 * sw; uL = -0.6; fL = -0.7; hp = 0.2 * cut - 0.05 * k; chew = step(0.66, cy); fgC = vec2(1.0); }
+        else if (act < 47.5) { float w = ts + k; uL = -0.5 * w; fL = -0.25 - 1.5 * w; hp = 0.36 * w; nkY = 0.25 * w; fgC.y = 0.5; }
+        else if (act < 48.5) { uR = -2.2 * ts; fR = -0.2 - 1.85 * ts; aR = 0.3 * ts; hp = 0.22 * smoothstep(0.14, 0.2, cy) * (1.0 - smoothstep(0.26, 0.34, cy)); fgC.x = 0.4 + 0.5 * ts; }
+        else { uR = -0.32; uL = -0.32; fR = -1.3; fL = -1.3; aR = -0.06; aL = -0.06 + 0.1 * ts; hp = 0.3 + 0.04 * sin(tt * 0.4); nkY = 0.12 * sin(tt * 0.35); fgC = vec2(1.0); }
+      }
+      else if (act < 2.5) { float lg = max(0.0, sin(tt * 0.9)); hp = -0.08 - 0.16 * lg - 0.05 * abs(sin(tt * 12.0)) * lg; uR = -0.25; fR = -1.5; fL = -0.35; jawO = 0.6 * lg; spP = -0.05 * lg; }
       else if (act < 3.5) { float w = sin(tt * 7.5), on = actI > 0.5 ? 1.0 : smoothstep(0.0, 0.15, fract(tt / 6.0)) * (1.0 - smoothstep(0.45, 0.6, fract(tt / 6.0))); aR = (2.55 + 0.25 * w) * on; fR = -0.25 - 0.35 * on - 0.2 * w * on; fgC.x = 0.05; }
       else if (act < 4.5) { uR = -0.72; fR = -0.75 + 0.16 * sin(tt * 11.0); hp = 0.06; spP = 0.05; fgC.x = 1.0; }
       else if (act < 5.5) { float cy = fract(tt / 7.0), k = smoothstep(0.0, 0.12, cy) * (1.0 - smoothstep(0.32, 0.46, cy)); uR = -0.3 - 0.5 * k; fR = -1.0 - 1.3 * k; fL = -0.3; hp = -0.15 * k; fgC.x = 0.9; }
@@ -1026,16 +1038,16 @@ export const HUM_VS_POS = `
         float act = hAct, walking = step(0.01, aGait.z), actI = fract(aGait.y), tt = uTime * (0.9 + 0.2 * fract(aGait.x * 3.7)) + aGait.x * 7.0;
         // V24: Brille nur, wenn das Gesicht eine hat (FACE_SPECS: gleiche Regel wie im Gesichteratlas)
         if (aOpt > 70.5 && aOpt < 72.5) { float fidv = mod(mod(aGait.w, 7680.0), 64.0); if (hFem > 0.5 || mod(fidv * 7.0, 13.0) > 1.5) transformed = vec3(0.0); }
-        else if (aOpt > 40.5 && aOpt < 46.5) {
+        else if (aOpt > 40.5 && aOpt < 49.5) {
           float pv = aOpt - 40.0, show = 0.0;
-          if (pv < 1.5) show = (abs(act - 5.0) < 0.5 || abs(act - 11.0) < 0.5) ? 1.0 : 0.0;
+          if (pv < 1.5) show = (abs(act - 5.0) < 0.5 || abs(act - 11.0) < 0.5 || abs(act - 44.0) < 0.5) ? 1.0 : 0.0;
           else if (pv < 4.5) {
             float seg = pv - 1.0, bites = 0.0, holds = 0.0;
             if ((act > 16.5 && act < 17.5) || (act > 18.5 && act < 19.5)) { bites = mod(floor(tt / 9.0), 4.0) + step(0.165, fract(tt / 9.0)); holds = 1.0; }
             else if (act > 17.5 && act < 18.5) { float cyc = floor(tt / 10.0), u = fract(tt / 10.0), giver = abs(step(0.5, actI) - step(0.5, mod(cyc, 2.0))); bites = mod(cyc, 4.0) + step(0.6, u); holds = giver > 0.5 ? 1.0 - step(0.31, u) : step(0.31, u); }
             show = holds * (1.0 - step(seg - 0.5, bites));
           }
-          else show = abs(act - 10.0) < 0.5 ? 1.0 : 0.0;
+          else show = abs(act - (pv < 6.5 ? 10.0 : pv < 8.5 ? 45.0 : 49.0)) < 0.5 || (pv < 6.5 && abs(act - 46.0) < 0.5) ? 1.0 : 0.0;   // V79: Besteck auch bei 46, Tasse und Untertasse bei 45, Zeitung bei 49
           if (show < 0.5 || walking > 0.5) transformed = vec3(0.0);
         }
         else if (aOpt > 50.5) {

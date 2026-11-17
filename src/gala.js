@@ -99,7 +99,7 @@ function guestsDo(kind) {
     if (kind === 'reset') { setAct(a, g.act); continue; }
     if (Math.random() < (kind === 'drink' ? 0.9 : 0.85)) {
       if (kind === 'clap') setAct(a, g.sit ? 9.8 : 9.3);
-      else if (kind === 'drink') setAct(a, g.sit ? 11.4 : 5.3);
+      else if (kind === 'drink') setAct(a, g.sit ? 44.8 : 44.3);   // V79: anstoßen, dann trinken
       else if (kind === 'listen') setAct(a, g.sit ? 7.2 : 0.2);
     }
     if (kind !== 'listen') turnHead(a, p.x, p.z);

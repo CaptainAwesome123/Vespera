@@ -475,6 +475,17 @@ export function personBuild(kind, q) {
     });
     OPT = 45; limb(0.005, 0.004, [hx, hy, hz - 0.05], [hx, hy + 0.01, hz + 0.12], [0.85, 0.86, 0.88], 5, FAB.metal); box(0.022, 0.003, 0.04, hx, hy + 0.012, hz + 0.14, [0.85, 0.86, 0.88], 0, 0, 0, FAB.metal);
     if (wl) { LB = [8, top]; OPT = 46; limb(0.005, 0.004, [wl[0] + 0.004, wl[1] - 0.07, wl[2] - 0.03], [wl[0] + 0.004, wl[1] - 0.06, wl[2] + 0.15], [0.85, 0.86, 0.88], 5, FAB.metal); }
+    // V79: Tasse (rechte Hand) mit Untertasse (linke), aufgeschlagene Zeitung (in der rechten, reicht zur linken hinüber)
+    { LB = [7, top]; OPT = 47; const porz = [0.93, 0.9, 0.84];
+      const g = new T.LatheGeometry([[0, 0.002], [0.022, 0], [0.03, 0.012], [0.036, 0.05], [0.033, 0.05], [0.027, 0.014], [0, 0.008]].map(([r, y]) => new T.Vector2(r, y)), 14).rotateX(Math.PI / 2).translate(hx + 0.03, hy, hz + 0.0); P0(g, porz, FAB.satin);
+      P0(new T.TorusGeometry(0.014, 0.004, 5, 10, Math.PI).rotateZ(Math.PI / 2).rotateX(Math.PI / 2).translate(hx - 0.004, hy, hz + 0.026), porz, FAB.satin);
+      P0(new T.CylinderGeometry(0.031, 0.027, 0.004, 12).rotateX(Math.PI / 2).translate(hx + 0.03, hy, hz + 0.042), [0.2, 0.11, 0.05], 0);
+      OPT = 49; const paper = [0.56, 0.54, 0.47], ink = [0.16, 0.15, 0.14], nx = hx + 0.21, nz = hz + 0.12;
+      for (const sd of [-1, 1]) { box(0.21, 0.003, 0.36, nx + sd * 0.104, hy - 0.006, nz, paper, 0, 0, sd * 0.1, FAB.cotton);
+        box(0.16, 0.004, 0.03, nx + sd * 0.104, hy - 0.007, nz + 0.14, ink, 0, 0, sd * 0.1, FAB.cotton);
+        for (let c = 0; c < 3; c++) box(0.044, 0.004, 0.22, nx + sd * (0.045 + c * 0.057), hy - 0.007 - 0.1 * Math.abs(sd * (0.045 + c * 0.057) - sd * 0.104) * 0, nz - 0.03, [0.36, 0.35, 0.31], 0, 0, sd * 0.1, FAB.cotton); }
+      if (wl) { LB = [8, top]; OPT = 48; P0(new T.LatheGeometry([[0, 0], [0.03, 0], [0.062, 0.008], [0.06, 0.011], [0.03, 0.004], [0, 0.004]].map(([r, y]) => new T.Vector2(r, y)), 16).rotateX(Math.PI / 2).translate(wl[0] + 0.004, wl[1] - 0.07, wl[2] + 0.06), porz, FAB.satin); }
+      LB = [7, top]; }
     // V18: Werkzeuge in der Faust (starr am Unterarm)
     const wood = [0.42, 0.27, 0.14], iron = [0.2, 0.2, 0.22], fx = wr[0] + 0.012, fy = wr[1] - 0.088, fz = wr[2] + 0.008;
     LB = [7, top];
