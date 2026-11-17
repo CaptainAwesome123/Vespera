@@ -65,7 +65,7 @@ src/                der Spielcode als ES-Module, ein Abschnitt pro Datei
   boat.js             Boot fahren
   music.js            Jazzband im Ballsaal über Web Audio, Fahrstühle und Benutzen (E)
   audio.js            Klang (V38): gemeinsames Mischpult, Stadt, Straßenbahn, Stimmen, Wetter, Schritte je Boden, Salonmusik in Villa und Penthouse, Luftschiff, Flug, Landung, Telekinese; Taste M
-  bloom.js            Nachleuchten (EffectComposer aus three/addons); V98: Regentropfen auf der Kamera im Flug (uLens), Tropfen auch an Autoscheiben (cars.js) und Fenstern (facade-shader.js), ?regenglas=aus
+  bloom.js            Nachleuchten (EffectComposer aus three/addons); V98: Regentropfen auf der Kamera im Flug (uLens), Tropfen auch an Autoscheiben (cars.js) und Fenstern (facade-shader.js), ?regenglas=aus; V99 Kino-Look: weicherer Lichthof, Filmkorn, Tiefenschärfe im Gespräch (uDof), Farbstimmung je Viertel (uMood, performance.js moodFor), ?kino=aus
   input.js            Tastatur, Maus, Touch
   main.js             Aufbau der Welt und Spielschleife
   performance.js      Lichter-Pool, Sichtweiten, adaptive Auflösung, Bildschleife

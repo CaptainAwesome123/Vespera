@@ -1,6 +1,6 @@
 import { updateChunks, layers } from './chunks.js';
 import { UNTER } from './unter-hook.js';
-import { shared, T, scene, camera, MOBILE, LOW, renderer, U, FOG_DENSITY, hemi, moonLight, $, FOGVIS, fogHideDist, REVZ, TREE, REGENGLAS } from './core.js';
+import { shared, T, scene, camera, MOBILE, LOW, renderer, U, FOG_DENSITY, hemi, moonLight, $, FOGVIS, fogHideDist, REVZ, TREE, REGENGLAS, KINO } from './core.js';
 import { skipDepthResolve } from './depth.js';
 import { updateIndustry, updateShops } from './shops.js';
 import { inBelmont, interiorCrowd, updateBelmontDoor } from './belmont.js';
@@ -278,6 +278,17 @@ export function updateNearPlane(dt) {
 const HUD_LAST = {};
 export function hudSet(id, v, html = false) { if (HUD_LAST[id] === v) return; HUD_LAST[id] = v; const el = $(id); if (html) el.innerHTML = v; else el.textContent = v; }
 export let hudTimer = 0, elapsed = 0; shared.last = performance.now();
+// V99: Farbstimmung je Viertel: [r, g, b, Sättigung], leise (wenige Prozent), damit der Grundlook türkis-gold bleibt
+let MOOD_T = [1, 1, 1, 1];
+function moodFor(n) {
+  if (/Belmont|Penthouse|Ballsaal|Promenade/.test(n)) return [1.05, 1.0, 0.91, 1.06];      // Gold, Champagner
+  if (/Arbeiter|Industrie/.test(n)) return [1.04, 0.98, 0.88, 0.88];                          // Bernstein, etwas entsättigt (Dampf, Ruß)
+  if (/Hafen/.test(n)) return [0.94, 1.02, 1.06, 1.0];                                         // Türkis, Meer
+  if (/Lichterviertel|Theater/.test(n)) return [1.04, 0.97, 1.02, 1.12];                       // Varieté: satter, rosa-warm
+  if (/Börse/.test(n)) return [0.98, 1.0, 1.02, 0.94];                                         // kühl, nüchtern
+  if (/Berge|Villa|Viadukt|Tunnel|Observatorium/.test(n)) return [0.93, 0.99, 1.08, 0.95];     // Eisblau
+  return [1, 1, 1, 1];
+}
 export function frame(now) {
   const raw = (now - shared.last) / 1000, rdt = Math.min(0.05, raw); shared.last = now;
   // V60: Zeitlupe (Taste Z): die Welt läuft mit dt, Alexander selbst (Bewegung, Kräfte, Kamera) mit der echten Zeit rdt
@@ -366,6 +377,11 @@ export function frame(now) {
   // V38: im Dunst und bei Niederschlag leuchten die Lichter weicher und weiter (Nachleuchten etwas stärker, Schwelle tiefer)
   // V98: im Flug durch Regen sammeln sich Tropfen auf der Kamera; sie bleiben nach dem Regen noch eine Weile und trocknen dann ab
   if (REGENGLAS) { const lt = player.fly && U.uInside.value < 0.5 && !ATMO.inside ? Math.min(1, U.uRain.value * 1.3) : 0, lv = U.uLens.value; U.uLens.value = lv + (lt - lv) * Math.min(1, rdt * (lt > lv ? 0.5 : 0.18)); if (U.uLens.value < 0.004) U.uLens.value = 0; }
+  // V99: Farbstimmung gleitet in die des Viertels, Tiefenschärfe blendet im Gespräch ein
+  if (KINO) {
+    const M = U.uMood.value, t = MOOD_T, k = Math.min(1, rdt * 0.6); M.x += (t[0] - M.x) * k; M.y += (t[1] - M.y) * k; M.z += (t[2] - M.z) * k; M.w += (t[3] - M.w) * k;
+    const talk = document.body.classList.contains('nfTalk') ? 1 : 0; U.uDof.value += (talk - U.uDof.value) * Math.min(1, rdt * 2.5); if (U.uDof.value < 0.01) U.uDof.value = 0;
+  }
   if (bloomPass) { const mist = Math.min(U.uMist.value, 2.3), wet = U.uRain.value + U.uSnow.value; bloomPass.strength = 0.66 + 0.1 * mist + 0.12 * wet; bloomPass.threshold = 0.72 - 0.06 * mist * 0.5; }
 
   if (playing) {
@@ -373,7 +389,7 @@ export function frame(now) {
     if (hudTimer <= 0) {
       hudTimer = 0.25;
       const d = districtAt(player.p.x, player.p.z, player.p.y);
-      if (d[0] !== shared.lastDistrict) { shared.lastDistrict = d[0]; showDistrict(d); }
+      if (d[0] !== shared.lastDistrict) { shared.lastDistrict = d[0]; showDistrict(d); MOOD_T = moodFor(d[0]); }
       hudSet('mode', '<b>' + (BOAT.on ? 'Am Ruder' : DRIVE.on ? 'Am Steuer' : player.fly ? 'Im Flug' : 'Zu Fuß') + '</b>', true);
       hudSet('alt', BOAT.on ? Math.round(Math.abs(BOAT.u) * 1.944) + ' Knoten · Gas ' + Math.round(BOAT.thr * 100) + ' %' : DRIVE.on ? Math.round(Math.abs(DRIVE.v) * 3.6) + ' km/h · ' + (DRIVE.revMode ? 'R' : (DRIVE.gear + 1) + '. Gang') + (DRIVE.body && DRIVE.body.dmg.some(v => v > 0.05) ? ' · Zustand ' + Math.round(100 - (DRIVE.body.dmg[0] + DRIVE.body.dmg[1] + DRIVE.body.dmg[2] + DRIVE.body.dmg[3]) * 25) + ' %' : '') : 'Höhe ' + Math.max(0, Math.round(player.p.y)) + ' m');
       const deg = ((-player.yaw * 180 / Math.PI) % 360 + 360) % 360;
