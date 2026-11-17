@@ -8,8 +8,8 @@
    das Mausrad ändert den Abstand. Im Wagen, am Ruder, im Flug und am Tisch
    bleibt alles wie bisher.
    ===================================================================== */
-import { T, scene, camera } from './core.js';
-import { MAT, PL_U } from './people-skeleton.js';
+import { T, scene, camera, U as UG } from './core.js';
+import { MAT, PL_U, PL_W } from './people-skeleton.js';
 import { POWERS, tkCenter } from './powers.js';
 import { BLAST } from './energy.js';
 import { personShare } from './people-model.js';
@@ -87,7 +87,33 @@ function baseState(y, z, key, dt) {
   else AN.ph0 = (AN.ph0 + dt * (AN.cad || 0) * Math.PI * 2) % (Math.PI * 2 * 1000);
   AN.fade = Math.max(0, AN.fade - dt / FADE_S);
 }
+// V88: Luftstrom und Nachschwingen für Mantel, Frack und Haar. Geschwindigkeit aus der Lage der Figur (gilt zu Fuß, im Flug, im
+// Sturz und am Steuer gleich), Luft = Wind minus Geschwindigkeit, in den Körperraum gedreht. Das Nachschwingen ist eine gedämpfte
+// Feder, die von der Beschleunigung angestoßen wird: beim Anfahren bleibt der Stoff zurück, beim Bremsen schwingt er vor
+const AIR = { o: new T.Vector3(), v: new T.Vector3(), a: new T.Vector3(), x: new T.Vector3(), xv: new T.Vector3(), ok: false };
+const _av = new T.Vector3(), _aq = new T.Quaternion(), _aw = new T.Vector3();
+function airWrite(dt) {
+  const W = PL_W.value;
+  if (!(dt > 0.0005)) return;
+  _av.copy(PM.o).sub(AIR.o).divideScalar(dt);
+  if (!AIR.ok || _av.lengthSq() > 150 * 150) { AIR.v.set(0, 0, 0); AIR.a.set(0, 0, 0); AIR.x.set(0, 0, 0); AIR.xv.set(0, 0, 0); AIR.ok = true; AIR.o.copy(PM.o); return; }   // Sprung (Schnellreise, Laden)
+  AIR.o.copy(PM.o);
+  const k = 1 - Math.exp(-dt * 10);
+  _aw.copy(AIR.v); AIR.v.lerp(_av, k);
+  AIR.a.lerp(_aw.subVectors(AIR.v, _aw).divideScalar(dt), 1 - Math.exp(-dt * 6));
+  _aq.copy(PM.q).invert();
+  const w = UG.uWind.value;
+  _aw.set(w.x * w.z, 0, w.y * w.z).sub(AIR.v).applyQuaternion(_aq);
+  W[0].set(_aw.x, _aw.y, _aw.z, 0);
+  // Feder: Ziel liegt gegen die Beschleunigung (4 mm je m/s²), schwach gedämpft, damit der Stoff ein-, zweimal nachschwingt
+  _aw.copy(AIR.a).applyQuaternion(_aq).multiplyScalar(-0.004).clampLength(0, 0.06);
+  const K = 70, C = 2 * Math.sqrt(K) * 0.3, h = Math.min(dt, 0.05);
+  AIR.xv.addScaledVector(_aw.sub(AIR.x).multiplyScalar(K).addScaledVector(AIR.xv, -C), h);
+  AIR.x.addScaledVector(AIR.xv, h).clampLength(0, 0.07);
+  W[1].set(AIR.x.x, AIR.x.y, AIR.x.z, 0);
+}
 function writeU(dt) {
+  airWrite(dt);
   const U = PL_U.value, H = POWERS.hero, D = POWERS.dip, TO = POWERS.takeoff, TK = POWERS.tk, RC = !TK && POWERS.reach, f = AN.fade;   // V57: RC = Hand zum Kristall
   U[0].set(AN.py, AN.pz, f * f * (3 - 2 * f), AN.ph0);
   const vy = player.v.y;

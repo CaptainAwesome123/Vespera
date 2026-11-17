@@ -417,7 +417,7 @@ export function playerHairGeo(body, rig, fine) {
   // nach hinten; auf der kleinen Seite rechts vom Scheitel zum Ohr; hinten abwärts in den Nacken. Breite 0,6 bis 1,4 cm,
   // Wölbung bis 4 mm, jede Locke etwas höher als die darunter, die Spitzen heben sich oben leicht ab (weich, nicht geleckt).
   // Die Eckenfarbe (r) dunkelt die Zwischenräume ab und gibt jeder Locke eine eigene Helligkeit (Sonnensträhnen)
-  const P2 = [], N2 = [], U2 = [], C2 = [], I2 = [];
+  const P2 = [], N2 = [], U2 = [], C2 = [], I2 = [], SW2 = [];
   const col = new Float32Array(N).fill(0.7);
   const rad = new Float32Array(n); for (let v = 0; v < n; v++) rad[v] = Math.hypot(pos[v * 3] - cx, pos[v * 3 + 1] - cy, pos[v * 3 + 2] - cz);
   const eAt = az => { const fj = (az + Math.PI) / (2 * Math.PI) * NU, j0 = Math.min(NU - 1, Math.floor(fj)), tj = fj - j0; return eHs[j0] * (1 - tj) + eHs[j0 + 1] * tj; };
@@ -469,13 +469,14 @@ export function playerHairGeo(body, rig, fine) {
         P2.push(cx + d[0] * (rr + lift) + sd[0] * off, cy + d[1] * (rr + lift) + sd[1] * off, cz + d[2] * (rr + lift) + sd[2] * off);
         N2.push(...nv3([d[0] + sd[0] * e * 0.75, d[1] + sd[1] * e * 0.75, d[2] + sd[2] * e * 0.75]));
         U2.push(uo + e * 0.5, 0.35 + u * Lr / 0.028); C2.push(br * (Math.abs(e) > 0.9 ? 0.74 : Math.abs(e) > 0.4 ? 0.95 : 1.06));
+        SW2.push(0.32 * Math.pow(u, 1.5) * (0.55 + 0.45 * tpq) * (1 - ez));   // V88: Spitzen schwingen leicht im Wind und im Flug
       }
     }
     for (let i = 0; i + 1 < made; i++) for (let e = 0; e < 4; e++) {
       const a = base + i * 5 + e, b = a + 1, c = a + 5, dd = a + 6;
       I2.push(a, c, b, b, c, dd);
     }
-    if (made < 2) { P2.length = N2.length = base * 3; U2.length = base * 2; C2.length = base; }
+    if (made < 2) { P2.length = N2.length = base * 3; U2.length = base * 2; C2.length = base; SW2.length = base; }
   }
   // Ausrichtung der Bänder nach außen (jede Locke einzeln: der Kämmstrich wechselt am Scheitel die Richtung)
   for (let t = 0; t < I2.length; t += 3) { const a = I2[t] * 3, b = I2[t + 1] * 3, c = I2[t + 2] * 3;
@@ -488,6 +489,7 @@ export function playerHairGeo(body, rig, fine) {
   // Instanzfarbe (Anzug), daran lagen in V82 die schwarzen Kratzer in hellen Strähnen
   for (let i = 0; i < M; i++) cl2[i] = Math.min(0.97, cl2[i] / 1.25);
   const soft = new Float32Array(M * 3); for (let i = 0; i < M; i++) soft[i * 3] = FAB.hair;
+  for (let i = 0; i < SW2.length; i++) { soft[(N + i) * 3 + 1] = SW2[i]; soft[(N + i) * 3 + 2] = SW2[i] > 0.002 ? 6 : 0; }   // V88: Art 6 = kurze Locken
   return { position: fp2, normal: nr2, uv: new Float32Array(M * 2), index: idx2, count: M, faceUV: fu2, shade: cl2,
     _limb: new Float32Array(M * 2), _opt: new Float32Array(M), _soft: soft, _texk: new Float32Array(M), _blend: new Float32Array(M) };
 }

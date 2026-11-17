@@ -9,7 +9,7 @@
    window.labView(name | 'x_y_z_tx_ty_tz'), window.labPose(akt), window.labTime(t)
    ===================================================================== */
 import { T, scene, camera, renderer, U, $ } from './core.js';
-import { buildEnv, getMats } from './people-skeleton.js';
+import { buildEnv, getMats, PL_W } from './people-skeleton.js';
 import { Crowd, GOWNS, COATS } from './serpentine.js';
 import { buildPlayerModel, PM } from './player-model.js';
 
@@ -71,6 +71,9 @@ export function startFigurLab(params) {
   window.labPose = akt => { FLAB.akt = +akt || 0; for (const a of FLAB.cast) { a.gait[1] = FLAB.akt; a.gait[2] = 0; a.k6 = null; if (!window.labBlend) a.bl = null; C.set(a, a.lab.x, 0, a.lab.z, a.lab.yaw); } tag(); };
   window.labGait = (amp, speed = 4.6) => { for (const a of FLAB.cast) { a.gait[1] = speed; a.gait[2] = amp; } };
   window.labTime = t => { FLAB.t = t; };
+  // V88: Fahrtwind am Spieler (Körperraum, m/s; z<0 = Luft von vorn) und Wind für alle: labAir(0,0,-30), labWind(1,0,12,0.5)
+  window.labAir = (x, y, z, lx = 0, ly = 0, lz = 0) => { PL_W.value[0].set(x, y, z, 0); PL_W.value[1].set(lx, ly, lz, 0); };
+  window.labWind = (x, z, s, g = 0) => { U.uWind.value.set(x, z, s, g); };
   FLAB.t = params.get('t') != null ? +params.get('t') : null;
   $('overlay').hidden = true;
   for (const h of document.querySelectorAll('.hud, .touch')) h.style.display = 'none';

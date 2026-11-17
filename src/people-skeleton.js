@@ -13,6 +13,7 @@ import { mocapGLSL, MOCAP } from './mocap.js';
 // V87: halbe Dauer eines Wechsels zwischen zwei Handlungen (alte ausblenden, neue einblenden), Sekunden
 export const BL_H = 0.28;
 export const PL_U = { value: Array.from({ length: 8 }, () => new T.Vector4()) };
+export const PL_W = { value: [new T.Vector4(), new T.Vector4()] };   // V88: Luft gegen Alexander (Körperraum, m/s) und Nachschwingen des Stoffs (m)
 export const DANCE = { fox: 2.0, charl: 2.6, sway: 2.0 };   // Schläge pro Sekunde
 // Lenkräder und Steuerräder: Mitte (Körperraum), Radius, Neigung der Achse nach oben
 export const WHEEL = { car: [0, 1.19, 0.47, 0.18, 0.5], boat: [0, 1.08, 0.42, 0.17, 0.5], ship: [0, 1.15, 0.52, 0.36, 0.0] };
@@ -56,7 +57,8 @@ attribute vec2 aLimb; attribute vec4 aGait; attribute float aOpt; attribute vec3
 attribute vec4 aMH;   // V22: Atlas-UV, Stoffart, Mischgewicht + 2 (fehlt bei gebauten Figuren = 0)
 attribute vec4 aLive; // V24: Kopfdrehung zu jemandem (rad), Beginn der Drehung (s) bzw. Schrittphase des Spielers, 1 = Spieler, 1 + Lächeln (fehlt = 0,0,0,1)
 uniform float uTime; uniform vec4 uWind;
-uniform vec4 uPl[8];   // V35: Alexanders eigene Bewegungen (nur die Spielerfigur liest sie), siehe PL_U
+uniform vec4 uPl[8]; uniform vec4 uPlW[2];   // V88: uPlW Luftstrom und Nachschwingen am Spieler (Stoff, Haar)
+// V35: Alexanders eigene Bewegungen (nur die Spielerfigur liest sie), siehe PL_U
 vec4 gG;               // V35: Gangdaten dieser Pose (sonst aGait; beim Überblenden die vorige Haltung des Spielers)
 varying vec2 vFaceUV; varying float vFaceId; varying vec3 vClP; varying float vPnt; varying vec3 vSoft; varying float vBlink; varying vec2 vGaze; varying vec4 vLook;
 varying vec2 vTexUV; varying float vTexK; varying float vFold;
@@ -1100,11 +1102,22 @@ export const HUM_VS_RIG = `
     #ifdef USE_INSTANCING
       mat3 im = mat3(instanceMatrix); wW = transpose(im) * wW / max(0.01, dot(im[0], im[0]));
     #endif
-    float gust = 0.6 + 0.4 * sin(uTime * 2.3 + position.x * 30.0 + position.y * 17.0 + aGait.x) + uWind.w * 0.5;
     float wv = hSw * hSw;
-    vec3 o = wW * 0.0045 * gust * wv * (1.0 + runK);
     float ph = gPh;
     float wk = step(0.01, aGait.z) * (1.0 + 1.5 * runK);
+    // V88: Stoff und Haar im Fahrtwind. air = Luft gegen den Körper (Wind minus eigene Bewegung, im Körperraum, m/s): der Stoff
+    // legt sich mit dem Luftstrom und flattert quer dazu, schneller und weiter, je stärker es zieht (Flug, Sturz, Sturm).
+    // Alexander bekommt beides von player-model.js (uPlW[0] Luft, uPlW[1] Nachschwingen beim Anfahren, Bremsen, Drehen)
+#ifdef HUM_PLAYER
+    vec3 air = uPlW[0].xyz + wW * uWind.w * 0.5, lag = uPlW[1].xyz;
+#else
+    vec3 air = wW * (1.0 + uWind.w * 0.5) - vec3(0.0, 0.0, 1.3 * wk), lag = vec3(0.0);
+#endif
+    float aS = length(air), str = min(aS / 6.0, 4.0);
+    vec3 aD = air / max(aS, 0.01), aP = normalize(vec3(-aD.z, 0.0, aD.x) + vec3(1e-4, 0.0, 0.0));
+    float fq = uTime * (4.0 + 6.0 * min(str, 2.5)) + position.y * 23.0 + position.x * 11.0 + aGait.x * 3.0, fl = sin(fq) + 0.5 * sin(fq * 1.73 + 1.3);
+    float kg = hSk < 1.5 ? 1.0 : hSk < 2.5 ? 1.5 : hSk < 3.5 ? 1.2 : hSk < 4.5 ? 1.3 : hSk < 5.5 ? 0.5 : 1.0;
+    vec3 o = (aD * (0.018 + 0.005 * fl) * str + aP * 0.007 * fl * str + vec3(0.0, 0.003 * fl * str, 0.0) + lag) * wv * kg;
     if (hSk < 1.5) {
       o += vec3(-pvO.x * 0.9 - nkY * 0.012, -0.007 * bounceV * (wk * walkA + danceK * 1.5), -0.006 * wk * walkA - 0.004 * spP) * hSw;
       vec2 rd = normalize(hP.xz + vec2(0.0001)); o.xz += rd * 0.022 * flareK * hSw * (0.6 + 0.4 * sin(uTime * 3.1 + aGait.x));
@@ -1118,7 +1131,7 @@ export const HUM_VS_RIG = `
       vec2 rd = normalize(hP.xz + vec2(0.0001)); o.xz += rd * 0.06 * flareK * hSw;
     } else if (hSk < 4.5) {
       o.x += wv * 0.012 * sin(ph - 1.2) * wk * walkA; o.z -= wv * (0.012 + 0.03 * runK) * wk * walkA;
-    } else {
+    } else if (hSk < 5.5) {
       o.z += hSw * (0.012 * sin(ph * 2.0 - 1.0) * wk * walkA + 0.02 * bounceV * danceK + 0.02 * max(0.0, spP));
       o.y += hSw * 0.006 * bounceV * danceK;
     }
@@ -1351,7 +1364,7 @@ export function humanShader(sh) {
   sh.uniforms.uTime = U.uTime; sh.uniforms.uFaces = { value: FACE_ATLAS }; sh.uniforms.uFaceMat = { value: FACE_MAT }; sh.uniforms.uWind = U.uWind;
   sh.uniforms.uPeople = { value: HRIG.tex || WHITE1 };
   sh.uniforms.uMocap = MOCAP.uTex; sh.uniforms.uMocapOn = MOCAP.uOn;
-  sh.uniforms.uPl = PL_U;
+  sh.uniforms.uPl = PL_U; sh.uniforms.uPlW = PL_W;
   sh.vertexShader = HUM_VS_HEAD() + sh.vertexShader
     .replace('#include <beginnormal_vertex>', '#include <beginnormal_vertex>\n' + HUM_VS_RIG)
     .replace('#include <begin_vertex>', '#include <begin_vertex>\n' + HUM_VS_POS);
