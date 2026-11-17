@@ -54,7 +54,7 @@ const BODIES = {
     // schmalere Wangen und Nase, volle Oberlippe, freundliches Lächeln. Nur Ziele, die Brauen und Wimpern nicht verschieben (die sitzen
     // als Herren-Proxies auf dem Herrenkörper) und den Schädel lassen (Haar passt)
     extra: [['chin/chin-prominent-incr.target', 0.3], ['chin/chin-width-incr.target', 0.15], ['chin/chin-height-incr.target', 0.15], ['chin/chin-bones-incr.target', 0.35],
-      ['mouth/mouth-angles-up.target', 0.3],
+      ['mouth/mouth-angles-up.target', 0.55],
       ['cheek/l-cheek-bones-incr.target', 0.35], ['cheek/r-cheek-bones-incr.target', 0.35], ['cheek/l-cheek-volume-decr.target', 0.35], ['cheek/r-cheek-volume-decr.target', 0.35],
       ['nose/nose-point-width-decr.target', 0.25], ['nose/nose-scale-vert-incr.target', 0.15], ['nose/nose-hump-decr.target', 0.3], ['nose/nose-scale-horiz-decr.target', 0.15],
       ['head/head-fat-decr.target', 0.35], ['head/head-age-decr.target', 0.25]] },
@@ -567,7 +567,7 @@ function warmSkin(buf) {
   let n = 0; const m = [0, 0, 0];
   for (let i = 0; i < buf.length; i += 4) if (buf[i] + buf[i + 1] + buf[i + 2] > 60) { for (let d = 0; d < 3; d++) m[d] += buf[i + d]; n++; }
   for (let d = 0; d < 3; d++) m[d] /= Math.max(1, n);
-  const tint = [1.0, 0.985, 0.955];
+  const tint = [1.2, 1.175, 1.14];   // V79: heller (das neue Hautbild ist dunkler als das alte; Alexander wirkte gebräunt)
   for (let i = 0; i < buf.length; i += 4) for (let d = 0; d < 3; d++) buf[i + d] = Math.max(0, Math.min(255, Math.round((m[d] + (buf[i + d] - m[d]) * 0.8) * tint[d])));
 }
 // Rasterung des Kopfes in seiner Kachel: je Texel Lage (x, y, z) und Normale (x, y, z), Deckung
@@ -798,7 +798,10 @@ async function buildAtlas() {
   // V39: Fedora (Filz, Farbe der Figur bzw. des Hutes), braune Herrenschuhe, Pelzmantel (blaugrauer Stoff wird gefärbt, Pelz und Schnalle bleiben)
   { const r = rectPx(RECT.fedora); const b = await readRGBA(partTex('fedora-m'), r[2], r[3]); blit(paintMask(b, (bb, i) => bb[i + 3] > 10), RECT.fedora); }
   { const r = rectPx(RECT.shoes2); const b = await readRGBA(partTex('shoes2-m'), r[2], r[3]); for (let i = 3; i < b.length; i += 4) b[i] = 255; blit(b, RECT.shoes2); }
-  { const b = await readRGBA(parts['coat-f'].tex, TILE, TILE); blit(paintMask(b, (bb, i) => bb[i + 3] > 10 && bb[i + 2] > bb[i] + 8), RECT.furcoat); }
+  { const b = await readRGBA(parts['coat-f'].tex, TILE, TILE);
+    // V79: der Pelzbesatz war weißes Rauschen (flimmerte); jetzt cremefarbener Pelz mit weichen Strähnen
+    for (let i = 0; i < b.length; i += 4) if (b[i + 3] > 10 && !(b[i + 2] > b[i] + 8)) { const x = (i / 4) % TILE, y = Math.floor(i / 4 / TILE), g = 0.72 + 0.34 * vN3(x / 3, y / 14, 2) * (0.6 + 0.4 * vN3(x / 20, y / 20, 5)); b[i] = 214 * g; b[i + 1] = 198 * g; b[i + 2] = 170 * g; }
+    blit(paintMask(b, (bb, i) => bb[i + 3] > 10 && bb[i + 2] > bb[i] + 8), RECT.furcoat); }
   await playerTiles();
   await detailTiles();   // V44
   // Ränder auffüllen: leere Texel bekommen die Farbe des nächsten Nachbarn (keine Säume beim Mipmapping)
@@ -989,7 +992,20 @@ for (const [name, P] of Object.entries(parts)) {
     let G = new Float64Array(key.size * 3); for (let i = 0; i < m; i++) for (let d = 0; d < 3; d++) G[gid[i] * 3 + d] = P[i * 3 + d];
     const y0 = new Float64Array(key.size); for (let g = 0; g < key.size; g++) y0[g] = G[g * 3 + 1];
     for (let it = 0; it < 10; it++) { const H = new Float64Array(G); for (let g = 0; g < key.size; g++) { if (!nb[g].size) continue; let a = [0, 0, 0]; for (const q of nb[g]) for (let d = 0; d < 3; d++) a[d] += G[q * 3 + d]; for (let d = 0; d < 3; d++) H[g * 3 + d] = G[g * 3 + d] * 0.4 + a[d] / nb[g].size * 0.6; H[g * 3 + 1] = Math.max(H[g * 3 + 1], Math.min(y0[g], 0.004)); } G = H; }
-    for (let i = 0; i < m; i++) for (let d = 0; d < 3; d++) P[i * 3 + d] = G[gid[i] * 3 + d] + N[i * 3 + d] * 0.003; }
+    for (let i = 0; i < m; i++) for (let d = 0; d < 3; d++) P[i * 3 + d] = G[gid[i] * 3 + d] + N[i * 3 + d] * 0.003;
+    // V79: aus der Hülle wurde ein Zehenschuh (jede Zehe zeichnete sich ab). Vorn bekommt der Schuh eine glatte, leicht spitze Kappe:
+    // jede Ecke des Vorderfußes rückt auf ein Ei um die Fußachse; die Normalen werden danach neu gerechnet
+    for (const sx of [-1, 1]) {
+      let zt = -1e9, x0 = 0, cnt = 0, ys = 1e9; for (let i = 0; i < m; i++) if (Math.sign(P[i * 3]) === sx) zt = Math.max(zt, P[i * 3 + 2]);
+      const z0 = zt - 0.062; for (let i = 0; i < m; i++) if (Math.sign(P[i * 3]) === sx && P[i * 3 + 2] > z0) { x0 += P[i * 3]; cnt++; ys = Math.min(ys, P[i * 3 + 1]); }
+      x0 /= cnt; let W = 0, Hh = 0; for (let i = 0; i < m; i++) if (Math.sign(P[i * 3]) === sx && Math.abs(P[i * 3 + 2] - z0) < 0.012) { W = Math.max(W, Math.abs(P[i * 3] - x0)); Hh = Math.max(Hh, P[i * 3 + 1] - ys); }
+      const H2 = Hh / 2, yc = ys + H2, len = zt - z0 + 0.016;
+      for (let i = 0; i < m; i++) { if (Math.sign(P[i * 3]) !== sx || P[i * 3 + 2] <= z0) continue;
+        const u = Math.min(1, (P[i * 3 + 2] - z0) / (zt - z0)), dx = (P[i * 3] - x0) / W, dy = (P[i * 3 + 1] - yc) / H2, l = Math.hypot(dx, dy) || 1, f = Math.sqrt(Math.max(0.004, 1 - u * u)), k = sst(0, 0.25, u);
+        const hx2 = x0 + dx / l * W * f, hy2 = Math.max(ys, yc + dy / l * H2 * f - H2 * 0.45 * u * u);
+        P[i * 3] += (hx2 - P[i * 3]) * k; P[i * 3 + 1] += (hy2 - P[i * 3 + 1]) * k; P[i * 3 + 2] = z0 + u * len; }
+    }
+    const nn = normals(Float32Array.from(P), Uint32Array.from(ids), gid); for (let i = 0; i < m * 3; i++) N[i] = nn[i]; }
   // Absatz: Klotz unter der Ferse, je Fuß
   const addBox = (cx, y0, y1, cz, wx, wz, limb) => { const o = P.length / 3; const c = [[-1, -1], [1, -1], [1, 1], [-1, 1]];
     for (const y of [y0, y1]) for (const [sx, sz] of c) { P.push(cx + sx * wx, y, cz + sz * wz); N.push(sx * 0.7, y === y0 ? -0.7 : 0.7, sz * 0.7); L.push(limb, RIG.f.hip); }
@@ -1116,7 +1132,6 @@ for (const gk of ['m', 'f', 'p']) {
 }
 // V39: Höhen von Hüten und Frisuren über der Kopfmitte (Haar unter dem Hut wird im Shader nur um 10 % gestaucht)
 for (const k of ['fedora-m', 'fedora2-m', 'cloche-f', 'hairA-m', 'hairB-m', 'hairC-m', 'hairD-m', 'hairE-m', 'hairA-f', 'hairB-f', 'hairD-f', 'hairE-f']) { const m = meshes[k]; if (!m) continue; let y = -1e9, r = 0; const hc = RIG[k.endsWith('-f') ? 'f' : 'm'].headC; for (let i = 0; i < m.pos.length; i += 3) { y = Math.max(y, m.pos[i + 1]); if (m.pos[i + 1] > hc + 0.02) r = Math.max(r, Math.hypot(m.pos[i], m.pos[i + 2] - RIG.m.headZ)); } console.log(k, 'oben', (y - hc).toFixed(3), 'Radius', r.toFixed(3)); }
-if (process.env.MEAS) { for (const k of process.env.MEAS.split(',')) { const m = meshes[k], R = RIG.f, bands = {}; for (let i = 0; i < m.pos.length; i += 3) { if (m.reg && m.reg[i / 3] !== 1) continue; const dy = Math.round((m.pos[i + 1] - R.headC) / 0.02) * 0.02; if (dy < -0.05) continue; const b = bands[dy.toFixed(2)] ||= { x: 0, zf: -9, zb: 9 }; b.x = Math.max(b.x, Math.abs(m.pos[i])); b.zf = Math.max(b.zf, m.pos[i + 2] - R.headZ); b.zb = Math.min(b.zb, m.pos[i + 2] - R.headZ); } console.log(k); for (const q of Object.keys(bands).sort((a, b) => a - b)) console.log(' ', q, bands[q].x.toFixed(3), bands[q].zf.toFixed(3), bands[q].zb.toFixed(3)); } process.exit(0); }
 /* ---------------- Detailstufe 1: vereinfacht ---------------- */
 function simplify(m, ratio, err = 0.02) {
   const target = Math.max(3, Math.floor(m.idx.length * ratio / 3) * 3);

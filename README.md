@@ -42,6 +42,7 @@ src/                der Spielcode als ES-Module, ein Abschnitt pro Datei
   water.js            Wellen (Gerstner, acht Wellenzüge), Spiegelung, Gischt am Kai
   harbour.js          Kai, Jachthafen, Fähre, Luftschiffhafen
   serpentine.js       Bergstraße zur Villa, Villa außen, Garten, Fest, Berge
+  lab-figur.js        Figuren-Schau (V79): wenige Figuren ganz nah, Labor ?lab=figur (Licht, Handlung, Auswahl; Maus dreht, Rad zoomt)
   krater.js           Krater außerhalb der Stadt (V78): altes Expeditionslager, zwei Gletscherhöhlen, zwölf Fundstücke; Labor ?lab=krater
   landscape.js        Landschaft um den Krater (V44): feines Netz für die Felswand am See, Wasserfälle mit Bachbett, Gischt und Eiszapfen, zwei Gletscher, Eissaum, Eisschollen, Schären; Labor ?lab=landschaft, Vergleich ?ohnelandschaft
   villa.js            Innenräume der Villa auf drei Ebenen: Halle, Ballsaal, Salon, Speisesaal, Küche, OG, Keller, Schwimmhalle (V28)
@@ -494,3 +495,20 @@ python3 tools/build-single.py single/vespera-v21.html       # Einzeldatei (seit 
   E am Werkstor: zum Schichtwechsel mit den Arbeitern reden, bei Streik verhandeln. Empfang am Tor und in der Kneipe je nach Ruf.
 - Pausenmenü „Stadt und Leute“: Stadtuhr eine Stunde vorstellen, bis zum Schichtwechsel warten. `?uhr=13:50`, `?streik=1`.
   Test: `tools/alltag-test.js`.
+
+**V79: Figuren von vorne bis hinten** (`tools/make-people.mjs`, `src/people-skeleton.js`, `src/people-mh.js`, Labor `?lab=figur`).
+- Gesichter: Kopfkacheln aus den 2048er-Hautbildern, um das Gesicht gedehnt (Augen, Nase, Mund mit doppelt so vielen Texeln);
+  freundlichere Kopfformen (Mundwinkel, Wangenknochen, schlankere Wangen), Brauen und Wimpern in 512 px, helle Augen mit
+  Glanzpunkt, Lippen und Lidstrich in die Haut gemalt. Das alte gemalte Gesicht (`FACE_ATLAS`) liegt nicht mehr über den
+  MakeHuman-Köpfen. Alexander: saubere junge Haut statt der Zeichnung aus dem Foto.
+- Haut: weniger Orange (Sättigung der Hautbilder zurück, milderes Durchscheinen, Eigenleuchten folgt der Hautfarbe); der dunkle
+  Hautton ist aufgehellt.
+- Haar: Kopfhaut unter dem Haar in Haarfarbe (je Frisur ein Gewicht je Schädelecke, als Eckenfarbe des Körpers), Glanzband statt
+  Randleuchten, Tolle der Frisur D aus der Stirn. Haar unter Hüten wird stärker zusammengedrückt.
+- Kleidung: enger Glockenhut (Ei um den Kopf, Normalen nach außen), Kleidträger enden an der Schulter, Damenschuhe mit glatter
+  Kappe statt Zehen, Pelzbesatz mit Strähnen statt Rauschen, Diadem und Turban entfallen an den neuen Köpfen.
+- Handlungen (aGait.y): 44 anstoßen und trinken, 45 Tasse mit Untertasse, 46 Messer und Gabel (Sitz), 47 Taschenuhr, 48 Hut
+  ziehen, 49 Zeitung lesen; Nachkommateil über 0,5 = im Sitzen (44, 45). Neue Requisiten aOpt 47 bis 49 (Tasse, Untertasse,
+  Zeitung). Eingebaut im Ballsaal, bei Tisch (alltag.js), bei der Gala und beim Grüßen (awe.js).
+- Atlas jetzt 2048 x 10240 (zwei Reihen mehr), Größe der Dateien fast gleich. Bauen wie bisher mit drei Ordnern.
+

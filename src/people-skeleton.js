@@ -1206,7 +1206,7 @@ export const HUM_FS_COLOR = () => `
               hB = (vN3(p * vec3(160.0, 300.0, 160.0)) - 0.5) * 0.35 * aa; c *= 0.9 + 0.2 * pow(1.0 - nv, 2.0); hRough = 0.36;
             } else if (fab < 7.5) {
               // Pelz: weich, zottelig, Licht an den Haarspitzen
-              float n = vN3(p * 700.0); hB = (n - 0.5) * 2.5 * aa; c *= 0.7 + 0.5 * n; c += c * pow(1.0 - nv, 2.0) * 0.8; hRough = 1.0;
+              float n = vN3(p * vec3(300.0, 70.0, 300.0)); hB = (n - 0.5) * 1.3 * aa; c *= 0.75 + 0.4 * n; c += c * pow(1.0 - nv, 2.0) * 0.8; hRough = 1.0;
             } else if (fab < 8.5) {
               hB = (vN3(p * 800.0) - 0.5) * 0.4 * aa; hRough = 0.92; c += c * 0.3 * pow(1.0 - nv, 3.0);
             } else if (fab < 9.5) {
