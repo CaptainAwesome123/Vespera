@@ -1482,6 +1482,7 @@ export function cobbleTextures() {
 }
 // Straßendetails im Shader, damit keine Stelle der anderen gleicht: Farbchargen der Steine, ausgebesserte Flecken,
 // Pfützen mit Spiegelglanz, Kanaldeckel und Gitterroste, Laub, Zeitungsfetzen, Ölflecken; auf dem Gehweg Kaugummi und Versorgungsdeckel
+const NASSGLANZ = new URLSearchParams(location.search).get('nassglanz') !== 'aus';   // V92: Glanz im nassen Pflaster (Lichthof, warme Fenster im Spiegelbild, Autolichter in carlight.js)
 export function streetDetail(mat, walk) {
   // V27: walk === 'plaza' = Belmont-Platz (eigenes Fugenbild, daher ohne Plattenraster, Kaugummi und Roste)
   const plaza = walk === 'plaza';
@@ -1599,7 +1600,8 @@ export function streetDetail(mat, walk) {
             vec3 mV = vec3(lp.x, -lp.y, lp.z) - cameraPosition, mD = normalize(mV);
             vec3 sX = normalize(cross(mD, vec3(0.0, 1.0, 0.0)) + 1e-5), dF = -sdV - mD;
             float ax = dot(dF, sX) / mix(0.022, 0.01, sdPud), ay = dot(dF, cross(sX, mD)) / mix(0.16, 0.03, sdPud);
-            sdLR += exp(-ax * ax - ay * ay) * smoothstep(4900.0, 1600.0, dot(mV.xz, mV.xz));
+            float lr2 = ax * ax + ay * ay;
+            sdLR += (exp(-lr2)${NASSGLANZ ? ' + 0.07 * exp(-lr2 * 0.3)' : ''}) * smoothstep(4900.0, 1600.0, dot(mV.xz, mV.xz));   // V92: weicher Hof um den Kern
             if (d2 > 400.0) continue;
             vec3 L = Lv * inversesqrt(d2);
             float att = lp.w * smoothstep(400.0, 60.0, d2) / (1.0 + 0.09 * d2);
@@ -1634,7 +1636,9 @@ export function streetDetail(mat, walk) {
           vec3 s1 = texture2D(uRefl, clamp(ruv + vec2(0.0, blur), 0.002, 0.998)).rgb, s2 = texture2D(uRefl, clamp(ruv - vec2(0.0, blur), 0.002, 0.998)).rgb;
           vec3 s3 = texture2D(uRefl, clamp(ruv + vec2(0.0, blur * 2.2), 0.002, 0.998)).rgb;
           vec3 s4 = texture2D(uRefl, clamp(ruv - vec2(0.0, blur * 2.4), 0.002, 0.998)).rgb, s5 = texture2D(uRefl, clamp(ruv + vec2(0.0, blur * 4.0), 0.002, 0.998)).rgb;
-          sdR = mix(s0, (s0 + s1 + s2 + s3 + s4 * 0.8 + s5 * 0.6) / 5.4, 1.0 - sdPud);
+          sdR = mix(s0, (s0 + s1 + s2 + s3 + s4 * 0.8 + s5 * 0.6) / 5.4, 1.0 - sdPud);${NASSGLANZ ? `
+          // V92: helle, warme Stellen im Spiegelbild (Fenster, Schaufenster, Goldbänder) leuchten im Nassen kräftiger nach
+          sdR += sdR * vec3(1.0, 0.8, 0.5) * smoothstep(0.22, 0.8, max(sdR.r, sdR.g)) * smoothstep(0.0, 0.25, sdR.r - sdR.b) * 1.1;` : ''}
         }
         outgoingLight = mix(outgoingLight, sdR, clamp(sdFr * sdK * 1.25, 0.0, 0.92));
         outgoingLight += vec3(1.0, 0.68, 0.36) * sdLR * clamp(0.15 + 0.85 * uWet + sdPud, 0.0, 1.0) * (1.0 - sdSnow) * sdTop * 1.4;

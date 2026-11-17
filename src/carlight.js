@@ -9,7 +9,7 @@ import { DRIVE } from './eating.js';
    Draw Calls: je ein InstancedMesh für Kegel und Bodenlicht, die Lage der Wagen (x, y, z, Kurs) kommt je Bild als Attribut.
    Die Shader sind klein (keine Schleifen, keine Texturen).
    ===================================================================== */
-export const CARL = { n: LOW ? 8 : 24, cones: null, pools: null, attr: null, t: 0 };
+export const CARL = { n: LOW ? 8 : 24, cones: null, pools: null, attr: null, t: 0, wetOn: new URLSearchParams(location.search).get('nassglanz') !== 'aus', wet: null };
 const _d = new Float32Array(64), _c = [];
 export function buildCarLights() {
   const n = CARL.n, attr = CARL.attr = new T.InstancedBufferAttribute(new Float32Array(n * 4).fill(-1000), 4); attr.setUsage(T.DynamicDrawUsage);
@@ -72,6 +72,7 @@ export function buildCarLights() {
       }`,
   }));
   CARL.pools.frustumCulled = false; CARL.pools.renderOrder = 2; CARL.pools.userData.noRefl = true; scene.add(CARL.pools);
+  if (CARL.wetOn) buildWetGlints(carAttr, n);
 }
 // je Bild: die n nächsten sichtbaren Wagen (traffic.js schreibt car._x/_y/_z/_yaw/_hid), dazu der eigene Wagen am Steuer
 export function updateCarLights() {
@@ -95,4 +96,43 @@ export function updateCarLights() {
     for (let k = 0; k < 2; k++) { const p = (i * 2 + k) * 4; A2[p] = A[o]; A2[p + 1] = A[o + 1]; A2[p + 2] = A[o + 2]; A2[p + 3] = A[o + 3]; }
   }
   CARL.attr.needsUpdate = true; CARL.attr2.needsUpdate = true;
+}
+
+/* V92 · Scheinwerfer und Rücklichter spiegeln sich im nassen Pflaster
+   Die Wagen selbst sind nicht im Straßenspiegelbild (zu viel Kleinkram), ihre Lichter sollen es aber sein: je Lampe ein
+   flacher Streifen auf der Fahrbahn, der vom Lichtpunkt zum Betrachter zeigt (wie die Laternenstreifen). Vorn warmes Gold,
+   hinten Rot; sichtbar nur von der Seite, auf die die Lampe leuchtet. Ein Draw Call, Instanzen = 2 je Wagen (links/rechts),
+   jede Instanz trägt Scheinwerfer und Rücklicht als zwei Vierecke. */
+function buildWetGlints(carAttr, n) {
+  const pos = [], pe = [], idx = [];
+  for (const e of [1, -1]) { const b = pos.length / 3; for (const [x, y] of [[-0.5, 0], [0.5, 0], [-0.5, 1], [0.5, 1]]) { pos.push(x, y, 0); pe.push(e); } idx.push(b, b + 1, b + 2, b + 2, b + 1, b + 3); }
+  const base = new T.BufferGeometry(); base.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); base.setAttribute('aEnd', new T.Float32BufferAttribute(pe, 1)); base.setIndex(idx);
+  const g = new T.InstancedBufferGeometry().copy(base);
+  const side = new Float32Array(n * 2); for (let i = 0; i < n * 2; i++) side[i] = i % 2 ? 1 : -1;
+  g.instanceCount = n * 2; g.setAttribute('aCar', carAttr); g.setAttribute('aSide', new T.InstancedBufferAttribute(side, 1));
+  CARL.wet = new T.Mesh(g, new T.ShaderMaterial({
+    uniforms: U, transparent: true, depthWrite: false, blending: T.AdditiveBlending, side: T.DoubleSide,
+    vertexShader: `attribute vec4 aCar; attribute float aSide; attribute float aEnd; uniform vec3 uCam; uniform float uWet; uniform float uSnowCover; varying vec2 vUv; varying float vA; varying float vE;
+      void main(){
+        float c = cos(aCar.w), s = sin(aCar.w); vec2 fw = vec2(c, -s), sd = vec2(s, c);
+        vec2 g = aCar.xz + fw * (aEnd > 0.0 ? 2.5 : -2.45) + sd * (aSide * (aEnd > 0.0 ? 0.62 : 0.72));
+        vec2 toC = uCam.xz - g; float d = length(toC); vec2 dir = toC / max(d, 0.001), sx = vec2(-dir.y, dir.x);
+        float face = smoothstep(-0.15, 0.45, dot(fw * aEnd, dir));
+        float wet = smoothstep(0.25, 0.85, uWet) * (1.0 - smoothstep(0.5, 0.8, uSnowCover));
+        vA = smoothstep(110.0, 12.0, d) * smoothstep(1.5, 4.0, d) * smoothstep(25.0, 4.0, uCam.y - aCar.y) * face * wet * step(-500.0, aCar.y);
+        if (vA < 0.003) { gl_Position = vec4(2.0, 2.0, 2.0, 1.0); return; }
+        float len = min(3.0 + d * 0.12, d * 0.8);
+        vec2 xz = g + sx * position.x * (0.28 + d * 0.004) + dir * (position.y * len - 0.15);
+        vUv = vec2(position.x * 2.0, position.y); vE = aEnd;
+        gl_Position = projectionMatrix * viewMatrix * vec4(xz.x, aCar.y - 0.2, xz.y, 1.0);
+      }`,
+    fragmentShader: `uniform float uTime; varying vec2 vUv; varying float vA; varying float vE;
+      void main(){
+        float a = exp(-vUv.x * vUv.x * 5.0) * pow(sin(3.14159 * clamp(vUv.y, 0.0, 1.0)), 0.7) * (1.0 - 0.55 * vUv.y);
+        a *= 0.85 + 0.15 * sin(vUv.y * 34.0 + uTime * 0.9 + vUv.x * 3.0);
+        vec3 col = vE > 0.0 ? vec3(1.0, 0.8, 0.5) * 0.8 : vec3(0.85, 0.1, 0.05) * 0.5;
+        gl_FragColor = vec4(col * a * vA, 1.0);
+      }`,
+  }));
+  CARL.wet.frustumCulled = false; CARL.wet.renderOrder = 2; CARL.wet.userData.noRefl = true; scene.add(CARL.wet);
 }
