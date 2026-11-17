@@ -555,3 +555,7 @@ python3 tools/build-single.py single/vespera-v21.html       # Einzeldatei (seit 
 - Fehler behoben: Eckenfarben mit Summe >= 2,97 ersetzt der Menschen-Shader durch die Instanzfarbe (Anzug). Die hellsten
   Strähnen in V82 wurden dadurch schwarz (die dunklen Kratzer). Die Haarschale speichert ihre Helligkeit jetzt geteilt durch 1,25.
 - Laborbilder: `?lab=figur&wer=player`.
+
+### V84: Tolle niedriger, mehr Haar hinter dem Ohr
+- Die Tolle über der Stirn ist rund 6 mm niedriger (`phVol`, Zuschlag vorn 0,0085 statt 0,0145).
+- Hinter dem Ohr beginnt das Haar tiefer (`PH_LINE` 104 bis 160 Grad) und ist dort 3 mm voller.
