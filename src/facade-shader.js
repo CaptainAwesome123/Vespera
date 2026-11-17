@@ -1,4 +1,4 @@
-import { T, U, FOG_GLSL, SCHNEE, REGENGLAS, NAH } from './core.js';
+import { T, U, FOG_GLSL, SCHNEE, REGENGLAS, NAH, GLASSPIEGEL } from './core.js';
 import { addCollider } from './people-skeleton.js';
 
 /* =====================================================================
@@ -33,6 +33,8 @@ export const facadeFS = `
 ${SCHNEE ? '#define SCHNEE 1' : ''}
 ${REGENGLAS ? '#define REGENGLAS 1' : ''}
 ${NAH ? '#define NAH 1' : ''}
+${GLASSPIEGEL ? `#define GLASSPIEGEL 1
+uniform float uAurora; uniform float uAuroraT; uniform float uMoonLit;` : ''}
 uniform float uRain;
 uniform vec4 uWind;
 #define BRICK_MEAN vec3(0.519, 0.287, 0.184)
@@ -311,6 +313,27 @@ void main(){
 #endif
   float fres = pow(1.0 - abs(dot(n, -vdir)), 4.0);
   glass += mix(uFogColor*2.4, vec3(0.5, 0.42, 0.3), step(0.5, hash(cell + 31.0))*0.3) * fres * 0.5 + uTeal*0.03*(0.5 + 0.5*n.y);
+#ifdef GLASSPIEGEL
+  {
+    // V101: Spiegelbild im Glas. Oben Himmel mit Polarlichtband, Sternen und Mondschein, am Horizont die Stadt als Silhouette mit
+    // erleuchteten Fenstern (warm), darunter dunkle Straßen mit Laternenschein. Bürotürme (Stil 1) spiegeln am stärksten.
+    // Feine Lichter blenden mit der Fenstergröße aus (in der Ferne nur noch ein weicher Lichtsaum am Horizont, kein Flimmern).
+    vec3 rr = reflect(vdir, n); float el = rr.y, az = atan(rr.z, rr.x);
+    float rdF = 1.0 - smoothstep(0.02, 0.08, px);
+    vec3 rc = uFogColor * 2.0 + vec3(0.01, 0.015, 0.025);
+    float band = exp(-pow((el - 0.32 - 0.07 * sin(az * 3.0 + uAuroraT * 0.15)) * 7.0, 2.0)) * smoothstep(0.0, 0.1, el);
+    rc += vec3(0.08, 0.75, 0.5) * band * 0.55 * clamp(uAurora, 0.0, 2.0) * (0.6 + 0.4 * sin(az * 9.0 + uAuroraT * 0.4));
+    rc += vec3(0.5, 0.55, 0.65) * 0.06 * uMoonLit * pow(max(dot(rr, uMoonDir), 0.0), 60.0) * 8.0;
+    rc += vec3(0.7, 0.75, 0.85) * 0.35 * step(0.9975, hash(floor(vec2(az * 140.0, el * 140.0)))) * smoothstep(0.08, 0.25, el) * rdF;
+    float bi = floor(az * 38.0 + seed), bh = 0.015 + 0.13 * hash(vec2(bi, 3.0)) * hash(vec2(bi, 7.0));
+    float skyM = smoothstep(-0.004, 0.004, el - bh);
+    float lwin = step(0.62, hash(vec2(floor(az * 230.0), floor(el * 95.0)))) * step(0.25, fract(az * 230.0)) * step(0.3, fract(el * 95.0));
+    vec3 city = vec3(0.008, 0.012, 0.016) + vec3(1.0, 0.62, 0.3) * mix(0.12, lwin * 0.7, rdF) * step(0.0, el) + vec3(1.0, 0.6, 0.28) * 0.12 * exp(-abs(el) * 30.0);
+    rc = mix(city, rc, skyM);
+    float fR = 0.14 + 0.8 * pow(1.0 - max(dot(-vdir, n), 0.0), 4.0);
+    glass += rc * fR * (style > 0.5 && style < 1.5 ? 1.6 : 0.8);
+  }
+#endif
   vec3 winCol = mix(glass, warm*bright, lit);
   // Räume hinter dem Glas (Interior Mapping): Rückwand, Decke mit Lampe, Boden, Seitenwände, ein paar Möbel
   float aaW = smoothstep(0.08, 0.28, px);

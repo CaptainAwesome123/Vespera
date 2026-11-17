@@ -27,7 +27,7 @@ src/                der Spielcode als ES-Module, ein Abschnitt pro Datei
   people-model.js     Menschen: Köpfe, Haar, Kleidung (V17)
   people-skeleton.js  Skelett im Shader, Gang, Laufen, Tanzen, Sitzen (V18); Gelenkmaße je Körper (HRIG, V22)
   people-mh.js        Menschen aus MakeHuman (V22): lädt assets/people, setzt die Figuren je Kleidungsart zusammen; V39: Frisur-Sets je Art, echte Fedoras, Pelzmantel
-  facade-shader.js    Fassaden: Fenster, Goldbänder, Ladenzeilen, Flutlicht; V96 Innenleben hinter den Fenstern (Bewohner gehen, Schatten auf Jalousien, Kaminfeuer, Säle hinter Bogenfenstern), ?innen=aus; V100 Nahdetails (Steinkorn, ausgebrochene Kanten, Reif in Fugen, Salzrand am Sockel, gravierte Goldbänder), ?nah=aus; Labor ?lab=fassade Ansichten fenster/saal
+  facade-shader.js    Fassaden: Fenster, Goldbänder, Ladenzeilen, Flutlicht; V96 Innenleben hinter den Fenstern (Bewohner gehen, Schatten auf Jalousien, Kaminfeuer, Säle hinter Bogenfenstern), ?innen=aus; V100 Nahdetails (Steinkorn, ausgebrochene Kanten, Reif in Fugen, Salzrand am Sockel, gravierte Goldbänder), ?nah=aus; V101 Fensterglas spiegelt Polarlicht, Sterne, Mond und Stadtsilhouette, ?glasspiegel=aus; Labor ?lab=fassade Ansichten fenster/saal
   stadtbild.js        Stadtbild (V76): Turmkronen (Sonnenkrone, Leuchtlaterne, Ankermast, Stufenkrone), Lisenen, Lichtbänder, Leuchtpylone; Labor ?lab=turm (lab-turm.js)
   deco.js             Fassadenschmuck als Chunk-Schicht (V38): Sonnenfächer, Goldfriese, Zinnen, Kapitelle, beleuchtete Vordächer, Laternen, Türen der Ringhäuser, Dachreklame, Wandreklame; Fassaden-Labor ?lab=fassade
   island.js           Stadtplan und Insel mit Ringstraße
