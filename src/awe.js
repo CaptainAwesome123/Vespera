@@ -119,7 +119,7 @@ function phaseFor(act, g0) {
 }
 /* Eine Figur hält inne und reagiert: zu Alexander drehen, Geste, Verbeugung, ausweichen, ducken, wegschauen.
    o: { act, dur, bow, duck, shift, away, keep } */
-function startAwe(pd, o) {
+export function startAwe(pd, o) {
   const a = pd.a, e = a.m.elements, g = a.gait, p = player.p;
   const yaw0 = Math.atan2(e[8], e[10]);
   let sx = 0, sz = 0;
@@ -136,7 +136,7 @@ function startAwe(pd, o) {
 const smileOn = (pd, a) => { if (a.live && pd.sm0 == null) { pd.sm0 = a.live[3]; a.live[3] = 1.55; a.gv = (a.gv | 0) + 1; } };
 const happy = att => att === 'bew' || att === 'dienst' || (att === 'resp' && Math.random() < 0.5);
 // wer kann stehen bleiben und sich umdrehen (gehen, in der Runde stehen, Bewohner unterwegs); Musiker, Sitzende und Kellner nur schauen
-function mobility(pd) {
+export function mobility(pd) {
   const walking = pd.st === 0 && pd.lp, group = pd.st === 4 && !pd.sit && !pd.busy, cit = pd.cit && (pd.cit.st === 'walk' || pd.cit.st === 'task' || pd.cit.st === 'loop');
   return walking || cit ? 'walk' : group ? 'keep' : null;
 }
@@ -149,7 +149,7 @@ export function aweBurst(kind, R, k = 0.9) {
     const a = pd.a; if (!a || !a.on || pd.rag || pd.back) continue;
     const e = a.m.elements, d2 = (e[12] - p.x) ** 2 + (e[14] - p.z) ** 2;
     if (d2 > R2 || Math.abs(e[13] - p.y) > dy) continue;
-    if (pd.aw) { pd.aw.dur = Math.max(pd.aw.dur, pd.aw.t + 2.5 + Math.random() * 2); turnHead(a, p.x, p.z); continue; }
+    if (pd.aw) { if (!pd.aw.fn) pd.aw.dur = Math.max(pd.aw.dur, pd.aw.t + 2.5 + Math.random() * 2); turnHead(a, p.x, p.z); continue; }
     if (pd.awCool > 0 && kind === 'fly') continue;
     turnHead(a, p.x, p.z);
     const att = attOf(pd), mob = mobility(pd);
@@ -248,6 +248,7 @@ export function aweStep(pd, dt) {
   const A = pd.aw, a = pd.a; if (!A) return;
   if (pd.rag || !a || !a.on) { aweEnd(pd); return; }
   A.t += dt;
+  if (A.fn) { if (A.fn(pd, A, dt) === false) aweEnd(pd); return; }   // V106: eigene Abläufe (reaktionen.js: fliehen, herankommen, fotografieren, bitten)
   const p = player.p, want = A.away && A.t > A.away ? A.wy ?? (A.wy = Math.atan2(p.x - A.x, p.z - A.z) + (Math.random() < 0.5 ? 1.3 : -1.3)) : Math.atan2(p.x - A.x, p.z - A.z);
   A.yaw += wrapA(want - A.yaw) * Math.min(1, dt * 4);
   let tilt = 0;
