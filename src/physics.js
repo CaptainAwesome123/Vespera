@@ -64,8 +64,8 @@ const STUFF = { wood: { mu: 0.55, e: 0.25, snd: 'wood', rho: 500 }, glass: { mu:
   paper: { mu: 0.7, e: 0.05, snd: 'soft', rho: 400 }, food: { mu: 0.6, e: 0.1, snd: 'soft', rho: 700 }, metal: { mu: 0.4, e: 0.3, snd: 'metal', rho: 2000 }, clay: { mu: 0.6, e: 0.1, snd: 'glass', rho: 1800, brittle: 7.5 } };   // V53: Terrakotta zerspringt
 function makeBody(o) {
   const [hx, hy, hz] = o.he, st = STUFF[o.stuff] || STUFF.wood;
-  const pts = o.kind === 'cyl' ? cylPts(Math.min(hx, hz), hy, hx > 0.12 ? 10 : 8) : o.kind === 'ball' ? ballPts(hx) : boxPts(hx, hy, hz);
-  const m = o.m, a = 2 * hx, b = 2 * hy, c = 2 * hz;
+  const pts = o.kind === 'cyl' ? cylPts(Math.min(hx, hz), hy, hx > 0.25 ? 14 : hx > 0.12 ? 10 : 8) : o.kind === 'ball' ? ballPts(hx) : boxPts(hx, hy, hz);
+  const m = o.m, mi = o.iMin || 0, a = 2 * Math.max(hx, mi), b = 2 * Math.max(hy, mi), c = 2 * Math.max(hz, mi);   // V89: iMin = dünne Trümmer träger machen (sonst drehen sie sich auf)
   const I = new T.Vector3(m / 12 * (b * b + c * c), m / 12 * (a * a + c * c), m / 12 * (a * a + b * b));
   const B = { name: o.name, key: o.key, kind: o.kind, he: new T.Vector3(hx, hy, hz), r: Math.hypot(hx, hy, hz), pts, m, invM: 1 / m, Ii: new T.Vector3(1 / I.x, 1 / I.y, 1 / I.z),
     mu: o.mu ?? st.mu, e: o.e ?? st.e, snd: st.snd, brittle: st.brittle || 0, floats: st.rho < 950, small: o.small ?? Math.max(a, b, c) < 0.45, sc: o.sc || 1,
@@ -225,6 +225,12 @@ export const GEOS = {
   milkcan: () => mergeColored([C(lathe([[0, -0.3], [0.17, -0.3], [0.18, 0.05], [0.14, 0.2], [0.09, 0.24], [0.09, 0.3], [0.1, 0.3], [0, 0.3]], 16), [0.6, 0.62, 0.64]), C(new T.TorusGeometry(0.05, 0.01, 5, 10, Math.PI).rotateZ(-Math.PI / 2).translate(0.19, 0.12, 0), [0.4, 0.4, 0.42]), C(new T.TorusGeometry(0.05, 0.01, 5, 10, Math.PI).rotateZ(Math.PI / 2).translate(-0.19, 0.12, 0), [0.4, 0.4, 0.42])]),
   // Hinweisschild auf Ständer ("Frisch gestrichen" braucht keine Schrift: Emailleschild mit Rand)
   signboard: () => mergeColored([C(box(0.5, 0.36, 0.02, 0, 0.42), [0.08, 0.3, 0.32]), C(box(0.44, 0.3, 0.004, 0, 0.42, 0.012), [0.9, 0.86, 0.75]), C(box(0.3, 0.03, 0.004, 0, 0.45, 0.015), [0.1, 0.1, 0.12]), C(box(0.2, 0.02, 0.004, 0, 0.39, 0.015), [0.1, 0.1, 0.12]), C(cyl(0.015, 0.015, 0.5, 0.0, 6), [0.15, 0.15, 0.16]), C(cyl(0.14, 0.16, 0.04, -0.23, 12), [0.15, 0.15, 0.16])]),
+  // V89: Trümmer (Bretter, Dauben, Reifen, Stuhlbeine, Scherben); Farbe je Stück über die Instanzfarbe
+  plank: () => mergeColored([C(box(0.46, 0.022, 0.09), [1, 1, 1])]),
+  stave: () => mergeColored([C(box(0.1, 0.8, 0.026), [1, 1, 1])]),
+  hoop: () => { const g = new T.TorusGeometry(0.29, 0.012, 5, 20); g.rotateX(Math.PI / 2); return mergeColored([C(g, [1, 1, 1])]); },
+  stick: () => mergeColored([C(cyl(0.015, 0.015, 0.42, 0, 6), [1, 1, 1])]),
+  shard: () => { const g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute([-0.04, 0, -0.025, 0.045, 0, -0.01, -0.01, 0, 0.035, -0.04, 0.003, -0.025, -0.01, 0.003, 0.035, 0.045, 0.003, -0.01], 3)); g.setIndex([0, 1, 2, 3, 4, 5, 0, 3, 1, 1, 3, 5, 1, 5, 2, 2, 5, 4, 2, 4, 0, 0, 4, 3]); g.computeVertexNormals(); return mergeColored([C(g.toNonIndexed(), [1, 1, 1])]); },
   // Weinkiste mit Flaschen
   winecrate: () => { const P = [C(box(0.5, 0.3, 0.34), [0.6, 0.47, 0.3]), C(box(0.46, 0.02, 0.3, 0, 0.14), [0.4, 0.3, 0.18])]; for (const x of [-0.17, -0.06, 0.06, 0.17]) for (const z of [-0.09, 0.09]) P.push(C(cyl(0.035, 0.035, 0.16, 0.2, 8).translate(x, 0, z), [0.05, 0.15, 0.08]), C(cyl(0.013, 0.013, 0.08, 0.3, 6).translate(x, 0, z), [0.05, 0.15, 0.08])); return mergeColored(P); },
 };
@@ -593,8 +599,9 @@ export function movNear(x, z, r) {
 }
 // V52: Platz schaffen: ferne, schlafende Körper abräumen. Gruppen (SPAWNS) merken sich, wo ihre Dinge liegen blieben,
 // Möbel und Straßenmöbel kehren an ihren Platz zurück
-let cullT = 0;
+let cullT = 0, brokenT = 0;
 export function cullBodies(dt) {
+  if ((brokenT -= dt) <= 0) { brokenT = 3; brokenTick(); }   // V89
   if ((cullT -= dt) > 0 || LOOSE.bodies.length < MAX_BODIES * 0.6) return; cullT = 3;
   const p = player.p; let relay = false;
   for (const B of LOOSE.bodies.slice()) {
@@ -852,6 +859,7 @@ export function updateLoose(dt) {
   if (isTouch) { const el = $('tThrow'), lab = LOOSE.held || LOOSE.tkAny ? 'WERFEN' : 'STOSS'; if (el.hidden) el.hidden = false; if (el.textContent !== lab) el.textContent = lab; }   // V33: auch für die Telekinese; V59: sonst Energieschub
   if (!paused) carryRides();   // V54: Dinge an Bord des Luftschiffs fahren mit
   if (paused || !LOOSE.bodies.length) { drawBatches(); return; }
+  debrisTick(dt);   // V89: Trümmer und Scherben verschwinden nach einer Weile
   const t0 = performance.now();
   dt = Math.min(dt, 1 / 30);
   cullBodies(dt);
@@ -911,7 +919,7 @@ export function updateLoose(dt) {
     for (let i = 0; i < act.length; i++) {
       const A = act[i];
       for (const Bb of LOOSE.bodies) {
-        if (Bb === A || (Bb.inAct && act.indexOf(Bb) < i)) continue;
+        if (Bb === A || (Bb.inAct && act.indexOf(Bb) < i) || (A.deb !== undefined && Bb.deb !== undefined)) continue;   // V89: Trümmer untereinander nicht (sonst sprengen sich die Stücke beim Entstehen auseinander)
         const rr = A.r * A.sc + Bb.r * Bb.sc; if (A.x.distanceToSquared(Bb.x) > rr * rr) continue;
         pairContacts(A, Bb, h); pairContacts(Bb, A, h);
       }
@@ -976,17 +984,87 @@ function flushHits(B, h) {
 }
 
 /* ---------- Klang und Bruch ---------- */
+// V89: Holz zerbricht in Bretter, Dauben und Beine, die weiterfallen, rollen und liegen bleiben; Glas zerspringt in Scherben,
+// die über den Boden rutschen; die Laterne verliert ihr Glas. Trümmer verschwinden nach 15 bis 25 s (schrumpfen in der letzten
+// Sekunde). Zerbrochene Dinge der Stadt kommen zurück, wenn man weit weg ist (BROKEN)
+const WOOD = [0.42, 0.29, 0.16], WOOD2 = [0.3, 0.2, 0.11];
+const SPLIT = {
+  crate: { v: 9, geo: 'plank', he: [0.23, 0.011, 0.045], n: 7, col: WOOD },
+  winecrate: { v: 8, geo: 'plank', he: [0.23, 0.011, 0.045], n: 5, col: [0.6, 0.47, 0.3], glass: 4 },
+  fruitcrate: { v: 8, geo: 'plank', he: [0.23, 0.011, 0.045], n: 4, col: [0.62, 0.48, 0.3] },
+  bottlecrate: { v: 8, geo: 'plank', he: [0.23, 0.011, 0.045], n: 4, col: [0.55, 0.42, 0.25], glass: 4 },
+  toolbox: { v: 10, geo: 'plank', he: [0.23, 0.011, 0.045], n: 3, col: WOOD2 },
+  chair: { v: 10, geo: 'stick', he: [0.015, 0.21, 0.015], n: 5, col: [0.2, 0.1, 0.05] },
+  barrel: { v: 13, geo: 'stave', he: [0.05, 0.4, 0.013], n: 8, col: [0.4, 0.27, 0.15], hoops: 2 },
+};
+const BROKEN = [];
+const rnd = (a = 1) => (Math.random() * 2 - 1) * a;
+function debris(B, key, he, m, col, stuff, at, spread) {
+  if (LOOSE.bodies.length >= MAX_BODIES + 24) return null;
+  _v.set(rnd(at[0]), rnd(at[1]), rnd(at[2])).applyQuaternion(B.q).add(B.x);
+  _v.y = Math.max(_v.y, B.x.y - B.he.y * 0.2 + 0.03);   // nicht unter dem Boden entstehen (das Herausdrücken schleudert sie weg)
+  const D = makeBody({ name: 'Trümmer', key, kind: 'box', he, m, stuff, small: true, p: [_v.x, _v.y, _v.z], col, iMin: 0.06, mu: 0.8, e: 0.1 });
+  D.q.copy(B.q).multiply(_q2.setFromAxisAngle(_v2.set(rnd(), rnd(), rnd()).normalize(), rnd(0.6)));
+  _v2.subVectors(D.x, B.x); if (_v2.lengthSq() > 1e-6) _v2.normalize();
+  D.v.copy(B.v).multiplyScalar(0.2).addScaledVector(_v2, spread * (0.4 + 0.6 * Math.random())); D.v.y = Math.max(0, D.v.y) * 0.3 + 0.8 + Math.random() * 1.2;
+  D.w.set(rnd(7), rnd(7), rnd(7)); D.deb = 15 + Math.random() * 10; D.brittle = 0;
+  return D;
+}
+function shards(B, n, y = 0) {
+  for (let i = 0; i < n; i++) debris(B, 'shard', [0.04, 0.012, 0.03], 0.05, [0.62, 0.78, 0.84], 'glass', [B.he.x * 0.6, Math.max(0.01, B.he.y * 0.3) + y, B.he.z * 0.6], 2.5);
+}
+function brokenAway(B) {
+  // die Stadt merkt sich den Platz; aufgeräumt wird, wenn der Spieler weit weg ist (cullBodies)
+  if (B.clut) { const p = B.clut; BROKEN.push({ x: p.x, z: p.z, fn: () => { p.taken = false; showInst(p, clutterMatrix(p, _m)); } }); }
+  else if (B.street) { const p = B.street; BROKEN.push({ x: B.x0 ? B.x0.x : p.x, z: B.x0 ? B.x0.z : p.z, fn: () => { p.taken = false; showInst(p, p.m); } }); }
+  if (B.src) B.src.broken = true;
+}
+function splitBody(B, S, near) {
+  const n = S.n, m = B.m / (n + (S.hoops || 0) + 1);
+  for (let i = 0; i < n; i++) debris(B, S.geo, S.he, m, S.col, 'wood', [B.he.x * 0.7, B.he.y * 0.7, B.he.z * 0.7], 1.6);
+  for (let i = 0; i < (S.hoops || 0); i++) debris(B, 'hoop', [0.29, 0.012, 0.29], 1.2, [0.18, 0.17, 0.16], 'metal', [0.05, B.he.y * 0.6, 0.05], 1.2);
+  if (S.glass) { shards(B, S.glass); fxEmit('glass', B.x.x, B.x.y, B.x.z, B.v.x * 0.2, 1.2, B.v.z * 0.2, 12, 0.5, 0.5); }
+  fxEmit('chip', B.x.x, B.x.y, B.x.z, B.v.x * 0.15, 1.6, B.v.z * 0.15, 22, 0.6, 1);
+  fxEmit('dust', B.x.x, B.x.y - B.he.y * 0.5, B.x.z, 0, 0.3, 0, 4, 0.4, 0.5);
+  if (near) { bumpSound('wood', 1, B.m * 2); bumpSound('wood', 0.7, B.m * 0.5); if (S.glass) bumpSound('shatter', 1, 2); }
+  brokenAway(B); removeBody(B);
+}
+function lampGlass(B, near) {
+  const g = B.mesh && B.mesh.children[0]; if (!g) return;
+  B.mesh.remove(g); g.geometry.dispose(); B.lampGlass = true;
+  _v3.set(0, B.he.y * 0.8, 0).applyQuaternion(B.q).add(B.x);
+  fxEmit('glass', _v3.x, _v3.y, _v3.z, B.v.x * 0.2, 1.0, B.v.z * 0.2, 26, 0.5, 0.6);
+  if (LOOSE.bodies.length < MAX_BODIES + 16) for (let i = 0; i < 6; i++) { const D = debris(B, 'shard', [0.04, 0.012, 0.03], 0.05, [0.95, 0.85, 0.6], 'glass', [0.12, 0.05, 0.12], 2.5); if (D) D.x.copy(_v3).add(_v.set(rnd(0.15), rnd(0.1), rnd(0.15))); }
+  if (near) bumpSound('shatter', 1, 3);
+}
+function debrisTick(dt) {
+  for (let i = LOOSE.bodies.length - 1; i >= 0; i--) {
+    const D = LOOSE.bodies[i]; if (D.deb === undefined || D === LOOSE.held || D === LOOSE.tk) continue;
+    if (D.v.lengthSq() > 64) D.v.setLength(8); if (D.w.lengthSq() > 400) D.w.setLength(20);
+    D.deb -= dt; if (D.deb < 1) { D.sc = Math.max(0.02, D.deb); D.awake = true; } if (D.deb <= 0) removeBody(D);
+  }
+}
+function brokenTick() {
+  const p = player.p;
+  for (let i = BROKEN.length - 1; i >= 0; i--) { const b = BROKEN[i]; if ((b.x - p.x) ** 2 + (b.z - p.z) ** 2 > 320 * 320) { b.fn(); BROKEN.splice(i, 1); } }
+}
 function impact(B, vn, c) {
   if (B.hitT > 0) return;
   B.hitT = 0.12;
   const near = B.x.distanceTo(camera.position) < 40;
   if (near) bumpSound(B.snd, Math.min(1, vn / 7), B.m);
-  if (B.brittle && vn > B.brittle && B !== LOOSE.held) {
+  if (B === LOOSE.held) return;
+  if (B.brittle && vn > B.brittle) {
     fxEmit('glass', B.x.x, B.x.y, B.x.z, B.v.x * 0.2, 1.2, B.v.z * 0.2, B.m > 1 ? 18 : 8, 0.5, 0.5);
+    if (B.m > 0.25) shards(B, B.m > 1 ? 5 : 3);   // V89: Scherben bleiben liegen
     if (near) bumpSound('shatter', 1, B.m);
-    if (B.src) B.src.broken = true;
+    brokenAway(B);
     removeBody(B);
+    return;
   }
+  const S = SPLIT[B.key];
+  if (S && vn > S.v && B !== LOOSE.tk && !B.furn && !B.tear && !B.tree && !B.pf && !LOOSE.noSplit) { splitBody(B, S, near); return; }
+  if (B.lamp && !B.lampGlass && vn > 7) lampGlass(B, near);
 }
 export function bumpSound(kind, k, m) {
   const A = DRIVE.au; if (!A || paused) return;
