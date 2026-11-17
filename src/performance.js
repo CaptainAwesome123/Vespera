@@ -17,6 +17,7 @@ import { updatePedestrians, CLOCK, citizenNear, citizenDoing } from './ragdoll.j
 import { updateBeamSpots } from './airships.js';
 import { updateCarLights } from './carlight.js';
 import { updateSchwaden } from './schwaden.js';
+import { updateRaumspiegel } from './raumspiegel.js';
 import { updateCars, updateTrucks } from './traffic.js';
 import { BAHN } from './bahn-hook.js';   // V63: Straßenbahn und Hochbahn (src/bahn.js)
 import { player, updatePlayer, EYE } from './player.js';
@@ -324,6 +325,7 @@ export function frame(now) {
   updateCars(dt);
   updateCarLights();   // V38
   updateSchwaden(dt);   // V93: Nebelschwaden in den Straßen
+  updateRaumspiegel(rdt, playing);   // V95: Marmor und Gold spiegeln den echten Raum
   updateTrucks(dt);
   const inside = playing && (inBelmont(player.p.x, player.p.z, player.p.y) || inVillaHouse(player.p) || inImperial(player.p) || inPenthouse(player.p) || (UNTER.test && UNTER.test(player.p))) ? 1 : 0;   // V61: auch in den Verstecken unter der Stadt   // V28: auch in der Villa kein Regen, kein Bodennebel; V33: Luftschiff und Penthouse
   U.uInside.value += (inside - U.uInside.value) * Math.min(1, dt * 4);
