@@ -544,3 +544,14 @@ python3 tools/build-single.py single/vespera-v21.html       # Einzeldatei (seit 
   sind dunkler (Eckenfarbe, im Shader nur beim Spieler). Die Welle über der Stirn steigt auf gut 1,5 cm und rollt nach hinten aus.
 - Statt der Sonnenbrille mit Bügeln ein Nasenzwicker: zwei kleine ovale, fast schwarze Gläser auf der Nasenwurzel, federnder
   Bügel über der Nase, Klemmplättchen, keine Bügel zu den Ohren.
+
+### V83: Frisur komplett neu nach Referenzbild (Seitenscheitel mit Volumen)
+- Alexanders Haar ist neu gebaut: Seitenscheitel auf seiner rechten Kopfseite (von vorn gesehen links), das Deckhaar steigt
+  aus der Stirn, wölbt sich zu einer weichen Tolle von knapp 3 cm und fällt in großem Bogen zur anderen Seite und nach hinten;
+  Seiten und Nacken kurz, die Scheitelseite flach gekämmt (`phVol`, `phFlow` in src/people-mh.js).
+- Statt dünner Rillen-Strähnen liegen rund 230 breite, weich gewölbte Locken (0,6 bis 1,4 cm) auf dem Unterbau und folgen dem
+  Kämmstrich; jede hat ihre eigene Helligkeit, die Spitzen heben sich oben leicht ab.
+- Farbe honigblond wie im Referenzbild, matter, weniger Rillen-Relief im Shader.
+- Fehler behoben: Eckenfarben mit Summe >= 2,97 ersetzt der Menschen-Shader durch die Instanzfarbe (Anzug). Die hellsten
+  Strähnen in V82 wurden dadurch schwarz (die dunklen Kratzer). Die Haarschale speichert ihre Helligkeit jetzt geteilt durch 1,25.
+- Laborbilder: `?lab=figur&wer=player`.
