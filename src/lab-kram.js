@@ -9,6 +9,7 @@
    ===================================================================== */
 import { T, scene, camera, renderer, U, $ } from './core.js';
 import { buildEnv, getMats, stdMat } from './people-skeleton.js';
+import { resume } from './input.js';
 import { GEOS, KINDS_OF, propMaterial, LOOSE, spawnProp, updateLoose } from './physics.js';
 import { clutterGeos } from './clutter-geos.js';
 import { decoLampGeo, decoLampMats } from './decolamp.js';
@@ -64,12 +65,16 @@ export function startKramLab(params) {
     alles: [[0, 6.5, 15], [0, 0.5, -1]], strassel: [[-4.5, 1.7, 3.6], [-4.5, 0.6, 0]], strasser: [[4.5, 1.9, 3.8], [4.5, 0.7, 0]], hofl: [[-3.5, 1.6, 0.9], [-3.5, 0.4, -2.6]], hofr: [[3.5, 1.6, 0.9], [3.5, 0.4, -2.6]],
     zimmer: [[0, 1.4, -1.2], [0, 0.5, -5.2]],
     gehweg: [[SX - 2, 1.8, 11], [SX - 1, 1.0, 3]], gehwegl: [[SX - 5, 1.5, 7.5], [SX - 5, 0.7, 2.6]], gehwegr: [[SX + 4, 1.6, 7.8], [SX + 4, 0.8, 2.6]],
+    bruch: [[23.5, 3.2, 21], [23.5, 0.2, 13.5]],   // V89: Bruchprobe (labBreak)
     terrasse: [[-18.5, 1.8, 8], [-18.5, 0.6, 3]], dach: [[SX + 3, 10.5, 9], [SX + 3, 6.5, -1]], kai: [[-12.5, 1.6, 10.5], [-13.2, 0.4, 6.6]], laterne: [[10, 2.5, 13], [10, 2, 7]],
   };
   let LT = params.get('t') != null ? +params.get('t') : null;
   window.labView = name => { const v = V[name] || V.alles; camera.position.set(...v[0]); camera.lookAt(...v[1]); };
   window.labTime = t => { LT = t; };
   window.labStats = () => ({ kinds: names.length, bodies: LOOSE.bodies.length });
+  // V89: Bruchprobe: Kiste, Fass, Weinkiste, Stuhl und Flasche stürzen mit 15 m/s auf den Boden (wie nach einem Telekinese-Wurf)
+  window.labStep = n => { resume(); for (let i = 0; i < n; i++) updateLoose(1 / 60); };
+  window.labBreak = () => { for (const [k, x, vx] of [['crate', 17, 0.5], ['barrel', 20.5, 0], ['winecrate', 24, -0.5], ['chair', 27.5, 0], ['champagne', 30.5, 0]]) { const B = spawnProp(k, x, 2.5, 14, 0.5); if (B) { B.awake = true; B.v.set(vx, -15, 0); B.w.set(1.5, 0, 2); } } };
   window.labView(params.get('view') || 'alles');
   $('overlay').hidden = true;
   for (const h of document.querySelectorAll('.hud, .touch')) h.style.display = 'none';
