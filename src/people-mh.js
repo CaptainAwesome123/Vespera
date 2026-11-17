@@ -280,7 +280,7 @@ function extraParts(K, kind, rig, keep) {
    längs = Abstand vom Ansatz); feine Kammrillen in der Form. Rund 5000 Ecken, nur für den Spieler, beim Laden in wenigen ms gebaut */
 const PH_LINE = [   // Haaransatz: Winkel um die Hochachse (0 vorn, 90 links/rechts über dem Ohr, 180 hinten) -> Höhe in m
   [0, 1.7245], [16, 1.7255], [30, 1.728], [41, 1.7275], [48, 1.7225], [53, 1.712], [57, 1.698], [61, 1.681], [66, 1.665], [71, 1.652], [76, 1.648], [79, 1.66],
-  [82, 1.671], [86, 1.6795], [92, 1.681], [100, 1.681], [104, 1.674], [110, 1.648], [118, 1.618], [128, 1.598], [142, 1.588], [160, 1.583], [180, 1.582]];
+  [82, 1.671], [86, 1.6795], [92, 1.681], [98, 1.682], [101, 1.668], [104, 1.636], [108, 1.614], [116, 1.603], [128, 1.596], [142, 1.589], [160, 1.584], [180, 1.582]];
 function phLineY(deg) {
   const a = Math.min(180, Math.abs(deg));
   let k = 1; while (k < PH_LINE.length - 1 && PH_LINE[k][0] < a) k++;
@@ -298,10 +298,12 @@ function phVol(dx, dy, dz, s) {   // Höhe des Haars über der Haut (m) in Richt
   let T = (0.005 + 0.0105 * tp + 0.003 * back * (1 - nape) - 0.0025 * nape) * (0.66 + 0.34 * big);
   // V84: hinter dem Ohr voller (Haar deckt die Stelle zwischen Ohr und Nacken)
   T += 0.003 * phSst(0.45, 0.75, Math.abs(dx)) * phSst(0.1, -0.45, dz) * phSst(0.35, 0.0, dy);
+  // V85: über dem Ohr flach anliegend (keine dunkle Kante auf dem Ohr)
+  T *= 1 - 0.55 * phSst(0.6, 0.85, Math.abs(dx)) * phSst(0.2, 0.05, dy) * phSst(-0.25, -0.05, dz);
   const fr = phSst(0.0, 0.6, dz) * phSst(0.15, 0.5, dy), lump = Math.exp(-(((dx - PH_PART - 0.42) / 0.55) ** 2));
   T += 0.0085 * fr * lump * big * phSst(0.003, 0.03, s) * (1 - 0.55 * phSst(0.045, 0.12, s));
   T -= 0.005 * Math.exp(-(((dx - PH_PART) / 0.03) ** 2)) * phSst(-0.3, 0.3, dz) * tp;
-  const ramp = 0.004 + 0.014 * fr;
+  const ramp = 0.009 + 0.009 * fr;   // V85: auch an den Seiten weich auslaufend (keine Stufe über dem Ohr)
   return 0.00025 + (Math.max(0.0012, T) - 0.00025) * phSst(0, ramp, s);
 }
 function phFlow(d, s) {   // Kämmstrich (ungefähre Richtung im Raum), s = Abstand vom Ansatz
@@ -416,7 +418,7 @@ export function playerHairGeo(body, rig, fine) {
   // Wölbung bis 4 mm, jede Locke etwas höher als die darunter, die Spitzen heben sich oben leicht ab (weich, nicht geleckt).
   // Die Eckenfarbe (r) dunkelt die Zwischenräume ab und gibt jeder Locke eine eigene Helligkeit (Sonnensträhnen)
   const P2 = [], N2 = [], U2 = [], C2 = [], I2 = [];
-  const col = new Float32Array(N).fill(0.62);
+  const col = new Float32Array(N).fill(0.7);
   const rad = new Float32Array(n); for (let v = 0; v < n; v++) rad[v] = Math.hypot(pos[v * 3] - cx, pos[v * 3 + 1] - cy, pos[v * 3 + 2] - cz);
   const eAt = az => { const fj = (az + Math.PI) / (2 * Math.PI) * NU, j0 = Math.min(NU - 1, Math.floor(fj)), tj = fj - j0; return eHs[j0] * (1 - tj) + eHs[j0 + 1] * tj; };
   const shellR = (d) => {   // Radius der Schale in Richtung d (Einheitsvektor), null außerhalb des Haars
@@ -442,13 +444,21 @@ export function playerHairGeo(body, rig, fine) {
     const L = (0.05 + 0.05 * rnd()) * (1 + 0.6 * tpq * big + 0.3 * tpq), steps = Math.max(4, Math.round(L / STEP));
     const W = (0.006 + 0.005 * rnd()) * (1 + 0.3 * tpq), H0 = (0.0012 + 0.0016 * rnd()) * (0.6 + 0.9 * tpq), lay = 0.0004 + 0.0018 * rnd() * (0.4 + tpq);
     const fluff = tpq * (0.001 + 0.004 * rnd()), wa = 0.15 + 0.3 * rnd(), wf = 30 + 30 * rnd(), wp = rnd() * 6.28, uo = rnd() * 40, br = 0.84 + 0.32 * rnd();
-    const base = P2.length / 3; let made = 0, sd = [1, 0, 0];
+    // V85: erst den Weg gehen, dann bauen: so läuft jede Locke spitz aus, auch wenn sie vorzeitig am Haaransatz endet
+    // (vorher brach sie dort in voller Breite ab: die kantige dunkle Platte über dem Ohr)
+    const path = [];
     for (let i = 0; i <= steps; i++) {
       const u = i / steps, r = shellR(d); if (r === null) break;
       const az = Math.atan2(d[0], d[2]), sIn = (Math.asin(Math.max(-1, Math.min(1, d[1]))) - eAt(az)) * r;
       const F = phFlow(d, sIn), dot = F[0] * d[0] + F[1] * d[1] + F[2] * d[2], t0 = [F[0] - d[0] * dot, F[1] - d[1] * dot, F[2] - d[2] * dot];
       if (Math.hypot(...t0) < 0.05) break;
-      const t = nv3(t0); sd = nv3(crs(d, t));
+      const t = nv3(t0), sd = nv3(crs(d, t)); path.push([d, sd, r]);
+      const wv = Math.sin(u * wf * L + wp) * wa, rs = r + lay;
+      d = nv3([d[0] + (t[0] + sd[0] * wv) * STEP / rs, d[1] + (t[1] + sd[1] * wv) * STEP / rs, d[2] + (t[2] + sd[2] * wv) * STEP / rs]);
+    }
+    const base = P2.length / 3, made = path.length >= 3 ? path.length : 0, Lr = (made - 1) * STEP;
+    for (let i = 0; i < made; i++) {
+      const [dd, sd, r] = path[i], u = i / (made - 1), d = dd;
       const taper = u < 0.12 ? 0.55 + 0.45 * u / 0.12 : 1 - 0.85 * phSst(0.5, 1, u), w = W * taper, h = H0 * (u < 0.12 ? 0.5 + 0.5 * u / 0.12 : 1 - 0.7 * phSst(0.6, 1, u));
       const rr = r + lay + fluff * phSst(0.45, 1, u);
       for (const e of X5) {
@@ -456,11 +466,8 @@ export function playerHairGeo(body, rig, fine) {
         const sink = r - 0.0006 - rr, off = e * w / 2, lift = sink + (h - sink) * Math.sqrt(Math.max(0, 1 - e * e));
         P2.push(cx + d[0] * (rr + lift) + sd[0] * off, cy + d[1] * (rr + lift) + sd[1] * off, cz + d[2] * (rr + lift) + sd[2] * off);
         N2.push(...nv3([d[0] + sd[0] * e * 0.75, d[1] + sd[1] * e * 0.75, d[2] + sd[2] * e * 0.75]));
-        U2.push(uo + e * 0.5, 0.35 + u * L / 0.028); C2.push(br * (Math.abs(e) > 0.9 ? 0.74 : Math.abs(e) > 0.4 ? 0.95 : 1.06));
+        U2.push(uo + e * 0.5, 0.35 + u * Lr / 0.028); C2.push(br * (Math.abs(e) > 0.9 ? 0.74 : Math.abs(e) > 0.4 ? 0.95 : 1.06));
       }
-      made++;
-      const wv = Math.sin(u * wf * L + wp) * wa;
-      d = nv3([d[0] + (t[0] + sd[0] * wv) * STEP / rr, d[1] + (t[1] + sd[1] * wv) * STEP / rr, d[2] + (t[2] + sd[2] * wv) * STEP / rr]);
     }
     for (let i = 0; i + 1 < made; i++) for (let e = 0; e < 4; e++) {
       const a = base + i * 5 + e, b = a + 1, c = a + 5, dd = a + 6;

@@ -559,3 +559,10 @@ python3 tools/build-single.py single/vespera-v21.html       # Einzeldatei (seit 
 ### V84: Tolle niedriger, mehr Haar hinter dem Ohr
 - Die Tolle über der Stirn ist rund 6 mm niedriger (`phVol`, Zuschlag vorn 0,0085 statt 0,0145).
 - Hinter dem Ohr beginnt das Haar tiefer (`PH_LINE` 104 bis 160 Grad) und ist dort 3 mm voller.
+
+### V85: Haar direkt hinter dem Ohr, keine Kante über dem Ohr
+- Der Haaransatz läuft jetzt (wie vom Spieler markiert) vom oberen Ohrrand senkrecht hinter dem Ohr bis unter das Ohrläppchen
+  und dann zum Nacken (`PH_LINE` 98 bis 116 Grad).
+- Locken werden in zwei Schritten gebaut (erst der Weg, dann das Band), so laufen auch Locken spitz aus, die vorzeitig am
+  Haaransatz enden; vorher brachen sie dort in voller Breite ab (kantige dunkle Platte über dem Ohr).
+- Haar über dem Ohr flacher, Ansatz an den Seiten weicher, Unterbau zwischen den Locken etwas heller.
