@@ -245,6 +245,17 @@ function extraParts(K, kind, rig, keep) {
     P(new T.SphereGeometry(0.0085, 10, 8).scale(0.85, 1.05, 0.7).translate(0, y, z + 0.0035), black, 0, FAB.satin);
   }
   if (K.player) {
+    // V81: Alexanders getönte Sonnenbrille: runde Gläser (zwanziger Jahre), dunkel getönt und glänzend, dünner Goldrand, Steg und Bügel zu den Ohren
+    {
+    const z = fc.noseZ - 0.014, y = fc.eyeY + 0.001, R = 0.0172, rim = [0.6, 0.46, 0.22], tint = [0.05, 0.04, 0.035];
+    for (const sx of [-1, 1]) {
+      P(new T.TorusGeometry(R, 0.0013, 6, 26).translate(sx * (fc.eyeX + 0.001), y, z), rim, 0, FAB.metal);
+      P(new T.CylinderGeometry(R * 0.97, R * 0.97, 0.0012, 24).rotateX(Math.PI / 2).translate(sx * (fc.eyeX + 0.001), y, z + 0.0004), tint, 0, FAB.patent);
+      const a = new T.Vector3(sx * (fc.eyeX + 0.001 + R), y + 0.002, z - 0.002), b = new T.Vector3(sx * 0.074, y + 0.006, rig.headZ - 0.008), d = b.clone().sub(a);
+      P(new T.CylinderGeometry(0.001, 0.001, d.length(), 5).translate(0, d.length() / 2, 0).applyQuaternion(new T.Quaternion().setFromUnitVectors(new T.Vector3(0, 1, 0), d.clone().normalize())).translate(a.x, a.y, a.z), rim, 0, FAB.metal);
+    }
+    P(new T.TorusGeometry(fc.eyeX + 0.001 - R, 0.0011, 5, 10, Math.PI).translate(0, y + 0.002, z + 0.002), rim, 0, FAB.metal);
+    }
     // weiße Rose am linken Revers: Blütenblätter in Lagen, Kelch und Stiel, ein Blatt
     const x = 0.098, y = rig.top - 0.075, z = suitFront(x, y) + 0.012, white = [0.96, 0.95, 0.9], green = [0.18, 0.32, 0.12];
     P(new T.SphereGeometry(0.008, 10, 8).scale(1, 1, 0.8).translate(x, y, z + 0.004), [0.93, 0.91, 0.82], 0, FAB.silk);
@@ -267,8 +278,8 @@ function extraParts(K, kind, rig, keep) {
    Strähnen laufen von der Stirn zum Wirbel hinten oben (Koordinaten für den Haar-Shader: quer = Winkel um die Achse Stirn-Wirbel,
    längs = Abstand vom Ansatz); feine Kammrillen in der Form. Rund 5000 Ecken, nur für den Spieler, beim Laden in wenigen ms gebaut */
 const PH_LINE = [   // Haaransatz: Winkel um die Hochachse (0 vorn, 90 links/rechts über dem Ohr, 180 hinten) -> Höhe in m
-  [0, 1.7395], [16, 1.7405], [30, 1.743], [41, 1.742], [48, 1.736], [53, 1.722], [57, 1.703], [61, 1.682], [66, 1.661], [71, 1.646], [76, 1.645], [79, 1.66],
-  [82, 1.694], [88, 1.7005], [98, 1.7005], [106, 1.69], [112, 1.668], [119, 1.638], [128, 1.612], [142, 1.594], [160, 1.584], [180, 1.582]];
+  [0, 1.7245], [16, 1.7255], [30, 1.728], [41, 1.7275], [48, 1.7225], [53, 1.712], [57, 1.698], [61, 1.681], [66, 1.665], [71, 1.652], [76, 1.648], [79, 1.66],
+  [82, 1.671], [86, 1.6795], [92, 1.681], [100, 1.681], [106, 1.678], [112, 1.662], [119, 1.638], [128, 1.612], [142, 1.594], [160, 1.584], [180, 1.582]];
 function phLineY(deg) {
   const a = Math.min(180, Math.abs(deg));
   let k = 1; while (k < PH_LINE.length - 1 && PH_LINE[k][0] < a) k++;
@@ -335,7 +346,7 @@ export function playerHairGeo(body, rig, fine) {
       // Dicke über der Haut: am Ansatz knapp darunter, dann je nach Lage
       const tp = phSst(0.015, 0.075, y), fr = phSst(-0.015, 0.055, z), back = phSst(0.0, -0.05, z), nape = phSst(-0.03, -0.075, y);
       const side = Math.abs(x) / Math.max(1e-3, Math.hypot(x, y));
-      let body0 = 0.0046 + 0.0066 * tp + 0.0018 * back * (1 - nape) - 0.0022 * nape;
+      let body0 = 0.0072 + 0.0048 * tp + 0.0016 * back * (1 - nape) - 0.004 * nape;   // V81: Seiten voller (über den Ohren sichtbar)
       // Welle über der Stirn: setzt 1 bis 4 cm hinter dem Ansatz ein, rechts vom Scheitel voller
       const part = 0.034, rgt = phSst(part + 0.004, part - 0.03, x);
       body0 += 0.0062 * fr * tp * phSst(0.008, 0.035, s) * (0.65 + 0.35 * rgt) * (1 - 0.6 * side);
@@ -344,8 +355,9 @@ export function playerHairGeo(body, rig, fine) {
       body0 -= 0.003 * groove;
       // Kammrillen der Pomade (quer zur Strähne)
       const vx = x, vy = y, vz = z, pa = vx * RX[0] + vy * RX[1] + vz * RX[2], pb = vx * RY[0] + vy * RY[1] + vz * RY[2], phi = Math.atan2(pb, pa);
-      const ramp = 0.006 + 0.012 * fr * tp, edge = phSst(0, ramp, s);
-      body0 += edge * (0.00035 * Math.sin(phi * 47 + 0.8 * Math.sin(s * 90)) + 0.00025 * Math.sin(phi * 113 + 2.1)) * (0.4 + 0.6 * tp) * phSst(0.09, 0.05, s);
+      const ramp = 0.0035 + 0.0125 * fr * tp, edge = phSst(0, ramp, s);
+      // V81: deutliche Strähnen: Rillen in drei Breiten, die sich entlang der Strähne leicht verschieben
+      body0 += edge * (0.0009 * Math.sin(phi * 47 + 0.8 * Math.sin(s * 60)) + 0.0006 * Math.sin(phi * 96 + 2.1 + 1.3 * Math.sin(s * 45)) + 0.0003 * Math.sin(phi * 190 + 0.7));
       const t = 0.00025 + (Math.max(0.0012, body0) - 0.00025) * edge;
       const o = (j * rows + k) * 3;
       pos[o] = cx + h[0] * (h[3] + t); pos[o + 1] = cy + h[1] * (h[3] + t); pos[o + 2] = cz + h[2] * (h[3] + t);
