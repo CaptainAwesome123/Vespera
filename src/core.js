@@ -225,6 +225,8 @@ T.ShaderChunk.fog_fragment = `#ifdef USE_FOG
 // ?schnee=aus = Stand V96 (der alte Schnee auf Dächern, Simsen, Laternen und Autos bleibt).
 // V98: Regen auf Glas: Tropfen und Rinnsale an Autoscheiben und Fenstern, im Flug Tropfen auf der Kamera (uLens). ?regenglas=aus = Stand V97.
 // V99: Kino-Look: weicheres Nachleuchten, Filmkorn, Tiefenschärfe in Gesprächen (Mitte scharf, Rand weich), Farbstimmung je Viertel. ?kino=aus = Stand V98.
+// V100: Fassaden aus der Nähe: Steinkorn, ausgebrochene Kanten, Reif in den Fugen, Salzränder und Abrieb am Sockel, gravierte Goldbänder. ?nah=aus = Stand V99.
+export const NAH = new URLSearchParams(location.search).get('nah') !== 'aus';
 export const KINO = new URLSearchParams(location.search).get('kino') !== 'aus';
 export const REGENGLAS = new URLSearchParams(location.search).get('regenglas') !== 'aus';
 export const SCHNEE = new URLSearchParams(location.search).get('schnee') !== 'aus';

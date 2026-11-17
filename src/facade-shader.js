@@ -1,4 +1,4 @@
-import { T, U, FOG_GLSL, SCHNEE, REGENGLAS } from './core.js';
+import { T, U, FOG_GLSL, SCHNEE, REGENGLAS, NAH } from './core.js';
 import { addCollider } from './people-skeleton.js';
 
 /* =====================================================================
@@ -32,6 +32,7 @@ export const facadeFS = `
 #define ROOMSTYLE ${INNEN ? '2.5' : '1.5'}
 ${SCHNEE ? '#define SCHNEE 1' : ''}
 ${REGENGLAS ? '#define REGENGLAS 1' : ''}
+${NAH ? '#define NAH 1' : ''}
 uniform float uRain;
 uniform vec4 uWind;
 #define BRICK_MEAN vec3(0.519, 0.287, 0.184)
@@ -146,6 +147,26 @@ void main(){
   float psl = dot(texture2D(uStone, wq / 2.2 + vec2(seed*0.131, seed*0.071)).rgb, vec3(0.333)); psl = psl*psl / 0.094;
   surf *= mix(1.0, 0.55 + 0.45*psl, uStoneOn * stoneMat * midFade * 0.8);
   vec3 tex = mix(mix(vTint, surf, midFade), brickWall, brick);
+#ifdef NAH
+  // V100: aus der Nähe (ein Bildpunkt kleiner als etwa 1,5 cm): feines Steinkorn, an Quadern und Ziegeln ausgebrochene Kanten,
+  // Reif in den Fugen bei Frost, am Sockel Salzränder vom Streusalz und Abrieb; blendet weich ein, in der Ferne keine Rechnung
+  float nf = 1.0 - smoothstep(0.006, 0.022, wpx);
+  if (nf > 0.01) {
+    float g1 = vnoise(wq * 47.0 + seed), g2 = hash(floor(wq * 170.0));
+    tex *= 1.0 + nf * (0.14 * (g1 - 0.5) + 0.08 * (g2 - 0.5)) * (1.0 - 0.5 * gloss);
+    float chipN = vnoise(wq * 9.0 + seed * 1.3);
+    float edgeD = brick > 0.5 ? min(min(bry, 1.0 - bry) / 13.0, min(brx, 1.0 - brx) * 0.24) : (matT < 1.5 || matT > 6.5 ? dJ : 1.0);
+    float chip = nf * smoothstep(0.58, 0.72, chipN) * (1.0 - smoothstep(0.012, 0.05, edgeD)) * (1.0 - smoothstep(0.0, 0.01, -edgeD));
+    tex = mix(tex, tex * vec3(0.62, 0.6, 0.58) + vec3(0.02) * g1, chip * 0.85);
+    float frJ = max(jm, brick * brMortar) * nf * clamp(uIce * 1.6, 0.0, 1.0) * smoothstep(0.35, 0.7, g1 + 0.2 * g2);
+    tex = mix(tex, vec3(0.62, 0.7, 0.78) * dot(vTint, vec3(0.4)) + vec3(0.12, 0.15, 0.2), frJ * 0.7);
+  }
+  // Sockel: Salzrand (weißlich, wellig) und dunkler Spritz- und Abriebstreifen; schon aus mittlerer Entfernung sichtbar
+  float salt = step(baseY, 0.6) * midFade * (1.0 - smoothstep(0.03, 0.09, abs(hy - 0.42 - 0.12 * vnoise(vec2(uW * 1.3, seed)))) ) * smoothstep(0.3, 0.6, vnoise(vec2(uW * 3.1, hy * 6.0) + seed));
+  float scuff = step(baseY, 0.6) * (1.0 - smoothstep(0.1, 0.38, hy)) * (0.6 + 0.4 * vnoise(vec2(uW * 2.0, seed)));
+  tex = mix(tex, tex * 0.72, scuff * 0.6);
+  tex = mix(tex, vec3(0.72, 0.72, 0.68) * dot(vTint, vec3(0.45)) + 0.05, salt * 0.55);
+#endif
   gloss *= 1.0 - brick;
   // Verwitterung: Regenspuren nach unten, Ruß am Boden, große Farbflecken
   float streak = vnoise(vec2(uW * 1.7 + seed, vWorld.y * 0.045)) * vnoise(vec2(uW * 0.6, vWorld.y * 0.02 + seed));
@@ -593,6 +614,18 @@ void main(){
   float band = clamp(1.0 - smoothstep(0.9 - fwT, 0.9 + fwT, topDist) + smoothstep(1.25 - fwT, 1.25 + fwT, topDist) - smoothstep(1.45 - fwT, 1.45 + fwT, topDist), 0.0, 1.0) * step(-0.5, dens);
   vec3 gold = vec3(0.95, 0.7, 0.32);
   vec3 goldLit = gold*(0.1 + 0.28*moon + 0.55*flood*exp(-hy/60.0) + 0.12*exp(-vWorld.y/30.0));
+#ifdef NAH
+  // V100: Goldband aus der Nähe: gravierte Zickzack-Linien (Art Déco), Patina in den Vertiefungen, feiner Glanz an den Graten
+  float gnf = band * (1.0 - smoothstep(0.008, 0.03, wpx));
+  if (gnf > 0.01) {
+    float zz = abs(fract(uW * 2.2 + abs(fract(topDist * 2.8) - 0.5) * 1.2) - 0.5);
+    float groove = 1.0 - smoothstep(0.05, 0.12, zz);
+    float wear = vnoise(vec2(uW * 3.0, topDist * 7.0) + seed);
+    goldLit *= mix(1.0, 0.55, groove * gnf);
+    goldLit = mix(goldLit, goldLit * vec3(0.45, 0.62, 0.5), groove * gnf * smoothstep(0.4, 0.75, wear) * 0.7);
+    goldLit += gold * 0.25 * gnf * smoothstep(0.1, 0.16, zz) * (1.0 - smoothstep(0.16, 0.24, zz)) * (0.3 + moon);
+  }
+#endif
   col = mix(col, goldLit, band);
   col += flood * mix(vec3(1.0, 0.66, 0.3), vRib, ribOn * 0.55) * 0.2 * exp(-hy/38.0) * (1.0 - inWin*0.6);   // V76: Türme mit Lichtrippen werden in deren Farbe angestrahlt (Türkis)
 
