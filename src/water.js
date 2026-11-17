@@ -1,4 +1,5 @@
 import { U, T, MOBILE, renderer, scene, camera, FOG_GLSL, LOW } from './core.js';
+import { AURORA_GLSL } from './sky.js';
 import { depthOptions, REVZ, toReverse } from './depth.js';
 import { addCollider } from './people-skeleton.js';
 import { lamps, addSeg, addGlow, NEON } from './facade-shader.js';
@@ -119,8 +120,10 @@ export const LAND_GLSL = () => `
   float landDistG(vec2 p){ vec2 d = p - vec2(${ISL.cx.toFixed(1)}, ${ISL.cz.toFixed(1)}); float th = atan(d.x, -d.y); return min(coastRG(th) - length(d), ${ISL.quay.toFixed(1)} - p.y); }`;
 
 /* ---------- Wasser: Hafenbecken mit Wellen, Mondglitzern, Spiegelungen der Lichter; Pools und Brunnen ---------- */
+const AU_W = new URLSearchParams(location.search).get('nordlichtwasser') !== 'aus';   // V94
 export const WATER_COMMON = `${FOG_GLSL}
-  uniform float uAurora; uniform float uMoonLit; uniform float uRain; uniform float uMist;
+  uniform float uAurora; uniform float uMoonLit; uniform float uRain; uniform float uMist; uniform float uAuroraT; uniform float uCloud; uniform float uInside;
+  ${AU_W ? AURORA_GLSL : ''}
   float wH(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
   float wN(vec2 p){ vec2 i = floor(p), f = fract(p); f = f*f*(3.0 - 2.0*f); return mix(mix(wH(i), wH(i + vec2(1, 0)), f.x), mix(wH(i + vec2(0, 1)), wH(i + vec2(1, 1)), f.x), f.y); }
   // Wellen: mehrere Richtungen und Längen, dazu feines Gekräusel aus Rauschen
@@ -140,8 +143,10 @@ export const WATER_COMMON = `${FOG_GLSL}
     vec3 c = mix(fogC * 1.8, vec3(0.012, 0.03, 0.06), smoothstep(0.0, 0.45, R.y));
     float md = max(dot(R, moonD), 0.0);
     c += (vec3(1.2, 1.15, 1.0) * pow(md, 900.0) * 6.0 + vec3(0.5, 0.55, 0.6) * pow(md, 40.0) * 0.25) * uMoonLit;
-    // V25: das Polarlicht spiegelt sich als grün-türkiser Schimmer
-    c += vec3(0.05, 0.42, 0.26) * uAurora * smoothstep(0.08, 0.35, R.y) * (1.0 - smoothstep(0.5, 0.9, R.y)) * 0.35;
+    // V25: das Polarlicht spiegelt sich als grün-türkiser Schimmer; V94: dazu der wogende Vorhang selbst, wie er am Himmel steht
+    float auK = uAurora * (1.0 - uCloud) * (1.0 - uInside);
+    c += vec3(0.05, 0.42, 0.26) * uAurora * smoothstep(0.08, 0.35, R.y) * (1.0 - smoothstep(0.5, 0.9, R.y)) * ${AU_W ? '0.2' : '0.35'};
+    ${AU_W ? 'c += auroraRefl(R, uAuroraT, auK) * 0.9;' : ''}
     return c;
   }`;
 // Echte Spiegelung (am PC): die Szene wird an der Wasserfläche gespiegelt in ein halb so großes Bild gerendert;
