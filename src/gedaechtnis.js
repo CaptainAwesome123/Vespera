@@ -65,6 +65,9 @@ const TAT = {
   gala: { ton: 0.5, r: 0, tage: 0, ger: 1 },
   stiftung: { ton: 1, r: 0, tage: 0, ger: 1 },
   hilfe: { ton: 1, r: 0, tage: 10 },
+  gabe: { ton: 0.6, r: 0, tage: 4 },          // V106: Bittsteller (reaktionen.js)
+  autogramm: { ton: 0.5, r: 0, tage: 6 },
+  schneeball: { ton: 0, r: 20, tage: 2, ger: 1 },
   abgewiesen: { ton: -0.4, r: 0, tage: 3 },
 };
 // Ruf-Schlüssel (rufAdd key oder Grund) → Tat
@@ -87,6 +90,11 @@ function tatOf(key, why) {
     case 'demo:rede': return 'rede';
     case 'demo:buh': return 'buh';
     case 'demo:raeumen': return 'raeum';
+    case 'bitte:hilfe': return 'hilfe';   // V106: Bittsteller (reaktionen.js)
+    case 'bitte:gabe': return 'gabe';
+    case 'bitte:autogramm': return 'autogramm';
+    case 'bitte:nein': return 'abgewiesen';
+    case 'schneeball': return 'schneeball';
   }
   const w = String(why || '');
   if (/^(Bombe entschärft|Versteck ausgehoben|Den Roten Kasimir gefasst)/.test(w)) return 'held';
@@ -199,6 +207,9 @@ const L = {
   gala: { ger: ['Wie war die Gala {wann}? Man sagt, der Champagner floss in Strömen.'], gerSkep: ['Die Gala {wann} hat mehr gekostet, als unser ganzes Haus im Jahr verdient, heißt es.'] },
   stiftung: { ger: ['Man liest von Ihrer Stiftung: {t}. Das ist anständig.'], gerSkep: ['{t}. Schön. Sieht gut aus in der Zeitung, nicht wahr?'] },
   hilfe: { opf: { warm: ['Herr Alexander! Was Sie {wann} für mich getan haben, vergesse ich nicht.', 'Da ist ja mein Retter! Na gut, Retter ist übertrieben. Aber danke für {wann}.', 'Ich hab allen erzählt, dass Sie mir {wann} geholfen haben. Manche glauben es nicht.'], skep: ['Sie haben mir {wann} geholfen. Ich weiß noch nicht, was ich davon halten soll. Aber danke.'] } },
+  gabe: { opf: { warm: ['Herr Alexander! Die paar Lumen {wann} haben mir den Abend gerettet.', 'Danke nochmal für {wann}. Ich hab mir davon was Warmes gekauft.'], skep: ['Danke für {wann}. Ein paar Lumen. Für Sie Kleingeld, für mich ein Abendessen.'] } },
+  autogramm: { opf: { warm: ['Ihr Autogramm von {wann} hängt bei uns über dem Sofa!', 'Meine Mutter hat Ihr Autogramm {wann} gleich eingerahmt.'], def: ['Ihr Autogramm von {wann}? Hab ich noch. Irgendwo.'] } },
+  schneeball: { zeu: { def: ['Der Schneeball {wann}! Ich hab gelacht, verzeihen Sie.', 'Ich hab gesehen, wie Sie {wann} mit einem Schneeball beworfen wurden. Sie haben nicht mal gezuckt.'], hass: ['Der Schneeball {wann} war noch zu weich, wenn Sie mich fragen.'] }, ger: ['Man erzählt sich, jemand hätte Sie {wann} mit einem Schneeball beworfen. Stimmt das?'], gerSkep: ['Im Viertel lachen sie über den Schneeball. Treffer, versenkt, Herr Alexander.'] },
   abgewiesen: { opf: { def: ['Sie hatten {wann} keine Zeit für mich. Schon gut. Ein Herr wie Sie hat viel zu tun.', 'Ich hab Sie {wann} um etwas gebeten. Ich frag nicht nochmal.'] } },
 };
 // Bekannte Gesichter: wie oft er schon mit jemandem geredet hat
@@ -315,7 +326,7 @@ function onTat(key, why) {
   if (k === 'wurf' && C && C.pd) { remember(C.pd, 'wurf', true); skip.add(C.pd); }
   else if (k === 'stoss' && C && C.hits) { for (const h of C.hits) if (h.kind === 'ped' && h.ref) { remember(h.ref, 'stoss', true); skip.add(h.ref); } }
   else if (k === 'heben' && POWERS.tk && POWERS.tk.pd) { remember(POWERS.tk.pd, 'heben', true); skip.add(POWERS.tk.pd); }
-  else if (k === 'kauf' || k === 'tip') { const v = nearestPed(p, 3.2); if (v) { remember(v, k, true); skip.add(v); } return; }
+  else if (k === 'kauf' || k === 'tip' || /^bitte:/.test(key)) { const v = nearestPed(p, 3.2); if (v) { remember(v, k, true); skip.add(v); } return; }
   if (T.r || T.opfR) witnesses(k, p.x, p.y, p.z, skip);
   if (T.ger) gossip(k, why);
 }
@@ -407,7 +418,7 @@ function fade() {
 }
 
 /* ---------- Ruf-Buch (Ö): Was man sich erzählt ---------- */
-const GER_T = { wurf: 'Einen Bürger durch die Luft geworfen', heben: 'Jemanden schweben lassen', stoss: 'Passanten mit dem Energiestoß umgeworfen', welle: 'Druckwelle zwischen Passanten', wagen: 'Ein fliegendes Automobil', held: 'Einen Verbrecher gestellt', runde: 'Eine Runde spendiert', droh: 'Streikenden mit Entlassung gedroht', lohn: 'Höhere Löhne versprochen', spende: 'Für die Streikkasse gespendet', raeum: 'Die Kundgebung räumen lassen', gala: 'Die Gala im Belmont', stiftung: 'Stiftung' };
+const GER_T = { schneeball: 'Mit einem Schneeball beworfen', wurf: 'Einen Bürger durch die Luft geworfen', heben: 'Jemanden schweben lassen', stoss: 'Passanten mit dem Energiestoß umgeworfen', welle: 'Druckwelle zwischen Passanten', wagen: 'Ein fliegendes Automobil', held: 'Einen Verbrecher gestellt', runde: 'Eine Runde spendiert', droh: 'Streikenden mit Entlassung gedroht', lohn: 'Höhere Löhne versprochen', spende: 'Für die Streikkasse gespendet', raeum: 'Die Kundgebung räumen lassen', gala: 'Die Gala im Belmont', stiftung: 'Stiftung' };
 const WANN_T = m => { const w = wann(m); return w === 'heute Abend' ? 'heute' : w; };
 function section() {
   if (!MEM.ready) return '';
