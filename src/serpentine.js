@@ -1,7 +1,7 @@
 import { shared, canvasTex, freeAfterUpload, mulberry32, T, mergeGeos, scene, MOBILE, U, pick, R, rand, camera, ANISO, FOG_GLSL, FOGVIS, snowy, TREE } from './core.js';
 import { planDeco } from './deco.js';
 import { personGeoHi, personShare, HQ } from './people-model.js';
-import { stdMat, MAT, addCollider, glowTex, paintMat, mergeColored, PAINT, personLook } from './people-skeleton.js';
+import { stdMat, MAT, addCollider, glowTex, paintMat, mergeColored, PAINT, personLook, BL_H } from './people-skeleton.js';
 import { lamps, trees, addGlow, NEON, addNeon, addSeg, shafts, spires, neons, segs, dedupeSegs, facadeMat, glowPts, roofs, curbs } from './facade-shader.js';
 import { buildGroundMask, groundGrass, COAST, ISL, buildSidewalks, blocks, inRect, PLAZA, MEDIAN, BRIDGE_LOOPS, CANAL, rectPath } from './island.js';
 import { IB, FACTORY_LOOPS, FACTORY_IDLERS } from './shops.js';
@@ -2661,15 +2661,52 @@ export function lodCompactor(hi, lo, near2, far = null, far2 = Infinity) {
   return { begin() { H.begin(); L.begin(); if (far) F.begin(); }, put(m, k, c, d2) { (d2 < near2 ? H : d2 < far2 ? L : F).put(m, k, c); }, end() { H.end(); L.end(); if (far) F.end(); } };
 }
 export const _cc = new T.Color();
+// V87: fließende Wechsel zwischen Handlungen. Die Figur behält ihre gewünschte Gangart in a.gait (alle Spiellogik liest sie dort);
+// hochgeladen wird die gezeigte (a.bl): wechselt die gewünschte, läuft die alte BL_H Sekunden aus (der Shader blendet sie in eine
+// Mittelhaltung), dann kommt die neue. Ausgenommen: Gehen zu Gehen (nur anderes Tempo), Ragdoll (99), Arbeit am Sitz, Steuer, Halten, Fliegen
+const actOf = (y, z) => z > 0.01 ? -1 : Math.floor(y + 0.001);
+const noBlend = a => a > 98.5 || (a > 31.5 && a < 43.9);
+export function sitAct(y, z) {
+  const a = actOf(y, z), i = y - a;
+  return a === 7 || a === 10 || a === 11 || a === 14 || a === 19 || a === 46 || (a === 9 && i >= 0.75) || ((a === 44 || a === 45) && i >= 0.5);
+}
+export function blendable(y0, z0, y1, z1) {
+  if (z0 > 0.01 && z1 > 0.01) return false;
+  return !noBlend(actOf(y0, z0)) && !noBlend(actOf(y1, z1));
+}
+const BL_OFF = new URLSearchParams(location.search).get('wechsel') === 'hart';   // ?wechsel=hart: Handlungen springen wie vor V87
+export function shownGait(k, gait, now) {
+  let b = k.bl;
+  if (!b) b = k.bl = { y: gait[1], z: gait[2], t: -1, sit: false, seen: now };
+  if (BL_OFF) { b.y = gait[1]; b.z = gait[2]; b.t = -1; return b; }
+  if (now - b.seen > 0.5 || now < b.seen) { b.y = gait[1]; b.z = gait[2]; b.t = -1; }   // länger nicht gezeigt: gleich die neue
+  b.seen = now;
+  if (b.t >= 0 && now - b.t > 2 * BL_H) b.t = -1;
+  if (gait[1] !== b.y || gait[2] !== b.z) {
+    const s = b.t >= 0 ? now - b.t : -1;
+    if (s > BL_H + 0.04) b.t = now - (2 * BL_H - s);   // mitten im Einblenden schon wieder ein Wechsel: von hier aus wieder ausblenden
+    if (b.t < 0) {
+      if (blendable(b.y, b.z, gait[1], gait[2])) { b.t = now; b.sit = sitAct(b.y, b.z) && sitAct(gait[1], gait[2]); }
+      else { b.y = gait[1]; b.z = gait[2]; }
+    }
+    if (b.t >= 0 && now - b.t >= BL_H) { b.y = gait[1]; b.z = gait[2]; }
+  }
+  return b;
+}
 export function compactor(im) {
-  const key = new Array(im.count).fill(null), gv = new Int32Array(im.count); let DA = null;
+  const key = new Array(im.count).fill(null), gv = new Int32Array(im.count), sy = new Array(im.count).fill(0), sz = new Array(im.count).fill(0), st = new Array(im.count).fill(0); let DA = null;
   return {
     n: 0, dirty: false,
     begin() { this.n = 0; DA = im.geometry.attributes.aDmg || null; },
     put(m, k, c, gait) {
       const n = this.n++; im.setMatrixAt(n, m);
       if (DA) { const d = k.dmg; if (d || DA.getX(n) + DA.getY(n) + DA.getZ(n) > 0 || DA.getW(n) < 1) { DA.setXYZW(n, d ? d[0] : 0, d ? d[1] : 0, d ? d[2] : 0, d ? 1 - d[3] : 1); this.dDirty = true; } }
-      if (key[n] !== k || gv[n] !== (k.gv | 0)) { key[n] = k; gv[n] = k.gv | 0; im.setColorAt(n, _cc.setRGB(c[0], c[1], c[2])); const ga = im.geometry.attributes.aGait; if (ga && gait) ga.setXYZW(n, gait[0], gait[1], gait[2], gait[3] || 0); const la = im.geometry.attributes.aLive; if (la) { const l = k.live; if (l) la.setXYZW(n, l[0], l[1], l[2], l[3]); else la.setXYZW(n, 0, -9, 0, 1); } this.dirty = true; }
+      const la = im.geometry.attributes.aLive, l = k.live;
+      let gy = gait ? gait[1] : 0, gz = gait ? gait[2] : 0, bt = 0, bs = false;
+      if (la && gait && l && l[2] < 0.5) { const b = shownGait(k, gait, U.uTime.value); gy = b.y; gz = b.z; if (b.t >= 0) { bt = Math.max(0.02, b.t); bs = b.sit; } }
+      if (key[n] !== k || gv[n] !== (k.gv | 0) || sy[n] !== gy || sz[n] !== gz || st[n] !== bt) {
+        key[n] = k; gv[n] = k.gv | 0; sy[n] = gy; sz[n] = gz; st[n] = bt; im.setColorAt(n, _cc.setRGB(c[0], c[1], c[2])); const ga = im.geometry.attributes.aGait; if (ga && gait) ga.setXYZW(n, gait[0], gy, gz, gait[3] || 0);
+        if (la) { if (l) la.setXYZW(n, l[0], l[1], bt > 0 ? -bt : l[2], bs && bt > 0 ? -l[3] : l[3]); else la.setXYZW(n, 0, -9, 0, 1); } this.dirty = true; }
     },
     end() {
       // V77: nur den belegten Teil der Lagen hochladen (vorher jedes Bild der ganze Puffer, auch für Figuren, die es gerade nicht gibt);

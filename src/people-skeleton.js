@@ -10,6 +10,8 @@ import { mocapGLSL, MOCAP } from './mocap.js';
    Gesten, Tänze. Haare, Röcke, Fransen und Ketten schwingen nach
    ===================================================================== */
 // V35: Alexanders Bewegungen für den Shader (8 × vec4, Belegung bei playerPose); player-model.js schreibt sie jedes Bild
+// V87: halbe Dauer eines Wechsels zwischen zwei Handlungen (alte ausblenden, neue einblenden), Sekunden
+export const BL_H = 0.28;
 export const PL_U = { value: Array.from({ length: 8 }, () => new T.Vector4()) };
 export const DANCE = { fox: 2.0, charl: 2.6, sway: 2.0 };   // Schläge pro Sekunde
 // Lenkräder und Steuerräder: Mitte (Körperraum), Radius, Neigung der Achse nach oben
@@ -438,10 +440,27 @@ void poseWave(float tt, float actI, float fem) {
   pvO.y += 0.012 * big * abs(s1) * amp;
   gSmile = clamp(gSmile + 0.6 * up, 0.0, 1.0);
 }
-void humanPose(float fem, float gs, float elder) {
+void poseReset() {
   thP = thA = thY = knF = anF = uaP = uaA = uaT = elF = wrF = fgC = fgP = vec2(0.0);
   spP = spR = spY = nkP = nkY = nkR = pvP = pvR = pvY = sitK = chew = jawO = danceK = flareK = bounceV = walkC = walkA = runK = carryK = toolOn = legIKon = 0.0;
   pvO = vec3(0.0); toolO = toolX = toolY = toolZ = vec3(0.0);
+}
+void humanPose(float fem, float gs, float elder) {
+  poseReset();
+  // V87: fließender Wechsel zwischen zwei Handlungen. Die Stadt (serpentine.js, shownGait) zeigt die alte Handlung noch BL_H Sekunden
+  // weiter und blendet sie dabei in eine ruhige Mittelhaltung aus (Stehen, oder Sitzen, wenn vorher und nachher gesessen wird);
+  // dann kommt die neue Handlung aus dieser Mittelhaltung. aLive.z = -Beginn des Wechsels, aLive.w < 0 = Mittelhaltung im Sitzen.
+  // Kein zweites humanPose: nur poseStand und ein paar Werte fürs Sitzen kommen dazu (kleiner Shader, siehe V36d)
+  float blW = 1.0; HPose blN;
+  if (aLive.z < -0.01 && gPlayer < 0.5) {
+    float s = uTime + aLive.z;
+    blW = sst((abs(s - ${BL_H.toFixed(3)}) - 0.04) / ${(BL_H - 0.04).toFixed(3)});
+    if (blW < 0.999) {
+      poseStand(fem, gs);
+      if (aLive.w < 0.0) { sitK = 1.0; thP = vec2(1.5); knF = vec2(1.5); thA = vec2(0.04); thY = vec2(0.06); anF = vec2(0.1); pvO = vec3(0.0); pvR = 0.0; spR = 0.0; spP = 0.06; uaP = vec2(0.42); elF = vec2(0.95); uaT = vec2(0.5); }
+      blN = poseGet(); poseReset();
+    }
+  }
   float walking = step(0.01, gG.z), amp = gG.z;
   float act = (1.0 - walking) * floor(gG.y + 0.001), actI = fract(gG.y); hAct = act;
   if (act > 98.5) return;
@@ -661,6 +680,7 @@ void humanPose(float fem, float gs, float elder) {
       if (act > 2.5 && act < 3.5) poseWave(tt, actI, fem);
     }
   }
+  if (blW < 0.999) poseOver(blN, blW);   // V87: aus der Mittelhaltung (oder in sie hinein)
   // Blick: wer die Kamera bemerkt, dreht den Kopf (und ein wenig die Schultern) zu ihr; manche grüßen im Vorbeigehen
   {
     vec3 hd = camB - vec3(0.0, rHeadC, rHeadZ + 0.026); float dist = length(hd);
@@ -967,7 +987,7 @@ void humanShape(inout vec3 p, float L, float fem, float fid, float op) {
 export const HUM_VS_RIG = `
   float hFemV = step(32.0, mod(aGait.w, 64.0)), hGs = fract(sin(aGait.x * 91.7) * 437.5);
   hFem = hFemV; hMH = step(1.5, aMH.w); rigSet(hFemV, hMH);
-  gPlayer = step(0.5, aLive.z); gPh = gPlayer > 0.5 ? aLive.y : uTime * aGait.y + aGait.x; gSmile = clamp(aLive.w - 1.0, 0.0, 1.0) + 0.22 * hh(aGait.x * 5.3);
+  gPlayer = step(0.5, aLive.z); gPh = gPlayer > 0.5 ? aLive.y : uTime * aGait.y + aGait.x; gSmile = clamp(abs(aLive.w) - 1.0, 0.0, 1.0) + 0.22 * hh(aGait.x * 5.3);
   gTurn = gPlayer > 0.5 ? 0.0 : aLive.x * smoothstep(aLive.y, aLive.y + 0.6, uTime) * (1.0 - smoothstep(aLive.y + 2.6, aLive.y + 3.3, uTime));
   float hHairI = mod(floor(aGait.w / 320.0), 6.0), hElder = step(3.5, hHairI) * step(hHairI, 4.5);
   // Kamera im Körperraum der Figur
