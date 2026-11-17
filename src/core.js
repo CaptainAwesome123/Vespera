@@ -115,7 +115,9 @@ setupReverseZ(renderer, camera, T);
 export const MOON_DIR = new T.Vector3(-0.42, 0.42, -0.8).normalize();
 export const U = {
   uTime: { value: 0 },
-  uLens: { value: 0 },   // V98: Tropfen auf der Kamera (0 trocken, 1 voll), performance.js
+  uLens: { value: 0 },
+  uMood: { value: new T.Vector4(1, 1, 1, 1) },   // V99: Farbstimmung des Viertels (rgb-Faktor, Sättigung), performance.js
+  uDof: { value: 0 },   // V99: Tiefenschärfe im Gespräch (0 aus, 1 voll)   // V98: Tropfen auf der Kamera (0 trocken, 1 voll), performance.js
   uInside: { value: 0 },   // V67: 0 draußen, 1 in Belmont und Penthouse (Tonkurve in bloom.js)
   uFogColor: { value: FOG_COLOR },
   uFogDensity: { value: FOG_DENSITY },
@@ -222,6 +224,8 @@ T.ShaderChunk.fog_fragment = `#ifdef USE_FOG
 // er glitzert aus der Nähe, an der Wetterseite der Wände klebt angewehter Schnee, am Fuß der Häuser liegen Schneewehen.
 // ?schnee=aus = Stand V96 (der alte Schnee auf Dächern, Simsen, Laternen und Autos bleibt).
 // V98: Regen auf Glas: Tropfen und Rinnsale an Autoscheiben und Fenstern, im Flug Tropfen auf der Kamera (uLens). ?regenglas=aus = Stand V97.
+// V99: Kino-Look: weicheres Nachleuchten, Filmkorn, Tiefenschärfe in Gesprächen (Mitte scharf, Rand weich), Farbstimmung je Viertel. ?kino=aus = Stand V98.
+export const KINO = new URLSearchParams(location.search).get('kino') !== 'aus';
 export const REGENGLAS = new URLSearchParams(location.search).get('regenglas') !== 'aus';
 export const SCHNEE = new URLSearchParams(location.search).get('schnee') !== 'aus';
 export const snowyNeu = (mat, k, still, minY) => SCHNEE ? snowy(mat, k, still, minY) : mat;
