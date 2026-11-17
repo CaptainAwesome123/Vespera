@@ -63,6 +63,7 @@ import './wetterlage.js'; // V63: Wetterereignisse (Schneesturm, Nordlichtnacht,
 import './bahn.js';      // V63: Straßenbahn und Hochbahn: Linien, Haltestellen, mitfahren (E, V), Schnellfahrt
 import './strasse.js';   // V72: Straßenhändler, Kundgebung und Demonstrationszug im Arbeiterviertel
 import './alltag.js';    // V76: Tagesabläufe: Schichtarbeiter, Schichtwechsel, Stadtpuls nach der Uhr, Streikposten
+import './gedaechtnis.js'; // V105: Gedächtnis: die Leute merken sich, was Alexander getan hat (?gedaechtnis=aus)
 import './imperium.js';  // V76: Alexanders Imperium (Kontor · Reiter Imperium): Sparten, Löhne, Preise, Arbeitszeit, Streiks, Konjunktur, Kredit
 import './krater.js';    // V78: Der Krater außerhalb der Stadt: altes Expeditionslager, zwei Gletscherhöhlen, zwölf Fundstücke
 
