@@ -258,6 +258,145 @@ function extraParts(K, kind, rig, keep) {
   }
 }
 
+/* ---------- V80: Alexanders Frisur, neu gebaut ----------
+   Die MakeHuman-Haarkarten (short04, V32 bis V79) begannen gut drei Zentimeter hinter dem Ansatz: von vorn sah man eine nackte
+   Stirn bis weit in den Scheitel und darüber eine schwebende Haube. Jetzt wächst das Haar aus dem Schädel selbst: Strahlen aus der
+   Kopfmitte treffen die Kopfhaut des Spielerkörpers, darüber liegt eine Haarschale, die genau am gezeichneten Haaransatz auf
+   der Haut beginnt (dort 0,25 mm darüber, die Kante ist eine glatte Linie) und erst dahinter Fülle bekommt:
+   vorn eine flache, zurückgekämmte Welle, oben voll, an den Seiten und im Nacken kurz (Herrenschnitt der Zwanziger), Scheitel links.
+   Strähnen laufen von der Stirn zum Wirbel hinten oben (Koordinaten für den Haar-Shader: quer = Winkel um die Achse Stirn-Wirbel,
+   längs = Abstand vom Ansatz); feine Kammrillen in der Form. Rund 5000 Ecken, nur für den Spieler, beim Laden in wenigen ms gebaut */
+const PH_LINE = [   // Haaransatz: Winkel um die Hochachse (0 vorn, 90 links/rechts über dem Ohr, 180 hinten) -> Höhe in m
+  [0, 1.7395], [16, 1.7405], [30, 1.743], [41, 1.742], [48, 1.736], [53, 1.722], [57, 1.703], [61, 1.682], [66, 1.661], [71, 1.646], [76, 1.645], [79, 1.66],
+  [82, 1.694], [88, 1.7005], [98, 1.7005], [106, 1.69], [112, 1.668], [119, 1.638], [128, 1.612], [142, 1.594], [160, 1.584], [180, 1.582]];
+function phLineY(deg) {
+  const a = Math.min(180, Math.abs(deg));
+  let k = 1; while (k < PH_LINE.length - 1 && PH_LINE[k][0] < a) k++;
+  const [a0, y0] = PH_LINE[k - 1], [a1, y1] = PH_LINE[k], f = Math.max(0, Math.min(1, (a - a0) / (a1 - a0))), s = f * f * (3 - 2 * f);
+  // feine Unruhe im Ansatz (kein Linealstrich), vorn am feinsten
+  return y0 + (y1 - y0) * s + 0.0007 * Math.sin(deg * 0.61) + 0.0005 * Math.sin(deg * 1.37 + 1.3);
+}
+const phSst = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+export function playerHairGeo(body, rig, fine) {
+  const P = body.position, I = body.index, cx = 0, cy = rig.headC, cz = rig.headZ;
+  // Dreiecke des Kopfes nach Richtung (von der Kopfmitte aus) in Fächer sortieren
+  const NAZ = 72, NEL = 36, bins = Array.from({ length: NAZ * NEL }, () => []), tris = [];
+  const dirOf = i => { const x = P[i * 3] - cx, y = P[i * 3 + 1] - cy, z = P[i * 3 + 2] - cz, r = Math.hypot(x, y, z) || 1; return [Math.atan2(x, z), Math.asin(y / r)]; };
+  const bi = (az, el) => [Math.max(0, Math.min(NAZ - 1, Math.floor((az + Math.PI) / (2 * Math.PI) * NAZ))), Math.max(0, Math.min(NEL - 1, Math.floor((el + Math.PI / 2) / Math.PI * NEL)))];
+  for (let t = 0; t < I.length; t += 3) {
+    const a = I[t], b = I[t + 1], c = I[t + 2];
+    if (P[a * 3 + 1] < cy - 0.16 || P[b * 3 + 1] < cy - 0.16 || P[c * 3 + 1] < cy - 0.16) continue;   // Kopf und Hals (der Nacken gehört nicht zum Kopf)
+    const ti = tris.length; tris.push(a, b, c);
+    const D = [dirOf(a), dirOf(b), dirOf(c)], els = D.map(d => d[1]), azs = D.map(d => d[0]);
+    const e0 = bi(0, Math.min(...els))[1] - 1, e1 = bi(0, Math.max(...els))[1] + 1;
+    let ranges; const lo = Math.min(...azs), hi = Math.max(...azs);
+    if (Math.max(...els.map(Math.abs)) > 1.3) ranges = [[0, NAZ - 1]];
+    else if (hi - lo > Math.PI) { const pos = azs.filter(v => v > 0), neg = azs.filter(v => v <= 0); ranges = [[bi(Math.min(...pos), 0)[0] - 1, NAZ - 1], [0, bi(Math.max(...neg), 0)[0] + 1]]; }
+    else ranges = [[bi(lo, 0)[0] - 1, bi(hi, 0)[0] + 1]];
+    for (const [r0, r1] of ranges) for (let j = Math.max(0, r0); j <= Math.min(NAZ - 1, r1); j++) for (let e = Math.max(0, e0); e <= Math.min(NEL - 1, e1); e++) bins[e * NAZ + j].push(ti);
+  }
+  // Strahl aus der Kopfmitte: erster Treffer auf der Haut (Ohren liegen außerhalb und werden nicht getroffen)
+  const hit = (az, el) => {
+    const dx = Math.sin(az) * Math.cos(el), dy = Math.sin(el), dz = Math.cos(az) * Math.cos(el);
+    const test = list => { let best = Infinity;
+      for (const ti of list) {
+        const a = tris[ti] * 3, b = tris[ti + 1] * 3, c = tris[ti + 2] * 3;
+        const e1x = P[b] - P[a], e1y = P[b + 1] - P[a + 1], e1z = P[b + 2] - P[a + 2], e2x = P[c] - P[a], e2y = P[c + 1] - P[a + 1], e2z = P[c + 2] - P[a + 2];
+        const px = dy * e2z - dz * e2y, py = dz * e2x - dx * e2z, pz = dx * e2y - dy * e2x, det = e1x * px + e1y * py + e1z * pz;
+        if (Math.abs(det) < 1e-12) continue;
+        const inv = 1 / det, sx = cx - P[a], sy = cy - P[a + 1], sz = cz - P[a + 2], u = (sx * px + sy * py + sz * pz) * inv; if (u < -1e-4 || u > 1.0001) continue;
+        const qx = sy * e1z - sz * e1y, qy = sz * e1x - sx * e1z, qz = sx * e1y - sy * e1x, v = (dx * qx + dy * qy + dz * qz) * inv; if (v < -1e-4 || u + v > 1.0002) continue;
+        const t = (e2x * qx + e2y * qy + e2z * qz) * inv; if (t > 0.03 && t < best) best = t;
+      }
+      return best; };
+    const [j, e] = bi(az, el); let r = test(bins[e * NAZ + j]);
+    if (r === Infinity) r = test(tris.map((_, k) => k).filter(k => k % 3 === 0));
+    if (r === Infinity) r = 0.09;
+    return [dx, dy, dz, r];
+  };
+  const NU = fine ? 150 : 56, NV = fine ? 30 : 12, top = Math.PI / 2;
+  // Achse Stirn -> Wirbel (hinten oben): die Strähnen laufen auf Großkreisen um sie herum nach hinten
+  const AX = [0, 0.56, -0.83], al = Math.hypot(...AX); AX[0] /= al; AX[1] /= al; AX[2] /= al;
+  const RX = [1, 0, 0], RY = [AX[1] * RX[2] - AX[2] * RX[1], AX[2] * RX[0] - AX[0] * RX[2], AX[0] * RX[1] - AX[1] * RX[0]];
+  const cols = NU + 1, rows = NV + 1, n = cols * rows;
+  const pos = new Float32Array(n * 3), uvA = new Float32Array(n * 2), dirs = new Float32Array(n * 3);
+  for (let j = 0; j < cols; j++) {
+    const az = -Math.PI + 2 * Math.PI * j / NU, deg = az * 180 / Math.PI, yh = phLineY(deg);
+    // Höhe des Ansatzes in dieser Richtung: von oben herab, bis der Treffer unter der Linie liegt, dann halbieren
+    let eHi = top - 0.02, eLo = eHi;
+    for (let e = top - 0.04; e > -1.4; e -= 0.02) { const h = hit(az, e); if (cy + h[1] * h[3] < yh) { eLo = e; break; } eHi = e; }
+    for (let k = 0; k < 10; k++) { const m = (eHi + eLo) / 2, h = hit(az, m); if (cy + h[1] * h[3] < yh) eLo = m; else eHi = m; }
+    const eH = (eHi + eLo) / 2;
+    let s = 0, prev = null;
+    for (let k = 0; k < rows; k++) {
+      const w = k / NV, el = eH + (top - eH) * Math.pow(w, 1.55), h = hit(az, k === NV ? top - 1e-4 : el);
+      const x = h[0] * h[3], y = h[1] * h[3], z = h[2] * h[3];
+      if (prev) s += Math.hypot(x - prev[0], y - prev[1], z - prev[2]); prev = [x, y, z];
+      // Dicke über der Haut: am Ansatz knapp darunter, dann je nach Lage
+      const tp = phSst(0.015, 0.075, y), fr = phSst(-0.015, 0.055, z), back = phSst(0.0, -0.05, z), nape = phSst(-0.03, -0.075, y);
+      const side = Math.abs(x) / Math.max(1e-3, Math.hypot(x, y));
+      let body0 = 0.0046 + 0.0066 * tp + 0.0018 * back * (1 - nape) - 0.0022 * nape;
+      // Welle über der Stirn: setzt 1 bis 4 cm hinter dem Ansatz ein, rechts vom Scheitel voller
+      const part = 0.034, rgt = phSst(part + 0.004, part - 0.03, x);
+      body0 += 0.0062 * fr * tp * phSst(0.008, 0.035, s) * (0.65 + 0.35 * rgt) * (1 - 0.6 * side);
+      // Scheitel links: schmale Furche von der Stirn nach hinten
+      const groove = Math.exp(-(((x - part) / 0.0026) ** 2)) * phSst(-0.04, 0.02, z) * tp;
+      body0 -= 0.003 * groove;
+      // Kammrillen der Pomade (quer zur Strähne)
+      const vx = x, vy = y, vz = z, pa = vx * RX[0] + vy * RX[1] + vz * RX[2], pb = vx * RY[0] + vy * RY[1] + vz * RY[2], phi = Math.atan2(pb, pa);
+      const ramp = 0.006 + 0.012 * fr * tp, edge = phSst(0, ramp, s);
+      body0 += edge * (0.00035 * Math.sin(phi * 47 + 0.8 * Math.sin(s * 90)) + 0.00025 * Math.sin(phi * 113 + 2.1)) * (0.4 + 0.6 * tp) * phSst(0.09, 0.05, s);
+      const t = 0.00025 + (Math.max(0.0012, body0) - 0.00025) * edge;
+      const o = (j * rows + k) * 3;
+      pos[o] = cx + h[0] * (h[3] + t); pos[o + 1] = cy + h[1] * (h[3] + t); pos[o + 2] = cz + h[2] * (h[3] + t);
+      dirs[o] = h[0]; dirs[o + 1] = h[1]; dirs[o + 2] = h[2];
+      // Shader-Koordinaten (wie die gebauten Frisuren): quer ~ 3,5 mm je Strähne, längs: dunkler auf dem ersten Zentimeter
+      uvA[(j * rows + k) * 2] = phi * 3.7; uvA[(j * rows + k) * 2 + 1] = s / 0.028;
+    }
+  }
+  // Dreiecke; wo der Winkel quer über die Naht springt, eigene Ecken mit fortgesetztem Winkel
+  const idx = [], extra = [];
+  const tri = (a, b, c) => {
+    const ua = uvA[a * 2], ub = uvA[b * 2], uc = uvA[c * 2], span = Math.max(ua, ub, uc) - Math.min(ua, ub, uc);
+    if (span < Math.PI * 3.7) { idx.push(a, b, c); return; }
+    const out = []; for (const v of [a, b, c]) { const nv = n + extra.length; extra.push([v, uvA[v * 2] < 0 ? uvA[v * 2] + 2 * Math.PI * 3.7 : uvA[v * 2]]); out.push(nv); }
+    idx.push(...out);
+  };
+  for (let j = 0; j < NU; j++) for (let k = 0; k < NV; k++) {
+    const a = j * rows + k, b = (j + 1) * rows + k, c = a + 1, d = b + 1;
+    // Außenseite zeigt nach außen: Spalten laufen um die Hochachse, Reihen vom Ansatz nach oben
+    tri(a, c, b); tri(b, c, d);
+  }
+  const N = n + extra.length, fp = new Float32Array(N * 3), fu = new Float32Array(N * 2);
+  fp.set(pos); fu.set(uvA);
+  extra.forEach(([v, u], i) => { fp.set(pos.subarray(v * 3, v * 3 + 3), (n + i) * 3); fu[(n + i) * 2] = u; fu[(n + i) * 2 + 1] = uvA[v * 2 + 1]; });
+  // Normalen aus den Flächen (Naht und Kopfpunkt zusammen gemittelt über die Lage)
+  const nrm = new Float32Array(N * 3), acc = new Float32Array(n * 3);
+  const base = v => v < n ? v : extra[v - n][0];
+  const canon = v => { const b = base(v), j = Math.floor(b / rows), k = b % rows; return k === NV ? NV : (j % NU) * rows + k; };
+  for (let t = 0; t < idx.length; t += 3) {
+    const a = idx[t], b = idx[t + 1], c = idx[t + 2];
+    const ux = fp[b * 3] - fp[a * 3], uy = fp[b * 3 + 1] - fp[a * 3 + 1], uz = fp[b * 3 + 2] - fp[a * 3 + 2], wx = fp[c * 3] - fp[a * 3], wy = fp[c * 3 + 1] - fp[a * 3 + 1], wz = fp[c * 3 + 2] - fp[a * 3 + 2];
+    const nx = uy * wz - uz * wy, ny = uz * wx - ux * wz, nz = ux * wy - uy * wx;
+    for (const v of [a, b, c]) { const q = canon(v) * 3; acc[q] += nx; acc[q + 1] += ny; acc[q + 2] += nz; }
+  }
+  for (let v = 0; v < N; v++) {
+    const q = canon(v) * 3, b = base(v) * 3; let x = acc[q], y = acc[q + 1], z = acc[q + 2];
+    if (x * dirs[b] + y * dirs[b + 1] + z * dirs[b + 2] < 0) { x = -x; y = -y; z = -z; }
+    const l = Math.hypot(x, y, z); if (l < 1e-12) { x = dirs[b]; y = dirs[b + 1]; z = dirs[b + 2]; } else { x /= l; y /= l; z /= l; }
+    nrm[v * 3] = x; nrm[v * 3 + 1] = y; nrm[v * 3 + 2] = z;
+  }
+  // Prüfen, dass die Dreiecke nach außen zeigen (sonst umdrehen): Mittel über alle
+  let out = 0; for (let t = 0; t < idx.length; t += 3) { const a = idx[t], b = idx[t + 1], c = idx[t + 2];
+    const ux = fp[b * 3] - fp[a * 3], uy = fp[b * 3 + 1] - fp[a * 3 + 1], uz = fp[b * 3 + 2] - fp[a * 3 + 2], wx = fp[c * 3] - fp[a * 3], wy = fp[c * 3 + 1] - fp[a * 3 + 1], wz = fp[c * 3 + 2] - fp[a * 3 + 2];
+    out += (uy * wz - uz * wy) * (fp[a * 3] - cx) + (uz * wx - ux * wz) * (fp[a * 3 + 1] - cy) + (ux * wy - uy * wx) * (fp[a * 3 + 2] - cz); }
+  if (out < 0) for (let t = 0; t < idx.length; t += 3) { const k = idx[t + 1]; idx[t + 1] = idx[t + 2]; idx[t + 2] = k; }
+  // Felder wie ein Netz aus dem GLB (Kopf: Glied 0, kein Mischen, Stoff Haar ohne Schwung)
+  const soft = new Float32Array(N * 3); for (let i = 0; i < N; i++) soft[i * 3] = FAB.hair;
+  return { position: fp, normal: nrm, uv: new Float32Array(N * 2), index: Uint32Array.from(idx), count: N, faceUV: fu,
+    _limb: new Float32Array(N * 2), _opt: new Float32Array(N), _soft: soft, _texk: new Float32Array(N), _blend: new Float32Array(N) };
+}
+
 /* ---------- Eine Art zusammensetzen ---------- */
 export function mhPersonGeo(kind, q) {
   const K = MH_KIND[kind] || MH_KIND.suit, gk = K.g, rig = HRIG[gk], fine = q > 1.5, lod = fine ? '' : '@1';
@@ -322,10 +461,14 @@ export function mhPersonGeo(kind, q) {
   // V79: Farbe der Hautecken = Gewicht "Kopfhaut unter dem Haar" für die drei Frisuren der Art (r, g, b); der Shader nimmt das der
   // gewählten Frisur und färbt die Haut dort in der Haarfarbe (sonst 0: reine Haut)
   const HL5 = 'ABCDE', hs = K.player ? ['A', 'A', 'A'] : (K.hair || ['A', 'B', 'C']), scq = bodySrc._scalp, sce = bodySrc._scalq;
-  const scalpCol = scq ? i => hs.map(h => { const k = HL5.indexOf(h); return k < 4 ? scq[i * 4 + k] : sce[i]; }) : [0, 0, 0];
+  const scalpCol = K.player ? [0, 0, 0] : scq ? i => hs.map(h => { const k = HL5.indexOf(h); return k < 4 ? scq[i * 4 + k] : sce[i]; }) : [0, 0, 0];
   add(bodySrc, { isBody: true, face, color: scalpCol, drop: i => (bodySrc._hide[i] & mask) !== 0 || (inCover(bodySrc, i) && bodySrc._reg[i] !== 4 && bodySrc._reg[i] !== 5 && bodySrc._reg[i] !== 6 && bodySrc._reg[i] !== 1) });
   add(S('eyes-' + gk));
-  if (K.player) add(S('hairP-m') || S(`hairB-${gk}`), { opt0: true });       // V32: glatt zurückgekämmt mit Seitenscheitel (MakeHuman short04), immer; V48: mit mehr Fülle (hairP-m)
+  if (K.player) {   // V80: eigene Haarschale statt der MakeHuman-Karten (siehe playerHairGeo)
+    const hg = MHP.hairP || (MHP.hairP = {}), key = fine ? 'f' : 'c';
+    const H = hg[key] || (hg[key] = playerHairGeo(MHP.src['body-p'], rig, fine));
+    add(H, { opt0: true, fab: FAB.hair, color: [1, 1, 1], face: i => [H.faceUV[i * 2], H.faceUV[i * 2 + 1]] });
+  }       // V32: glatt zurückgekämmt mit Seitenscheitel (MakeHuman short04), immer; V48: mit mehr Fülle (hairP-m)
   else (K.hair || ['A', 'B', 'C']).forEach((h, i) => add(S(`hair${h}-${gk}`) || S(`hair${'ABC'[i]}-${gk}`), { opt: 11 + i }));   // V39: Frisur-Set der Art, Variante 11..13
   // V39: Hüte aus MakeHuman (Filz in fester Farbe), sichtbar wie die gebauten über die Hutvariante der Figur
   if (K.mhHat) for (const [v, [pn, col]] of Object.entries(K.mhHat)) add(S(pn), { opt: +v, color: col });
