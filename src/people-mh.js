@@ -280,7 +280,7 @@ function extraParts(K, kind, rig, keep) {
    längs = Abstand vom Ansatz); feine Kammrillen in der Form. Rund 5000 Ecken, nur für den Spieler, beim Laden in wenigen ms gebaut */
 const PH_LINE = [   // Haaransatz: Winkel um die Hochachse (0 vorn, 90 links/rechts über dem Ohr, 180 hinten) -> Höhe in m
   [0, 1.7245], [16, 1.7255], [30, 1.728], [41, 1.7275], [48, 1.7225], [53, 1.712], [57, 1.698], [61, 1.681], [66, 1.665], [71, 1.652], [76, 1.648], [79, 1.66],
-  [82, 1.671], [86, 1.6795], [92, 1.681], [98, 1.682], [101, 1.668], [104, 1.636], [108, 1.614], [116, 1.603], [128, 1.596], [142, 1.589], [160, 1.584], [180, 1.582]];
+  [82, 1.669], [86, 1.667], [92, 1.664], [98, 1.66], [101, 1.648], [104, 1.628], [108, 1.612], [116, 1.603], [128, 1.596], [142, 1.589], [160, 1.584], [180, 1.582]];
 function phLineY(deg) {
   const a = Math.min(180, Math.abs(deg));
   let k = 1; while (k < PH_LINE.length - 1 && PH_LINE[k][0] < a) k++;
@@ -299,7 +299,7 @@ function phVol(dx, dy, dz, s) {   // Höhe des Haars über der Haut (m) in Richt
   // V84: hinter dem Ohr voller (Haar deckt die Stelle zwischen Ohr und Nacken)
   T += 0.003 * phSst(0.45, 0.75, Math.abs(dx)) * phSst(0.1, -0.45, dz) * phSst(0.35, 0.0, dy);
   // V85: über dem Ohr flach anliegend (keine dunkle Kante auf dem Ohr)
-  T *= 1 - 0.55 * phSst(0.6, 0.85, Math.abs(dx)) * phSst(0.2, 0.05, dy) * phSst(-0.25, -0.05, dz);
+  T *= 1 - 0.8 * phSst(0.55, 0.8, Math.abs(dx)) * phSst(0.28, 0.08, dy) * phSst(-0.4, -0.1, dz);
   const fr = phSst(0.0, 0.6, dz) * phSst(0.15, 0.5, dy), lump = Math.exp(-(((dx - PH_PART - 0.42) / 0.55) ** 2));
   T += 0.0085 * fr * lump * big * phSst(0.003, 0.03, s) * (1 - 0.55 * phSst(0.045, 0.12, s));
   T -= 0.005 * Math.exp(-(((dx - PH_PART) / 0.03) ** 2)) * phSst(-0.3, 0.3, dz) * tp;
@@ -459,8 +459,10 @@ export function playerHairGeo(body, rig, fine) {
     const base = P2.length / 3, made = path.length >= 3 ? path.length : 0, Lr = (made - 1) * STEP;
     for (let i = 0; i < made; i++) {
       const [dd, sd, r] = path[i], u = i / (made - 1), d = dd;
-      const taper = u < 0.12 ? 0.55 + 0.45 * u / 0.12 : 1 - 0.85 * phSst(0.5, 1, u), w = W * taper, h = H0 * (u < 0.12 ? 0.5 + 0.5 * u / 0.12 : 1 - 0.7 * phSst(0.6, 1, u));
-      const rr = r + lay + fluff * phSst(0.45, 1, u);
+      const taper = u < 0.12 ? 0.55 + 0.45 * u / 0.12 : 1 - 0.85 * phSst(0.5, 1, u), w = W * taper; let h = H0 * (u < 0.12 ? 0.5 + 0.5 * u / 0.12 : 1 - 0.7 * phSst(0.6, 1, u));
+      // V86: am Ohrrand liegen die Locken flach an (sonst stechen sie durch die Ohrmuschel)
+      const ez = phSst(0.55, 0.8, Math.abs(d[0])) * phSst(0.28, 0.08, d[1]) * phSst(-0.4, -0.1, d[2]);
+      const rr = r + (lay + fluff * phSst(0.45, 1, u)) * (1 - 0.85 * ez); h *= 1 - 0.75 * ez;
       for (const e of X5) {
         // Ränder tauchen immer in die Schale ein (auch bei abstehenden Spitzen): die Unterseite einer Locke bleibt unsichtbar
         const sink = r - 0.0006 - rr, off = e * w / 2, lift = sink + (h - sink) * Math.sqrt(Math.max(0, 1 - e * e));

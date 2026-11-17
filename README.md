@@ -566,3 +566,8 @@ python3 tools/build-single.py single/vespera-v21.html       # Einzeldatei (seit 
 - Locken werden in zwei Schritten gebaut (erst der Weg, dann das Band), so laufen auch Locken spitz aus, die vorzeitig am
   Haaransatz enden; vorher brachen sie dort in voller Breite ab (kantige dunkle Platte über dem Ohr).
 - Haar über dem Ohr flacher, Ansatz an den Seiten weicher, Unterbau zwischen den Locken etwas heller.
+
+### V86: Haar bis an den Ohrrand
+- Über und hinter dem Ohr reicht das Haar jetzt bis an den Ohrrand, der Hautstreifen dazwischen ist weg (`PH_LINE` 82 bis 104 Grad
+  um 1 bis 3 cm tiefer, der Ansatz liegt unter der Ohrmuschel).
+- Dort liegen Unterbau und Locken flach an, damit nichts durch die Ohrmuschel sticht.
