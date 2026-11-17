@@ -1,4 +1,4 @@
-import { shared, T, scene, camera } from './core.js';
+import { shared, T, scene, camera, U } from './core.js';
 import { UNTER } from './unter-hook.js';
 import { MAT, mergeColored, nearBoxes } from './people-skeleton.js';
 import { onIsland, curbHeight, maskAt, canalIce } from './island.js';
@@ -390,8 +390,9 @@ export function crashDamage(B, px, pz, j, vt) {
   const dv = j / B.m;
   const fx = Math.cos(B.h), fz = -Math.sin(B.h), lx = -Math.sin(B.h), lz = -Math.cos(B.h);
   const rx = px - B.x, rz = pz - B.z, a = (rx * fx + rz * fz) / B.hl, l = (rx * lx + rz * lz) / B.hw;
-  if (dv > 1.6) {
-    const amt = Math.min(0.6, (dv - 1.6) * 0.055);
+  if (dv > 0.7) {
+    // V90: auch kleine Rempler hinterlassen Beulen (Blechschaden wächst sanft ab 0,7 m/s, kräftig ab 1,6 m/s)
+    const amt = Math.min(0.6, dv > 1.6 ? 0.02 + (dv - 1.6) * 0.055 : (dv - 0.7) * 0.022);
     const side = Math.abs(a) > Math.abs(l) * 0.9 ? (a > 0 ? 0 : 1) : (l > 0 ? 2 : 3);
     B.dmg[side] = Math.min(1, B.dmg[side] + amt);
     // benachbarte Seiten bekommen etwas ab
@@ -472,16 +473,26 @@ export function collidePair(A, O) {
 }
 
 /* ---------- Welt: alle beweglichen Wagen, Federung, Wasser, Darstellung ---------- */
+// V90: Griff der Straße nach dem Wetter: nasses Pflaster rutscht, Schnee mehr, Reif und Eis am meisten (Wiese und Kanaleis
+// haben eigene Werte). GRIP.k für den Spielerwagen und die freien Wagen; ?griff=trocken schaltet es ab
+export const GRIP = { k: 1, warned: 0, off: new URLSearchParams(location.search).get('griff') === 'trocken' };
+function roadGrip() {
+  if (GRIP.off) return 1;
+  const wet = Math.max(0, U.uWet.value - 0.3) / 0.65, snow = Math.max(0, U.uSnowCover.value - 0.45) / 0.55, ice = Math.max(U.uFrost ? U.uFrost.value : 0, U.uIce ? (U.uIce.value - 0.15) * 1.2 : 0);
+  return Math.max(0.38, 1 - 0.26 * Math.min(1, wet) - 0.4 * Math.min(1, snow) - 0.3 * Math.min(1, Math.max(0, ice)));
+}
 export function updateVehicles(dt) {
   OBSTACLES.length = 0;
   const cp = camera.position;
+  GRIP.k = roadGrip();
+  if (DRIVE.on && GRIP.k < 0.7 && performance.now() - GRIP.warned > 600000) { GRIP.warned = performance.now(); toast(GRIP.k < 0.55 ? 'Glatte Straßen · sanft bremsen, früh lenken' : 'Nasses Pflaster · der Wagen rutscht leichter'); }
   for (const B of BODIES) {
     const ctl = B.player && DRIVE.on && !B.sunk;
     const n = Math.max(1, Math.ceil(dt / (1 / 120)));
     const h = dt / n;
     for (let s = 0; s < n; s++) {
       const g = groundAt(B.x, B.z, B.y);
-      B.mu = g ? g.mu : 0.2; B.grass = g && (g.grass || g.gravel);
+      B.mu = g ? g.mu * (g.grass || g.gravel || g.ice ? 1 : GRIP.k) : 0.2; B.grass = g && (g.grass || g.gravel);
       if (!B.air && !B.sunk) { if (ctl) stepPlayerCar(B, h, DRIVE.inp || { up: 0, dn: 0, st: 0, hb: true }); else stepLooseCar(B, h); }
       else { const k = B.sunk ? 1.6 : 0.02; B.vx *= Math.max(0, 1 - h * k); B.vz *= Math.max(0, 1 - h * k); B.w *= Math.max(0, 1 - h * k); }
       const ox = B.x, oz = B.z;
@@ -538,6 +549,17 @@ export function updateVehicles(dt) {
       if (B.grass && B.player && Math.hypot(B.vx, B.vz) > 3) { B.pv += (Math.random() - 0.5) * dt * 3; B.rv += (Math.random() - 0.5) * dt * 3; }
     }
     if (!B.tk) { B.pv += ((tp + gp - B.pitch) * 90 - B.pv * 11) * dt; B.rv += ((tr + gr - B.roll) * 80 - B.rv * 10) * dt; }
+    // V90: Federweg auf und ab (Heben): Kantenstöße und Pflasterrütteln je nach Tempo, Nachwippen; nur nahe Wagen
+    if (!B.tk && (B.player || (B.x - cp.x) ** 2 + (B.z - cp.z) ** 2 < 2500)) {
+      const sp = Math.hypot(B.vx, B.vz), gy = B.gy !== undefined ? B.gy : B.y;
+      if (B.gy0 !== undefined && !B.air) { const dg = gy - B.gy0; if (Math.abs(dg) > 0.015 && Math.abs(dg) < 0.5) { B.hvV = (B.hvV || 0) - dg * Math.min(1, sp / 4) * 18; B.pv -= dg * Math.min(1, sp / 6) * 6; } }
+      B.gy0 = gy;
+      const rough = !B.air && sp > 1 ? (B.grass ? 0.012 : 0.0035) * Math.min(1, sp / 12) : 0;
+      B.hv = B.hv || 0; B.hvV = B.hvV || 0;
+      B.hvV += (-B.hv * 160 - B.hvV * 13) * dt + (Math.random() - 0.5) * rough * 900 * dt;
+      B.hv = Math.max(-0.09, Math.min(0.07, B.hv + B.hvV * dt));
+      if (rough && Math.random() < dt * sp * 0.4) B.rv += (Math.random() - 0.5) * rough * 6;
+    }
     B.pitch += B.pv * dt; B.roll += B.rv * dt;
     // Hindernis für den Verkehr
     OBSTACLES.push({ x: B.x, z: B.z, y: B.y, r: 2.2, v: Math.hypot(B.vx, B.vz) * 0.5 });
@@ -593,7 +615,7 @@ export function drawPlayerCar(dt) {
   if (D.on) player.p.set(B.x, Math.max(B.y, WATER_Y + 0.5), B.z);
   const by = (B.gy !== undefined && !B.air ? B.gy : B.y);
   _q.setFromEuler(_ce.set(B.roll, B.h, B.pitch, 'YXZ'));
-  _p.set(B.x, by + 0.22 + Math.min(0.05, Math.abs(B.pv) * 0.02), B.z);
+  _p.set(B.x, by + 0.22 + Math.min(0.05, Math.abs(B.pv) * 0.02) + (B.hv || 0), B.z);
   const BM = D.model ? D.mMesh : D.mesh, WM = D.model ? D.mWheels : D.wheels, MD = CARM.dim;
   BM.setMatrixAt(0, _m.compose(_p, _q, _s.setScalar(1))); BM.instanceMatrix.needsUpdate = true;
   if (D.model) hideDoors(D.doorSlot); else { setDoors(D.doorSlot, _m, D.dR || 0, D.dL || 0, D.doorCol); D.doorCol = null; }   // V74
@@ -634,7 +656,9 @@ export function drawPlayerCar(dt) {
     if (slip > 0.22 && Math.hypot(B.vx, B.vz) > 2 && D.lastW) {
       const n = D.lock ? 4 : 2;
       for (let i = 0; i < n; i++) skidMark(D.lastW[i][0], D.lastW[i][1], wp[i][0], wp[i][1], by, 0.2);
-      if (!B.grass && Math.random() < dt * 30 * Math.min(1, slip)) { const w = wp[Math.random() < 0.5 ? 0 : 1]; fxEmit('tire', w[0], by + 0.3, w[1], B.vx * 0.15, 0.4, B.vz * 0.15, 1, 0.6); }
+      // V90: auf nassem Pflaster spritzt Wasser, auf Schnee stiebt Schnee statt Reifenqualm
+      const slick = !B.grass && GRIP.k < 0.8, snowR = U.uSnowCover.value > 0.6;
+      if (!B.grass && Math.random() < dt * 30 * Math.min(1, slip)) { const w = wp[Math.random() < 0.5 ? 0 : 1]; if (slick) fxEmit(snowR ? 'snowburst' : 'spray', w[0], by + 0.15, w[1], B.vx * 0.25, snowR ? 0.6 : 1.4, B.vz * 0.25, 2, 0.5, snowR ? 0.6 : 0.5); else fxEmit('tire', w[0], by + 0.3, w[1], B.vx * 0.15, 0.4, B.vz * 0.15, 1, 0.6); }
       if (B.grass && Math.random() < dt * 25) { const w = wp[Math.floor(Math.random() * 2)]; fxEmit('dust', w[0], by + 0.3, w[1], B.vx * 0.2, 0.8, B.vz * 0.2, 1, 0.6); }
     }
     D.lastW = wp;
