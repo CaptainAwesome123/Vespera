@@ -49,7 +49,8 @@ import { peds } from './serpentine.js';
 import { GALA, startGala } from './gala.js';
 
 const RUF_SAVE = 'vespera.ruf';
-export const RUF = { extra: [], onAct: [], s: null,   // V63: extra = weitere Abschnitte im Buch (Funktionen, die HTML liefern), onAct = Klicks darauf
+export const RUF = { extra: [], onAct: [], onAdd: [], s: null,   // V105: onAdd = jede Tat (gedaechtnis.js)
+    // V63: extra = weitere Abschnitte im Buch (Funktionen, die HTML liefern), onAct = Klicks darauf
   ready: false, open: false, dirty: false, saveT: 8, tickT: 0, slowT: 0, snap: {}, q: [], qT: 0, fat: {}, lastTat: null, w: {}, stamp: null, lines: new Map(), newsT: {}, distT: 0, dist: '' };
 
 /* ---------- Achsen und Ränge ---------- */
@@ -100,6 +101,7 @@ const fmD = d => (d > 0 ? '+' : '−') + (Math.abs(d) < 2 ? Math.abs(d).toFixed(
 export function rufAdd(ch, why, o = {}) {
   if (!RUF.ready) return null;
   const s = RUF.s, key = o.key || why, now = performance.now() / 1000;
+  for (const f of RUF.onAdd) try { f(key, why, o); } catch (e) { console.warn('Ruf:', e); }   // V105: Gedächtnis der Leute
   // Abnutzung: dasselbe kurz hintereinander zählt weniger (90 s Gedächtnis)
   const F = RUF.fat[key]; let m = 1;
   if (F && now - F.t < 90) { F.n++; m = Math.max(0.2, Math.pow(o.faint ?? 0.65, F.n)); } else RUF.fat[key] = { n: 0, t: now };

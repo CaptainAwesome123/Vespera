@@ -40,6 +40,7 @@ export const SAY = {
 // bew = bewundert ihn, neid = neidisch, skep = skeptisch, furcht = fürchtet ihn, resp = Respekt, dienst = Personal und Polizei
 // V72: hass = feindselig (nur bei schlechtem Ruf über ruf.js: wendet sich ab, mustert ihn kalt, ruft ihm etwas nach)
 export function attOf(pd) {
+  if (pd.memAtt) return pd.memAtt;   // V105: was jemand mit ihm erlebt hat, zählt mehr als der Ruf (gedaechtnis.js)
   if (pd.att) return pd.att;
   const k = pd.a ? pd.a.kind : pd.kind, r = Math.random(), tr = pd.cit && pd.cit.trait.k;
   if (AWE.attHook) { const h = AWE.attHook(k, tr, r); if (h) return pd.att = h; }   // V62: Ruf und Ansehen (ruf.js) verschiebt die Haltungen
@@ -206,7 +207,7 @@ function aweNear(dt) {
   if ((AWE.nearT -= dt) > 0) return; AWE.nearT = 0.3;
   if (!pedCrowd || player.fly || DRIVE.on || BOAT.on) return;
   const p = player.p, clock = AWE.clock;
-  let fresh = 0, nearest = null, nd = 1e9;
+  let fresh = 0, nearest = null, nd = 1e9, memPd = null;
   for (const pd of peds) {
     const a = pd.a; if (!a || !a.on || pd.aw || pd.rag || pd.back) continue;
     const e = a.m.elements, dx = e[12] - p.x; if (dx > 8.5 || dx < -8.5) continue;
@@ -215,7 +216,9 @@ function aweNear(dt) {
     if ((pd.metT || 0) > clock) continue;
     pd.metT = clock + 30 + Math.random() * 30;
     if (Math.random() > 0.88) continue;
-    if (greet(pd, d2) && d2 < nd) { nd = d2; nearest = pd; }
+    const g = greet(pd, d2);
+    if (g && d2 < nd) { nd = d2; nearest = pd; }
+    if (g && pd.mem && !memPd && d2 < 36) memPd = pd;   // V105: wer sich an ihn erinnert, spricht ihn eher an
     if (++fresh >= 5) break;
   }
   // Belmont und Villa: Köpfe drehen sich, man lächelt
@@ -227,6 +230,10 @@ function aweNear(dt) {
       a.metT = clock + 25 + Math.random() * 20; turnHead(a, p.x, p.z);
       if (a.sm0 == null) { a.sm0 = a.live[3]; a.live[3] = 1.55; a.gv = (a.gv | 0) + 1; AWE.smiles.push({ a, awCool: 4, ext: true }); }
     }
+  }
+  if (memPd && AWE.memSay && AWE.sayT <= 0 && shared.sayTimer <= 0) {
+    const s = AWE.memSay(memPd);
+    if (s) { showSay(whoOf(memPd), s); AWE.sayT = 6 + Math.random() * 5; return; }
   }
   if (nearest && AWE.sayT <= 0 && shared.sayTimer <= 0 && Math.random() < 0.5) {
     const att = attOf(nearest), key = nearest.a.kind === 'kid' ? 'kid' : nearest.a.kind === 'police' ? 'police' : att, L = SAY_NEAR[key] || SAY_NEAR.bew;
