@@ -1,4 +1,4 @@
-import { shared, mulberry32, canvasTex, T, R, scene, U, MOBILE, LOW, bakeGroup } from './core.js';
+import { shared, mulberry32, canvasTex, T, R, scene, U, MOBILE, LOW, bakeGroup, camera } from './core.js';
 import { stdMat, MAT } from './people-skeleton.js';
 import { texSet } from './serpentine.js';
 import { makeGlowPoints } from './ragdoll.js';
@@ -148,6 +148,31 @@ export function buildAirship(L, R0, adIndex, beam, opts = {}) {
   ]);
   grp.add(lights);
   bakeGroup(grp);   // V29: Rumpf, Gondel, Flossen, Motoren, Propeller, Ringe: je Material ein Netz (vorher rund 50 Draw Calls je Luftschiff)
+  if (HIMMEL) {
+    // V103: Lichterketten wie an Festtagsschiffen: über den Rücken vom Bug zur oberen Flosse und an beiden oberen Flanken,
+    // zwischen den Zierringen leicht durchhängend; Gold und Champagner, dazwischen Türkis, einzelne Birnen funkeln
+    const chain = [], NB = opts.passenger ? 26 : 34;
+    for (const a of [Math.PI / 2, Math.PI / 4, Math.PI * 3 / 4]) for (let k = 0; k <= NB; k++) {
+      const u = k / NB, x = L * 0.47 - u * L * 0.86, sag = Math.sin(u * Math.PI * 4) ** 2 * 0.6, r = hr(x) + 0.35 - sag;
+      const c = k % 5 === 2 ? [0.35, 1.25, 1.15] : k % 2 ? [1.45, 1.05, 0.55] : [1.5, 1.3, 0.95];
+      chain.push({ p: [x, r * Math.sin(a), r * Math.cos(a)], c, s: 1.5, ph: R(), bl: k % 7 === 3 ? 1 : 0 });
+    }
+    // Rote Warnleuchte oben auf dem Rücken (blinkt)
+    chain.push({ p: [0, R0 + 0.6, 0], c: [1.6, 0.12, 0.08], s: 3.2, ph: R(), bl: 1 });
+    grp.add(makeGlowPoints(chain));
+    // Rauchfahnen hinter den Motoren: weiche Schwaden, die sich nach hinten aufweiten und verwehen
+    const tp = [], tq = [];
+    for (const s of [-1, 1]) for (const ex of opts.engX || [-L * 0.1, L * 0.22]) {
+      const ez = s * (hr(ex) * 0.95 + 1.2 * es), ey = -hr(ex) * 0.55 + 0.6 * es, x0 = ex - 4.2 * es, len = 34 * es + L * 0.15;
+      for (const [vx, vy] of [[0, 1], [1, 0]]) {
+        const b = tp.length / 3;
+        for (const [u, sd] of [[0, -1], [0, 1], [1, -1], [1, 1]]) { const w = (0.35 + 3.5 * u) * es * sd; tp.push(x0 - u * len, ey + vy * w, ez + vx * w); tq.push(u, sd, s + ex * 0.01); }
+        TRAIL_IDX.push(b, b + 1, b + 2, b + 2, b + 1, b + 3);
+      }
+    }
+    const tg = new T.BufferGeometry(); tg.setAttribute('position', new T.Float32BufferAttribute(tp, 3)); tg.setAttribute('aQ', new T.Float32BufferAttribute(tq, 3)); tg.setIndex(TRAIL_IDX.splice(0));
+    const tm = new T.Mesh(tg, trailMat()); tm.renderOrder = 3; grp.add(tm);
+  }
   if (beam) {
     const b = makeBeam(420, 28, 0.06, true);   // V38: mit Lichtfleck auf dem Boden
     b.position.set(L * 0.1, -R0 - 3.4, 0); b.rotation.x = Math.PI; grp.add(b);
@@ -157,6 +182,66 @@ export function buildAirship(L, R0, adIndex, beam, opts = {}) {
   return grp;
 }
 
+// V103: Luftschiffe und Himmel: Lichterketten, Warnleuchte, Rauchfahnen hinter den Motoren, Sternschnuppen. ?himmel=aus = Stand V102.
+export const HIMMEL = new URLSearchParams(location.search).get('himmel') !== 'aus';
+const TRAIL_IDX = [];
+let TRAIL_M = null;
+function trailMat() {
+  return TRAIL_M || (TRAIL_M = new T.ShaderMaterial({
+    uniforms: U, transparent: true, depthWrite: false, side: T.DoubleSide,
+    vertexShader: `attribute vec3 aQ; varying vec3 vQ; varying float vD; void main(){ vQ = aQ; vec4 mv = modelViewMatrix * vec4(position, 1.0); vD = -mv.z; gl_Position = projectionMatrix * mv; }`,
+    fragmentShader: `uniform float uTime; uniform vec3 uFogColor; uniform float uFogDensity; varying vec3 vQ; varying float vD;
+      float h(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+      float n2(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(h(i), h(i + vec2(1.0, 0.0)), f.x), mix(h(i + vec2(0.0, 1.0)), h(i + vec2(1.0, 1.0)), f.x), f.y); }
+      void main(){
+        float u = vQ.x, x = vQ.y;
+        float n = n2(vec2(u * 7.0 - uTime * 1.6, x * 1.5 + vQ.z * 3.0)) * 0.65 + n2(vec2(u * 19.0 - uTime * 3.1, x * 3.0 - vQ.z)) * 0.35;
+        float a = (1.0 - smoothstep(0.2, 1.0, abs(x))) * smoothstep(0.0, 0.05, u) * (1.0 - smoothstep(0.35, 1.0, u)) * smoothstep(0.3, 0.75, n + 0.25 * (1.0 - u));
+        a *= 0.42 * exp(-uFogDensity * uFogDensity * vD * vD * 0.35) * smoothstep(8.0, 30.0, vD);
+        gl_FragColor = vec4(mix(vec3(0.16, 0.17, 0.18), uFogColor * 3.0, 0.5 + 0.4 * u), a); }`,
+  }));
+}
+/* V103: Sternschnuppen: alle 12 bis 40 Sekunden zieht eine Spur über den Himmel (nur draußen, bei wenig Wolken).
+   Ein Viereck auf einer Kugel um die Kamera (6000 m, vor der Himmelskuppel), die Gebäude verdecken es. */
+const MET = { m: null, t: 0, wait: 8, dur: 1, a: new T.Vector3(), b: new T.Vector3(), last: 0 };
+const _ma = new T.Vector3(), _mb = new T.Vector3(), _mv = new T.Vector3(), _ms = new T.Vector3();
+function meteorMesh() {
+  const g = new T.BufferGeometry(); g.setAttribute('position', new T.BufferAttribute(new Float32Array(12), 3).setUsage(T.DynamicDrawUsage));
+  g.setAttribute('aU', new T.Float32BufferAttribute([0, 0, 1, 1], 1)); g.setAttribute('aV', new T.Float32BufferAttribute([-1, 1, -1, 1], 1)); g.setIndex([0, 2, 1, 1, 2, 3]);
+  const m = new T.Mesh(g, new T.ShaderMaterial({
+    uniforms: { uK: { value: 0 } }, transparent: true, depthWrite: false, blending: T.AdditiveBlending,
+    vertexShader: `attribute float aU; attribute float aV; varying vec2 vQ; void main(){ vQ = vec2(aU, aV); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+    fragmentShader: `uniform float uK; varying vec2 vQ; void main(){ float a = pow(vQ.x, 2.5) * (1.0 - smoothstep(0.0, 1.0, abs(vQ.y))) * uK; gl_FragColor = vec4(vec3(0.85, 0.95, 1.0) * a + vec3(0.4, 1.0, 0.8) * a * a * 0.3, 1.0); }`,
+  }));
+  m.frustumCulled = false; m.renderOrder = -1; m.visible = false; scene.add(m); return m;
+}
+export function updateMeteors(t) {
+  if (!HIMMEL) return;
+  const dt = Math.min(0.1, Math.max(0, t - MET.last)); MET.last = t;
+  if (!MET.m) MET.m = meteorMesh();
+  const m = MET.m;
+  if (MET.t <= 0) {
+    m.visible = false;
+    if ((MET.wait -= dt) > 0 || U.uCloud.value > 0.6 || U.uInside.value > 0.5) return;
+    // neue Spur: Startpunkt hoch am Himmel in Blickrichtung (nicht immer, damit man sie auch mal verpasst), schräg nach unten
+    const yaw = Math.atan2(-camera.matrixWorld.elements[8], -camera.matrixWorld.elements[10]) + (R() - 0.5) * 2.2, el = 0.45 + R() * 0.5;
+    MET.a.set(Math.cos(el) * Math.sin(yaw), Math.sin(el), Math.cos(el) * Math.cos(yaw));
+    const dir = R() * Math.PI * 2; _mv.set(Math.cos(dir), -0.6 - R() * 0.4, Math.sin(dir)).normalize();
+    MET.b.copy(MET.a).addScaledVector(_mv, 0.12 + R() * 0.16).normalize();
+    MET.dur = 0.6 + R() * 0.8; MET.t = MET.dur; MET.wait = 12 + R() * 28;
+  }
+  MET.t -= dt; const u = 1 - Math.max(0, MET.t) / MET.dur;
+  // Kopf läuft von a nach b, der Schweif zieht hinterher; Helligkeit: schnell an, langsam aus
+  const cp = camera.position, Rr = 6000, head = Math.min(1, u * 1.25), tail = Math.max(0, head - 0.45);
+  _ma.lerpVectors(MET.a, MET.b, tail).normalize().multiplyScalar(Rr).add(cp); _mb.lerpVectors(MET.a, MET.b, head).normalize().multiplyScalar(Rr).add(cp);
+  _ms.subVectors(_mb, _ma).cross(_mv.subVectors(_mb, cp)).normalize().multiplyScalar(Rr * 0.0025);
+  const P = m.geometry.attributes.position.array;
+  P[0] = _ma.x - _ms.x * 0.3; P[1] = _ma.y - _ms.y * 0.3; P[2] = _ma.z - _ms.z * 0.3; P[3] = _ma.x + _ms.x * 0.3; P[4] = _ma.y + _ms.y * 0.3; P[5] = _ma.z + _ms.z * 0.3;
+  P[6] = _mb.x - _ms.x; P[7] = _mb.y - _ms.y; P[8] = _mb.z - _ms.z; P[9] = _mb.x + _ms.x; P[10] = _mb.y + _ms.y; P[11] = _mb.z + _ms.z;
+  m.geometry.attributes.position.needsUpdate = true;
+  m.material.uniforms.uK.value = Math.min(1, u * 6) * (1 - Math.max(0, (u - 0.7) / 0.3)) * (1 - U.uCloud.value) * 1.6;
+  m.visible = MET.t > 0;
+}
 export const GROUND_FOG = [];
 export function buildGroundFog() {
   const mat = new T.ShaderMaterial({

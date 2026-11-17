@@ -17,7 +17,7 @@ import { buildHarbor, setupReflection } from './water.js';
 import { planAccess, buildPort, portInteractions, VILLA } from './harbour.js';
 import { buildGround, buildVilla, planSerpentine, buildAccessRoad, buildSerpentine, flushInstances, buildMountains } from './serpentine.js';
 import { buildSky } from './sky.js';
-import { buildGroundFog, buildAirship } from './airships.js';
+import { buildGroundFog, buildAirship, updateMeteors } from './airships.js';
 import { buildCars, buildTrucks, buildParticles } from './traffic.js';
 import { BAHN } from './bahn-hook.js';
 import { buildVenues } from './venues.js';
@@ -225,6 +225,7 @@ export function liftProfile(posAt, rad, clear) {
   return u => { const f = ((u % 1) + 1) % 1 * N, i = Math.floor(f), t = f - i; return out[i % N] * (1 - t) + out[(i + 1) % N] * t; };
 }
 export function updateShips(t) {
+  updateMeteors(t);   // V103
   for (const s of shipDefs) {
     if (s.imperial) continue;   // fliegt in updateImperial (zwischen den Plattform-Schritten im Hafen)
     if (s.villa) {
