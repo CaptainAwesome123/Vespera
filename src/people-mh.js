@@ -280,7 +280,7 @@ function extraParts(K, kind, rig, keep) {
    längs = Abstand vom Ansatz); feine Kammrillen in der Form. Rund 5000 Ecken, nur für den Spieler, beim Laden in wenigen ms gebaut */
 const PH_LINE = [   // Haaransatz: Winkel um die Hochachse (0 vorn, 90 links/rechts über dem Ohr, 180 hinten) -> Höhe in m
   [0, 1.7245], [16, 1.7255], [30, 1.728], [41, 1.7275], [48, 1.7225], [53, 1.712], [57, 1.698], [61, 1.681], [66, 1.665], [71, 1.652], [76, 1.648], [79, 1.66],
-  [82, 1.671], [86, 1.6795], [92, 1.681], [100, 1.681], [106, 1.678], [112, 1.662], [119, 1.638], [128, 1.612], [142, 1.594], [160, 1.584], [180, 1.582]];
+  [82, 1.671], [86, 1.6795], [92, 1.681], [100, 1.681], [104, 1.674], [110, 1.648], [118, 1.618], [128, 1.598], [142, 1.588], [160, 1.583], [180, 1.582]];
 function phLineY(deg) {
   const a = Math.min(180, Math.abs(deg));
   let k = 1; while (k < PH_LINE.length - 1 && PH_LINE[k][0] < a) k++;
@@ -296,8 +296,10 @@ const PH_PART = -0.3;   // Scheitel: x-Anteil der Richtung aus der Kopfmitte
 function phVol(dx, dy, dz, s) {   // Höhe des Haars über der Haut (m) in Richtung (dx, dy, dz), s = Abstand vom Ansatz
   const tp = phSst(0.05, 0.6, dy), back = phSst(-0.1, -0.6, dz), nape = phSst(-0.15, -0.5, dy), big = phSst(PH_PART - 0.03, PH_PART + 0.07, dx);
   let T = (0.005 + 0.0105 * tp + 0.003 * back * (1 - nape) - 0.0025 * nape) * (0.66 + 0.34 * big);
+  // V84: hinter dem Ohr voller (Haar deckt die Stelle zwischen Ohr und Nacken)
+  T += 0.003 * phSst(0.45, 0.75, Math.abs(dx)) * phSst(0.1, -0.45, dz) * phSst(0.35, 0.0, dy);
   const fr = phSst(0.0, 0.6, dz) * phSst(0.15, 0.5, dy), lump = Math.exp(-(((dx - PH_PART - 0.42) / 0.55) ** 2));
-  T += 0.0145 * fr * lump * big * phSst(0.003, 0.03, s) * (1 - 0.55 * phSst(0.045, 0.12, s));
+  T += 0.0085 * fr * lump * big * phSst(0.003, 0.03, s) * (1 - 0.55 * phSst(0.045, 0.12, s));
   T -= 0.005 * Math.exp(-(((dx - PH_PART) / 0.03) ** 2)) * phSst(-0.3, 0.3, dz) * tp;
   const ramp = 0.004 + 0.014 * fr;
   return 0.00025 + (Math.max(0.0012, T) - 0.00025) * phSst(0, ramp, s);
