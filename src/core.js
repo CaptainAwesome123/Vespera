@@ -227,6 +227,8 @@ T.ShaderChunk.fog_fragment = `#ifdef USE_FOG
 // V99: Kino-Look: weicheres Nachleuchten, Filmkorn, Tiefenschärfe in Gesprächen (Mitte scharf, Rand weich), Farbstimmung je Viertel. ?kino=aus = Stand V98.
 // V100: Fassaden aus der Nähe: Steinkorn, ausgebrochene Kanten, Reif in den Fugen, Salzränder und Abrieb am Sockel, gravierte Goldbänder. ?nah=aus = Stand V99.
 // V101: Glas-Spiegelung an Türmen: Fensterglas spiegelt Polarlicht, Sterne, Mond und die erleuchtete Stadt. ?glasspiegel=aus = Stand V100.
+// V104: Stoffe: Samt mit hellem Flor, Seide mit wanderndem Glanzband, Leder mit Poren und abgegriffenem Glanz, Pelz mit Unterwolle und Grannen. ?stoffe=aus = Stand V103.
+export const STOFFE = new URLSearchParams(location.search).get('stoffe') !== 'aus';
 export const GLASSPIEGEL = new URLSearchParams(location.search).get('glasspiegel') !== 'aus';
 export const NAH = new URLSearchParams(location.search).get('nah') !== 'aus';
 export const KINO = new URLSearchParams(location.search).get('kino') !== 'aus';
