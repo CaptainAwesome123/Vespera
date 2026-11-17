@@ -96,6 +96,7 @@ export function updateCarLights() {
     for (let k = 0; k < 2; k++) { const p = (i * 2 + k) * 4; A2[p] = A[o]; A2[p + 1] = A[o + 1]; A2[p + 2] = A[o + 2]; A2[p + 3] = A[o + 3]; }
   }
   CARL.attr.needsUpdate = true; CARL.attr2.needsUpdate = true;
+  CARL.list = list; CARL.cnt = n;   // V102: nächste Wagen für die Scheinwerferschatten (lichtschatten.js)
 }
 
 /* V92 · Scheinwerfer und Rücklichter spiegeln sich im nassen Pflaster

@@ -16,6 +16,7 @@ import { inImperial, IMP, HELM, impHelmInput, impHelmCamera } from './imperial.j
 import { updatePedestrians, CLOCK, citizenNear, citizenDoing } from './ragdoll.js';
 import { updateBeamSpots } from './airships.js';
 import { updateCarLights } from './carlight.js';
+import { updateLichtschatten } from './lichtschatten.js';
 import { updateSchwaden } from './schwaden.js';
 import { updateRaumspiegel } from './raumspiegel.js';
 import { updateCars, updateTrucks } from './traffic.js';
@@ -335,6 +336,7 @@ export function frame(now) {
   updateNearPlane(rdt);
   updateCars(dt);
   updateCarLights();   // V38
+  updateLichtschatten();   // V102: weiche Schatten von Laternen und Scheinwerfern
   updateSchwaden(dt);   // V93: Nebelschwaden in den Straßen
   updateRaumspiegel(rdt, playing);   // V95: Marmor und Gold spiegeln den echten Raum
   updateTrucks(dt);
