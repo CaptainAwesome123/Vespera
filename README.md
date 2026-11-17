@@ -537,3 +537,10 @@ python3 tools/build-single.py single/vespera-v21.html       # Einzeldatei (seit 
 - Mehr Strähnen: Rillen in drei Breiten, die entlang der Strähne leicht wandern; im Shader (nur Spieler) feinere Strähnen,
   mehr Kontrast und helle Lichtsträhnen.
 - Alexander trägt eine runde, dunkel getönte Sonnenbrille mit dünnem Goldrand (extraParts, immer sichtbar).
+
+**V82: Strähnen mit Schwung, Nasenzwicker** (`src/people-mh.js`, `src/people-skeleton.js`).
+- Über Alexanders Haarschale liegen 340 einzelne Strähnen (gewölbte Bänder, Ränder auf der Schale, Mitte bis 2,5 mm darüber),
+  die vom Ansatz auf Großkreisen zum Wirbel laufen, sich sanft wellen und nach hinten dünner werden. Die Furchen zwischen ihnen
+  sind dunkler (Eckenfarbe, im Shader nur beim Spieler). Die Welle über der Stirn steigt auf gut 1,5 cm und rollt nach hinten aus.
+- Statt der Sonnenbrille mit Bügeln ein Nasenzwicker: zwei kleine ovale, fast schwarze Gläser auf der Nasenwurzel, federnder
+  Bügel über der Nase, Klemmplättchen, keine Bügel zu den Ohren.

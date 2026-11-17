@@ -1245,6 +1245,7 @@ export const HUM_FS_COLOR = () => `
             float st2 = vN3(vec3(ac * 3.1, along * 0.8, 1.7)), sk = mix(st, st * 0.45 + st2 * 0.55, plF);
             vec3 c = HC * (0.75 - 0.22 * plF + (0.35 + 0.5 * plF) * mix(0.5, sk, fa) + 0.25 * (clump - 0.5)) * mix(0.62, 1.0, smoothstep(0.0, 0.35, along));
             c += HC * 0.6 * pow(1.0 - nv, 3.0) + vec3(0.04) * pow(1.0 - nv, 4.0) + plF * HC * 0.45 * smoothstep(0.62, 0.85, st2) * fa;
+            c *= mix(1.0, vColor.r, plF);   // V82: Furchen zwischen Alexanders Strähnen dunkler (Eckenfarbe der Haarschale)
             diffuseColor.rgb = c; hRough = 0.42 + 0.1 * hFemF(idv); hB = sk * (0.8 + 0.9 * plF) * fa; }
           } else {
             vec3 c = diffuseColor.rgb, p = vClP;

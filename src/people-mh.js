@@ -245,16 +245,17 @@ function extraParts(K, kind, rig, keep) {
     P(new T.SphereGeometry(0.0085, 10, 8).scale(0.85, 1.05, 0.7).translate(0, y, z + 0.0035), black, 0, FAB.satin);
   }
   if (K.player) {
-    // V81: Alexanders getönte Sonnenbrille: runde Gläser (zwanziger Jahre), dunkel getönt und glänzend, dünner Goldrand, Steg und Bügel zu den Ohren
+    // V82: Nasenzwicker (wie Morpheus): zwei kleine ovale, fast schwarze Gläser ohne Bügel, auf die Nasenwurzel geklemmt;
+    // ein schmaler Bügel aus dunklem Metall federt über der Nase, zwei Klemmplättchen sitzen seitlich am Nasenrücken
     {
-    const z = fc.noseZ - 0.014, y = fc.eyeY + 0.001, R = 0.0172, rim = [0.6, 0.46, 0.22], tint = [0.05, 0.04, 0.035];
+    const z = fc.noseZ - 0.014, y = fc.eyeY - 0.0005, R = 0.0128, cxl = fc.eyeX - 0.003, rim = [0.06, 0.06, 0.065], tint = [0.025, 0.022, 0.022];
     for (const sx of [-1, 1]) {
-      P(new T.TorusGeometry(R, 0.0013, 6, 26).translate(sx * (fc.eyeX + 0.001), y, z), rim, 0, FAB.metal);
-      P(new T.CylinderGeometry(R * 0.97, R * 0.97, 0.0012, 24).rotateX(Math.PI / 2).translate(sx * (fc.eyeX + 0.001), y, z + 0.0004), tint, 0, FAB.patent);
-      const a = new T.Vector3(sx * (fc.eyeX + 0.001 + R), y + 0.002, z - 0.002), b = new T.Vector3(sx * 0.074, y + 0.006, rig.headZ - 0.008), d = b.clone().sub(a);
-      P(new T.CylinderGeometry(0.001, 0.001, d.length(), 5).translate(0, d.length() / 2, 0).applyQuaternion(new T.Quaternion().setFromUnitVectors(new T.Vector3(0, 1, 0), d.clone().normalize())).translate(a.x, a.y, a.z), rim, 0, FAB.metal);
+      P(new T.TorusGeometry(R, 0.0007, 5, 26).scale(1.05, 0.88, 1).translate(sx * cxl, y, z), rim, 0, FAB.metal);
+      P(new T.CylinderGeometry(R, R, 0.001, 26).rotateX(Math.PI / 2).scale(1.05, 0.88, 1).translate(sx * cxl, y, z + 0.0003), tint, 0, FAB.patent);
+      P(new T.BoxGeometry(0.0022, 0.006, 0.0012).rotateY(sx * 0.9).translate(sx * (cxl - R * 1.02), y - 0.001, z - 0.004), rim, 0, FAB.metal);
     }
-    P(new T.TorusGeometry(fc.eyeX + 0.001 - R, 0.0011, 5, 10, Math.PI).translate(0, y + 0.002, z + 0.002), rim, 0, FAB.metal);
+    const gap = cxl - R * 1.05;
+    P(new T.TorusGeometry(gap, 0.0009, 5, 12, Math.PI).translate(0, y + 0.004, z - 0.002), rim, 0, FAB.metal);
     }
     // weiße Rose am linken Revers: Blütenblätter in Lagen, Kelch und Stiel, ein Blatt
     const x = 0.098, y = rig.top - 0.075, z = suitFront(x, y) + 0.012, white = [0.96, 0.95, 0.9], green = [0.18, 0.32, 0.12];
@@ -331,6 +332,7 @@ export function playerHairGeo(body, rig, fine) {
   const RX = [1, 0, 0], RY = [AX[1] * RX[2] - AX[2] * RX[1], AX[2] * RX[0] - AX[0] * RX[2], AX[0] * RX[1] - AX[1] * RX[0]];
   const cols = NU + 1, rows = NV + 1, n = cols * rows;
   const pos = new Float32Array(n * 3), uvA = new Float32Array(n * 2), dirs = new Float32Array(n * 3);
+  const eHs = new Float32Array(cols);
   for (let j = 0; j < cols; j++) {
     const az = -Math.PI + 2 * Math.PI * j / NU, deg = az * 180 / Math.PI, yh = phLineY(deg);
     // Höhe des Ansatzes in dieser Richtung: von oben herab, bis der Treffer unter der Linie liegt, dann halbieren
@@ -338,6 +340,7 @@ export function playerHairGeo(body, rig, fine) {
     for (let e = top - 0.04; e > -1.4; e -= 0.02) { const h = hit(az, e); if (cy + h[1] * h[3] < yh) { eLo = e; break; } eHi = e; }
     for (let k = 0; k < 10; k++) { const m = (eHi + eLo) / 2, h = hit(az, m); if (cy + h[1] * h[3] < yh) eLo = m; else eHi = m; }
     const eH = (eHi + eLo) / 2;
+    eHs[j] = eH;
     let s = 0, prev = null;
     for (let k = 0; k < rows; k++) {
       const w = k / NV, el = eH + (top - eH) * Math.pow(w, 1.55), h = hit(az, k === NV ? top - 1e-4 : el);
@@ -349,7 +352,8 @@ export function playerHairGeo(body, rig, fine) {
       let body0 = 0.0072 + 0.0048 * tp + 0.0016 * back * (1 - nape) - 0.004 * nape;   // V81: Seiten voller (über den Ohren sichtbar)
       // Welle über der Stirn: setzt 1 bis 4 cm hinter dem Ansatz ein, rechts vom Scheitel voller
       const part = 0.034, rgt = phSst(part + 0.004, part - 0.03, x);
-      body0 += 0.0062 * fr * tp * phSst(0.008, 0.035, s) * (0.65 + 0.35 * rgt) * (1 - 0.6 * side);
+      // V82: mehr Schwung: die Welle steigt bis 3 cm hinter dem Ansatz auf gut 1,5 cm und rollt dann flacher nach hinten aus
+      body0 += 0.0105 * fr * tp * phSst(0.006, 0.03, s) * (1 - 0.45 * phSst(0.04, 0.1, s)) * (0.65 + 0.35 * rgt) * (1 - 0.6 * side);
       // Scheitel links: schmale Furche von der Stirn nach hinten
       const groove = Math.exp(-(((x - part) / 0.0026) ** 2)) * phSst(-0.04, 0.02, z) * tp;
       body0 -= 0.003 * groove;
@@ -403,10 +407,70 @@ export function playerHairGeo(body, rig, fine) {
     const ux = fp[b * 3] - fp[a * 3], uy = fp[b * 3 + 1] - fp[a * 3 + 1], uz = fp[b * 3 + 2] - fp[a * 3 + 2], wx = fp[c * 3] - fp[a * 3], wy = fp[c * 3 + 1] - fp[a * 3 + 1], wz = fp[c * 3 + 2] - fp[a * 3 + 2];
     out += (uy * wz - uz * wy) * (fp[a * 3] - cx) + (uz * wx - ux * wz) * (fp[a * 3 + 1] - cy) + (ux * wy - uy * wx) * (fp[a * 3 + 2] - cz); }
   if (out < 0) for (let t = 0; t < idx.length; t += 3) { const k = idx[t + 1]; idx[t + 1] = idx[t + 2]; idx[t + 2] = k; }
+  // V82: Strähnen als eigene Locken über der Schale. Je Strähne ein gewölbtes Band (drei Ecken quer: Ränder auf der Schale,
+  // Mitte 1 bis 2,5 mm darüber), das vom Ansatz auf Großkreisen zum Wirbel läuft, sich dabei sanft hin und her wellt (Schwung),
+  // vorn steiler aufsteigt und nach hinten dünner wird. Die Eckenfarbe (r) dunkelt die Furchen zwischen den Strähnen ab
+  const P2 = [], N2 = [], U2 = [], C2 = [], I2 = [];
+  const col = new Float32Array(N).fill(0.86);
+  const rad = new Float32Array(n); for (let v = 0; v < n; v++) rad[v] = Math.hypot(pos[v * 3] - cx, pos[v * 3 + 1] - cy, pos[v * 3 + 2] - cz);
+  const shellR = (d) => {   // Radius der Schale in Richtung d (Einheitsvektor), null außerhalb des Haars
+    const az = Math.atan2(d[0], d[2]), el = Math.asin(Math.max(-1, Math.min(1, d[1])));
+    const fj = (az + Math.PI) / (2 * Math.PI) * NU, j0 = Math.min(NU - 1, Math.floor(fj)), tj = fj - j0;
+    const eH = eHs[j0] * (1 - tj) + eHs[j0 + 1] * tj; if (el < eH + 0.004) return null;
+    const fk = Math.pow(Math.min(1, (el - eH) / (top - eH)), 1 / 1.55) * NV, k0 = Math.min(NV - 1, Math.floor(fk)), tk = fk - k0;
+    const r = (j, k) => rad[j * rows + k];
+    return (r(j0, k0) * (1 - tj) + r(j0 + 1, k0) * tj) * (1 - tk) + (r(j0, k0 + 1) * (1 - tj) + r(j0 + 1, k0 + 1) * tj) * tk;
+  };
+  const nv3 = v => { const l = Math.hypot(v[0], v[1], v[2]) || 1; return [v[0] / l, v[1] / l, v[2] / l]; };
+  const crs = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+  let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const NS = fine ? 340 : 0, STEP = 0.006;
+  for (let q = 0; q < NS; q++) {
+    // Anfang: zwei Drittel knapp hinter dem Ansatz (ringsum), ein Drittel irgendwo auf dem Kopf
+    let d;
+    if (q % 3 !== 2) { const j = Math.floor(rnd() * NU), k = 1 + Math.floor(rnd() * 2), v = j * rows + k; d = nv3([pos[v * 3] - cx, pos[v * 3 + 1] - cy, pos[v * 3 + 2] - cz]); }
+    else { const j = Math.floor(rnd() * NU), k = 3 + Math.floor(rnd() * (NV - 6)), v = j * rows + k; d = nv3([pos[v * 3] - cx, pos[v * 3 + 1] - cy, pos[v * 3 + 2] - cz]); }
+    const front = Math.max(0, d[2]) * (d[1] > 0.2 ? 1 : 0.4);
+    const L = (0.06 + 0.08 * rnd()) * (1 + 0.4 * front), steps = Math.max(4, Math.round(L / STEP));
+    const W = (0.0055 + 0.0035 * rnd()) * (1 + 0.3 * front), H0 = 0.0012 + 0.0013 * rnd() + 0.001 * front;
+    const wa = 0.5 + 0.6 * rnd(), wf = 18 + 14 * rnd(), wp = rnd() * 6.28, uo = rnd() * 40;
+    const base = P2.length / 3; let made = 0;
+    for (let i = 0; i <= steps; i++) {
+      const u = i / steps;
+      const r = shellR(d); if (r === null && i > 0) break;
+      const t0 = [AX[0] - d[0] * (d[0] * AX[0] + d[1] * AX[1] + d[2] * AX[2]), AX[1] - d[1] * (d[0] * AX[0] + d[1] * AX[1] + d[2] * AX[2]), AX[2] - d[2] * (d[0] * AX[0] + d[1] * AX[1] + d[2] * AX[2])];
+      if (Math.hypot(...t0) < 0.12) break;   // am Wirbel
+      const t = nv3(t0), sd = nv3(crs(d, t)), rr = (r === null ? rad[0] : r);
+      const taper = Math.sin(Math.PI * Math.min(1, 0.15 + u * 0.95)), w = W * (0.35 + 0.65 * taper) * (1 - 0.35 * u), h = H0 * taper;
+      const mid = [cx + d[0] * (rr + h), cy + d[1] * (rr + h), cz + d[2] * (rr + h)];
+      for (const e of [-1, 0, 1]) {
+        const off = e * w / 2, lift = e === 0 ? 0 : 0.0002 - h;
+        P2.push(mid[0] + sd[0] * off + d[0] * lift, mid[1] + sd[1] * off + d[1] * lift, mid[2] + sd[2] * off + d[2] * lift);
+        const nn = nv3([d[0] + sd[0] * e * 0.8, d[1] + sd[1] * e * 0.8, d[2] + sd[2] * e * 0.8]); N2.push(...nn);
+        U2.push(uo + e * 0.35, 0.5 + u * L / 0.028); C2.push(e === 0 ? 1.1 : 0.76);
+      }
+      made++;
+      // weiter auf dem Großkreis, dazu die Welle quer
+      const wv = Math.cos(u * wf * L + wp) * wa * 0.35;
+      d = nv3([d[0] + (t[0] + sd[0] * wv) * STEP / rr, d[1] + (t[1] + sd[1] * wv) * STEP / rr, d[2] + (t[2] + sd[2] * wv) * STEP / rr]);
+    }
+    for (let i = 0; i + 1 < made; i++) for (let e = 0; e < 2; e++) {
+      const a = base + i * 3 + e, b = a + 1, c = a + 3, dd = a + 4;
+      I2.push(a, c, b, b, c, dd);
+    }
+  }
+  // Ausrichtung der Bänder nach außen
+  { let o = 0; for (let t = 0; t < I2.length; t += 3) { const a = I2[t] * 3, b = I2[t + 1] * 3, c = I2[t + 2] * 3;
+      const ux = P2[b] - P2[a], uy = P2[b + 1] - P2[a + 1], uz = P2[b + 2] - P2[a + 2], wx = P2[c] - P2[a], wy = P2[c + 1] - P2[a + 1], wz = P2[c + 2] - P2[a + 2];
+      o += (uy * wz - uz * wy) * (P2[a] - cx) + (uz * wx - ux * wz) * (P2[a + 1] - cy) + (ux * wy - uy * wx) * (P2[a + 2] - cz); }
+    if (o < 0) for (let t = 0; t < I2.length; t += 3) { const k = I2[t + 1]; I2[t + 1] = I2[t + 2]; I2[t + 2] = k; } }
+  const M = N + P2.length / 3, fp2 = new Float32Array(M * 3), nr2 = new Float32Array(M * 3), fu2 = new Float32Array(M * 2), cl2 = new Float32Array(M);
+  fp2.set(fp); fp2.set(P2, N * 3); nr2.set(nrm); nr2.set(N2, N * 3); fu2.set(fu); fu2.set(U2, N * 2); cl2.set(col); cl2.set(C2, N);
+  const idx2 = Uint32Array.from([...idx, ...I2.map(v => v + N)]);
   // Felder wie ein Netz aus dem GLB (Kopf: Glied 0, kein Mischen, Stoff Haar ohne Schwung)
-  const soft = new Float32Array(N * 3); for (let i = 0; i < N; i++) soft[i * 3] = FAB.hair;
-  return { position: fp, normal: nrm, uv: new Float32Array(N * 2), index: Uint32Array.from(idx), count: N, faceUV: fu,
-    _limb: new Float32Array(N * 2), _opt: new Float32Array(N), _soft: soft, _texk: new Float32Array(N), _blend: new Float32Array(N) };
+  const soft = new Float32Array(M * 3); for (let i = 0; i < M; i++) soft[i * 3] = FAB.hair;
+  return { position: fp2, normal: nr2, uv: new Float32Array(M * 2), index: idx2, count: M, faceUV: fu2, shade: cl2,
+    _limb: new Float32Array(M * 2), _opt: new Float32Array(M), _soft: soft, _texk: new Float32Array(M), _blend: new Float32Array(M) };
 }
 
 /* ---------- Eine Art zusammensetzen ---------- */
@@ -479,7 +543,7 @@ export function mhPersonGeo(kind, q) {
   if (K.player) {   // V80: eigene Haarschale statt der MakeHuman-Karten (siehe playerHairGeo)
     const hg = MHP.hairP || (MHP.hairP = {}), key = fine ? 'f' : 'c';
     const H = hg[key] || (hg[key] = playerHairGeo(MHP.src['body-p'], rig, fine));
-    add(H, { opt0: true, fab: FAB.hair, color: [1, 1, 1], face: i => [H.faceUV[i * 2], H.faceUV[i * 2 + 1]] });
+    add(H, { opt0: true, fab: FAB.hair, color: i => [H.shade[i], H.shade[i], H.shade[i]], face: i => [H.faceUV[i * 2], H.faceUV[i * 2 + 1]] });
   }       // V32: glatt zurückgekämmt mit Seitenscheitel (MakeHuman short04), immer; V48: mit mehr Fülle (hairP-m)
   else (K.hair || ['A', 'B', 'C']).forEach((h, i) => add(S(`hair${h}-${gk}`) || S(`hair${'ABC'[i]}-${gk}`), { opt: 11 + i }));   // V39: Frisur-Set der Art, Variante 11..13
   // V39: Hüte aus MakeHuman (Filz in fester Farbe), sichtbar wie die gebauten über die Hutvariante der Figur
