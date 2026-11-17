@@ -50,7 +50,7 @@ src/                der Spielcode als ES-Module, ein Abschnitt pro Datei
   sky.js              Himmel der Polarnacht: drehender Sternhimmel, Mond mit Phase, Polarlicht (V25)
   atmosphere.js       Wetter (Taste N), Nebeldichte, Regen, Schnee, Eisglitzern, Nässe, Schneedecke, Mondschatten (V25); V97: Schnee auch auf Fassadenschmuck, Stadtmobiliar, Bahndamm, Eingängen, Arbeiterhäusern, Glitzern aus der Nähe, angewehter Schnee an der Wetterseite (core.js snowyNeu, ?schnee=aus)
                       Qualitätsstufe hoch/niedrig: core.js QUALITY (?qualitaet=niedrig, Taste K, Knopf im Startbild) (V38)
-  airships.js         Luftschiffe, Lichtsäulen, Bodennebel, Dunstschichten zwischen den Türmen und Scheinwerfer-Lichtfleck (V38)
+  airships.js         Luftschiffe, Lichtsäulen, Bodennebel, Dunstschichten zwischen den Türmen und Scheinwerfer-Lichtfleck (V38); V103 Lichterketten, Warnleuchte, Rauchfahnen, Sternschnuppen (?himmel=aus)
   carlight.js         Scheinwerferkegel und Lichtteppich der nächsten Automobile (V38)
   lichtschatten.js    Weiche Schatten von Laternen und Scheinwerfern (V102): Leute, Alexander und Wagen werfen Schatten aufs Pflaster, ?lichtschatten=aus
   cars.js             Autos mit Innenraum und Insassen
