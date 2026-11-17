@@ -2,7 +2,7 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
-import { shared, T, renderer, MOBILE, LOW, scene, camera, U } from './core.js';
+import { shared, T, renderer, MOBILE, LOW, scene, camera, U, REGENGLAS } from './core.js';
 import { resizeReflection } from './water.js';
 import { depthOptions, passWithoutReverse } from './depth.js';
 
@@ -21,12 +21,28 @@ export function setupComposer() {
   composer.addPass(passWithoutReverse(bloomPass));   // V40: Quad-Pässe ohne Reverse-Z (siehe depth.js)
   // Filmischer Abschluss: weiche Lichterkappe, Türkis in den Schatten, Gold im Licht, Vignette, feines Korn
   gradePass = new ShaderPass({
-    uniforms: { tDiffuse: { value: null }, uTime: U.uTime, uIn: U.uInside, uRes: { value: new T.Vector2(sz.x, sz.y) } },
+    uniforms: { tDiffuse: { value: null }, uTime: U.uTime, uIn: U.uInside, uLens: U.uLens, uRes: { value: new T.Vector2(sz.x, sz.y) } },
     vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
-    fragmentShader: `uniform sampler2D tDiffuse; uniform float uTime; uniform float uIn; uniform vec2 uRes; varying vec2 vUv;
+    fragmentShader: `uniform sampler2D tDiffuse; uniform float uTime; uniform float uIn; uniform float uLens; uniform vec2 uRes; varying vec2 vUv;
       float hash(vec2 p){ return fract(sin(dot(p, vec2(12.9898,78.233)))*43758.5453); }
       void main(){
-        vec3 c = texture2D(tDiffuse, vUv).rgb;
+        vec2 dOff = vec2(0.0); float dRim = 0.0;
+        ${REGENGLAS ? `// V98: Tropfen auf der Kamera: zwei Raster, jeder Tropfen erscheint, sitzt, rutscht ein Stück und verdunstet; er bricht das Bild dahinter
+        if (uLens > 0.004) for (int k = 0; k < 2; k++) {
+          vec2 sp = vUv * vec2(uRes.x / uRes.y, 1.0) * (k == 0 ? 7.0 : 12.0) + float(k) * 3.7;
+          vec2 ci = floor(sp), cf = fract(sp) - 0.5;
+          float h = hash(ci), h2 = hash(ci + 7.13);
+          float life = fract(uTime * (0.05 + 0.05 * h2) + h * 3.1);
+          float on = step(h, uLens * (k == 0 ? 0.28 : 0.38)) * smoothstep(0.0, 0.05, life) * (1.0 - smoothstep(0.8, 1.0, life));
+          vec2 cc = vec2((h2 - 0.5) * 0.5, 0.22 - 0.5 * smoothstep(0.5, 0.8, life) * step(0.6, h2));
+          float r = 0.13 + 0.16 * fract(h * 7.7);
+          vec2 dv = (cf - cc) * vec2(1.0, 0.82) / r; float d = length(dv);
+          float m = on * (1.0 - smoothstep(0.92, 1.0, d));
+          dOff -= dv * sqrt(max(1.0 - d * d, 0.0)) * 0.035 * m / (k == 0 ? 7.0 : 12.0) * 7.0;
+          dRim = max(dRim, m * smoothstep(0.75, 0.97, d));
+        }` : ''}
+        vec3 c = texture2D(tDiffuse, vUv + dOff).rgb;
+        c *= 1.0 - 0.18 * dRim;
         float l = dot(c, vec3(0.2126, 0.7152, 0.0722));
         // V67: Innenräume etwas heller belichten, tiefe Schatten leicht türkis anheben (innen stärker), damit dunkle Ecken lesbar bleiben
         c *= 1.0 + 0.16 * uIn;
@@ -39,6 +55,8 @@ export function setupComposer() {
         c *= 1.0 - 0.38 * smoothstep(0.35, 1.05, length(q));
         gl_FragColor = vec4(c, 1.0); }`,
   });
+  // V98: ShaderPass kopiert die Uniforms; die Tropfen brauchen die echten (laufende Uhr, uLens aus performance.js)
+  gradePass.uniforms.uLens = U.uLens; gradePass.uniforms.uTime = U.uTime;
   composer.addPass(passWithoutReverse(gradePass));
 }
 export function resize() {
