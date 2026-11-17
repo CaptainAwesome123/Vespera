@@ -239,44 +239,81 @@ void poseStand(float fem, float gs) {
   nkP = 0.04 * sin(uTime * 0.23 + aGait.x * 2.0);
 }
 // ---------- Kleine Handlungen im Stand, je Figur in eigener Folge ----------
+// V80: überlappende Bewegung statt Gleichtakt: der Blick geht voraus, dann Schulter, Ellbogen, zuletzt Handgelenk und Finger;
+// beim Zurücknehmen in umgekehrter Folge, der Ellbogen schwingt beim Ankommen ein wenig nach. Neun neue Handlungen (15 bis 23),
+// viele passend zur Polarnacht: in die Hände hauchen, frösteln, umsehen, Taschen abklopfen, Fussel vom Ärmel, Rücken strecken,
+// ungeduldig mit dem Fuß wippen, Manschetten richten, Gewicht verlagern mit Händen in den Hüften
+// V80: welche Hand frei ist (1) und welche etwas trägt (0): Aktentasche, Stock und Schirm links, Handtasche und Zeitung rechts
+// (Variante der Tragedinge wie in people-model carry(), aOpt 31..33); so hebt niemand die Aktentasche an den Hut
+vec2 handsFree(float fem) {
+  float w = mod(floor(aGait.w / 207360.0), 4.0);
+  if (w > 2.5) return vec2(1.0);
+  return fem > 0.5 ? (w < 0.5 ? vec2(1.0, 0.0) : vec2(0.0, 1.0)) : vec2(1.0, 0.0);
+}
 void poseIdle(float wgt, float fem) {
   float gc = uTime / 15.0 + hh(aGait.x * 7.1) * 15.0, gi = floor(gc), gu = fract(gc);
-  float env = wgt * smoothstep(0.04, 0.12, gu) * (1.0 - smoothstep(0.55, 0.66, gu));
-  if (env < 0.001) return;
-  float g = floor(hh(gi * 3.7 + aGait.x * 1.3) * 15.0);
-  vec2 P = uaP, Aa = uaA, Tw = uaT, E = elF, F = fgC; float np = nkP, ny = nkY, nr = nkR, sp = spP, jw = jawO;
-  float osc = sin(uTime * 9.0);
-  if (g < 0.5) { P.y = 0.6; E.y = 1.95; Tw.y = 1.0; Aa.y = 0.12; np = 0.38; ny = 0.28; }                         // auf die Armbanduhr schauen
+  float eH = wgt * sst((gu - 0.02) / 0.09) * (1.0 - sst((gu - 0.58) / 0.1));
+  if (eH < 0.001) return;
+  float eS = wgt * sst((gu - 0.04) / 0.1) * (1.0 - sst((gu - 0.55) / 0.11));
+  float eE = wgt * sst((gu - 0.07) / 0.1) * (1.0 - sst((gu - 0.52) / 0.1));
+  float eF = wgt * sst((gu - 0.1) / 0.09) * (1.0 - sst((gu - 0.5) / 0.09));
+  float os = 1.0 + 0.07 * sin(3.14159 * s01((gu - 0.15) / 0.12)) * wgt;
+  float g = floor(hh(gi * 3.7 + aGait.x * 1.3) * 24.0);
+  vec2 P = uaP, Aa = uaA, Tw = uaT, E = elF, F = fgC, W = wrF; float np = nkP, ny = nkY, nr = nkR, sp = spP, jw = jawO, sy = spY;
+  float osc = sin(uTime * 9.0), slow = sin(uTime * 2.3 + aGait.x * 4.0);
+  if (g < 0.5) { P.y = 0.6; E.y = 1.95; Tw.y = 1.0; Aa.y = 0.12; np = 0.38; ny = 0.28; W.y = -0.3; }                         // auf die Armbanduhr schauen
   else if (g < 1.5) { P.x = 0.95; E.x = 2.35; Tw.x = 0.7; Aa.x = 0.05 + 0.03 * osc; np = -0.12; F.x = 1.0; }     // Kragen und Krawatte richten
-  else if (g < 2.5) { P = vec2(-0.12); Aa = vec2(0.6); E = vec2(1.65); Tw = vec2(1.5); sp = -0.02; }                 // Hände in die Hüften
-  else if (g < 3.5) { P = vec2(0.62); Aa = vec2(0.14); Tw = vec2(1.45); E = vec2(1.95, 1.85); sp = -0.04; np = -0.04; F = vec2(0.8); }  // Arme verschränkt
+  else if (g < 2.5) { P = vec2(-0.12); Aa = vec2(0.6); E = vec2(1.65); Tw = vec2(1.5); sp = -0.02; W = vec2(0.35); }                 // Hände in die Hüften
+  else if (g < 3.5) { P = vec2(0.62); Aa = vec2(0.14); Tw = vec2(1.45); E = vec2(1.95, 1.85); sp = -0.04; np = -0.04; F = vec2(0.8); ny = 0.2 * slow; }  // Arme verschränkt
   else if (g < 4.5) { P.x = 1.65; Aa.x = 0.55; E.x = 2.5 + 0.08 * osc; Tw.x = 0.6; np = 0.18; nr = 0.14; F.x = 0.7; }       // am Hinterkopf kratzen
-  else if (g < 5.5) { P = vec2(-0.3); Aa = vec2(0.1); Tw = vec2(1.5); E = vec2(1.45); sp = -0.05; }                // Hände auf dem Rücken
-  else if (g < 6.5) { np = -0.55; sp = -0.07; ny = 0.35 * sin(uTime * 0.3 + aGait.x); P.x = 1.25; E.x = 2.25; Tw.x = 0.95; fgP.x = env; F.x = 1.1; }   // hinaufschauen zu den Türmen (V32: und hinzeigen)
+  else if (g < 5.5) { P = vec2(-0.3); Aa = vec2(0.1); Tw = vec2(1.5); E = vec2(1.45); sp = -0.05; ny = 0.35 * slow; }                // Hände auf dem Rücken
+  else if (g < 6.5) { np = -0.55; sp = -0.07; ny = 0.35 * sin(uTime * 0.3 + aGait.x); P.x = 1.25; E.x = 2.25; Tw.x = 0.95; fgP.x = eF; F.x = 1.1; }   // hinaufschauen zu den Türmen (V32: und hinzeigen)
   else if (g < 7.5) { nr = 0.32 * sin(uTime * 1.3); np = 0.12 + 0.1 * cos(uTime * 1.3); }                         // Nacken dehnen
   else if (g < 8.5) { P = vec2(0.55); E = vec2(1.6); Tw = vec2(0.82 + 0.08 * osc); Aa = vec2(0.05); np = 0.12; F = vec2(0.6); }    // Hände reiben
-  else if (g < 9.5) { P.x = 2.25; Aa.x = 0.3; E.x = 2.0; Tw.x = 0.4; np = 0.1; }                                    // Hut oder Haar richten
+  else if (g < 9.5) { P.x = 2.25; Aa.x = 0.3; E.x = 2.0; Tw.x = 0.4; np = 0.1; W.x = 0.3; }                                    // Hut oder Haar richten
   else if (g < 10.5) { if (fem > 0.5) { P = vec2(0.32); E = vec2(1.4); Tw = vec2(0.95); } else { P = vec2(-0.06); Aa = vec2(0.13); E = vec2(0.4); Tw = vec2(-0.3); F = vec2(1.2); } }   // Hände gefaltet / in den Taschen
-  else if (g < 11.5) { sp = 0.1; np = 0.2; P = vec2(0.25); E = vec2(0.3); }                                          // sich vorbeugen und umsehen
+  else if (g < 11.5) { sp = 0.1; np = 0.2; P = vec2(0.25); E = vec2(0.3); ny = 0.5 * sin(uTime * 0.7 + aGait.x); }                  // sich vorbeugen und umsehen
   else if (g < 12.5) { float y = smoothstep(0.1, 0.25, gu) * (1.0 - smoothstep(0.4, 0.55, gu)); P = mix(P, vec2(2.9), y); Aa = mix(Aa, vec2(0.35), y); E = mix(E, vec2(0.5), y); sp = -0.12 * y; np = -0.35 * y; jw = 1.6 * y; F = vec2(1.0 - 0.8 * y); }   // gähnen und strecken
   else if (g < 13.5) { if (fem > 0.5) { P.x = 1.05; E.x = 2.45; Tw.x = 0.55; Aa.x = 0.18; np = 0.05; nr = -0.1; P.y = 0.5; E.y = 1.7; Tw.y = 0.9; F = vec2(0.9); }   // Ohrring zurechtrücken, Handtasche halten
                        else { P.y = 0.42; E.y = 1.75; Tw.y = 1.05; Aa.y = 0.1; np = 0.42; ny = 0.18; P.x = 0.3; E.x = 1.6; Tw.x = 0.9; F = vec2(1.0); } }  // Taschenuhr aus der Weste ziehen
-  else { P.x = 0.75; E.x = 2.1; Tw.x = 0.8; Aa.x = 0.12; np = 0.08; F.x = 1.2; jw = 0.15; }                           // nachdenklich am Kinn
-  uaP = mix(uaP, P, env); uaA = mix(uaA, Aa, env); uaT = mix(uaT, Tw, env); elF = mix(elF, E, env); fgC = mix(fgC, F, env);
-  nkP = mix(nkP, np, env); nkY = mix(nkY, ny, env); nkR = mix(nkR, nr, env); spP = mix(spP, sp, env); jawO = mix(jawO, jw, env);
+  else if (g < 14.5) { P.x = 0.75; E.x = 2.1; Tw.x = 0.8; Aa.x = 0.12; np = 0.08; F.x = 1.2; jw = 0.15; }                           // nachdenklich am Kinn
+  else if (g < 15.5) { float bl = pow(max(0.0, sin(uTime * 2.2 + aGait.x)), 4.0); P = vec2(0.95); Aa = vec2(0.02); E = vec2(2.35); Tw = vec2(0.75 + 0.06 * osc); F = vec2(0.75); np = 0.16; jw = 0.5 * bl; sp = 0.05; }   // in die hohlen Hände hauchen (Kälte)
+  else if (g < 16.5) { P = vec2(0.5); Aa = vec2(0.08); Tw = vec2(1.55); E = vec2(2.25); F = vec2(0.6); Tw += 0.12 * sin(uTime * 6.0); nr = 0.03 * sin(uTime * 23.0); sp = 0.07; np = 0.1; }   // frösteln, sich die Oberarme reiben
+  else if (g < 17.5) { float sc = sin(6.2832 * s01((gu - 0.06) / 0.5) * 1.5); ny = 0.75 * sc; sy = 0.22 * sc; np = -0.05; }                // sich umsehen, links und rechts
+  else if (g < 18.5) { float k = step(0.3, gu); P.x = mix(0.35, -0.1, k); Aa.x = mix(0.0, 0.2, k); E.x = mix(1.85, 0.6, k); Tw.x = mix(1.1, 0.2, k); F.x = 0.6 + 0.3 * abs(osc); np = 0.32; ny = 0.15; }   // Taschen abklopfen, etwas suchen
+  else if (g < 19.5) { P.x = 1.0; Aa.x = 0.25; E.x = 2.3; Tw.x = 1.4 + 0.1 * sin(uTime * 11.0); W.x = 0.25 * sin(uTime * 11.0 - 0.8); F.x = 0.2; np = 0.18; ny = 0.42; }   // Fussel von der Schulter wischen
+  else if (g < 20.5) { P = vec2(-0.4); Aa = vec2(0.28); E = vec2(1.75); Tw = vec2(1.25); W = vec2(0.4); sp = -0.13; np = -0.22; nr = 0.06 * slow; }   // Rücken strecken, Hände ins Kreuz
+  else if (g < 21.5) { float tp = max(0.0, sin(uTime * 7.5)); anF.x -= 0.28 * tp * eS; knF.x += 0.06 * eS; P = vec2(0.62); Aa = vec2(0.14); Tw = vec2(1.45); E = vec2(1.95, 1.85); ny = 0.25 * slow; np = -0.03; }   // ungeduldig mit dem Fuß wippen, Arme verschränkt
+  else if (g < 22.5) { P = vec2(0.5, 0.55); E = vec2(1.95, 1.7); Tw = vec2(1.05, 0.45); Aa = vec2(-0.12, 0.06); W = vec2(-0.2, 0.3); F = vec2(0.95, 0.4); np = 0.35; ny = 0.12; }   // Manschetten richten
+  else { P = vec2(-0.12, 0.05); Aa = vec2(0.6, 0.05); E = vec2(1.65, 0.3); Tw = vec2(1.5, 0.1); W.x = 0.35; pvO.x += 0.03 * eS; pvR += 0.05 * eS; knF.y += 0.12 * eS; sp = -0.03; ny = -0.25; }   // Gewicht auf ein Bein, eine Hand in der Hüfte
+  vec2 hf = handsFree(fem), hS = eS * hf, hE = eE * hf, hF = eF * hf;
+  uaP = mix(uaP, P, hS); uaA = mix(uaA, Aa, hS); uaT = mix(uaT, Tw, hE); elF = mix(elF, E * os, hE); fgC = mix(fgC, F, hF); wrF = mix(wrF, W, hF);
+  nkP = mix(nkP, np, eH); nkY = mix(nkY, ny, eH); nkR = mix(nkR, nr, eH); spP = mix(spP, sp, eS); spY = mix(spY, sy, eS); jawO = mix(jawO, jw, eE);
 }
 // ---------- Reden mit den Händen ----------
+// V80: zehn Gesten statt fünf; Schulter vor Ellbogen vor Hand (überlappend), betonte Silben als kurzer Schlag mit weichem
+// Rücklauf (statt Sinus), der Kopf nickt auf den Schlag, der Oberkörper neigt sich zum Gegenüber
 void poseTalk(float talk) {
-  float tc = uTime / 3.3 + aGait.x, ti = floor(tc), tu = fract(tc), g = floor(hh(ti + aGait.x * 3.0) * 5.0);
-  float env = talk * smoothstep(0.0, 0.18, tu) * (1.0 - smoothstep(0.8, 1.0, tu)), b = 0.5 + 0.5 * sin(uTime * 5.5 + aGait.x * 4.0);
-  vec2 P = uaP, E = elF, Aa = uaA, Tw = uaT, F = fgC; float nr = nkR, np = nkP;
-  if (g < 0.5) { P.y = 0.5 + 0.12 * b; E.y = 1.25; Tw.y = -0.2; F.y = 0.1; }
+  float tc = uTime / 3.3 + aGait.x, ti = floor(tc), tu = fract(tc), g = floor(hh(ti + aGait.x * 3.0) * 10.0);
+  float eS = talk * sst(tu / 0.2) * (1.0 - sst((tu - 0.78) / 0.2));
+  if (eS < 0.001) { jawO = talk * 0.5 * (0.5 + 0.5 * sin(uTime * 11.0 + aGait.x * 9.0)); return; }
+  float eE = talk * sst((tu - 0.05) / 0.2) * (1.0 - sst((tu - 0.74) / 0.2)), eF = talk * sst((tu - 0.1) / 0.18) * (1.0 - sst((tu - 0.7) / 0.18));
+  float bp = fract(uTime * 0.95 + aGait.x * 1.7), b = (1.0 - exp(-bp * 30.0)) * exp(-bp * 5.0) * 1.6, r = uTime * 4.0 + aGait.x;
+  vec2 P = uaP, E = elF, Aa = uaA, Tw = uaT, F = fgC, W = wrF; float nr = nkR, np = nkP + 0.05 * b, sp = spP + 0.03, ny = nkY;
+  if (g < 0.5) { P.y = 0.5 + 0.12 * b; E.y = 1.25; Tw.y = -0.2; F.y = 0.1; W.y = -0.2 * b; }
   else if (g < 1.5) { P = vec2(0.42 + 0.1 * b); E = vec2(1.3); Aa = vec2(0.22); Tw = vec2(-0.35); F = vec2(0.15); }
-  else if (g < 2.5) { P.x = 0.62 + 0.1 * b; E.x = 1.55 - 0.15 * b; Tw.x = 0.3; np += 0.05 * b; F.x = 1.0; fgP.x = env; }   // V32: mit dem Zeigefinger unterstreichen
-  else if (g < 3.5) { P.x = 0.55; E.x = 2.15; Tw.x = 1.0; P.y = 0.3 * b; E.y = 0.9; }
-  else { Aa = vec2(0.28 + 0.08 * b); E = vec2(1.45); Tw = vec2(-0.7); P = vec2(0.2); nr = 0.14; F = vec2(0.1); }
-  uaP = mix(uaP, P, env); elF = mix(elF, E, env); uaA = mix(uaA, Aa, env); uaT = mix(uaT, Tw, env); nkR = mix(nkR, nr, env); nkP = mix(nkP, np, env); fgC = mix(fgC, F, env);
-  jawO = talk * 0.5 * (0.5 + 0.5 * sin(uTime * 11.0 + aGait.x * 9.0)) * step(0.5, b + 0.3);
+  else if (g < 2.5) { P.x = 0.62 + 0.1 * b; E.x = 1.55 - 0.15 * b; Tw.x = 0.3; np += 0.05 * b; F.x = 1.0; fgP.x = eF; }   // V32: mit dem Zeigefinger unterstreichen
+  else if (g < 3.5) { P.x = 0.55; E.x = 2.15; Tw.x = 1.0; P.y = 0.3 * b; E.y = 0.9; }                                       // Hand aufs Herz
+  else if (g < 4.5) { Aa = vec2(0.28 + 0.08 * b); E = vec2(1.45); Tw = vec2(-0.7); P = vec2(0.2); nr = 0.14; F = vec2(0.1); }
+  else if (g < 5.5) { float sh = sst(s01((tu - 0.15) / 0.12)) * (1.0 - sst(s01((tu - 0.45) / 0.15))); P = vec2(0.18); Aa = vec2(0.22 + 0.1 * sh); E = vec2(1.45 + 0.15 * sh); Tw = vec2(-0.85); F = vec2(0.12); W = vec2(-0.25); nr = 0.13 * sh; np -= 0.06 * sh; sp -= 0.04 * sh; }   // Achselzucken
+  else if (g < 6.5) { float k = floor(fract(uTime * 0.5 + aGait.x) * 4.0); P = vec2(0.5, 0.45); E = vec2(1.7, 1.6); Tw = vec2(0.9 - 0.06 * k, 0.5); Aa = vec2(-0.05, 0.05); F = vec2(0.9, 0.3); fgP.x = eF; np += 0.2; }   // an den Fingern abzählen
+  else if (g < 7.5) { P.x = 0.55 + 0.16 * b; E.x = 1.45 - 0.25 * b; Tw.x = 0.15; F.x = 0.05; W.x = 0.1; np += 0.04 * b; }        // Handkante: Punkt für Punkt
+  else if (g < 8.5) { P = vec2(0.42 - 0.05 * b); E = vec2(1.25); Tw = vec2(0.25); Aa = vec2(0.12); W = vec2(-0.45); F = vec2(0.1); np += 0.04; }   // beschwichtigen, Handflächen nach unten
+  else { P.x = 0.5 + 0.08 * sin(r); E.x = 1.5 + 0.15 * cos(r); Tw.x = 0.2 + 0.2 * sin(r); W.x = 0.3 * sin(r - 1.0); F.x = 0.2; ny += 0.1 * sin(r * 0.25); }   // Hand kreist: und so weiter
+  vec2 hf = handsFree(hFem), hS = eS * hf, hE = eE * hf, hF = eF * hf;
+  uaP = mix(uaP, P, hS); uaA = mix(uaA, Aa, hS); elF = mix(elF, E, hE); uaT = mix(uaT, Tw, hE); fgC = mix(fgC, F, hF); wrF = mix(wrF, W, hF);
+  nkR = mix(nkR, nr, eS); nkP = mix(nkP, np, eS); nkY = mix(nkY, ny, eS); spP = mix(spP, sp, eS);
+  jawO = talk * 0.5 * (0.5 + 0.5 * sin(uTime * 11.0 + aGait.x * 9.0)) * step(0.15, b + 0.3);
 }
 // ---------- Foxtrott ----------
 vec2 foxBody(float u) {
@@ -366,6 +403,40 @@ void poseWheel(vec4 W, float tilt, float ang, float tt, float seated, float tool
   wrF = vec2(-0.3); fgC = vec2(1.25);
   nkY = clamp(ang * 0.55, -0.7, 0.7) + 0.6 * smoothstep(0.75, 0.95, sin(tt * 0.27)) * sign(sin(tt * 0.13)) ; nkP = 0.05;
   spR = -ang * 0.04; spP = seated > 0.5 ? -0.08 : 0.02;
+}
+// ---------- V80: Winken. Der Oberarm hebt sich zuerst, der Unterarm folgt, die Hand schwingt mit Verzögerung am Ellbogen und im
+// Handgelenk (Überlappung statt Gleichtakt); der Körper verlagert das Gewicht, neigt sich ein wenig, der Kopf geht mit, man lächelt.
+// Je Figur eine von vier Arten (freundlich, begeistert hoch, höflich klein, damenhaft mit drehender Hand), manche mit links ----------
+void poseWave(float tt, float actI, float fem) {
+  float v = floor(hh(aGait.x * 6.7) * 4.0), sd = hh(aGait.x * 2.1) < 0.22 ? 1.0 : -1.0;
+  if (fem > 0.5 && v < 0.5) v = 3.0;
+  float cy = fract(tt / 6.5), cont = step(0.5, actI);
+  float up = max(cont, sst((cy - 0.02) / 0.13) * (1.0 - sst((cy - 0.5) / 0.16)));
+  float amp = max(cont, sst((cy - 0.1) / 0.1) * (1.0 - sst((cy - 0.44) / 0.1)));
+  if (up < 0.002) return;
+  float sp = v > 0.5 && v < 1.5 ? 9.5 : v > 1.5 && v < 2.5 ? 12.0 : 7.6, w = tt * sp + aGait.x * 3.0;
+  float s1 = sin(w), s2 = sin(w - 0.9), s3 = sin(w - 1.7);
+  HPose b = poseGet();
+  vec3 S = vec3(sd * rShX, rTop, rShZ), H;
+  float tw = 0.45;
+  if (v < 0.5) { H = S + vec3(sd * (0.2 + 0.07 * s1 * amp), 0.3 - 0.02 * abs(s1) * amp, 0.15); }                                     // freundlich: Unterarm schwingt am Ellbogen
+  else { H = S + vec3(sd * (0.12 + 0.13 * s1 * amp), 0.5 - 0.04 * abs(s1) * amp, 0.1); tw = 0.3; }                                // begeistert: hoch über dem Kopf, ganzer Arm
+  if (v < 1.5) armTo(sd, H, tw);
+  else {
+    // höflich (2): Oberarm hängt, Unterarm steht vor der Brust, die Hand pendelt durch Drehen im Oberarm; damenhaft (3): Ellbogen
+    // etwas seitlich, Hand in Kinnhöhe, langsames Drehen. Positives uaT dreht den Unterarm zur Mitte, negatives nach außen
+    vec4 F = v < 2.5 ? vec4(0.28, 0.25, 2.25, -0.15 + 0.22 * s1 * amp) : vec4(0.42, 0.5, 2.05, -0.4 + 0.16 * s1 * amp);
+    if (sd < 0.0) { uaP.x = F.x; uaA.x = F.y; elF.x = F.z; uaT.x = F.w; } else { uaP.y = F.x; uaA.y = F.y; elF.y = F.z; uaT.y = F.w; }
+  }
+  float wr = (v > 1.5 ? 0.3 : 0.22) * s2 * amp - (v > 1.5 ? 0.25 : 0.1), fc = v > 1.5 && v < 2.5 ? 0.25 + 0.3 * (0.5 + 0.5 * s3) * amp : 0.06 + 0.06 * (0.5 + 0.5 * s3);
+  if (sd < 0.0) { wrF.x = wr; fgC.x = fc; fgP.x = 0.0; } else { wrF.y = wr; fgC.y = fc; fgP.y = 0.0; }
+  poseOver(b, up);
+  // Körper: Gewicht aufs andere Bein, leicht zur Seite geneigt, der Oberkörper schwingt ein wenig mit, Kopf leicht schief und zum Gegenüber
+  float big = v > 0.5 && v < 1.5 ? 1.0 : 0.0;
+  pvO.x -= sd * 0.018 * up; pvR -= sd * 0.03 * up; spR += sd * (0.05 + 0.05 * big) * up; spY += sd * 0.04 * s3 * amp * (0.5 + big);
+  nkR -= sd * 0.08 * up; nkP -= 0.05 * up + 0.025 * s3 * amp; nkY += sd * 0.06 * up;
+  pvO.y += 0.012 * big * abs(s1) * amp;
+  gSmile = clamp(gSmile + 0.6 * up, 0.0, 1.0);
 }
 void humanPose(float fem, float gs, float elder) {
   thP = thA = thY = knF = anF = uaP = uaA = uaT = elF = wrF = fgC = fgP = vec2(0.0);
@@ -559,7 +630,7 @@ void humanPose(float fem, float gs, float elder) {
         else { uR = -0.32; uL = -0.32; fR = -1.3; fL = -1.3; aR = -0.06; aL = -0.06 + 0.1 * ts; hp = 0.3 + 0.04 * sin(tt * 0.4); nkY = 0.12 * sin(tt * 0.35); fgC = vec2(1.0); }
       }
       else if (act < 2.5) { float lg = max(0.0, sin(tt * 0.9)); hp = -0.08 - 0.16 * lg - 0.05 * abs(sin(tt * 12.0)) * lg; uR = -0.25; fR = -1.5; fL = -0.35; jawO = 0.6 * lg; spP = -0.05 * lg; }
-      else if (act < 3.5) { float w = sin(tt * 7.5), on = actI > 0.5 ? 1.0 : smoothstep(0.0, 0.15, fract(tt / 6.0)) * (1.0 - smoothstep(0.45, 0.6, fract(tt / 6.0))); aR = (2.55 + 0.25 * w) * on; fR = -0.25 - 0.35 * on - 0.2 * w * on; fgC.x = 0.05; }
+      else if (act < 3.5) { uR = -0.02; fR = -0.28; fL = -0.3; }   // V80: Winken in poseWave (nach dem Umrechnen unten)
       else if (act < 4.5) { uR = -0.72; fR = -0.75 + 0.16 * sin(tt * 11.0); hp = 0.06; spP = 0.05; fgC.x = 1.0; }
       else if (act < 5.5) { float cy = fract(tt / 7.0), k = smoothstep(0.0, 0.12, cy) * (1.0 - smoothstep(0.32, 0.46, cy)); uR = -0.3 - 0.5 * k; fR = -1.0 - 1.3 * k; fL = -0.3; hp = -0.15 * k; fgC.x = 0.9; }
       else if (act < 6.5) { float cy = fract(tt / 9.0), k = smoothstep(0.15, 0.3, cy) * (1.0 - smoothstep(0.7, 0.85, cy)); uL = -1.45 * k; fL = -0.08; aL = 0.3 * k; nkY = 0.3 * k; fgC.y = 0.9; }
@@ -583,7 +654,11 @@ void humanPose(float fem, float gs, float elder) {
       else if (act < 16.5) { float cy = fract(tt / 12.0), k = smoothstep(0.05, 0.15, cy) * (1.0 - smoothstep(0.45, 0.55, cy)); uL = -0.1 - 0.5 * k; fL = -0.3 - 1.2 * k; aL = -0.18 * k; hp = 0.32 * k; }
       if (talk > 0.0) { float tk = talk * (0.5 + 0.5 * sin(uTime * 1.3 + aGait.x * 5.0)), tf = talk * (0.5 + 0.5 * sin(uTime * 1.9 + aGait.x * 3.0)); uL -= tk * 0.35; uR -= tk * 0.08; fL -= tf * 1.1; fR -= tf * 0.4; jawO = talk * 0.5 * (0.5 + 0.5 * sin(uTime * 11.0 + aGait.x * 9.0)); }
       uaP = -vec2(uR, uL); elF = -vec2(fR, fL); uaA = vec2(aR, aL); uaT = vec2(0.1 + 0.4 * sitK); nkP += hp;
+      // V80: Leben in den Handlungen: die Arme stehen nie ganz still (Atmen, kleines Nachgeben der Ellbogen), Finger spielen
+      { float lf = uTime * 0.8 + aGait.x * 5.0; uaP += 0.025 * vec2(sin(lf), sin(lf * 1.13 + 1.7)); elF += 0.04 * vec2(sin(lf * 1.31 + 0.4), sin(lf * 0.93 + 2.1));
+        uaA += 0.015 * sin(uTime * 1.5 + aGait.x); wrF += 0.06 * vec2(sin(lf * 0.71 + 2.0), sin(lf * 0.83)); nkR += 0.03 * sin(lf * 0.51); }
       if (sitK > 0.5) { poseSit(); spP += 0.06; }
+      if (act > 2.5 && act < 3.5) poseWave(tt, actI, fem);
     }
   }
   // Blick: wer die Kamera bemerkt, dreht den Kopf (und ein wenig die Schultern) zu ihr; manche grüßen im Vorbeigehen
@@ -1099,7 +1174,7 @@ export const HUM_FS_COLOR = () => `
           vec3 T5 = tone < 0.5 ? vec3(1.06, 1.03, 1.02) : tone < 1.5 ? vec3(0.97, 0.9, 0.84) : tone < 2.5 ? vec3(0.88, 0.8, 0.66) : tone < 3.5 ? vec3(0.62, 0.48, 0.38) : vec3(0.42, 0.31, 0.25);
           vec3 HC = hairI < 0.5 ? vec3(0.05, 0.035, 0.03) : hairI < 1.5 ? vec3(0.2, 0.12, 0.06) : hairI < 2.5 ? vec3(0.56, 0.41, 0.2) : hairI < 3.5 ? vec3(0.42, 0.14, 0.06) : hairI < 4.5 ? vec3(0.55, 0.5, 0.43) : vec3(0.11, 0.07, 0.04);
           // V26: Spieler wie im Foto: goldbraunes Haar, an den Spitzen heller
-          if (plF > 0.5) HC = vec3(0.47, 0.32, 0.15);
+          if (plF > 0.5) HC = vec3(0.6, 0.45, 0.23);   // V80: heller, goldblond (eigene Haarschale)
           float fab = floor(vSoft.x + 0.5);
           vec3 vd = normalize(vViewPosition); float nv = abs(dot(normalize(vNormal), vd));
           // V22: MakeHuman-Figuren lesen Haut, Stoff, Haar und Augen aus dem Atlas (1 Stoff, 2 Haut, 3 Haar, 4 Auge, 5 Brauen/Wimpern)

@@ -512,3 +512,21 @@ python3 tools/build-single.py single/vespera-v21.html       # Einzeldatei (seit 
   Zeitung). Eingebaut im Ballsaal, bei Tisch (alltag.js), bei der Gala und beim Grüßen (awe.js).
 - Atlas jetzt 2048 x 10240 (zwei Reihen mehr), Größe der Dateien fast gleich. Bauen wie bisher mit drei Ordnern.
 
+
+**V80: Alexanders Frisur neu, lebendigere Gesten** (`src/people-mh.js`, `src/people-skeleton.js`, Labor `?lab=figur`).
+- Alexanders Haar ist keine MakeHuman-Haarkarte mehr (die begann drei Zentimeter hinter dem Ansatz: nackte Stirn, darüber eine
+  schwebende Haube). `playerHairGeo` baut beim Laden eine Haarschale aus seinem Schädel: Strahlen aus der Kopfmitte treffen die
+  Kopfhaut, der Haaransatz ist eine Linie je Richtung (`PH_LINE`: Stirn, Schläfen, Koteletten, über und hinter dem Ohr, Nacken).
+  Am Ansatz liegt die Schale 0,25 mm über der Haut, dahinter wächst die Fülle: flache zurückgekämmte Welle über der Stirn, oben
+  voll, Seiten und Nacken kurz, Scheitel links als schmale Furche, feine Kammrillen. Strähnen laufen auf Kreisen um die Achse
+  Stirn-Wirbel nach hinten (Haar-Shader der gebauten Frisuren, keine Textur); Farbe goldblond. Rund 4800 Ecken, nur der Spieler.
+- Winken (Handlung 3) neu: Arm per IK, Oberarm zuerst, Unterarm und Hand schwingen verzögert im Ellbogen und Handgelenk;
+  Gewicht aufs andere Bein, Oberkörper neigt sich, Kopf schief, Lächeln. Vier Arten je Figur (freundlich, begeistert über dem
+  Kopf, höflich klein vor der Brust, damenhaft mit drehender Hand), gut ein Fünftel winkt mit links.
+- Kleine Handlungen im Stand (poseIdle): überlappend (Blick, Schulter, Ellbogen, Hand nacheinander, Ellbogen schwingt nach),
+  24 statt 15: neu in die Hände hauchen, frösteln und Oberarme reiben, sich umsehen, Taschen abklopfen, Fussel von der Schulter,
+  Rücken strecken, mit dem Fuß wippen, Manschetten richten, Gewicht auf ein Bein mit Hand in der Hüfte.
+- Reden (poseTalk): 10 statt 5 Gesten (neu Achselzucken, an den Fingern abzählen, Handkante, beschwichtigen, kreisende Hand),
+  betonte Silben als kurzer Schlag mit weichem Rücklauf, Kopf nickt mit.
+- Wer etwas trägt (Aktentasche, Stock, Schirm links; Handtasche, Zeitung rechts), gestikuliert nur mit der freien Hand.
+- In allen anderen Handlungen bewegen sich Arme, Handgelenke und Kopf leicht weiter (nie ganz starr).
