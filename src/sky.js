@@ -6,6 +6,25 @@ import { T, U, scene, LOW, TREE } from './core.js';
    der Mond zieht flach um den Horizont und zeigt seine Phase, darüber das Polarlicht.
    Bewölkung, Nebel und Niederschlag aus atmosphere.js (uCloud, uMist, uRain, uSnow).
    ===================================================================== */
+/* V93/V94: Polarlicht im Wasser. Eine schlanke Fassung des Vorhangs (ein Vorhang, gleiche Lage und gleiche Uhr uAuroraT wie
+   am Himmel), damit das Spiegelbild im Hafen, im Kanal und in Pools mit dem Himmel mitwogt. 4 Rauschabfragen, keine Schleife. */
+export const AURORA_GLSL = `
+  float auH(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7)))*43758.5453); }
+  float auN(vec2 p){ vec2 i=floor(p), f=fract(p); f=f*f*(3.0-2.0*f); return mix(mix(auH(i),auH(i+vec2(1,0)),f.x), mix(auH(i+vec2(0,1)),auH(i+vec2(1,1)),f.x), f.y); }
+  vec3 auroraRefl(vec3 R, float t, float a){
+    if (a < 0.01 || R.y < 0.02) return vec3(0.0);
+    float elev = asin(clamp(R.y, 0.0, 1.0)), ang = atan(R.z, R.x); vec2 ring = vec2(cos(ang), sin(ang));
+    float base = 0.1 + 0.16 * auN(ring * 1.6 + vec2(0.0, t * 0.012)) + 0.05 * auN(ring * 5.0 - t * 0.02);
+    float s = (elev - base) / 0.3;
+    if (s < -0.05 || s > 1.2) return vec3(0.0);
+    float body = smoothstep(-0.05, 0.03, s) * exp(-s * 2.6);
+    float rays = 0.45 + 0.55 * auN(ring * 46.0 + vec2(0.0, t * 0.25));
+    float fold = smoothstep(0.25, 0.75, auN(ring * 2.6 + vec2(t * 0.02, 0.0)));
+    vec3 c = mix(vec3(0.12, 1.0, 0.45), vec3(0.08, 0.75, 0.85), smoothstep(0.1, 0.5, s));
+    c = mix(c, vec3(0.5, 0.2, 0.75), smoothstep(0.55, 1.0, s) * 0.7);
+    c *= 0.7 + 0.3 * sin(ang * 3.0 + t * 0.09) * sin(elev * 7.0 - t * 0.05) + 0.15 * sin(t * 0.21);
+    return c * body * rays * fold * a;
+  }`;
 export function buildSky() {
   const sky = new T.Mesh(new T.SphereGeometry(9000, 48, 24), new T.ShaderMaterial({
     uniforms: U, side: T.BackSide, depthWrite: false, fog: false,
