@@ -10,7 +10,7 @@
    werden die Zellen einmal neu gebaut (invalidateLayer). Fototexturen: applyTextures() hängt sie an
    die Materialien, die sich mit wantTexture() gemeldet haben (Belmont-Marmor, Gold, Fassaden-Backstein).
    ===================================================================== */
-import { T, U, MOBILE, LOW } from './core.js';
+import { T, U, MOBILE, LOW, snowyNeu } from './core.js';
 import { registerLayer, invalidateLayer } from './chunks.js';
 import { manifest, loadManifest, prepareModels, instanceModel, bakeModel, applyTextures, loadTexture, GOODS_AT } from './assets.js';
 import { STREET } from './serpentine.js';
@@ -30,7 +30,7 @@ export const MODEL_USE = {
   bin: { model: 'kenney-trashcan', height: 0.95, center: true, colors: { metal: [0.07, 0.07, 0.075], metalDark: [0.5, 0.38, 0.18] } },
 };
 
-export function propsMat() { return props.mat || (props.mat = paintMat({ color: 0xffffff, metalness: 0.35, roughness: 0.55, envI: 0.5, emissive: 0x080604 })); }
+export function propsMat() { return props.mat || (props.mat = snowyNeu(paintMat({ color: 0xffffff, metalness: 0.35, roughness: 0.55, envI: 0.5, emissive: 0x080604 }), 0.8)); }
 
 /* ---------- Laternen ---------- */
 const _pm = new T.Matrix4(), _pq = new T.Quaternion(), _pp = new T.Vector3(), _ps = new T.Vector3(1, 1, 1), _pup = new T.Vector3(0, 1, 0);

@@ -1,4 +1,4 @@
-import { T, canvasTex, mulberry32, mergeGeos, MOBILE } from './core.js';
+import { T, canvasTex, mulberry32, mergeGeos, MOBILE, snowyNeu } from './core.js';
 import { stdMat, MAT } from './people-skeleton.js';
 import { registerLayer } from './chunks.js';
 import { addGlow, roofs } from './facade-shader.js';
@@ -177,8 +177,8 @@ function mats() {
   TEX.orn = ornTex(); TEX.ghost = ghostTex(); TEX.letters = lettersTex();
   setOrnPlane((k, w, h, rep) => plane(w, h, ORN[k], rep || 1));
   M = {
-    metal: stdMat({ color: 0xffffff, vertexColors: true, metalness: 0.95, roughness: 0.42, emissive: 0x100903, envI: 0.7 }),
-    matte: stdMat({ color: 0xffffff, vertexColors: true, metalness: 0.25, roughness: 0.62, envI: 0.4 }),
+    metal: snowyNeu(stdMat({ color: 0xffffff, vertexColors: true, metalness: 0.95, roughness: 0.42, emissive: 0x100903, envI: 0.7 }), 0.8, true, 1.2),   // V97: Schnee auf Vordächern, Fächern, Zinnen
+    matte: snowyNeu(stdMat({ color: 0xffffff, vertexColors: true, metalness: 0.25, roughness: 0.62, envI: 0.4 }), 0.85, true, 1.2),
     glass: stdMat({ color: 0x1a1408, metalness: 0.5, roughness: 0.15, envI: 1.2, emissive: 0x4a2c0a }),
     lamp: new T.MeshBasicMaterial({ color: new T.Color(1.5, 1.2, 0.8) }),
     orn: pull(stdMat({ map: TEX.orn, emissive: 0xffffff, emissiveMap: TEX.orn, emissiveIntensity: 0.3, metalness: 0.85, roughness: 0.38, envI: 0.9 }), 'decoOrn'),

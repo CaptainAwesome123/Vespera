@@ -1,4 +1,4 @@
-import { shared, canvasTex, freeAfterUpload, mulberry32, T, mergeGeos, scene, MOBILE, U, pick, R, rand, camera, ANISO, FOG_GLSL, FOGVIS, snowy, TREE } from './core.js';
+import { shared, canvasTex, freeAfterUpload, mulberry32, T, mergeGeos, scene, MOBILE, U, pick, R, rand, camera, ANISO, FOG_GLSL, FOGVIS, snowy, snowyNeu, TREE } from './core.js';
 import { planDeco } from './deco.js';
 import { personGeoHi, personShare, HQ } from './people-model.js';
 import { stdMat, MAT, addCollider, glowTex, paintMat, mergeColored, PAINT, personLook, BL_H } from './people-skeleton.js';
@@ -2090,7 +2090,7 @@ export const CLOCK_TEX = canvasTex(256, 256, (g, W) => {
   g.lineWidth = 4; g.beginPath(); g.moveTo(128, 128); g.lineTo(128 - 20, 128 - 85); g.stroke();
 });
 export function buildStreetFurniture() {
-  const rr = mulberry32(31337), mat = paintMat({ color: 0xffffff, metalness: 0.35, roughness: 0.55, envI: 0.5, emissive: 0x080604 });
+  const rr = mulberry32(31337), mat = snowyNeu(paintMat({ color: 0xffffff, metalness: 0.35, roughness: 0.55, envI: 0.5, emissive: 0x080604 }), 0.8);   // V97: Schnee auf Bänken, Kiosken, Uhren
   const W = (geos) => mergeColored(geos);
   const C = (rt, rb, h, seg, x, y, z) => new T.CylinderGeometry(rt, rb, h, seg).translate(x, y + h / 2, z);
   const B = IB;

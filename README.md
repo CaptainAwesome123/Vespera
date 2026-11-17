@@ -48,7 +48,7 @@ src/                der Spielcode als ES-Module, ein Abschnitt pro Datei
   villa.js            Innenräume der Villa auf drei Ebenen: Halle, Ballsaal, Salon, Speisesaal, Küche, OG, Keller, Schwimmhalle (V28)
   ragdoll.js          Gliederpuppen-Physik
   sky.js              Himmel der Polarnacht: drehender Sternhimmel, Mond mit Phase, Polarlicht (V25)
-  atmosphere.js       Wetter (Taste N), Nebeldichte, Regen, Schnee, Eisglitzern, Nässe, Schneedecke, Mondschatten (V25)
+  atmosphere.js       Wetter (Taste N), Nebeldichte, Regen, Schnee, Eisglitzern, Nässe, Schneedecke, Mondschatten (V25); V97: Schnee auch auf Fassadenschmuck, Stadtmobiliar, Bahndamm, Eingängen, Arbeiterhäusern, Glitzern aus der Nähe, angewehter Schnee an der Wetterseite (core.js snowyNeu, ?schnee=aus)
                       Qualitätsstufe hoch/niedrig: core.js QUALITY (?qualitaet=niedrig, Taste K, Knopf im Startbild) (V38)
   airships.js         Luftschiffe, Lichtsäulen, Bodennebel, Dunstschichten zwischen den Türmen und Scheinwerfer-Lichtfleck (V38)
   carlight.js         Scheinwerferkegel und Lichtteppich der nächsten Automobile (V38)
