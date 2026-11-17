@@ -1174,7 +1174,7 @@ export const HUM_FS_COLOR = () => `
           vec3 T5 = tone < 0.5 ? vec3(1.06, 1.03, 1.02) : tone < 1.5 ? vec3(0.97, 0.9, 0.84) : tone < 2.5 ? vec3(0.88, 0.8, 0.66) : tone < 3.5 ? vec3(0.62, 0.48, 0.38) : vec3(0.42, 0.31, 0.25);
           vec3 HC = hairI < 0.5 ? vec3(0.05, 0.035, 0.03) : hairI < 1.5 ? vec3(0.2, 0.12, 0.06) : hairI < 2.5 ? vec3(0.56, 0.41, 0.2) : hairI < 3.5 ? vec3(0.42, 0.14, 0.06) : hairI < 4.5 ? vec3(0.55, 0.5, 0.43) : vec3(0.11, 0.07, 0.04);
           // V26: Spieler wie im Foto: goldbraunes Haar, an den Spitzen heller
-          if (plF > 0.5) HC = vec3(0.6, 0.45, 0.23);   // V80: heller, goldblond (eigene Haarschale)
+          if (plF > 0.5) HC = vec3(0.46, 0.33, 0.17);   // V83: honigblond wie im Referenzbild
           float fab = floor(vSoft.x + 0.5);
           vec3 vd = normalize(vViewPosition); float nv = abs(dot(normalize(vNormal), vd));
           // V22: MakeHuman-Figuren lesen Haut, Stoff, Haar und Augen aus dem Atlas (1 Stoff, 2 Haut, 3 Haar, 4 Auge, 5 Brauen/Wimpern)
@@ -1243,10 +1243,10 @@ export const HUM_FS_COLOR = () => `
             float st = vN3(vec3(ac, along * 2.0, vClP.y * 6.0)), clump = vN3(vClP * 60.0);
             // V81: Alexander: feinere Strähnen dazu, mehr Kontrast, helle Lichtsträhnen
             float st2 = vN3(vec3(ac * 3.1, along * 0.8, 1.7)), sk = mix(st, st * 0.45 + st2 * 0.55, plF);
-            vec3 c = HC * (0.75 - 0.22 * plF + (0.35 + 0.5 * plF) * mix(0.5, sk, fa) + 0.25 * (clump - 0.5)) * mix(0.62, 1.0, smoothstep(0.0, 0.35, along));
-            c += HC * 0.6 * pow(1.0 - nv, 3.0) + vec3(0.04) * pow(1.0 - nv, 4.0) + plF * HC * 0.45 * smoothstep(0.62, 0.85, st2) * fa;
-            c *= mix(1.0, vColor.r, plF);   // V82: Furchen zwischen Alexanders Strähnen dunkler (Eckenfarbe der Haarschale)
-            diffuseColor.rgb = c; hRough = 0.42 + 0.1 * hFemF(idv); hB = sk * (0.8 + 0.9 * plF) * fa; }
+            vec3 c = HC * (0.75 - 0.05 * plF + (0.35 + 0.1 * plF) * mix(0.5, sk, fa) + 0.25 * (clump - 0.5)) * mix(0.62, 1.0, smoothstep(0.0, 0.35, along));
+            c += HC * 0.6 * pow(1.0 - nv, 3.0) + vec3(0.04) * pow(1.0 - nv, 4.0) + plF * HC * 0.3 * smoothstep(0.62, 0.85, st2) * fa;
+            c *= mix(1.0, vColor.r * 1.25, plF);   // V82/V83: Zwischenräume der Locken dunkler, jede Locke eigene Helligkeit (Eckenfarbe)
+            diffuseColor.rgb = c; hRough = 0.42 + 0.1 * hFemF(idv) + 0.12 * plF; hB = sk * (0.8 - 0.4 * plF) * fa; }
           } else {
             vec3 c = diffuseColor.rgb, p = vClP;
             float u = p.x * 0.8 + p.z;
