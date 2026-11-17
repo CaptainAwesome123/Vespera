@@ -1241,9 +1241,11 @@ export const HUM_FS_COLOR = () => `
             float across = -vFaceUV.x, along = vFaceUV.y;
             float ac = across * 7.0, fa = clamp(1.0 - fwidth(ac) * 1.5, 0.0, 1.0);
             float st = vN3(vec3(ac, along * 2.0, vClP.y * 6.0)), clump = vN3(vClP * 60.0);
-            vec3 c = HC * (0.75 + 0.35 * mix(0.5, st, fa) + 0.25 * (clump - 0.5)) * mix(0.62, 1.0, smoothstep(0.0, 0.35, along));
-            c += HC * 0.6 * pow(1.0 - nv, 3.0) + vec3(0.04) * pow(1.0 - nv, 4.0);
-            diffuseColor.rgb = c; hRough = 0.42 + 0.1 * hFemF(idv); hB = st * 0.8 * fa; }
+            // V81: Alexander: feinere Strähnen dazu, mehr Kontrast, helle Lichtsträhnen
+            float st2 = vN3(vec3(ac * 3.1, along * 0.8, 1.7)), sk = mix(st, st * 0.45 + st2 * 0.55, plF);
+            vec3 c = HC * (0.75 - 0.22 * plF + (0.35 + 0.5 * plF) * mix(0.5, sk, fa) + 0.25 * (clump - 0.5)) * mix(0.62, 1.0, smoothstep(0.0, 0.35, along));
+            c += HC * 0.6 * pow(1.0 - nv, 3.0) + vec3(0.04) * pow(1.0 - nv, 4.0) + plF * HC * 0.45 * smoothstep(0.62, 0.85, st2) * fa;
+            diffuseColor.rgb = c; hRough = 0.42 + 0.1 * hFemF(idv); hB = sk * (0.8 + 0.9 * plF) * fa; }
           } else {
             vec3 c = diffuseColor.rgb, p = vClP;
             float u = p.x * 0.8 + p.z;

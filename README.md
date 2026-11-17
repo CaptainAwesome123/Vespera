@@ -530,3 +530,10 @@ python3 tools/build-single.py single/vespera-v21.html       # Einzeldatei (seit 
   betonte Silben als kurzer Schlag mit weichem Rücklauf, Kopf nickt mit.
 - Wer etwas trägt (Aktentasche, Stock, Schirm links; Handtasche, Zeitung rechts), gestikuliert nur mit der freien Hand.
 - In allen anderen Handlungen bewegen sich Arme, Handgelenke und Kopf leicht weiter (nie ganz starr).
+
+**V81: Frisur nachgebessert, Sonnenbrille** (`src/people-mh.js`, `src/people-skeleton.js`).
+- Haaransatz vorn gut 1 cm tiefer (4 cm über den Brauen), Schläfen entsprechend; über den Ohren reicht das Haar bis an die
+  Ohrwurzel, Seiten voller (7 mm statt 4,6 mm), Rand an Seiten und Nacken mit sichtbarer Haarkante.
+- Mehr Strähnen: Rillen in drei Breiten, die entlang der Strähne leicht wandern; im Shader (nur Spieler) feinere Strähnen,
+  mehr Kontrast und helle Lichtsträhnen.
+- Alexander trägt eine runde, dunkel getönte Sonnenbrille mit dünnem Goldrand (extraParts, immer sichtbar).
