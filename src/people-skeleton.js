@@ -1,4 +1,4 @@
-import { shared, U, canvasTex, T, renderer, mergeGeos, geoView, snowy } from './core.js';
+import { shared, U, canvasTex, T, renderer, mergeGeos, geoView, snowy, STOFFE } from './core.js';
 import { HL, FACE_ATLAS, FACE_MAT } from './people-model.js';
 import { mocapGLSL, MOCAP } from './mocap.js';
 
@@ -1300,13 +1300,20 @@ export const HUM_FS_COLOR = () => `
               }
               c += c * 0.45 * pow(1.0 - nv, 3.0); hRough = 0.88;
               { float fl = sin(p.y * 230.0 + vN3(p * 25.0) * 7.0); hB += fl * vFold * 1.6; c *= 1.0 - 0.1 * vFold * (0.5 + 0.5 * fl); }   // V24: Falten in Ellbogen und Knien
-            } else if (fab < 4.5 || (fab > 12.5 && fab < 13.5)) {
+${STOFFE ? `              // V104: Samt (jedes sechste Wollkleid): tiefe Mitte, heller Flor am Rand, Strich je nach Faltenlage
+              { float vel = step(0.83, fract(idv * 0.137 + 0.31)) * (1.0 - shirt); float fl = vN3(p * vec3(60.0, 14.0, 60.0));
+                c *= mix(1.0, 0.62 + 0.25 * fl + 1.25 * pow(1.0 - nv, 2.2), vel); hB *= 1.0 - 0.75 * vel; hRough = mix(hRough, 0.97, vel); }
+` : ''}            } else if (fab < 4.5 || (fab > 12.5 && fab < 13.5)) {
               // Seide und Satin: Glanz, der über die Falten wandert; feine Kettfäden
               float wa = p.y * 900.0 + p.x * 30.0, fa = clamp(1.0 - fwidth(wa) * 1.5, 0.0, 1.0);
               hB = sin(wa * 6.2832) * 0.08 * fa + (vN3(p * vec3(40.0, 4.0, 40.0)) - 0.5) * 0.6;
               c *= 0.85 + 0.3 * pow(1.0 - nv, 1.5); c += c * 0.6 * pow(1.0 - nv, 4.0);
               hRough = fab > 12.5 ? 0.22 : 0.3; hMetal = 0.08;
-            } else if (fab < 5.5) {
+${STOFFE ? `              // V104: Seide: Glanzband quer zum Fadenlauf, das mit den Falten wandert
+              { vec3 sN = normalize(vNormal), sUp = normalize((viewMatrix * vec4(0.0, 1.0, 0.0, 0.0)).xyz); vec3 sT = normalize(sUp - sN * dot(sN, sUp) + 1e-4);
+                float tH = dot(sT, normalize(vd + sUp * 0.35)) + (vN3(p * vec3(30.0, 5.0, 30.0)) - 0.5) * 0.5;
+                float band = pow(max(0.0, 1.0 - tH * tH), fab > 12.5 ? 22.0 : 12.0); c += (c * 0.9 + 0.025) * band; hRough -= 0.06 * band; }
+` : ''}            } else if (fab < 5.5) {
               // Baumwolle: Leinwandbindung
               float wa = (p.x + p.z) * 700.0, wb = p.y * 700.0, fa = clamp(1.0 - max(fwidth(wa), fwidth(wb)) * 1.5, 0.0, 1.0);
               float w = sin(wa * 6.2832) * sin(wb * 6.2832);
@@ -1315,10 +1322,15 @@ export const HUM_FS_COLOR = () => `
             } else if (fab < 6.5) {
               // Leder: poliert, mit feinen Knitterfalten
               hB = (vN3(p * vec3(160.0, 300.0, 160.0)) - 0.5) * 0.35 * aa; c *= 0.9 + 0.2 * pow(1.0 - nv, 2.0); hRough = 0.36;
-            } else if (fab < 7.5) {
+${STOFFE ? `              // V104: Leder: Poren, abgegriffene Stellen glänzen stärker, Knickfalten in Ellbogen/Knien, Kantenglanz
+              { float wear = vN3(p * 35.0), pore = vN3(p * 900.0); hRough = 0.24 + 0.22 * wear + 0.08 * pore * aa2; hB += (pore - 0.5) * 0.25 * aa2 + sin(p.y * 320.0) * vFold * 1.2;
+                c *= 0.92 + 0.12 * wear; c += vec3(0.035, 0.03, 0.025) * pow(1.0 - nv, 4.0); }
+` : ''}            } else if (fab < 7.5) {
               // Pelz: weich, zottelig, Licht an den Haarspitzen
               float n = vN3(p * vec3(300.0, 70.0, 300.0)); hB = (n - 0.5) * 1.3 * aa; c *= 0.75 + 0.4 * n; c += c * pow(1.0 - nv, 2.0) * 0.8; hRough = 1.0;
-            } else if (fab < 8.5) {
+${STOFFE ? `              // V104: Pelz: dunkle Unterwolle, helle Grannenspitzen, weicher Schimmer am Umriss, Büschel
+              { float tuft = vN3(p * vec3(90.0, 30.0, 90.0)); c *= 0.7 + 0.45 * tuft; c += (c * 0.6 + vec3(0.03)) * pow(n, 5.0) * aa + (c + 0.02) * pow(1.0 - nv, 3.0) * 0.5; hB += (tuft - 0.5) * 0.8; }
+` : ''}            } else if (fab < 8.5) {
               hB = (vN3(p * 800.0) - 0.5) * 0.4 * aa; hRough = 0.92; c += c * 0.3 * pow(1.0 - nv, 3.0);
             } else if (fab < 9.5) {
               // Stroh: geflochtene Bänder
