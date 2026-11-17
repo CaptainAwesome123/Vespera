@@ -403,6 +403,7 @@ export function updatePedestrians(dt, t) {
 export const CLOCK = { min: 19 * 60 + 30 };   // Spielzeit in Minuten; eine echte Sekunde ist eine Spielminute
 export const citizens = [];
 export const CIT_HOOKS = [];   // V63: Nebenfiguren übernehmen beim Aufbau einzelne Bewohner (list, places)
+export const CIT_TALK = { fn: null };   // V108: nach dem ersten Satz ein Gespräch mit Antworten (unterhaltung.js)
 export const CIT_SAY = [];     // V76: weitere Sätze beim Ansprechen (alltag.js: Schicht, Feierabend, Tageszeit); f(c) liefert Text oder nichts
 export const FIRST_M = ['Anton', 'Bruno', 'Carl', 'Emil', 'Felix', 'Franz', 'Georg', 'Hans', 'Karl', 'Ludwig', 'Max', 'Otto', 'Paul', 'Richard', 'Theo', 'Walter', 'Wilhelm', 'Oskar', 'Fritz', 'Konrad', 'Leo', 'Victor', 'Henri', 'Jules', 'Arthur', 'Edgar', 'Josef', 'Rudolf'];
 export const FIRST_F = ['Anna', 'Berta', 'Clara', 'Dora', 'Elsa', 'Frieda', 'Greta', 'Hedwig', 'Ida', 'Käthe', 'Lotte', 'Marlene', 'Martha', 'Paula', 'Rosa', 'Ruth', 'Trude', 'Vera', 'Lilli', 'Edith', 'Mila', 'Irene', 'Josephine', 'Louise', 'Nora', 'Hilde', 'Ella', 'Margot'];
@@ -640,6 +641,7 @@ export function citizenSay(c) {
   greetNow(c.ped);
   const el = $('say'); el.innerHTML = '<b></b><span></span>'; el.querySelector('b').textContent = c.name; el.querySelector('span').textContent = '„' + s + '“';
   el.style.opacity = 1; shared.sayTimer = 5;
+  if (CIT_TALK.fn) try { CIT_TALK.fn(c, s); } catch (e) { console.warn('Gespräch:', e); }
 }
 shared.sayTimer = 0;
 

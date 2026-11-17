@@ -66,6 +66,7 @@ import './alltag.js';    // V76: Tagesabläufe: Schichtarbeiter, Schichtwechsel,
 import './gedaechtnis.js'; // V105: Gedächtnis: die Leute merken sich, was Alexander getan hat (?gedaechtnis=aus)
 import './reaktionen.js'; // V106: Reaktionen auf Alexander: Flucht, Schaulustige, Fotografen, Bittsteller, Buhrufe (?reaktionen=aus)
 import './gespraeche.js'; // V107: Gespräche untereinander: Sprechblasen über Runden und Begegnungen (?gespraeche=aus)
+import './unterhaltung.js'; // V108: Gespräche mit Alexander: Antworten zur Wahl, Stimmung, Beziehung (?unterhaltung=aus)
 import './imperium.js';  // V76: Alexanders Imperium (Kontor · Reiter Imperium): Sparten, Löhne, Preise, Arbeitszeit, Streiks, Konjunktur, Kredit
 import './krater.js';    // V78: Der Krater außerhalb der Stadt: altes Expeditionslager, zwei Gletscherhöhlen, zwölf Fundstücke
 

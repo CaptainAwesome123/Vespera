@@ -268,7 +268,7 @@ function attAfter(pd, k) {
   if (k === 'buh') return cur === 'bew' || cur === 'resp' ? cur : 'skep';
   return null;
 }
-function remember(pd, k, own, extra) {
+export function remember(pd, k, own, extra) {   // V108: auch aus unterhaltung.js
   if (!pd || pd.rag && !own || isFoe(pd)) return;
   const M = memOf(pd), m = { k, d: today(), ts: Date.now(), ...(extra || {}) };
   if (own) {
@@ -389,7 +389,7 @@ function load() {
 }
 function pack() {
   const out = {};
-  citizens.forEach((c, i) => { const M = c.ped.mem; if (!M || (!M.p && !M.w && !M.n)) return; out[i] = { nm: c.name, p: M.p, w: M.w, n: M.n, ld: M.ld, lt: M.lt, at: c.ped.memAtt || null }; });
+  citizens.forEach((c, i) => { const M = c.ped.mem; if (!M || (!M.p && !M.w && !M.n && !M.r)) return; out[i] = { nm: c.name, p: M.p, w: M.w, n: M.n, ld: M.ld, lt: M.lt, r: M.r || 0, at: c.ped.memAtt || null }; });
   MEM.s.c = out;
 }
 export function memSave() { if (!MEM.s) return; pack(); try { localStorage.setItem(SAVE, JSON.stringify(MEM.s)); } catch (e) { /* privat oder voll */ } MEM.dirty = false; }
@@ -398,7 +398,7 @@ function apply() {
   MEM.applied = true;
   for (const i in MEM.s.c) {
     const c = citizens[i], r = MEM.s.c[i]; if (!c || !r || c.name !== r.nm || c.nf) continue;
-    const M = memOf(c.ped); if (r.p) M.p = r.p; if (r.w) M.w = r.w; M.n = r.n | 0; M.ld = r.ld; M.lt = r.lt;
+    const M = memOf(c.ped); if (r.p) M.p = r.p; if (r.w) M.w = r.w; M.n = r.n | 0; M.ld = r.ld; M.lt = r.lt; M.r = +r.r || 0;   // V108: r = Beziehung aus Gesprächen (unterhaltung.js)
     if (r.at) c.ped.memAtt = r.at;
   }
   fade();
@@ -409,7 +409,7 @@ function fade() {
     const M = pd.mem; if (!M) return;
     if (M.p && d - M.p.d > TAT[M.p.k].tage) { M.p = null; pd.memAtt = null; }
     if (M.w && d - M.w.d > 2) M.w = null;
-    if (!M.p && pd.memAtt && !M.w) pd.memAtt = null;
+    if (!M.p && pd.memAtt && !M.w && Math.abs(M.r || 0) < 25) pd.memAtt = null;   // V108: eine feste Bekanntschaft bleibt
   };
   for (const pd of peds) if (pd && pd.mem) drop(pd);
   for (const c of citizens) if (c.ped.mem) drop(c.ped);
