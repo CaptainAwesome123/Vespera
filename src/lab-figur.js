@@ -68,7 +68,7 @@ export function startFigurLab(params) {
   const setCam = v => { camera.position.set(...v[0]); camera.lookAt(...v[1]); FLAB.orbit = { c: new T.Vector3(...v[1]), r: new T.Vector3(...v[0]).distanceTo(new T.Vector3(...v[1])), a: Math.atan2(v[0][0] - v[1][0], v[0][2] - v[1][2]), e: Math.asin((v[0][1] - v[1][1]) / Math.max(0.01, new T.Vector3(...v[0]).distanceTo(new T.Vector3(...v[1])))) }; C.flag(); };
   window.labView = name => { const q = String(name).split('_').map(Number); setCam(q.length === 6 && q.every(isFinite) ? [q.slice(0, 3), q.slice(3)] : V[name] || V.alle); };
   // Handlung für alle (die Spielerfigur bleibt bei ihren eigenen Posen): akt wie im Shader; 'akt:teil' setzt den Nachkommateil
-  window.labPose = akt => { FLAB.akt = +akt || 0; for (const a of FLAB.cast) { a.gait[1] = FLAB.akt; a.gait[2] = 0; a.k6 = null; C.set(a, a.lab.x, 0, a.lab.z, a.lab.yaw); } tag(); };
+  window.labPose = akt => { FLAB.akt = +akt || 0; for (const a of FLAB.cast) { a.gait[1] = FLAB.akt; a.gait[2] = 0; a.k6 = null; if (!window.labBlend) a.bl = null; C.set(a, a.lab.x, 0, a.lab.z, a.lab.yaw); } tag(); };
   window.labGait = (amp, speed = 4.6) => { for (const a of FLAB.cast) { a.gait[1] = speed; a.gait[2] = amp; } };
   window.labTime = t => { FLAB.t = t; };
   FLAB.t = params.get('t') != null ? +params.get('t') : null;
