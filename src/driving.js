@@ -6,7 +6,8 @@ import { WATER_Y } from './dance.js';
 import { waterSplash } from './water.js';
 import { roadHeightAt, terrainHeight } from './harbour.js';
 import { villaRoadAt, SERP, carGeoHi, COL, serpReset, parked, serpWallHit } from './serpentine.js';
-import { makeGlowPoints } from './ragdoll.js';
+import { makeGlowPoints, pedsNear } from './ragdoll.js';
+import { updateSpuren, pedSpuren, wheelSpuren } from './spuren.js';
 import { cars } from './airships.js';
 import { carDamageAttr, glassFor } from './cars.js';
 import { doorSlot, hideDoors, setDoors, doorSound, boardIn, boardOut, carToWorld, BOARD } from './tueren.js';
@@ -764,6 +765,6 @@ export function carCrashSound(k, scrape, water) {
 }
 // pro Bild: Physik aller freien Wagen, Spielerwagen zeichnen, Partikel, Klang
 export function updateVehicleWorld(dt) {
-  if (!paused) { updateVehicles(dt); drawPlayerCar(dt); updateFX(dt); updateLeaves(dt); }
+  if (!paused) { updateVehicles(dt); drawPlayerCar(dt); updateFX(dt); updateLeaves(dt); if (updateSpuren(dt, groundAt, BODIES, DRIVE)) { pedSpuren(pedsNear(), groundAt); wheelSpuren(dt, BODIES, groundAt); } }
   updateCarAudio(); updateWindAudio();
 }
