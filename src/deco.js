@@ -379,6 +379,7 @@ export async function startFacadeLab(params) {
     belmont: [[20, 90, -100], [0, 100, -400]], belmontb: [[20.25, 90.1, -100], [0.25, 100.1, -400]],   // V43: gleiche Sicht, Kamera um 25 cm versetzt (Flimmer-Maß)
     belmontnah: [[10, 90, -230], [0, 100, -400]], belmontnahb: [[10.15, 90.08, -230], [0.15, 100.08, -400]],
     dunkel: [[-110, 90, -310], [-140, 100, -400]], stufe2: [[170, 90, -310], [140, 100, -400]],
+    fenster: [[4, 40.5, -362], [0, 40, -375]], fenstermittel: [[10, 40, -320], [0, 42, -375]], saal: [[146, 31, -361], [140, 31, -375]], saalmittel: [[150, 40, -320], [140, 44, -375]],   // V96: Innenleben
     belmontdicht: [[30, 90, -310], [0, 100, -400]], belmontdichtb: [[30.1, 90.05, -310], [0.1, 100.05, -400]], belmontflug: [[40, 150, -330], [0, 60, -400]], ring: [[-40 + nx * 14, 2.4, nz * 14 - 3], [-40 + nx * 5, 2.4, nz * 5]], pub: [[33, 2.4, -14], [33, 2.4, -3]],
   };
   window.labView = name => { const v = V[name] || V.alle; camera.position.set(...v[0]); camera.lookAt(...v[1]); };

@@ -6,6 +6,10 @@ import { addCollider } from './people-skeleton.js';
    Ein Quader pro Gebäudeabschnitt (InstancedMesh). Fenster entstehen
    im Shader aus den echten Maßen, daher bleiben sie immer gleich groß.
    ===================================================================== */
+// V96: Fenster mit Innenleben. Leute gehen in den Zimmern auf und ab, stehen zu zweit, werfen Schatten auf Jalousien,
+// Kaminfeuer flackert, hohe Bogenfenster zeigen Säle mit Kronleuchter und Tanzpaaren; auch aus mittlerer Entfernung
+// sieht man Lampe, Möbelzone und Umrisse statt einer flachen Lichtfläche. ?innen=aus = Stand V95.
+const INNEN = new URLSearchParams(location.search).get('innen') !== 'aus';
 export const facadeVS = `
 attribute vec3 aTint; attribute vec4 aParams; attribute vec3 aRib; attribute float aFlag;
 varying vec3 vWorld; varying vec4 vEdge; varying vec3 vN; varying vec3 vLN; varying vec3 vT; varying vec3 vTint; varying vec4 vParams; varying vec3 vRib; varying vec3 vLocal; varying vec3 vScale; varying float vFogDepth;
@@ -25,12 +29,22 @@ void main(){
   vEdge = vec4(mod(floor(fb / 4.0), 2.0), mod(floor(fb / 8.0), 2.0), mod(floor(fb / 16.0), 2.0), mod(floor(fb / 32.0), 2.0)) * 1e4;
 }`;
 export const facadeFS = `
+#define ROOMSTYLE ${INNEN ? '2.5' : '1.5'}
 #define BRICK_MEAN vec3(0.519, 0.287, 0.184)
 uniform float uTime; uniform vec3 uFogColor; uniform float uFogDensity; uniform vec3 uMoonDir; uniform vec3 uTeal; uniform vec3 uCam; uniform sampler2D uBrick; uniform float uBrickOn; uniform sampler2D uStone; uniform float uStoneOn; uniform float uWet; uniform float uSnowCover; uniform float uIce;
 varying vec3 vWorld; varying vec3 vN; varying vec3 vLN; varying vec3 vT; varying vec3 vTint; varying vec4 vParams; varying vec3 vRib; varying vec3 vLocal; varying vec3 vScale; varying float vFogDepth; varying vec4 vEdge;
 ${FOG_GLSL}
 float hash(vec2 p){ p = fract(p*vec2(123.34, 456.21)); p += dot(p, p+45.32); return fract(p.x*p.y); }
 float vnoise(vec2 p){ vec2 i = floor(p), f = fract(p); f = f*f*(3.0 - 2.0*f); return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y); }
+${INNEN ? `#define INNEN 1
+// V96: Umriss eines Menschen, p = (Abstand zur Körpermitte, Höhe über dem Boden) in Metern; st = Schritt, sk = Kleid, a = Kantenweichheit
+float silh(vec2 p, float st, float sk, float a){
+  float leg = (1.0 - smoothstep(0.05 - a, 0.05 + a, abs(abs(p.x) - 0.07 - 0.12*abs(st)*clamp(0.9 - p.y, 0.0, 0.9)))) * (1.0 - smoothstep(0.9 - a, 0.9 + a, p.y));
+  float dress = (1.0 - smoothstep(-a, a, abs(p.x) - 0.12 - 0.16*clamp(1.05 - p.y, 0.0, 1.0))) * (1.0 - smoothstep(1.0 - a, 1.0 + a, p.y));
+  float body = (1.0 - smoothstep(-a, a, abs(p.x) - 0.19 + 0.07*smoothstep(1.25, 1.45, p.y))) * smoothstep(0.86 - a, 0.86 + a, p.y) * (1.0 - smoothstep(1.47 - a, 1.47 + a, p.y));
+  float head = 1.0 - smoothstep(0.11 - a, 0.11 + a, length(vec2(p.x, p.y - 1.6)));
+  return clamp(mix(leg, dress, sk) * smoothstep(-a, a, p.y) + body + head, 0.0, 1.0);
+}` : ''}
 void main(){
   vec3 n = normalize(vN); vec3 ln = vLN;
   float seed = mod(floor(vParams.x + 0.5), 89.0), style = floor(vParams.y + 0.5), dens = vParams.z, flood = vParams.w;
@@ -232,6 +246,44 @@ void main(){
   float curtain = (1.0 - blind) * step(0.6, t2) * (step(g.x, 0.28) + step(0.72, g.x));
   bright *= 1.0 - 0.55*bl - 0.45*curtain;
   if (bl > 0.5) bright *= mix(0.875, 0.75 + 0.25*step(0.5, fract(g.y*18.0)), 1.0 - smoothstep(0.012, 0.035, px));
+  float roomH = hash(cell + vec2(seed, 77.0));
+  float shd = 0.0;
+#ifdef INNEN
+  // V96: Bewohner (bis zu zwei je Zimmer): manche gehen auf und ab, andere stehen und wiegen sich; in Sälen (Bogenfenster) ein Tanzpaar
+  float cellWm = cellSz.x;
+  float pr = fract(roomH*5.1);
+  float nP = style > 1.5 ? 2.0 : step(pr, 0.6) + step(pr, 0.22);
+  vec2 pX = vec2(0.0), pSt = vec2(0.0), pSk = vec2(0.0), pDp = vec2(0.5);
+  for (int k = 0; k < 2; k++) {
+    float fk = float(k);
+    float walk = step(0.35, fract(roomH*11.0 + fk*0.37));
+    float ph = uTime*(0.11 + 0.09*fract(roomH*23.0 + fk*0.3)) + roomH*40.0 + fk*2.1;
+    float x = mix((fract(roomH*17.0 + fk*0.5) - 0.5)*cellWm*0.6 + 0.04*sin(uTime*0.7 + fk*3.0 + roomH*9.0), sin(ph)*cellWm*0.38, walk);
+    float st = walk * sin(uTime*4.6 + fk*1.7 + roomH*30.0) * abs(cos(ph));
+    if (style > 1.5) { x = sin(uTime*0.23 + roomH*9.0)*cellWm*0.22 + (fk - 0.5)*0.38*cos(uTime*0.9 + roomH*5.0); st = 0.0; }
+    if (k == 0) { pX.x = x; pSt.x = st; pSk.x = step(0.5, fract(roomH*41.0)); pDp.x = 0.32 + 0.33*fract(roomH*7.3); }
+    else { pX.y = x; pSt.y = st; pSk.y = style > 1.5 ? 1.0 - pSk.x : step(0.5, fract(roomH*43.0)); pDp.y = style > 1.5 ? pDp.x + 0.03 : 0.28 + 0.4*fract(roomH*9.7); }
+  }
+  // Kaminfeuer in jedem siebten Zimmer: das Licht flackert leise
+  float fire = step(fract(roomH*29.0), 0.14) * step(style, 1.5);
+  bright *= 1.0 + fire * 0.07 * sin(uTime*7.3 + roomH*50.0) * sin(uTime*11.7);
+  if (px < 0.5 && lit > 0.5) {
+    float midF = 1.0 - smoothstep(0.28, 0.5, px);
+    // Schatten der Leute auf heruntergelassenen Jalousien (Lampe hinter ihnen, Schatten groß und weich)
+    vec2 sp = vec2((g.x - 0.5)*cellWm, g.y*ch*0.85 - 0.2);
+    for (int k = 0; k < 2; k++) { if (float(k) < nP) shd = max(shd, silh((sp - vec2(k == 0 ? pX.x : pX.y, 0.0))/1.25, 0.0, k == 0 ? pSk.x : pSk.y, 0.07 + px*1.5)); }
+    bright *= 1.0 - 0.5*shd*bl*midF;
+    // Mittlere Entfernung: Lampenschein, dunklere Möbelzone unten, Umrisse vor dem Licht (weich, damit nichts flimmert)
+    float mF = midF * smoothstep(0.06, 0.12, px) * (1.0 - bl);
+    vec2 lp = vec2(0.2 + 0.6*fract(roomH*3.7), 0.78);
+    float glow = exp(-dot((g - lp)*vec2(2.2, 3.0), (g - lp)*vec2(2.2, 3.0))*2.5);
+    float furn = 1.0 - smoothstep(0.3, 0.42, g.y);
+    vec2 mp = vec2((g.x - 0.5)*cellWm, g.y*ch);
+    float ms = 0.0;
+    for (int k = 0; k < 2; k++) { if (float(k) < nP) ms = max(ms, silh(mp - vec2(k == 0 ? pX.x : pX.y, 0.0), 0.0, k == 0 ? pSk.x : pSk.y, 0.04 + px*cellWm*1.2)); }
+    bright *= mix(1.0, (0.78 + 0.75*glow - 0.25*furn) * (1.0 - 0.6*ms), mF);
+  }
+#endif
   float fres = pow(1.0 - abs(dot(n, -vdir)), 4.0);
   glass += mix(uFogColor*2.4, vec3(0.5, 0.42, 0.3), step(0.5, hash(cell + 31.0))*0.3) * fres * 0.5 + uTeal*0.03*(0.5 + 0.5*n.y);
   vec3 winCol = mix(glass, warm*bright, lit);
@@ -240,7 +292,7 @@ void main(){
   // V43: Zimmer erst, wenn eine Fensterzelle gut 7 Bildpunkte breit ist, und die Einrichtung blendet davor weich zur Raum-Mittelfarbe aus
   // (vorher harte Möbelkanten in 4-6 px großen Fenstern: jedes Pixel traf zufällig Lampe, Buch oder Wand, und beim Bewegen flimmerte der ganze Turm)
   float detF = 1.0 - smoothstep(0.04, 0.12, px);
-  if (inWin > 0.5 && px < 0.12 && style < 1.5) {
+  if (inWin > 0.5 && px < 0.12 && style < ROOMSTYLE) {
     float cellW = usable / ncell;
     vec3 rv = vec3(dot(vdir, normalize(vT)), vdir.y, max(dot(vdir, -n), 0.04));
     vec2 hs = vec2(cellW, ch) * 0.5;
@@ -253,14 +305,13 @@ void main(){
     float tm = min(min(tw.x, tw.y), tz);
     vec3 hp = vec3(r0 + rxy * tm, rv.z * tm);
     float dz = hp.z / D;
-    float roomH = hash(cell + vec2(seed, 77.0));
     vec3 wallC = mix(vec3(0.8, 0.64, 0.45), mix(vec3(0.38, 0.6, 0.55), vec3(0.75, 0.48, 0.36), step(0.5, fract(roomH*7.0))), step(0.62, roomH));
     vec3 lightC = warm * (0.45 + 0.6*h);
     if (style > 1.5) lightC = warm * 1.1;
     vec3 rc;
     // Raumtyp: Wohnzimmer, Büro, Schlafzimmer, Speisezimmer, Atelier, Salon mit Flügel, Bibliothek, Clubraum mit farbigem Licht; Tapete je nach Raum
-    float rType = floor(fract(roomH*13.7)*8.0);
-    if (rType > 6.5) lightC = mix(lightC, vec3(0.25, 0.75, 0.8) * (0.5 + 0.5*h), 0.55 * step(0.5, fract(roomH*19.0))) + vec3(0.25, 0.05, 0.12) * step(fract(roomH*19.0), 0.5);
+    float rType = style > 1.5 ? 8.0 : floor(fract(roomH*13.7)*8.0);
+    if (rType > 6.5 && rType < 7.5) lightC = mix(lightC, vec3(0.25, 0.75, 0.8) * (0.5 + 0.5*h), 0.55 * step(0.5, fract(roomH*19.0))) + vec3(0.25, 0.05, 0.12) * step(fract(roomH*19.0), 0.5);
     float wallU = tz <= tw.x && tz <= tw.y ? hp.x : hp.z;
     float paper = rType < 0.5 ? 0.9 + 0.1*step(0.5, fract(wallU*3.0)) : rType < 1.5 ? 1.0 : rType < 2.5 ? 0.92 + 0.08*step(0.6, fract(wallU*5.0 + 0.5*step(0.5, fract(hp.y*5.0)))) : rType < 3.5 ? 0.9 + 0.1*smoothstep(0.3, 0.0, length(fract(vec2(wallU, hp.y)*2.5) - 0.5)) : 0.95;
     float wainscot = step(hp.y, -hs.y + 1.0) * step(0.5, fract(roomH*3.1));
@@ -312,12 +363,20 @@ void main(){
         float ladder = step(abs(abs(hp.x - ox) - 0.18), 0.02) * step(y0, 2.4) + step(abs(hp.x - ox), 0.18) * step(abs(fract(y0*3.0) - 0.5), 0.04) * step(y0, 2.4);
         rc = mix(rc, lightC*vec3(0.3, 0.18, 0.08), clamp(ladder, 0.0, 1.0));
         rc += vec3(0.25, 0.8, 0.35)*0.4*smoothstep(0.22, 0.0, length(vec2(hp.x + cellW*0.3, y0 - 0.95)));
-      } else {                      // Clubraum: Theke mit Flaschen, Barhocker, farbiges Licht
+      } else if (rType < 7.5) {     // Clubraum: Theke mit Flaschen, Barhocker, farbiges Licht
         float bar = step(y0, 1.05) * step(abs(hp.x), cellW*0.42) * step(0.0, y0);
         float bottles = step(abs(y0 - 1.55), 0.16) * step(0.5, fract(hp.x*9.0)) * step(abs(hp.x), cellW*0.4);
         rc = mix(rc, lightC*vec3(0.22, 0.1, 0.06), bar);
         rc = mix(rc, mix(vec3(0.9, 0.6, 0.2), vec3(0.3, 0.9, 0.8), hash(vec2(floor(hp.x*9.0), 7.0)))*0.9, bottles);
         rc = mix(rc, lightC*vec3(0.8, 0.6, 0.3), step(abs(y0 - 1.06), 0.02) * step(abs(hp.x), cellW*0.42));
+      } else {                      // V96: Saal hinter den Bogenfenstern: goldene Pilaster, Spiegelbögen, großer Kronleuchter
+        float pu = fract(hp.x/1.6 + 0.5);
+        float pil = step(abs(pu - 0.5), 0.09);
+        float arch = (1.0 - pil) * step(y0, 3.2) * step(length(vec2((pu - 0.5)*1.6, max(y0 - 2.6, 0.0))), 0.62) * step(0.25, y0);
+        rc = mix(rc, lightC*vec3(0.62, 0.66, 0.68)*(0.6 + 0.25*fract(y0*0.9 + pu)), arch*0.8);
+        rc = mix(rc, lightC*vec3(0.85, 0.6, 0.25)*(0.8 + 0.3*smoothstep(0.09, 0.0, abs(pu - 0.5))), pil);
+        vec2 cl = vec2(hp.x, y0 - (hs.y*2.0 - 1.4));
+        rc += lightC*vec3(1.3, 1.0, 0.6)*(smoothstep(0.7, 0.0, length(cl*vec2(0.7, 1.5))) + 0.35*exp(-dot(cl, cl)*0.15));
       }
     } else if (tw.y < tw.x) {
       vec2 lc = hp.xz - vec2(0.0, D*0.5);
@@ -326,11 +385,16 @@ void main(){
         // Parkett mit Teppich
         float plank = fract(hp.x*3.0 + floor(hp.z*1.3)*0.37), pl = 0.88 + 0.12*hash(vec2(floor(hp.x*3.0), floor(hp.z*1.3))) - 0.1*step(plank, 0.06);
         vec3 fl = mix(vec3(0.3, 0.19, 0.11)*pl, mix(vec3(0.34, 0.08, 0.08), vec3(0.12, 0.16, 0.24), step(0.5, roomH)), step(abs(hp.x), hs.x*0.6)*step(abs(hp.z - D*0.5), D*0.3));
+        if (rType > 7.5) fl = mix(vec3(0.5, 0.47, 0.42), vec3(0.06, 0.05, 0.05), step(0.5, fract(floor(hp.x*0.8) * 0.5 + floor(hp.z*0.8) * 0.5))) * (0.9 + 0.3*exp(-dot(hp.xz - vec2(0.0, D*0.5), hp.xz - vec2(0.0, D*0.5))*0.2));   // V96: Marmor im Schachbrett
         rc = lightC * fl * (1.1 - 0.5*dz);
       }
     } else {
       rc = wallP * lightC * (0.5 - 0.15*dz);
     }
+#ifdef INNEN
+    // V96: Kaminfeuer als warmer, flackernder Schein unten an der Seite
+    if (fire > 0.5) rc += vec3(1.0, 0.45, 0.12) * (0.55 + 0.25*sin(uTime*9.1 + roomH*20.0)*sin(uTime*5.3)) * exp(-dot(vec2(hp.x + cellW*0.4*sign(roomH - 0.5), hp.y - floorY - 0.3), vec2(hp.x + cellW*0.4*sign(roomH - 0.5), hp.y - floorY - 0.3))*1.6) * (1.0 - 0.4*dz);
+#else
     // Menschen im Raum: Umriss vor der Rückwand, gegen das Licht
     float tP = D*(0.35 + 0.3*fract(roomH*7.3)) / rv.z;
     if (fract(roomH*5.1) < 0.4 && tP < tm) {
@@ -338,12 +402,26 @@ void main(){
       float body = step(abs(pp.x - px0), 0.2 - 0.05*step(y0, 0.9)) * step(y0, 1.45) + step(length(vec2(pp.x - px0, y0 - 1.6)), 0.12);
       rc = mix(rc, lightC*vec3(0.06, 0.045, 0.04), clamp(body, 0.0, 1.0));
     }
+#endif
     rc *= 1.05 - 0.35*dz;
     rc = mix(wallP * lightC * 0.62, rc, detF);
+#ifdef INNEN
+    // V96: Bewohner in ihrer Tiefe im Raum, gegen das Licht; vorne verdecken sie Möbel und Wand
+    for (int k = 0; k < 2; k++) {
+      if (float(k) < nP) {
+        float tP = D * (k == 0 ? pDp.x : pDp.y) / rv.z;
+        if (tP < tm) {
+          vec2 pp = r0 + rxy*tP;
+          float m = silh(vec2(pp.x - (k == 0 ? pX.x : pX.y), pp.y - floorY), k == 0 ? pSt.x : pSt.y, k == 0 ? pSk.x : pSk.y, 0.015 + px*0.1);
+          rc = mix(rc, lightC*vec3(0.07, 0.05, 0.04) + lightC*0.06*smoothstep(1.3, 1.7, pp.y - floorY), m);
+        }
+      }
+    }
+#endif
     vec3 dark = vec3(0.004, 0.006, 0.011) + uTeal*0.012*(1.0 - dz) + vec3(0.02, 0.012, 0.006)*exp(-vWorld.y/25.0);
     vec3 room = mix(dark, rc, lit);
     float slat = mix(0.85, 0.7 + 0.3*step(0.5, fract(g.y*18.0)), 1.0 - smoothstep(0.012, 0.035, px));
-    room = mix(room, warm*(0.3 + 0.35*h)*slat*lit + glass*(1.0 - lit), bl);
+    room = mix(room, warm*(0.3 + 0.35*h)*slat*lit*(1.0 - 0.5*shd) + glass*(1.0 - lit), bl);
     room = mix(room, lightC*vec3(0.55, 0.32, 0.22)*(0.75 + 0.25*sin(g.x*60.0)*detF)*lit, curtain);
     winCol = mix(room + glass*0.7, winCol, aaW);
   }
