@@ -37,7 +37,7 @@ import { shared } from './core.js';
 import { toast } from './boat.js';
 
 export const UNTERHALTUNG = typeof location === 'undefined' || new URLSearchParams(location.search).get('unterhaltung') !== 'aus';
-export const UH = { ready: false, cur: null, n: 0, rounds: 0, changes: 0 };
+export const UH = { ready: false, cur: null, n: 0, rounds: 0, changes: 0, max: 3 };   // V113: max = Fragen je Gespräch (plaudern.js: 4)
 const pick = a => a[Math.floor(Math.random() * a.length)];
 export const MOOD = { bew: 'bewundernd', resp: 'respektvoll', neid: 'neidisch', skep: 'skeptisch', furcht: 'ängstlich', hass: 'feindselig', dienst: 'dienstbeflissen' };
 const memOf = pd => pd.mem || (pd.mem = {});
@@ -160,6 +160,7 @@ function answer(c, o) {
   else if (o.id === 'meinung') line = pick(L(MEINUNG));
   else if (o.id === 'gabe') { ktCash(-20, 'Geschenk an ' + c.name); rufAdd({ [grp(c)]: 0.3 }, 'Einem Bürger etwas geschenkt', { key: 'talk:gabe' }); if (MEM.ready) remember(c.ped, 'gabe', true); line = pick(GABE[att === 'hass' ? 'hass' : att === 'furcht' ? 'furcht' : att === 'neid' || att === 'skep' ? 'cool' : 'warm']); }
   else if (o.id === 'herab') { rufAdd({ [grp(c)]: -0.5 }, 'Einen Bürger herablassend abgewimmelt', { key: 'talk:herab' }); if (MEM.ready) remember(c.ped, 'abgewiesen', true); line = pick(L(HERAB)); }
+  else if (o.fn) line = o.fn(c, att);   // V113: weitere Fragen (plaudern.js)
   else line = pick(L(ABSCHIED));
   // Ehrlichkeit wird belohnt, wenn er zuhört: wer ihm die Meinung sagen durfte, ist danach etwas milder
   const d = o.id === 'meinung' && (att === 'hass' || att === 'skep' || att === 'neid') ? 4 : o.d;
@@ -167,7 +168,7 @@ function answer(c, o) {
   gesture(c, now || att, o.id);
   say(c, line, Math.min(9, 3 + line.length * 0.05));
   if (now) setTimeout(() => toast(`${c.name} ist jetzt ${MOOD[now]}`), 1800);
-  const end = o.id === 'abschied' || o.id === 'herab' || S.used.size >= 3 + (o.id === 'gabe' ? 1 : 0);
+  const end = o.id === 'abschied' || o.id === 'herab' || S.used.size >= UH.max + (o.id === 'gabe' ? 1 : 0);
   if (end) { close(); return; }
   S.pending = true;
   S.wait = setTimeout(() => { if (UH.cur === S && !DINE.menuOpen) menu(c); }, 900 + Math.min(2600, line.length * 25));
@@ -199,3 +200,5 @@ function init() {
   if (window.vespera) window.vespera.unterhaltung = { UH, talk, answer, menu, close, OPTS, shift, moodOf, title, gerueht, BEFINDEN, MEINUNG, GABE, HERAB, ABSCHIED, BEF_TRAIT };
 }
 KT.hooks.push(why => { if (why === 'init') init(); });
+// V113: für plaudern.js
+export { OPTS, fillC };

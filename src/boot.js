@@ -70,6 +70,7 @@ import './unterhaltung.js'; // V108: Gespräche mit Alexander: Antworten zur Wah
 import './ablaeufe.js'; // V109: Klügere Abläufe: unterstellen, Läden/Kneipen, Haltestellen, Hilfe bei Unfällen (?ablaeufe=aus)
 import './ereignisse.js'; // V110: Reaktion auf Ereignisse: Gaffer, Polizei, Kundgebung und Gala als Menge (?ereignisse=aus)
 import './gruppen.js'; // V111: Gruppen und Beziehungen: Paare, Freunde, Familien zusammen unterwegs und im Gespräch (?gruppen=aus)
+import './plaudern.js'; // V113: Mehr Gespräche und mehr Verhalten: Themen aus der Lage, drinnen, neue Fragen, Besorgungen (?plaudern=aus)
 import './imperium.js';  // V76: Alexanders Imperium (Kontor · Reiter Imperium): Sparten, Löhne, Preise, Arbeitszeit, Streiks, Konjunktur, Kredit
 import './krater.js';    // V78: Der Krater außerhalb der Stadt: altes Expeditionslager, zwei Gletscherhöhlen, zwölf Fundstücke
 

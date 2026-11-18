@@ -246,7 +246,8 @@ function tick(dt) {
     if (G.talkT <= 0) {
       G.talkT = 25 + Math.random() * 35;
       const T = G.type === 'paar' ? PAAR : G.type === 'freunde' ? FREUNDE : FAMILIE;
-      talk(G, G.type !== 'familie' && Math.random() < 0.35 ? pick(UEBER[stance(G)]) : pick(T));
+      const ctx = GR.ctx && Math.random() < 0.45 ? GR.ctx(G) : null;   // V113: Themen aus der Lage (plaudern.js)
+      talk(G, ctx || (G.type !== 'familie' && Math.random() < 0.35 ? pick(UEBER[stance(G)]) : pick(T)));
     }
   }
 }
@@ -272,3 +273,5 @@ KT.hooks.push((why, dt) => {
   const step = 0.5 - GR.tickT; GR.tickT = 0.5;
   if (playing && !paused) tick(step);
 });
+// V113: Vorlagen für plaudern.js (mehr Gespräche)
+export { PAAR, FREUNDE, FAMILIE, UEBER, KID_HIM, PARENT_HIM, PAAR_HIM, stance };
