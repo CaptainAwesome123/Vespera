@@ -8,6 +8,7 @@ import { DRIVE } from './eating.js';
 import { paused } from './input.js';
 import { tearInst } from './tear.js';
 import { audioCtx, audioBus } from './audio.js';
+import { chimneys } from './facade-shader.js';
 
 /* =====================================================================
    V16 · WIND: eine Wetterlage für alles. Richtung wandert langsam, Böen ziehen
@@ -154,6 +155,55 @@ export function buildFlags() {
     }
   });
   im.frustumCulled = pm.frustumCulled = false; scene.add(im, pm);
+  if (WEHEN) buildChimneySmoke();
+}
+// V121: Markisen, Vorhänge und Schornsteinrauch folgen dem Wind (?wehen=aus)
+export const WEHEN = new URLSearchParams(location.search).get('wehen') !== 'aus';
+// Rauch aus den Schornsteinen der Häuser: steigt erst, dann legt ihn der Wind um (bei Sturm fast waagerecht), in Böen zerfasert er.
+// Ein Punktnetz für alle Schornsteine, Bewegung ganz im Shader (wie der Fabrikrauch in shops.js).
+function buildChimneySmoke() {
+  const max = MOBILE ? 110 : 320, PER = MOBILE ? 7 : 11;
+  const list = chimneys.length > max ? chimneys.filter((_, i) => i % Math.ceil(chimneys.length / max) === 0) : chimneys;
+  if (!list.length) return;
+  const n = list.length * PER, pos = new Float32Array(n * 3), ph = new Float32Array(n);
+  list.forEach((c, i) => { const r = Math.random(); for (let k = 0; k < PER; k++) { pos.set([c.x, c.y + 0.2, c.z], (i * PER + k) * 3); ph[i * PER + k] = (k + r) / PER; } });
+  const g = new T.BufferGeometry(); g.setAttribute('position', new T.BufferAttribute(pos, 3)); g.setAttribute('phase', new T.BufferAttribute(ph, 1));
+  const pts = new T.Points(g, new T.ShaderMaterial({
+    uniforms: { uTime: U.uTime, uScale: U.uScale, uWind: U.uWind, uFogColor: U.uFogColor }, transparent: true, depthWrite: false,
+    vertexShader: `attribute float phase; uniform float uTime; uniform float uScale; uniform vec4 uWind; varying float vA, vL;
+      void main(){ float life = fract(uTime * 0.09 + phase), s = phase * 41.0 + position.x * 0.13;
+        float bend = clamp(uWind.z / 9.0 + uWind.w * 0.6, 0.15, 1.6);
+        float wk = life * life * (5.0 + 9.0 * bend) + life * 1.5;
+        vec3 p = position + vec3(uWind.x * wk + sin(s + uTime * 0.7) * life * 0.8, life * (7.0 - 4.5 * min(bend, 1.2)), uWind.y * wk + cos(s * 1.3 + uTime * 0.6) * life * 0.8);
+        vec4 mv = modelViewMatrix * vec4(p, 1.0); float d = -mv.z; vL = life;
+        vA = (1.0 - life) * smoothstep(0.0, 0.1, life) * 0.34 * smoothstep(900.0, 300.0, d) * smoothstep(1.5, 6.0, d) * (1.0 - 0.4 * min(uWind.w, 1.0));
+        gl_PointSize = clamp((0.7 + life * 3.6) * uScale / max(d, 0.1), 1.0, 200.0); gl_Position = projectionMatrix * mv; }`,
+    fragmentShader: `uniform vec3 uFogColor; varying float vA, vL; void main(){ float r = length(gl_PointCoord - 0.5) * 2.0; if (r > 1.0) discard;
+      vec3 c = mix(vec3(0.2, 0.19, 0.19), uFogColor * 2.4 + vec3(0.03), smoothstep(0.0, 0.7, vL));
+      gl_FragColor = vec4(c, (1.0 - r * r) * vA); }`,
+  }));
+  pts.frustumCulled = false; pts.renderOrder = 3; pts.userData.noRefl = true; scene.add(pts);
+}
+// Wehender Stoff (Markisen, Vorhänge): Vertex-Verschiebung nach Wind, Böen und Weltlage; k = Ausschlag in Metern,
+// lo/hi = Höhenbereich, in dem der Stoff frei hängt (unterhalb lo voll, oberhalb hi fest), inside = Innenraum (nur leichter Zug)
+export function clothWave(mat, k = 0.05, lo = 0, hi = 1e4, inside = false) {
+  if (!WEHEN) return mat;
+  const prev = mat.onBeforeCompile, pk = mat.customProgramCacheKey();
+  mat.onBeforeCompile = (sh, r) => {
+    if (prev) prev.call(mat, sh, r);
+    sh.uniforms.uTime = U.uTime; sh.uniforms.uWind = U.uWind;
+    sh.vertexShader = 'uniform float uTime; uniform vec4 uWind;\n' + sh.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
+      {
+        vec4 cwW = modelMatrix * vec4(transformed, 1.0);
+        float cwF = smoothstep(${hi.toFixed(2)}, ${lo.toFixed(2)}, transformed.y);
+        float cwS = ${inside ? '0.35 + 0.15 * sin(uTime * 0.31 + cwW.x)' : 'clamp(uWind.z / 7.0 + uWind.w * 1.2, 0.1, 1.6)'};
+        float cwP = dot(cwW.xz, ${inside ? 'vec2(0.9, 0.7)' : 'uWind.xy'}) * 1.3 - uTime * ${inside ? '0.9' : '(2.5 + uWind.z * 0.35)'};
+        float cwA = (sin(cwP) * 0.7 + sin(cwP * 2.3 + cwW.y * 3.0) * 0.3) * cwS * cwF * ${k.toFixed(3)};
+        transformed += ${inside ? 'vec3(0.6, 0.0, 0.8)' : 'vec3(uWind.x, 0.0, uWind.y)'} * cwA + vec3(0.0, cwA * 0.4, 0.0);
+      }`);
+  };
+  mat.customProgramCacheKey = () => pk + '|cw' + k + ',' + lo + ',' + hi + ',' + inside;
+  return mat;
 }
 
 /* ---------- Laub und Zeitungsblätter, die durch die Straßen wirbeln ---------- */
