@@ -93,6 +93,7 @@ function fire(phase) { try { window.dispatchEvent(new CustomEvent('vespera-gala'
 function setAct(a, act, sp = 0) { if (!a) return; const g = a.gait; if (g[1] !== act || g[2] !== sp) { g[1] = act; g[2] = sp; a.gv = (a.gv | 0) + 1; } }
 function walkTo(a, path, then) { GALA.movers = GALA.movers.filter(m => m.a !== a); GALA.movers.push({ a, path, i: 0, then }); setAct(a, 0, 0.36); }
 function guestsDo(kind) {
+  if (GALA.wave && GALA.wave(kind)) return;   // V110: Applaus und Anstoßen als Welle (ereignisse.js)
   const p = player.p;
   for (const g of GALA.guests) {
     const a = g.a;

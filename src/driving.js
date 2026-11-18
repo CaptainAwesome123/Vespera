@@ -30,6 +30,7 @@ import { audioCtx, audioBus } from './audio.js';
    ===================================================================== */
 export const VP = { m: 1450, I: 2500, a: 1.38, b: 1.52, hcg: 0.55, Cf: 100000, Cr: 118000, rw: 0.4, gears: [2.85, 1.85, 1.33, 1.0], rev: 3.3, fd: 3.9, hl: 2.62, hw: 0.98, idle: 720, red: 4600 };
 export const GRAV = 9.81, VL = VP.a + VP.b;
+export const CRASH = { on: [] };   // V110: Unfälle für ereignisse.js (Gaffer, Polizei)
 export const BODIES = new Set();   // frei bewegliche Wagen: Spielerwagen, Unfallwagen, angeschobene Parker
 export function makeBody(x, y, z, h, vx = 0, vz = 0, w = 0) {
   return { x, y, z, h, vx, vz, w, vy: 0, m: VP.m, I: VP.I, hl: VP.hl, hw: VP.hw, pitch: 0, roll: 0, pv: 0, rv: 0, dmg: [0, 0, 0, 0], still: 0, air: false, sunk: 0 };
@@ -404,6 +405,7 @@ export function crashDamage(B, px, pz, j, vt) {
   if (dv > 5) fxEmit('glass', px, y + 0.6, pz, B.vx * 0.2, 1.2, B.vz * 0.2, 12, 1.4);
   if (dv > 3) fxEmit('dust', px, 0.4, pz, 0, 0.5, 0, 3, 1);
   if (B.player || (Math.hypot(B.x - camera.position.x, B.z - camera.position.z) < 60)) carCrashSound(Math.min(1, dv / 10), Math.min(1, vt / 8));
+  if (dv > 2.4) for (const f of CRASH.on) try { f(B, px, pz, dv); } catch (er) { console.warn('Unfall:', er); }
   if (B.player) { DRIVE.shake = Math.min(1, DRIVE.shake + dv * 0.08); if (B.dmg[0] > 0.95 && DRIVE.on && !DRIVE.stalled) { DRIVE.stalled = true; toast('Motor abgesoffen · R zum Reparieren'); } }
 }
 // Verkehrswagen und Parker werden bei Berührung zu freien Körpern

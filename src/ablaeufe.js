@@ -209,7 +209,7 @@ function helpStep(pd, A, dt) {
   return goHome(pd, A, dt);
 }
 // wer gerade nur zu Alexander schaut (einfaches Staunen auf der Runde), lässt das für einen Gestürzten sein
-const canHelp = pd => freePd(pd) || (pd.aw && !pd.aw.fn && !pd.aw.keep && pd.aw.st0 === 0 && pd.lp && !pd.rag && !pd.back && !pd.gg && !(pd.cit && pd.cit.nf));
+export const canHelp = pd => freePd(pd) || (pd.aw && !pd.aw.fn && !pd.aw.keep && pd.aw.st0 === 0 && pd.lp && !pd.rag && !pd.back && !pd.gg && !(pd.cit && pd.cit.nf));
 function onDown(victim) {
   if (!AB.ready || victim.gg) return;
   const p = player.p, e = victim.a.m.elements, vx = e[12], vz = e[14];
