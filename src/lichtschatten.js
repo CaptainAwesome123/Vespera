@@ -14,6 +14,8 @@ import { STREET } from './serpentine.js';
 import { CARL } from './carlight.js';
 import { player } from './player.js';
 import { DRIVE } from './eating.js';
+import { parked } from './serpentine.js';
+import { VERDECKUNG } from './verdeckung.js';
 
 export const LS = { on: new URLSearchParams(location.search).get('lichtschatten') !== 'aus', mesh: null, aA: null, grid: null, gridN: -1, n: 0 };
 const N = MOBILE || LOW ? 40 : 96, CELL = 16, R = 13, R2 = R * R;
@@ -77,7 +79,65 @@ function caster(G, x, y, z, h, w, cars, cn, self) {
     put(x, y, z, ox / d, oz / d, Math.min(8, 1.5 + d * 0.45), w * 1.15, 0.5 * (1 - d / 20) * (cs - 0.8) * 5);
   }
 }
+/* ---------- V117: Kontaktschatten (Umgebungsverdeckung) unter Leuten und Wagen ----------
+   Ein weicher, runder Fleck direkt unter den Füßen und ein länglicher unter jedem Wagen, unabhängig von Laternen:
+   so stehen Figuren und Autos auch am Handy (ohne Mondschatten) fest auf dem Boden. Auch in Innenräumen. Ein Draw Call. */
+const KN = MOBILE || LOW ? 36 : 80;
+const KS = { mesh: null, aA: null, n: 0 };
+function buildKontakt() {
+  const g = new T.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
+  const aA = new T.InstancedBufferAttribute(new Float32Array(KN), 1); aA.setUsage(T.DynamicDrawUsage); g.setAttribute('aA', aA);
+  const m = new T.ShaderMaterial({
+    transparent: true, depthWrite: false, blending: T.CustomBlending, blendEquation: T.AddEquation, blendSrc: T.ZeroFactor, blendDst: T.OneMinusSrcAlphaFactor,
+    polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4,
+    vertexShader: `attribute float aA; varying vec2 vQ; varying float vA;
+      void main(){ vQ = position.xz * 2.0; vA = aA; gl_Position = projectionMatrix * modelViewMatrix * instanceMatrix * vec4(position, 1.0); }`,
+    fragmentShader: `varying vec2 vQ; varying float vA;
+      void main(){ float r = length(vQ); float a = 1.0 - smoothstep(0.2, 1.0, r); gl_FragColor = vec4(0.0, 0.0, 0.0, a * a * vA); }`,
+  });
+  const im = new T.InstancedMesh(g, m, KN); im.count = 0; im.frustumCulled = false; im.userData.noRefl = true; im.renderOrder = 1;
+  im.instanceMatrix.setUsage(T.DynamicDrawUsage); scene.add(im);
+  KS.mesh = im; KS.aA = aA;
+}
+// Fleck: Mitte x,y,z, Richtung (dx,dz), Länge und Breite in Metern, Stärke a
+function blob(x, y, z, dx, dz, len, wid, a) {
+  if (KS.n >= KN) return;
+  _q.setFromAxisAngle(_Y, Math.atan2(dx, dz));
+  KS.mesh.setMatrixAt(KS.n, _m.compose(_p.set(x, y + 0.012, z), _q, _s.set(wid, 1, len)));
+  KS.aA.array[KS.n++] = a;
+}
+function updateKontakt() {
+  if (!KS.mesh) buildKontakt();
+  KS.n = 0;
+  const cp = camera.position;
+  if (cp.y < 120) {
+    if (!player.fly && !DRIVE.on && player.onGround !== false) blob(player.p.x, player.p.y, player.p.z, 0, 1, 0.95, 0.85, 0.55);
+    let n = 0;
+    for (const pd of pedsNear()) {
+      const a = pd.a; if (!a || !a.on || !a.m || pd.rag) continue;
+      const e = a.m.elements, x = e[12], y = e[13], z = e[14];
+      if ((x - cp.x) ** 2 + (z - cp.z) ** 2 > 900) continue;
+      if (++n > 48 || KS.n >= KN - 12) break;
+      blob(x, y, z, 0, 1, 0.9, 0.8, 0.5);
+    }
+    // fahrende Wagen (Liste aus carlight.js, schon nach Nähe sortiert) und der eigene Wagen
+    const cars = CARL.list || [], cn = CARL.cnt || 0;
+    for (let i = 0; i < cn && KS.n < KN - 6; i++) {
+      const c = cars[i]; if ((c._x - cp.x) ** 2 + (c._z - cp.z) ** 2 > 3600) continue;
+      blob(c._x, c._y - 0.22, c._z, Math.cos(c._yaw), -Math.sin(c._yaw), 6.0, 2.6, 0.62);
+    }
+    // parkende Wagen in der Nähe (Länge entlang der lokalen x-Achse der Matrix)
+    for (const c of parked) {
+      if (KS.n >= KN || c.hidden) continue;
+      if ((c.x - cp.x) ** 2 + (c.z - cp.z) ** 2 > 3600) continue;
+      const e = c.m.elements; blob(e[12], e[13] - 0.22, e[14], e[0], e[2], 6.0, 2.6, 0.62);
+    }
+  }
+  KS.mesh.count = KS.n; KS.mesh.visible = KS.n > 0;
+  if (KS.n) { KS.mesh.instanceMatrix.needsUpdate = true; KS.aA.needsUpdate = true; }
+}
 export function updateLichtschatten() {
+  if (VERDECKUNG) updateKontakt();
   if (!LS.on) return;
   if (!LS.mesh) { if (!STREET.lamps.length) return; build(); }
   LS.n = 0;
