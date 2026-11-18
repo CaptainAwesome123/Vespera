@@ -708,6 +708,11 @@ export function updateWaterLife(dt, t) {
     const [p, tg] = R0.at(X.s);
     place(X.v, p.x, p.z, Math.atan2(-tg.z, tg.x), t, -X.sp * 0.008);
     if (X.sp > 0.3) WATER.wakes.push([p.x, p.z, Math.atan2(tg.z, tg.x), X.sp, X.v.L]);
+    // V123: Bugwelle: das schnelle Taxi wirft am Bug Gischt auf (nur in Kameranähe)
+    if (X.sp > 2.5 && Math.random() < dt * X.sp * 1.6 && (camera.position.x - p.x) ** 2 + (camera.position.z - p.z) ** 2 < 22500) {
+      const bx = p.x + tg.x * (X.v.L / 2 - 0.6), bz = p.z + tg.z * (X.v.L / 2 - 0.6);
+      for (const sd of [-1, 1]) fxEmit('spray', bx - tg.z * sd * 0.6, WATER_Y + 0.25, bz + tg.x * sd * 0.6, (tg.x * 0.3 - tg.z * sd) * X.sp * 0.35, 1.0 + X.sp * 0.15, (tg.z * 0.3 + tg.x * sd) * X.sp * 0.35, 3, 0.4, 0.6);
+    }
   }
   // Ruderboote treiben langsam im Kreis
   for (const D of WATER.drifters) {

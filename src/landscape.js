@@ -14,6 +14,8 @@ import { WATER_Y } from './dance.js';
 import { SERP, serpSink, MOUNT, sstep } from './serpentine.js';
 import { stdMat } from './people-skeleton.js';
 import { landDist } from './island.js';
+import { fxEmit } from './particles.js';
+import { camera } from './core.js';
 
 export const LAND = { NA: MOBILE ? 540 : 1080, shore: null, falls: [], glaciers: [], ready: false, mats: {}, stats: {}, planHooks: [] };   // V78: planHooks laufen am Ende von planLandscape (krater.js ebnet sein Lager)
 const Z0 = 100;   // der Krater ist um 100 m nach Norden versetzt (terrainInfo: z + 100)
@@ -298,6 +300,49 @@ function buildFalls() {
   LAND.stats.falls = sheets.length;
 }
 
+// V123: Gischt am Fuß der Wasserfälle: in Kameranähe (bis 260 m) steigen fortlaufend Sprühwolken auf und verwehen mit dem Wind;
+// die gemalte Gischtwolke (M.mist) bleibt für die Ferne
+let fallT = 0;
+export function updateFallSpray(dt) {
+  if (!WASSER123 || !LAND.ready || (fallT -= dt) > 0) return;
+  fallT = MOBILE ? 0.3 : 0.14;
+  const cp = camera.position;
+  for (const F of LAND.falls) {
+    if (F.baseX === undefined) continue;
+    const d2 = (F.baseX - cp.x) ** 2 + (F.baseZ - cp.z) ** 2; if (d2 > 260 * 260) continue;
+    const k = Math.min(2, 0.6 + F.hFall / 60), x = F.baseX - F.dx * 2 + F.px * (Math.random() - 0.5) * F.w, z = F.baseZ - F.dz * 2 + F.pz * (Math.random() - 0.5) * F.w;
+    fxEmit('spray', x, WATER_Y + 0.4, z, -F.dx * 1.5, 2.5 + 2 * k, -F.dz * 1.5, Math.round(4 + 5 * k), 1.6 * k, 1.2 + 0.6 * k);
+  }
+}
+
+/* ---------- V123: Schollen auf den echten Wellen ----------
+   Gleicher Eisstoff, aber jede Scholle hebt sich mit den vier langen Wellenzügen aus water.js (uGW, wie das Wasser selbst),
+   neigt sich mit dem Hang der Welle und treibt in kleinen Kreisen. Alles im Vertex-Shader, keine Rechnung je Bild auf der CPU. */
+export const WASSER123 = new URLSearchParams(location.search).get('wasser') !== 'alt';
+function floeMat() {
+  const m = snowy(stdMat({ color: 0x9cc3d6, roughness: 0.32, metalness: 0.05, emissive: 0x061419, envI: 0.6 }), 0.7);
+  const prev = m.onBeforeCompile, pk = m.customProgramCacheKey();
+  m.onBeforeCompile = (sh, r) => {
+    if (prev) prev.call(m, sh, r);
+    sh.uniforms.uGW = U.uGW; sh.uniforms.uTime = U.uTime;
+    sh.vertexShader = 'uniform vec4 uGW[8]; uniform float uTime;\n' + sh.vertexShader.replace('#include <project_vertex>', `
+      vec4 mvPosition = vec4(transformed, 1.0);
+      #ifdef USE_INSTANCING
+      mvPosition = instanceMatrix * mvPosition;
+      vec2 fc = instanceMatrix[3].xz; float fph = fract(sin(dot(fc, vec2(12.9898, 78.233))) * 43758.5453) * 6.28;
+      vec2 fdr = vec2(sin(uTime * 0.045 + fph), cos(uTime * 0.037 + fph * 1.3)) * 1.2;
+      float fh = 0.0; vec2 fg = vec2(0.0);
+      for (int i = 0; i < 4; i++) { vec4 G = uGW[i]; float th = G.w * dot(G.xy, fc + fdr) - sqrt(9.81 * G.w) * uTime + float(i) * 1.7; fh += G.z * sin(th); fg += G.xy * (G.w * G.z * cos(th)); }
+      vec3 frel = mvPosition.xyz - instanceMatrix[3].xyz;
+      mvPosition.xz += fdr; mvPosition.y += fh * 0.85 + dot(fg, frel.xz) * 0.7;
+      #endif
+      mvPosition = modelViewMatrix * mvPosition;
+      gl_Position = projectionMatrix * mvPosition;`);
+  };
+  m.customProgramCacheKey = () => pk + '|floe';
+  return m;
+}
+
 /* ---------- Eis und Schären ---------- */
 // flache, unregelmäßige Scholle (Vieleck, oben leicht gewölbt), Radius 1, Dicke 2 (Oberkante bei y 0,8)
 function floeGeo(rnd) {
@@ -339,7 +384,8 @@ function buildIce() {
     mm.compose(vv.set(x, WATER_Y, z), qq.setFromEuler(ee.set((rnd() - 0.5) * 0.06, rnd() * 6.28, (rnd() - 0.5) * 0.06)), ss.set(r, 0.7 + rnd() * 0.5, r * (0.7 + rnd() * 0.5)));
     lists[Math.floor(rnd() * 3)].push(mm.clone()); nF++;
   }
-  lists.forEach((l, k) => { if (!l.length) return; const im = new T.InstancedMesh(shapes[k], ice, l.length); l.forEach((m, i) => im.setMatrixAt(i, m)); im.frustumCulled = false; scene.add(im); });
+  const floeM = WASSER123 ? floeMat() : ice;   // V123: Schollen heben sich mit den Wellen, kippen und treiben langsam
+  lists.forEach((l, k) => { if (!l.length) return; const im = new T.InstancedMesh(shapes[k], floeM, l.length); l.forEach((m, i) => im.setMatrixAt(i, m)); im.frustumCulled = false; scene.add(im); });
   // Schären: dunkle Felsen im Wasser vor der Wand, verschneit
   const rock = new T.IcosahedronGeometry(1, 1), rp = rock.attributes.position; for (let i = 0; i < rp.count; i++) rp.setXYZ(i, rp.getX(i) * (0.8 + rnd() * 0.4), rp.getY(i) * (0.6 + rnd() * 0.5), rp.getZ(i) * (0.8 + rnd() * 0.4)); rock.computeVertexNormals();
   const rocks = [], NR = MOBILE || LOW ? 36 : 90;
