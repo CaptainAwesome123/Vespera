@@ -12,6 +12,7 @@ import { buildEnv, getMats, stdMat } from './people-skeleton.js';
 import { resume } from './input.js';
 import { GEOS, KINDS_OF, propMaterial, LOOSE, spawnProp, updateLoose } from './physics.js';
 import { clutterGeos } from './clutter-geos.js';
+import { KRAM116_KINDS } from './kram116-geos.js';
 import { decoLampGeo, decoLampMats } from './decolamp.js';
 import { awningTex, tankTex, chimTex } from './serpentine.js';
 
@@ -32,6 +33,9 @@ export function startKramLab(params) {
   const W = { phonebooth: 1.4, flowercart: 2.0, bicycle: 2.0, handcart: 1.8, wheelbarrow: 1.6, luggagecart: 1.4, chestnut: 1.2, deckchair: 1.3, ladder: 1.0, shoeshine: 1.0 };
   rows.forEach((row, r) => { let x = 0; const ws = row.map(k => W[k] || 0.75), tot = ws.reduce((a, b) => a + b, 0); x = -tot / 2;
     row.forEach((k, i) => { x += ws[i] / 2; const PAINTS = { bicycle: [0.08, 0.22, 0.2], pram: [0.12, 0.2, 0.3], newsstand: [0.1, 0.25, 0.22], flowercart: [0.1, 0.3, 0.2], chestnut: [0.35, 0.08, 0.06], phonebooth: [0.35, 0.05, 0.05], deckchair: [0.1, 0.35, 0.36] }; place(k, x, -r * 2.6, 0.25, 0, 0, PAINTS[k] || [1, 1, 1]); x += ws[i] / 2; }); });
+  // ---- V116: die neuen Dinge in zwei Reihen hinter den anderen (z -12 und -14,5); Ansicht ?view=neu ----
+  [KRAM116_KINDS.slice(0, 20), KRAM116_KINDS.slice(20)].forEach((row, r) => { const ws = row.map(k => Math.max(0.6, K[k].he[0] * 2 + 0.25)), tot = ws.reduce((a, b) => a + b, 0); let x = -tot / 2;
+    row.forEach((k, i) => { x += ws[i] / 2; place(k, x, -12 - r * 2.5, 0.3, 0, 0, [0.35, 0.06, 0.1]); x += ws[i] / 2; }); });
   // ---- Gehweg mit Hauswand (rechts, x 14..30), Bordstein bei z = 6, Wand bei z = 2.5 ----
   const SX = 22, wall = new T.Mesh(new T.BoxGeometry(18, 6, 0.4), stdMat({ color: 0x6a5a4c, roughness: 0.85 })); wall.position.set(SX, 3, 2.3); scene.add(wall);
   const walk = new T.Mesh(new T.BoxGeometry(18, 0.22, 3.6), stdMat({ color: 0x55565a, roughness: 0.8 })); walk.position.set(SX, 0.11, 4.3); scene.add(walk);
@@ -62,7 +66,7 @@ export function startKramLab(params) {
   // ---- zwei Dinge als echte Körper, die fallen (Physik läuft) ----
   { const B = spawnProp('typewriter', -6, 2.5, 6, 0.4); const B2 = spawnProp('globe', -5, 3.2, 6.3, 0); if (B) B.awake = true; if (B2) B2.awake = true; }
   const V = {
-    alles: [[0, 6.5, 15], [0, 0.5, -1]], strassel: [[-4.5, 1.7, 3.6], [-4.5, 0.6, 0]], strasser: [[4.5, 1.9, 3.8], [4.5, 0.7, 0]], hofl: [[-3.5, 1.6, 0.9], [-3.5, 0.4, -2.6]], hofr: [[3.5, 1.6, 0.9], [3.5, 0.4, -2.6]],
+    alles: [[0, 6.5, 15], [0, 0.5, -1]], neu: [[0, 3.2, -6.5], [0, 0.4, -13.2]], neul: [[-6, 1.6, -9.5], [-6, 0.3, -13]], neur: [[6, 1.6, -9.5], [6, 0.3, -13]], strassel: [[-4.5, 1.7, 3.6], [-4.5, 0.6, 0]], strasser: [[4.5, 1.9, 3.8], [4.5, 0.7, 0]], hofl: [[-3.5, 1.6, 0.9], [-3.5, 0.4, -2.6]], hofr: [[3.5, 1.6, 0.9], [3.5, 0.4, -2.6]],
     zimmer: [[0, 1.4, -1.2], [0, 0.5, -5.2]],
     gehweg: [[SX - 2, 1.8, 11], [SX - 1, 1.0, 3]], gehwegl: [[SX - 5, 1.5, 7.5], [SX - 5, 0.7, 2.6]], gehwegr: [[SX + 4, 1.6, 7.8], [SX + 4, 0.8, 2.6]],
     bruch: [[23.5, 3.2, 21], [23.5, 0.2, 13.5]],   // V89: Bruchprobe (labBreak)

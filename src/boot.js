@@ -1,5 +1,6 @@
 // Startpunkt des Spiels. Die Ladereihenfolge entspricht der früheren Reihenfolge der <script>-Zeilen:
 // was eine Datei beim Laden sofort ausführt, darf nur Dinge aus Dateien weiter oben benutzen.
+import { CLUT } from './clutter.js';   // V116: Dinge in Stadt und Häusern (vespera.clutter.stats)
 import './core.js';
 import './chunks.js';
 import './assets.js';
@@ -185,7 +186,7 @@ renderer.domElement.addEventListener('webglcontextlost', e => {
   $('enter').disabled = true; $('overlay').hidden = false;
 }, false);
 // Handgriff für Werkzeuge und Tests (Konsole: vespera.player.p, vespera.renderer.info, vespera.chunkStats ...)
-window.vespera = { loose: LOOSE, mocap: MOCAP, renderer, scene, camera, player, shared, layers, chunkStats, assetStats, manifest, people: MHP, street: STREET, props, playerModel: PM, powers: POWERS, cars: { model: CARM, parked, traffic: TRF, enter: driveEnter, exit: driveExit, drive: DRIVE }, sound: SND };
+window.vespera = { clutter: CLUT, loose: LOOSE, mocap: MOCAP, renderer, scene, camera, player, shared, layers, chunkStats, assetStats, manifest, people: MHP, street: STREET, props, playerModel: PM, powers: POWERS, cars: { model: CARM, parked, traffic: TRF, enter: driveEnter, exit: driveExit, drive: DRIVE }, sound: SND };
 window.claude?.hot?.snapshot?.(() => ({ p: player.p.toArray(), yaw: player.yaw, pitch: player.pitch, fly: player.fly }));
 
 export const fontsReady = (document.fonts && document.fonts.load)

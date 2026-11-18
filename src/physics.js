@@ -43,7 +43,9 @@ import { BOAT } from './boat.js';
 import { DINE } from './venues.js';
 import { $ } from './core.js';
 import { clutterGeos, clutterKinds } from './clutter-geos.js';
-import { CLUT, clutterNear, clutterMatrix, clutterMoved } from './clutter.js';
+import { kram116Geos, kram116Kinds } from './kram116-geos.js';
+import { verwittert } from './texturen.js';
+import { CLUT, clutterNear, clutterMatrix, clutterMoved, clutterRelayout } from './clutter.js';
 import { decoLampGeo, decoLampMats } from './decolamp.js';
 import { lampFx } from './serpentine.js';
 import { invalidateLayer } from './chunks.js';
@@ -106,7 +108,8 @@ function drawBatches() {
   for (const B of LOOSE.bodies) if (B.mesh) { B.mesh.position.copy(B.x); B.mesh.quaternion.copy(B.q); }
 }
 const _cc = new T.Color();
-function propMat() { return LOOSE.mat || (LOOSE.mat = paintMat({ color: 0xffffff, metalness: 0.12, roughness: 0.55, envI: 0.45, emissive: 0x080604 })); }
+// V116: leichte Abnutzung (Schmutz, Feinstruktur, wenig Risse) wie die übrigen Dinge seit V115; Koordinaten im Modell, kein Fuß (Mitte = Schwerpunkt)
+function propMat() { return LOOSE.mat || (LOOSE.mat = verwittert(paintMat({ color: 0xffffff, metalness: 0.12, roughness: 0.55, envI: 0.45, emissive: 0x080604 }), 'holz', { local: true, foot: 0, crack: 0.15, grime: 0.32, bump: 0.45, sc: 0.6 })); }
 
 /* ---------- Gegenstände der 20er Jahre (eigene Formen, Mitte = Schwerpunkt) ---------- */
 const C = (g, c) => [g, c];
@@ -274,6 +277,8 @@ const KINDS = {
 };
 // V53: die neuen Dinge (src/clutter-geos.js)
 Object.assign(GEOS, clutterGeos()); Object.assign(KINDS, clutterKinds());
+// V116: noch mehr Dinge (src/kram116-geos.js)
+Object.assign(GEOS, kram116Geos()); Object.assign(KINDS, kram116Kinds());
 export function KINDS_OF() { return KINDS; }
 export function propMaterial() { return propMat(); }
 export function spawnProp(type, x, y, z, yaw = 0) {
@@ -621,7 +626,7 @@ export function cullBodies(dt) {
       if (!LOOSE.bodies.some(b => b.spawn && b.spawn.S === S)) S.done = false;
     }
   }
-  if (relay) invalidateLayer('clutter');   // V53: verschobene Dinge stehen in einer anderen Zelle
+  if (relay) clutterRelayout();   // V53: verschobene Dinge stehen in einer anderen Zelle; V116: auch nahe Schicht und Häuser
 }
 
 /* ---------- Waren aus den Läden (Kenney Food Kit) als Körper ---------- */

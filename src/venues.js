@@ -148,6 +148,7 @@ export function venue(o) {
   K.add('gold', new T.CylinderGeometry(0.025, 0.025, cz1 - cz0, 8).rotateX(Math.PI / 2).translate(cx + 0.48, F + 0.22, (cz0 + cz1) / 2));
   addNeon(cx + 0.41, F + 1.0, (cz0 + cz1) / 2, 0.02, 0.02, cz1 - cz0, bar ? NEON.amber : NEON.gold);
   addCollider(cx - 0.45, F, cz0, cx + 0.45, F + 1.1, cz1);
+  V.counter = { x: cx, z0: cz0, z1: cz1, y: F + 1.125 };   // V116: Theke für lose Dinge (kram116.js)
   K.add('glass', new T.PlaneGeometry(cz1 - cz0, 1.6).rotateY(Math.PI / 2).translate(x0 + 0.2, F + 2.2, (cz0 + cz1) / 2));
   for (const sy of [1.55, 2.05, 2.55]) {
     K.add('varnish', Bx(0.35, 0.04, cz1 - cz0, x0 + 0.38, F + sy - 0.05, (cz0 + cz1) / 2, 1), [0.5, 0.26, 0.14]);
