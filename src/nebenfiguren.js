@@ -33,7 +33,8 @@ import { playing, paused, isTouch, tryLock } from './input.js';
 import { toast } from './boat.js';
 import { DINE, VENUES } from './venues.js';
 import { INTERACT } from './music.js';
-import { citizens, CIT_HOOKS, citizenGoal, citizenDoing } from './ragdoll.js';
+import { citizens, CIT_HOOKS, citizenGoal, citizenDoing, pedsNear } from './ragdoll.js';
+import { SB, sayAt, sbHold, sbMine, sbInit } from './sprechblase.js';   // V125
 import { setAct } from './serpentine.js';
 import { SHOPS, SHOP_KINDS } from './shops.js';
 import { ORTE } from './orte.js';
@@ -603,11 +604,13 @@ function nfShow(node) {
     const k = document.createElement('kbd'); k.textContent = (i + 1) % 10; b.append(k, document.createTextNode(o.t)); op.append(b);
   });
   el.querySelector('.ft').textContent = isTouch ? 'Antwort antippen' : 'Zahl drücken oder anklicken · Esc beendet das Gespräch';
+  if (!node.who || node.who === F.kurz) { const c = nfCit(F.id); sayAt(c && c.ped && c.ped.a ? c.ped : nfPos(F.id)); }
   nfSay(node.who || F.kurz, node.say);
 }
 function nfChoose(i) {
   if (!NF.open || !NF.node) return;
   const o = NF.node.opts[i]; if (!o) return;
+  if (SB.on && !o.cls?.includes('bye')) sbMine(o.t);
   let nx = null; try { nx = o.fn ? o.fn() : null; } catch (e) { console.warn('Nebenfiguren:', e); }
   if (nx) nfShow(nx); else nfClose();
 }
@@ -619,7 +622,7 @@ export function nfOpen(id) {
   document.body.classList.add('nfTalk');
   nfStopWalker(nfCit(id));
   try { if (document.pointerLockElement) document.exitPointerLock(); } catch (e) { /* egal */ }
-  NF.el.hidden = false;
+  NF.el.hidden = false; sbHold(true);
   let first = false;
   if (!S.met) { S.met = true; first = true; (NF.lastLab ||= {})[id] = nfRelLabel(id); }
   S.talks = (S.talks || 0) + 1;
@@ -630,7 +633,7 @@ export function nfOpen(id) {
 }
 export function nfClose() {
   if (!NF.open) return;
-  NF.open = false; NF.el.hidden = true; DINE.menuOpen = false;
+  NF.open = false; NF.el.hidden = true; DINE.menuOpen = false; sbHold(false);
   document.body.classList.remove('nfTalk');
   const c = NF.cur && nfCit(NF.cur.id); if (c && c.tk && c.st === 'task') c.tk.t = Math.min(c.tk.t, 8);
   NF.cur = null; NF.node = null;
@@ -832,6 +835,7 @@ function nfInit() {
   // offene Aufgaben wiederfinden
   for (const id of NF_IDS) { const S = nfS(id); S.act = (nfQuest(id) || {}).id || null; (NF.lastLab ||= {})[id] = nfRelLabel(id); }
   nfDom(); nfInteract();
+  sbInit(pedsNear, () => player.p);   // V125: alle Sprechblasen über den Köpfen
   RUF.extra.push(nfRufSection); RUF.onAct.push(nfRufClick);
   KARTE.liveHooks.push(nfKarte);
   NF.ready = true;

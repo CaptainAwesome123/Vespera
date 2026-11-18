@@ -45,6 +45,7 @@ import { DINE } from './venues.js';
 import { WATER_Y } from './dance.js';
 import { SND, sndBurst, sndTone, sndClip } from './audio.js';
 import { UNTER } from './unter-hook.js';   // V61: Verstecke unter der Stadt
+import { sayAt } from './sprechblase.js';   // V125
 
 export const GEGNER = { list: [], ev: null, nextT: 75, on: true, cycle: 0, proj: [], fires: [], arrests: [], bombs: [], scorch: [], hud: null, sayT: 0, hitT: 0, heroSeen: null,
   stats: { gefasst: 0, entkommen: 0, entschaerft: 0, explodiert: 0, ereignisse: 0 },
@@ -87,6 +88,7 @@ export function gegnerSay(who, text, prio = 1, x, z) {
   const el = $('say'); if (!el) return false;
   if (prio < 2 && shared.sayTimer > 0.6) return false;
   if (x !== undefined && prio < 3 && (x - player.p.x) ** 2 + (z - player.p.z) ** 2 > 48 * 48) return false;
+  if (x !== undefined) sayAt({ x, z });
   el.innerHTML = '<b></b><span></span>'; el.querySelector('b').textContent = who; el.querySelector('span').textContent = '„' + text + '“';
   el.style.opacity = 1; shared.sayTimer = 2.6 + text.length * 0.035;
   try { window.dispatchEvent(new CustomEvent('vespera-say', { detail: { who, text, x, z, src: 'gegner' } })); } catch (e) { /* ältere Browser */ }
