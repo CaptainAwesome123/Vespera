@@ -12,7 +12,7 @@ import { mocapGLSL, MOCAP } from './mocap.js';
 // V35: Alexanders Bewegungen für den Shader (8 × vec4, Belegung bei playerPose); player-model.js schreibt sie jedes Bild
 // V87: halbe Dauer eines Wechsels zwischen zwei Handlungen (alte ausblenden, neue einblenden), Sekunden
 export const BL_H = 0.28;
-export const PL_U = { value: Array.from({ length: 8 }, () => new T.Vector4()) };
+export const PL_U = { value: Array.from({ length: 12 }, () => new T.Vector4()) };   // V112: 8..11 Einsteigen und Gesten
 export const PL_W = { value: [new T.Vector4(), new T.Vector4()] };   // V88: Luft gegen Alexander (Körperraum, m/s) und Nachschwingen des Stoffs (m)
 export const DANCE = { fox: 2.0, charl: 2.6, sway: 2.0 };   // Schläge pro Sekunde
 // Lenkräder und Steuerräder: Mitte (Körperraum), Radius, Neigung der Achse nach oben
@@ -57,7 +57,7 @@ attribute vec2 aLimb; attribute vec4 aGait; attribute float aOpt; attribute vec3
 attribute vec4 aMH;   // V22: Atlas-UV, Stoffart, Mischgewicht + 2 (fehlt bei gebauten Figuren = 0)
 attribute vec4 aLive; // V24: Kopfdrehung zu jemandem (rad), Beginn der Drehung (s) bzw. Schrittphase des Spielers, 1 = Spieler, 1 + Lächeln (fehlt = 0,0,0,1)
 uniform float uTime; uniform vec4 uWind;
-uniform vec4 uPl[8]; uniform vec4 uPlW[2];   // V88: uPlW Luftstrom und Nachschwingen am Spieler (Stoff, Haar)
+uniform vec4 uPl[12]; uniform vec4 uPlW[2];   // V88: uPlW Luftstrom und Nachschwingen am Spieler (Stoff, Haar)
 // V35: Alexanders eigene Bewegungen (nur die Spielerfigur liest sie), siehe PL_U
 vec4 gG;               // V35: Gangdaten dieser Pose (sonst aGait; beim Überblenden die vorige Haltung des Spielers)
 varying vec2 vFaceUV; varying float vFaceId; varying vec3 vClP; varying float vPnt; varying vec3 vSoft; varying float vBlink; varying vec2 vGaze; varying vec4 vLook;
@@ -715,6 +715,7 @@ void humanPose(float fem, float gs, float elder) {
 #ifdef HUM_PLAYER
 void playerPose(float fem) {
   float ankH = mix(0.09, rAnk, hMH), hx = hHx;
+  vec3 aHR = vec3(0.0), aHL = vec3(0.0); vec2 aW = vec2(0.0), aTw = vec2(0.3);   // V112: Griffe der Hände (gemeinsamer Schluss)
   // ---------- Sprung und Sturz ----------
   float airW = uPl[1].x;
   if (airW > 0.001) {
@@ -805,9 +806,38 @@ void playerPose(float fem) {
       vec2 hv = vec2(hR, hL), ho = clamp(hv, 0.0, 1.0);
       fgC = mix(mix(vec2(mix(0.85, 0.5, two)), vec2(0.03), ho), vec2(1.15), clamp(-hv, 0.0, 1.0)); wrF = mix(vec2(0.15 * (1.0 - two)), vec2(-0.6), ho); fgP = vec2(0.0);
     }
-    armTo(-1.0, toTorso(Hr), mix(0.2 + 0.3 * heavy, 0.3, pm)); armTo(1.0, Hl, mix(mix(0.9, 0.3, heavy), 0.3, pm));
+    // V112: die Arme setzt der gemeinsame Schluss unten (eine Stelle für alle Griffe, hält den Shader klein)
+    aHR = toTorso(Hr); aHL = Hl; aTw = vec2(mix(0.2 + 0.3 * heavy, 0.3, pm), mix(mix(0.9, 0.3, heavy), 0.3, pm)); aW = vec2(tkW);
     jawO = 0.0;
     poseOver(b, tkW);
+  }
+  // ---------- V112: Einsteigen und Aussteigen, ruhige Gesten im Stand ----------
+  // uPl[8]/uPl[9] Ziel der rechten/linken Hand im Körperraum + Gewicht, uPl[10] (Ducken, Sitzen mit Füßen auf dem Trittbrett,
+  // Beine anheben, Schritt: + rechtes / − linkes Bein), uPl[11] Mitte der Füße im Körperraum (Sohle) + Blick über die Schulter
+  vec4 bq = uPl[10];
+  if (bq.y > 0.001) {
+    // vom Stehen ins Sitzen und zurück: das Becken sinkt mit der Figur auf den Sitz, die Füße bleiben, wo sie stehen
+    HPose b = poseGet();
+    vec3 fc = uPl[11].xyz;
+    pvO = vec3(0.0); pvP = 0.0; pvR = 0.0; pvY = 0.0; spR = 0.0; spY = 0.0; spP = 0.08; thY = vec2(0.06);
+    legsTo(vec3(fc.x - hx - 0.03, fc.y + ankH, fc.z), vec3(fc.x + hx + 0.03, fc.y + ankH, fc.z));
+    anF = knF - thP;
+    uaP = vec2(0.42); uaA = vec2(0.06); elF = vec2(0.95); uaT = vec2(0.5); wrF = vec2(0.0); fgC = vec2(0.5); fgP = vec2(0.0);
+    poseOver(b, bq.y);
+    sitK = max(sitK, step(0.6, bq.y));
+  }
+  if (bq.z > 0.001) { thP += vec2(0.55 * bq.z); knF += vec2(0.5 * bq.z); anF -= vec2(0.25 * bq.z); }   // über die Schwelle
+  if (abs(bq.w) > 0.001) { vec2 m = bq.w > 0.0 ? vec2(bq.w, 0.0) : vec2(0.0, -bq.w); thP += 0.8 * m; knF += 1.15 * m; anF -= 0.3 * m; }
+  if (bq.x > 0.001) { spP += 0.36 * bq.x; nkP += 0.24 * bq.x; }   // Kopf einziehen unter dem Dach
+  spY += 0.22 * uPl[11].w; nkY += 0.62 * uPl[11].w;
+  vec2 hw = vec2(uPl[8].w, uPl[9].w);
+  if (hw.x + hw.y > 0.001) { aHR = toTorso(uPl[8].xyz); aHL = toTorso(uPl[9].xyz); aTw = vec2(0.35); aW = hw; fgC = mix(fgC, vec2(0.85), hw); wrF = mix(wrF, vec2(0.0), hw); fgP = mix(fgP, vec2(0.0), hw); }
+  // gemeinsamer Schluss: Hände an ihre Ziele (Oberkörperraum), je Arm gewichtet
+  if (aW.x + aW.y > 0.001) {
+    vec2 u0 = uaP, a0 = uaA, t0 = uaT, e0 = elF;
+    if (aW.x > 0.001) armTo(-1.0, aHR, aTw.x);
+    if (aW.y > 0.001) armTo(1.0, aHL, aTw.y);
+    uaP = mix(u0, uaP, aW); uaA = mix(a0, uaA, aW); uaT = mix(t0, uaT, aW); elF = mix(e0, elF, aW);
   }
 }
 #endif

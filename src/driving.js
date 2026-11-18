@@ -10,7 +10,8 @@ import { makeGlowPoints, pedsNear } from './ragdoll.js';
 import { updateSpuren, pedSpuren, wheelSpuren } from './spuren.js';
 import { cars } from './airships.js';
 import { carDamageAttr, glassFor } from './cars.js';
-import { doorSlot, hideDoors, setDoors, doorSound, boardIn, boardOut, carToWorld, BOARD } from './tueren.js';
+import { doorSlot, hideDoors, setDoors, doorSound, carToWorld, BOARD } from './tueren.js';
+import { plBoardIn, plBoardOut, approachSpot, PB } from './einsteigen.js';   // V112: Alexanders eigener Ablauf
 import { CARM, modelCarMeshes } from './carmodel.js';
 import { TRF, OBSTACLES, placeTrafficCar, polyAt, _q, _ce, _p, _s, _m } from './traffic.js';
 import { player, keys, touch } from './player.js';
@@ -166,7 +167,9 @@ export function driveBoard(c) {
   const s = R && (!L || d(R) < d(L) + 2.5) ? 1 : L ? -1 : 0;
   if (!s) { driveToast(); return; }
   const P = s > 0 ? R : L;
-  DRIVE.anim = { mode: 'in', ph: 'walk', t: 0, s, x: px, y: py, z: pz, tx: P.x, tz: P.z, gy: P.y, r: null, yaw: null };
+  // V112: er geht bis dicht vor den Türgriff (etwas näher als die Passanten)
+  const as = approachSpot(s), aw = carToWorld(B.x, B.z, B.h, as[0], as[1], [0, 0]), ag = groundAt(aw[0], aw[1], P.y + 0.5);
+  DRIVE.anim = { mode: 'in', ph: 'walk', t: 0, s, x: px, y: py, z: pz, tx: aw[0], tz: aw[1], gy: ag && Math.abs(ag.y - P.y) < 0.5 ? ag.y : P.y, r: null, yaw: null };
   DRIVE.camP = camera.position.clone();
 }
 // E am Steuer: anhalten, aussteigen
@@ -187,14 +190,16 @@ function updateBoard(dt) {
     return;
   }
   if (A.ph === 'walk') {
-    const dx = A.tx - A.x, dz = A.tz - A.z, d = Math.hypot(dx, dz), st = 1.45 * dt;
+    // V112: auf den letzten Metern langsamer, damit er nicht an der Tür abrupt stehen bleibt
+    const dx = A.tx - A.x, dz = A.tz - A.z, d = Math.hypot(dx, dz);
+    A.spd = Math.min(1.45, 0.45 + 1.4 * d); const st = A.spd * dt;
     A.t += dt;
     if (d <= st || A.t > 4) { A.x = A.tx; A.z = A.tz; A.ph = 'board'; A.t = 0; A.walking = false; }
     else { A.x += dx / d * st; A.z += dz / d * st; A.wyaw = Math.atan2(dx, dz); A.walking = true; const g = groundAt(A.x, A.z, A.y + 0.5); if (g) A.y = g.y; }
     return;
   }
   A.t += dt;
-  const r = A.r = A.mode === 'in' ? boardIn(A.t, A.s, BOARD.seatZ, A.r || {}) : boardOut(A.t, A.s, BOARD.seatZ, A.r || {});
+  const r = A.r = A.mode === 'in' ? plBoardIn(A.t, A.s, BOARD.seatZ, PB.sc, A.r || {}) : plBoardOut(A.t, A.s, BOARD.seatZ, PB.sc, A.r || {});
   if (DRIVE.model) r.d = 0;   // Pierce Arrow: Türen sind Teil des Modells
   if (A.s > 0) DRIVE.dR = r.d; else DRIVE.dL = r.d;
   const w = carToWorld(B.x, B.z, B.h, r.x, r.z, [0, 0]);

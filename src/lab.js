@@ -125,6 +125,12 @@ export function startLab(params) {
     aufladen: { act: 0, u: [[3, 1, 0, 0, 1], [4, 0, 0.02, 1, 0.8], [5, 0, 0, 0, 1], [6, 0, -1, -0.45, 1], [7, 1, 0, 0, 1]] },
     schubbeide: { act: 0, u: [[3, 1, 0, 0, 1], [4, 0, 0.02, 1, 0.3], [5, 0, 0, 0, 1], [6, 0, -1, 0.05, 1], [7, 1, 1, 1, 0.5]] },
     schubflug: { act: 43, u: [[3, 1, 0, 0, 1], [4, 0, -0.1, 1, 0.1], [6, 0, -1, 0.3, 0], [7, 1, 1, -1, 0]] },
+    // V112: ruhige Gesten im Stand und Einsteigen (uPl[8..11]): Hände, Ducken, Hinsetzen mit Füßen auf dem Trittbrett, Beine, Schritt
+    tasche: { act: 0, u: [[8, -0.17, 0.9, 0.075, 1], [9, 0.17, 0.9, 0.075, 1]] }, einetasche: { act: 0, u: [[8, -0.17, 0.9, 0.075, 1]] },
+    arme: { act: 0, u: [[8, 0.17, 1.2, 0.16, 1], [9, -0.16, 1.24, 0.2, 1]] }, manschette: { act: 0, u: [[8, -0.04, 1.06, 0.3, 1], [9, -0.075, 1.085, 0.27, 1]] },
+    griff: { act: 0, u: [[8, -0.12, 1.15, 0.5, 1]] }, schritt: { act: 0, u: [[10, 0.5, 0, 0, 1]] },
+    setzen: { act: 0, y: -0.14, u: [[10, 0.9, 0.5, 0, 0], [11, 0, 0.14, 0.21, 0], [9, 0.45, 1.2, 0.1, 1]] },
+    sitzbrett: { act: 7.2, y: -0.28, u: [[10, 0.6, 1, 0, 0], [11, 0, 0.28, 0.41, 0]] }, beine: { act: 7.2, y: 0.3, u: [[10, 0, 0, 1, 0]] },
     fahren: { act: 32.5, y: 1.1 - 0.87 }, fahrenlinks: { act: 32.02, y: 1.1 - 0.87 }, fahrenrechts: { act: 32.98, y: 1.1 - 0.87 },   // V42: Alexander am Steuer (Sitz wie seatPerson: y = Wagen + 1,1 − 0,87·sc)
   };
   window.labPose = name => {
@@ -134,7 +140,7 @@ export function startLab(params) {
     if (PM.mesh) PM.place(0, P.y != null ? P.y * PM.sc : P.act >= 43 && P.pitch ? 0.6 : P.act >= 43 ? 0.3 : 0, 2.2, 0, { act: P.act, pitch: P.pitch || 0 });
   };
   if (params.get('pose')) window.labPose(params.get('pose'));
-  Object.assign(LAB.views, { spielerseite: [[3.4, 1.0, 2.2], [0, 0.8, 2.2]], spielerschraeg: [[2.6, 1.4, 4.6], [0, 0.8, 2.2]] });
+  Object.assign(LAB.views, { spielerhalb: [[1.0, 1.35, 3.7], [0, 1.0, 2.2]], spielerseite: [[3.4, 1.0, 2.2], [0, 0.8, 2.2]], spielerschraeg: [[2.6, 1.4, 4.6], [0, 0.8, 2.2]] });
   LAB.t = params.get('t') != null ? +params.get('t') : null;
   window.labView = name => { const v = LAB.views[name] || LAB.views.alle; camera.position.set(...v[0]); camera.lookAt(...v[1]); C.flag(); };
   window.labTime = t => { LAB.t = t; };
