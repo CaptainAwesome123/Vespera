@@ -422,7 +422,8 @@ function rallyTick(dt) {
     for (const pd of R.peds) {
       if (!pd.a || pd.aw || pd.rag || pd.kind === 'police' || pd === R.speaker) continue;
       if (pd.life.sign) continue;
-      setAct(pd, STR.chanting ? (Math.random() < 0.6 ? 3.7 : 9.2 + Math.random() * 0.4) : 1.3 + Math.random() * 0.3);
+      const act = STR.chanting ? (Math.random() < 0.6 ? 3.7 : 9.2 + Math.random() * 0.4) : 1.3 + Math.random() * 0.3;
+      if (STR.later && pd.life) STR.later(pd, act, Math.hypot(pd.life.x - R.x, pd.life.z - R.z) / 7); else setAct(pd, act);   // V110: Welle vom Redner aus
     }
     if (R.speaker.a) setAct(R.speaker, STR.chanting ? 3.7 : 0.95);
     if (d2 < 45 * 45 && free() && !(R.himT > 0)) {
