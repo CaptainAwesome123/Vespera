@@ -231,6 +231,7 @@ T.ShaderChunk.fog_fragment = `#ifdef USE_FOG
 // V101: Glas-Spiegelung an Türmen: Fensterglas spiegelt Polarlicht, Sterne, Mond und die erleuchtete Stadt. ?glasspiegel=aus = Stand V100.
 // V104: Stoffe: Samt mit hellem Flor, Seide mit wanderndem Glanzband, Leder mit Poren und abgegriffenem Glanz, Pelz mit Unterwolle und Grannen. ?stoffe=aus = Stand V103.
 export const STOFFE = new URLSearchParams(location.search).get('stoffe') !== 'aus';
+export const HAUT = new URLSearchParams(location.search).get('haut') !== 'aus';   // V119: Hautrand, Augenglanz, weicheres Hautlicht
 export const GLASSPIEGEL = new URLSearchParams(location.search).get('glasspiegel') !== 'aus';
 export const NAH = new URLSearchParams(location.search).get('nah') !== 'aus';
 export const KINO = new URLSearchParams(location.search).get('kino') !== 'aus';

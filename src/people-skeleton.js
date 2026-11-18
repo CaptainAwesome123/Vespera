@@ -1,4 +1,4 @@
-import { shared, U, canvasTex, T, renderer, mergeGeos, geoView, snowy, STOFFE } from './core.js';
+import { shared, U, canvasTex, T, renderer, mergeGeos, geoView, snowy, STOFFE, HAUT } from './core.js';
 import { HL, FACE_ATLAS, FACE_MAT } from './people-model.js';
 import { mocapGLSL, MOCAP } from './mocap.js';
 import { TEXTUREN } from './texturen.js';
@@ -1221,6 +1221,7 @@ export const HUM_VS_POS = `
 export const HUM_FS_HEAD = `uniform sampler2D uFaces, uFaceMat, uPeople; uniform float uTime;
 varying vec2 vFaceUV; varying float vFaceId; varying vec3 vClP; varying float vPnt; varying vec3 vSoft; varying float vBlink; varying vec2 vGaze; varying vec4 vLook;
 varying vec2 vTexUV; varying float vTexK; varying float vFold;
+float hRim = 0.0;   // V119: Streulicht am Hautrand (Ohren, Wangenkontur, Finger)
 float hSSS = 0.0;   // V24: Haut lässt Licht ein Stück hinein (weicher, rötlicher Übergang zum Schatten)
 float clH(vec3 p){ return fract(sin(dot(p, vec3(12.9898, 78.233, 37.719))) * 43758.5453); }
 float vN3(vec3 p){ vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
@@ -1255,7 +1256,9 @@ export const HUM_FS_COLOR = () => `
               float ic = floor(hh2(fid * 3.1 + 0.7) * 6.0);
               vec3 IC = ic < 0.5 ? vec3(0.42, 0.25, 0.13) : ic < 1.5 ? vec3(0.22, 0.13, 0.07) : ic < 2.5 ? vec3(0.3, 0.48, 0.66) : ic < 3.5 ? vec3(0.34, 0.47, 0.3) : ic < 4.5 ? vec3(0.45, 0.48, 0.52) : vec3(0.5, 0.36, 0.16);
               vec3 e = mix(tx.rgb, IC * dot(tx.rgb, vec3(0.3, 0.59, 0.11)) * 4.2, ir);
-              diffuseColor.rgb = mix(e, vec3(0.78, 0.56, 0.46) * T5 * 0.85, clamp(vBlink, 0.0, 1.0)); hSpark = step(0.985, min(tx.r, min(tx.g, tx.b))) * (1.0 - clamp(vBlink, 0.0, 1.0)) * 0.06;   // V79: Glanzpunkt im Auge
+              diffuseColor.rgb = mix(e, vec3(0.78, 0.56, 0.46) * T5 * 0.85, clamp(vBlink, 0.0, 1.0)); hSpark = step(0.985, min(tx.r, min(tx.g, tx.b))) * (1.0 - clamp(vBlink, 0.0, 1.0)) * 0.06;   // V79: Glanzpunkt im Auge${HAUT ? `
+              // V119: feuchter Glanzpunkt: Spiegelbild einer hellen Quelle schräg oben (Blickraum), dazu ein schwacher Glanz am Lidrand
+              { vec3 en = normalize(vNormal); float cl = dot(en, vec3(-0.34, 0.4, 0.85)); hSpark = max(hSpark, (smoothstep(0.975, 0.995, cl) * 0.55 + smoothstep(0.9, 1.0, cl) * 0.05) * (1.0 - clamp(vBlink, 0.0, 1.0))); }` : ''}
             }
           }
           float aa = clamp(1.6 - fwidth(vClP.y) * 260.0, 0.0, 1.0), aa2 = clamp(1.6 - fwidth(vClP.y) * 700.0, 0.0, 1.0);
@@ -1271,7 +1274,7 @@ export const HUM_FS_COLOR = () => `
             // V24: Poren und feine Hautlinien (Relief), auf Stirn, Nase und Wangen dichter; Haut lässt Licht durch
             // V44: bei MakeHuman-Haut kommt das Relief (Poren, Lippenlinien, Knöchelfalten) aus dem Alphakanal des Atlas (128 = eben),
             // gemalt in tools/make-people.mjs; das Rauschen je Bildpunkt bleibt nur für die gebauten Figuren ohne Atlas
-            if (tK < 3.5 || tK > 5.5) { hSSS = 1.0; if (tK > 0.5) { hB += (tx.a - 0.5) * 0.3; diffuseColor.rgb *= mix(vec3(1.0), vec3(dot(HC, vec3(0.6, 1.2, 0.6))) + 0.12, vSoft.y * 0.9); } else hB += ((vN3(vClP * 1500.0) - 0.5) * 0.35 + (vN3(vClP * vec3(300.0, 2400.0, 300.0)) - 0.5) * 0.12) * clamp(1.6 - fwidth(vClP.y) * 1400.0, 0.0, 1.0); }
+            if (tK < 3.5 || tK > 5.5) { hSSS = 1.0;${HAUT ? ' hRim = (1.0 - nv) * (1.0 - nv) * (1.0 - nv);' : ''} if (tK > 0.5) { hB += (tx.a - 0.5) * 0.3; diffuseColor.rgb *= mix(vec3(1.0), vec3(dot(HC, vec3(0.6, 1.2, 0.6))) + 0.12, vSoft.y * 0.9); } else hB += ((vN3(vClP * 1500.0) - 0.5) * 0.35 + (vN3(vClP * vec3(300.0, 2400.0, 300.0)) - 0.5) * 0.12) * clamp(1.6 - fwidth(vClP.y) * 1400.0, 0.0, 1.0); }
             if (vFaceUV.x >= 0.0) {
               vec2 cell = vec2(mod(fid, 8.0), floor(fid / 8.0)), fuv = (cell + clamp(vFaceUV, 0.01, 0.99)) / 8.0;
               vec4 f = texture2D(uFaces, fuv); vec3 m = texture2D(uFaceMat, fuv).rgb;
@@ -1396,9 +1399,10 @@ ${STOFFE ? `              // V104: Pelz: dunkle Unterwolle, helle Grannenspitzen
         }`;
 // V24: Licht auf der Haut. Diffuses Licht greift etwas um die Schattengrenze herum (Rot weiter als Blau), wie bei Haut,
 // in die Licht ein paar Millimeter eindringt; Glanzlicht bleibt wie es ist
+const SSS_W = HAUT ? 'vec3(0.5, 0.36, 0.28)' : 'vec3(0.4, 0.3, 0.25)';   // V119: Licht greift weiter um die Schattengrenze (weicher)
 const SSS_CHUNK = T.ShaderChunk.lights_physical_pars_fragment.replace('reflectedLight.directDiffuse += irradiance * BRDF_Lambert( material.diffuseColor );',
-  `vec3 irrD = irradiance;
-  if (hSSS > 0.0) { float nl = dot(geometry.normal, directLight.direction); vec3 w = clamp((vec3(nl) + vec3(0.4, 0.3, 0.25)) / vec3(1.4, 1.3, 1.25), 0.0, 1.0); irrD = mix(irradiance, pow(w, vec3(1.5)) * directLight.color * vec3(1.0, 0.96, 0.94), hSSS); }
+  `vec3 irrD = irradiance; vec3 hW = ${SSS_W};
+  if (hSSS > 0.0) { float nl = dot(geometry.normal, directLight.direction); vec3 w = clamp((vec3(nl) + hW) / (vec3(1.0) + hW), 0.0, 1.0); irrD = mix(irradiance, pow(w, vec3(1.5)) * directLight.color * vec3(1.0, 0.96, 0.94), hSSS); }
   reflectedLight.directDiffuse += irrD * BRDF_Lambert( material.diffuseColor );`);
 if (SSS_CHUNK === T.ShaderChunk.lights_physical_pars_fragment) console.warn('Hautlicht: Licht-Baustein von three.js nicht gefunden');
 // Glanz, Metall und Relief nach den Stoffarten
@@ -1417,7 +1421,7 @@ export function humanShader(sh) {
     .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\n if (hRough >= 0.0) roughnessFactor = hRough;')
     .replace('#include <metalnessmap_fragment>', '#include <metalnessmap_fragment>\n if (hMetal >= 0.0) metalnessFactor = hMetal;')
     .replace('#include <normal_fragment_maps>', '#include <normal_fragment_maps>\n { vec2 dh = vec2(dFdx(hB), dFdy(hB)) * 0.0022; normal = hPerturb(-vViewPosition, normal, dh, faceDirection); }')
-    .replace('totalEmissiveRadiance *= vColor * 3.0;', 'totalEmissiveRadiance *= hSSS > 0.5 ? diffuseColor.rgb * 2.4 : vColor * 3.0;\n totalEmissiveRadiance += diffuseColor.rgb * hSpark * 6.0 + vec3(1.0, 0.9, 0.7) * hSpark * 0.6;');
+    .replace('totalEmissiveRadiance *= vColor * 3.0;', 'totalEmissiveRadiance *= hSSS > 0.5 ? diffuseColor.rgb * (2.4 + 2.2 * hRim) * vec3(1.0, 0.93, 0.88 - 0.1 * hRim) : vColor * 3.0;\n totalEmissiveRadiance += diffuseColor.rgb * hSpark * 6.0 + vec3(1.0, 0.9, 0.7) * hSpark * 0.6;');
 }
 
 // Aussehen einer Figur in einer Zahl: Gesicht (0-63), Hautton (5), Haarfarbe (6)
