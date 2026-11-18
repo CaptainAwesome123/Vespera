@@ -15,7 +15,7 @@ import { plazaMaterial } from './plaza.js';
 import { buildFountain } from './fountain.js';
 import { buildBelmontLuxe } from './belmont-luxe.js';
 import { galaPeople } from './gala.js';
-import { shadeBegin, shadeEnd, shadeRoom, shadeQuad, shadeEdge, shadeWall, shadeDisc, shadeColumn, lightPool, roughTex, addSheen } from './raumlicht.js';
+import { lichtKegel, shadeBegin, shadeEnd, shadeRoom, shadeQuad, shadeEdge, shadeWall, shadeDisc, shadeColumn, lightPool, roughTex, addSheen } from './raumlicht.js';
 
 /* =====================================================================
    THE BELMONT — das Grand Hotel im Zentrum
@@ -560,12 +560,14 @@ export function buildBelmontInterior() {
     }
     put('crystal', new T.ConeGeometry(r * 0.25, 1.6, 12).rotateX(Math.PI).translate(x, y - 0.8, z));
     glow(x, y + 0.6, z, [1.2, 0.85, 0.45], r * 4.5);
+    lichtKegel(x, y - 0.4, P, z, r * 0.45, r * 2.3, [1, 0.74, 0.42], 0.075);   // V118: Lichtkegel bis auf den Marmor
   };
   chandelier(0, 12.5, 22, 3.2, LOBBY_H);
   const pendant = (x, y, z, ceil) => {
     put('gold', new T.CylinderGeometry(0.04, 0.04, ceil - y, 6).translate(x, (ceil + y) / 2, z));
     for (const [r, h, dy] of [[0.9, 0.7, 0], [0.7, 0.6, 0.7], [0.45, 0.5, 1.3]]) { put('lamp', new T.CylinderGeometry(r, r * 0.92, h, 16).translate(x, y + dy, z)); put('gold', new T.TorusGeometry(r, 0.04, 6, 24).rotateX(Math.PI / 2).translate(x, y + dy + h / 2, z)); }
     glow(x, y + 0.6, z, [1.3, 0.9, 0.5], 9);
+    lichtKegel(x, y - 0.3, P, z, 0.75, 3.2, [1, 0.78, 0.48], 0.06);   // V118
   };
   for (const sx of [-1, 1]) for (const z of [6, 38]) pendant(sx * 14, 11, z, LOBBY_H);
   chandelier(0, 21, -28, 4.6, BALL_H); chandelier(-26, 22.5, -28, 3.0, BALL_H); chandelier(26, 22.5, -28, 3.0, BALL_H);

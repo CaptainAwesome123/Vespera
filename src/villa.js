@@ -7,7 +7,7 @@ import { VILLA } from './harbour.js';
 import { movOn, movOff, FURN, placeFurn, lathe, FAN_TEX } from './entrances.js';
 import { worldUV, wallpaperTex, texSet } from './serpentine.js';
 import { addLight } from './performance.js';
-import { shadeBegin, shadeEnd, shadeEdge, shadeWall, addSheen } from './raumlicht.js';
+import { shadeBegin, shadeEnd, shadeEdge, shadeWall, addSheen, lichtKegel } from './raumlicht.js';
 import { INTERACT } from './music.js';
 import { toast } from './boat.js';
 import { player } from './player.js';
@@ -432,6 +432,7 @@ export function buildVillaRooms(ctx) {
       for (let k = 0; k < n; k++) { const a = k / n * Math.PI * 2; A(zone, 'lamp', new T.OctahedronGeometry(0.09), lx + Math.cos(a) * rr, y + dy - 0.2, lz + Math.sin(a) * rr); }
     }
     glow(lx, y + 0.2, lz, [1.35, 1.0, 0.65], 2.5 + r * 1.6);
+    lichtKegel(lx, y - 0.25, zone === OG ? Y1 : 0, lz, r * 0.4, r * 2.1, [1, 0.76, 0.46], 0.065);   // V118: Lichtkegel bis zum Boden des Geschosses
   };
   const lampF = (zone, lx, lz, y) => { placeFurn(FURN.floorLamp(), FM, (k, g) => A(zone, k, g), lx, y, lz); glow(lx, y + 1.55, lz, [1.3, 0.9, 0.5], 1.3); };
   const lampT = (zone, lx, lz, y) => { placeFurn(FURN.tableLamp(), FM, (k, g) => A(zone, k, g), lx, y, lz); glow(lx, y + 0.42, lz, [1.3, 0.9, 0.5], 0.9); };

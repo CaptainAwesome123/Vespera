@@ -15,6 +15,7 @@ import { inPenthouse } from './penthouse.js';
 import { inVillaHouse } from './villa.js';
 import { PM } from './player-model.js';
 import { player } from './player.js';
+import { RL } from './raumlicht.js';
 
 export const RSP = { on: new URLSearchParams(location.search).get('raumspiegel') !== 'aus', probes: new Map(), mats: new Map(), cur: null, wait: 0, key: null };
 
@@ -48,6 +49,7 @@ function bake(p) {
   // einmal von hier aus rundum aufnehmen: die Szene wird verschoben, weil PMREMGenerator.fromScene im Ursprung aufnimmt
   const pm = new T.PMREMGenerator(renderer), rz = REVZ.on;
   const pv = PM.mesh ? PM.mesh.visible : false; if (PM.mesh) PM.mesh.visible = false;   // Alexander nicht im eigenen Spiegelbild
+  const kg = RL.kegelMeshes || [], kv = kg.map(m => m.visible); for (const m of kg) m.visible = false;   // V118: Lichtkegel nicht aufnehmen
   const sp = scene.position.clone(), fogD = scene.fog ? scene.fog.density : 0, ac = renderer.autoClear;
   let tex = null;
   try {
@@ -60,6 +62,7 @@ function bake(p) {
     scene.position.copy(sp); scene.updateMatrixWorld(true);
     if (scene.fog) scene.fog.density = fogD;
     renderer.autoClear = ac; if (PM.mesh) PM.mesh.visible = pv;
+    kg.forEach((m, i) => { m.visible = kv[i]; });
     if (rz) REVZ.setActive(true);
     pm.dispose();
   }

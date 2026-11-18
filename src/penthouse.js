@@ -6,7 +6,7 @@ import { FURN, placeFurn, roundBox, lathe, tube, movOn, movOff } from './entranc
 import { poolWaterMat } from './water.js';
 import { player } from './player.js';
 import { addLight } from './performance.js';
-import { shadeBegin, shadeEnd, shadeRoom, shadeQuad, shadeEdge, shadeWall, shadeColumn, lightPool, wallWash, lightBand, roughTex, addSheen } from './raumlicht.js';
+import { shadeBegin, shadeEnd, shadeRoom, shadeQuad, shadeEdge, shadeWall, shadeColumn, lightPool, wallWash, lightBand, roughTex, addSheen, lichtKegel } from './raumlicht.js';
 import { boxW, marbleTex } from './belmont.js';
 import { inlayFloorTex, travertineTex, decoRugTex, damaskTex, veneerTex, onyxTex, cofferTex2, booksTex, tileTex, mosaicTex, glowRoomTex, paintingTex, RUNNER_TEX } from './deco-tex.js';
 import { SPAWNS } from './physics.js';
@@ -301,6 +301,7 @@ export function buildPenthouse() {
     put('crystal', new T.ConeGeometry(r * 0.22, 1.4, 12).rotateX(Math.PI).translate(x, y - 0.7, z));
     glow(x, y + 0.5, z, [1.2, 0.85, 0.45], r * 4);
     lightPool(x, drop > 3 ? F1 : F2, z, r * 2.6, [1, 0.72, 0.42], 0.14);   // V67
+    lichtKegel(x, y - 0.5, drop > 3 ? F1 : F2, z, r * 0.4, r * 2.2, [1, 0.72, 0.42], 0.07);   // V118: Lichtkegel
   };
   const table = (x, y, z, w, d, h = 0.76, mat = 'veneer', where = 'inner') => {
     put(mat, boxW(w, 0.06, d, x, y + h - 0.03, z, 1.5), where); put('gold', BOX(w + 0.02, 0.025, d + 0.02, x, y + h - 0.07, z), where);

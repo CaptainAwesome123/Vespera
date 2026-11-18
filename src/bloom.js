@@ -71,6 +71,7 @@ export function setupComposer() {
   });
   // V98: ShaderPass kopiert die Uniforms; die Tropfen brauchen die echten (laufende Uhr, uLens aus performance.js)
   gradePass.uniforms.uLens = U.uLens; gradePass.uniforms.uTime = U.uTime; gradePass.uniforms.uMood = U.uMood; gradePass.uniforms.uDof = U.uDof;
+  gradePass.uniforms.uIn = U.uInside;   // V118: die V67-Innenbelichtung hing an einer Kopie und blieb immer 0
   composer.addPass(passWithoutReverse(gradePass));
 }
 export function resize() {
