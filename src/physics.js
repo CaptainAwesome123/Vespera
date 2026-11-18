@@ -51,6 +51,7 @@ import { lampFx } from './serpentine.js';
 import { invalidateLayer } from './chunks.js';
 import { tearInfo, tearNear } from './tear.js';
 import { TREE_SETS, treeDirty } from './serpentine.js';
+import { SCH, glassHit, scherbenTick } from './scherben.js';   // V122: Schaufenster und Laternen zerspringen
 
 export const LOOSE = { bodies: [], batches: new Map(), held: null, tk: null, tkTarget: null, aim: null, rot: 0, spawned: new Set(), mat: null, goodsIdx: null, stats: { awake: 0, bodies: 0, ms: 0 } };
 const G = 9.81, SUB = MOBILE ? 5 : 8, MAX_BODIES = MOBILE ? 56 : 128, REACH = 2.6;   // V52: mehr Platz (Möbel, Straßenmöbel, neue Gruppen); ferne Gruppen räumt cullBodies wieder ab
@@ -607,6 +608,7 @@ export function movNear(x, z, r) {
 let cullT = 0, brokenT = 0;
 export function cullBodies(dt) {
   if ((brokenT -= dt) <= 0) { brokenT = 3; brokenTick(); }   // V89
+  scherbenTick(dt, player.p);   // V122
   if ((cullT -= dt) > 0 || LOOSE.bodies.length < MAX_BODIES * 0.6) return; cullT = 3;
   const p = player.p; let relay = false;
   for (const B of LOOSE.bodies.slice()) {
@@ -938,6 +940,8 @@ export function updateLoose(dt) {
     solveVelocities(h);
     for (const B of act) { B.v.multiplyScalar(1 - 0.02 * h); B.w.multiplyScalar(1 - (B.kind === 'ball' ? 0.6 : 0.3) * h); }
   }
+  // V122: schnelle Dinge zerschlagen Schaufenster und Laternenköpfe (nicht die Scherben selbst)
+  if (SCH.on) for (const B of act) if (B.deb === undefined && B.v.lengthSq() > 20 && B !== H) glassHit(B.x.x, B.x.y, B.x.z, B.v.x, B.v.y, B.v.z, Math.min(0.5, B.r));
   // Schlafen, Herunterfallen aus der Welt
   for (const B of act) {
     if (B === H || B === LOOSE.tk || B.lev) { B.still = 0; continue; }
@@ -1015,6 +1019,13 @@ function debris(B, key, he, m, col, stuff, at, spread) {
   D.w.set(rnd(7), rnd(7), rnd(7)); D.deb = 15 + Math.random() * 10; D.brittle = 0;
   return D;
 }
+// V122: Scherben einer Scheibe oder eines Laternenkopfs (scherben.js): Körper ohne eigenen Gegenstand, an einer Stelle mit Ausdehnung hx/hy/hz
+const _gb = { x: new T.Vector3(), q: new T.Quaternion(), v: new T.Vector3(), he: new T.Vector3(1, 1, 1) };
+SCH.burst = (x, y, z, hx, hy, hz, vx, vz, n) => {
+  _gb.x.set(x, y, z); _gb.v.set(vx * 2, 0, vz * 2); _gb.he.set(hx, hy, hz);
+  for (let i = 0; i < n; i++) debris(_gb, 'shard', [0.04, 0.012, 0.03], 0.05, [0.62, 0.78, 0.84], 'glass', [hx, hy, hz], 2.0);
+};
+SCH.sound = (k, a, m) => bumpSound(k, a, m);
 function shards(B, n, y = 0) {
   for (let i = 0; i < n; i++) debris(B, 'shard', [0.04, 0.012, 0.03], 0.05, [0.62, 0.78, 0.84], 'glass', [B.he.x * 0.6, Math.max(0.01, B.he.y * 0.3) + y, B.he.z * 0.6], 2.5);
 }
@@ -1058,6 +1069,8 @@ function impact(B, vn, c) {
   B.hitT = 0.12;
   const near = B.x.distanceTo(camera.position) < 40;
   if (near) bumpSound(B.snd, Math.min(1, vn / 7), B.m);
+  // V122: Metall auf Stein oder Metall schlägt Funken (Stoßpunkt am Körper)
+  if (SCH.on && B.snd === 'metal' && vn > 4 && B.m > 0.5 && near) { const r = c && c.A === B ? c.r : null; fxEmit('spark', B.x.x + (r ? r.x : 0), B.x.y + (r ? r.y : -B.he.y * 0.8), B.x.z + (r ? r.z : 0), 0, 1 + vn * 0.15, 0, Math.min(16, 3 + Math.round(vn * 1.2)), 0.5); }
   if (B === LOOSE.held) return;
   if (B.brittle && vn > B.brittle) {
     fxEmit('glass', B.x.x, B.x.y, B.x.z, B.v.x * 0.2, 1.2, B.v.z * 0.2, B.m > 1 ? 18 : 8, 0.5, 0.5);
