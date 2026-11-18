@@ -33,7 +33,7 @@ import { LOOSE, spawnProp, dropBody, drop } from './physics.js';
 import { tkRelease } from './powers.js';
 import { invOpen } from './inventar.js';
 import { GEGNER } from './gegner.js';
-import { KT, GOODS, POSTS, BIZ, COS, PROJECTS, ktOpen, ktRep, ktCash, ktTake, ktOwns, ktEmit, ktChanged, ktPostHere, postPos, fmM, esc, fmN, titleCase, WARE_PRICE, clamp, ktPrice, netWorth } from './kontor.js';
+import { KT, GOODS, POSTS, BIZ, COS, PROJECTS, ktOpen, ktRep, ktCash, ktTake, ktOwns, ktEmit, ktChanged, postPos, fmM, esc, fmN, titleCase, WARE_PRICE, clamp, ktPrice, netWorth } from './kontor.js';
 
 // V63: prog/check = weitere Zielarten (Nebenfiguren), onDone/onDrop = Rückmeldung nach Abschluss oder Abbruch
 const AQ = { givers: [], marks: [], scanT: 3, randT: 0, rt: {}, el: null, tickT: 0, prog: {}, check: {}, onDone: [], onDrop: [] };

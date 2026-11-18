@@ -27,7 +27,7 @@ import { toast } from './boat.js';
 
 const VOICE_KEY = 'vespera-stimmen';
 export const VOICE = { ok: typeof window !== 'undefined' && 'speechSynthesis' in window && typeof window.SpeechSynthesisUtterance !== 'undefined',
-  on: true, all: [], male: [], female: [], hint: null, said: 0, last: '', lastT: 0, cur: null, speaking: false, endT: 0 };
+  on: true, all: [], male: [], female: [], said: 0, last: '', lastT: 0, cur: null, speaking: false, endT: 0 };
 try { VOICE.on = localStorage.getItem(VOICE_KEY) !== 'aus'; } catch (e) { /* privat */ }
 
 /* ---------- Stimmen des Systems ---------- */
@@ -106,15 +106,11 @@ export function spokenText(s) { let t = s; for (const [a, b] of SPOKEN) t = t.re
 
 /* ---------- Sprechen ---------- */
 export function voiceReady() { return VOICE.ok && VOICE.on && SND.on !== false && (!paused || VOICE.force); }
-// hint: { seed, fem, kid, mood, vol } für den nächsten Satz dieser Person (aus stimmen.js)
-export function voiceHint(who, h) { VOICE.hint = { who, t: performance.now(), ...h }; }
 export function speak(who, text, hint) {
   if (!voiceReady() || !text) return false;
   const now = performance.now();
   if (text === VOICE.last && now - VOICE.lastT < 1500) return false;   // dieselbe Blase zweimal gemeldet
   VOICE.last = text; VOICE.lastT = now;
-  if (!hint && VOICE.hint && VOICE.hint.who === who && now - VOICE.hint.t < 400) hint = VOICE.hint;
-  VOICE.hint = null;
   const P = profile(who, text, hint), V = voiceFor(P), u = new window.SpeechSynthesisUtterance(spokenText(text));
   u.lang = V.v ? V.v.lang : 'de-DE'; if (V.v) u.voice = V.v;
   u.pitch = Math.max(0.1, Math.min(2, P.pitch * V.shift)); u.rate = Math.max(0.6, Math.min(1.5, P.rate));

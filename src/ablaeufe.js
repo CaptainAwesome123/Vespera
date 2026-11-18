@@ -36,7 +36,7 @@ import { DRIVE } from './eating.js';
 import { shared } from './core.js';
 
 export const ABLAEUFE = typeof location === 'undefined' || new URLSearchParams(location.search).get('ablaeufe') !== 'aus';
-export const AB = { ready: false, tickT: 0, shelter: [], shop: [], stop: [], help: [], n: { shelter: 0, shop: 0, enter: 0, stop: 0, board: 0, help: 0 }, shopT: 3, stopT: 5 };
+export const AB = { ready: false, tickT: 0.21, shelter: [], shop: [], stop: [], help: [], n: { shelter: 0, shop: 0, enter: 0, stop: 0, board: 0, help: 0 }, shopT: 3, stopT: 5 };
 const pick = a => a[Math.floor(Math.random() * a.length)];
 const near2 = (pd, x, z) => { const e = pd.a.m.elements; return (e[12] - x) ** 2 + (e[14] - z) ** 2; };
 const loopPd = pd => pd.st === 9 && pd.aw && pd.aw.st0 === 0 && pd.lp && !pd.cit;   // nur Passanten auf ihrer Runde verschwinden in Türen

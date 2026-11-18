@@ -1,4 +1,4 @@
-import { shared, mulberry32, canvasTex, T, R, scene, U, MOBILE, LOW, bakeGroup, camera } from './core.js';
+import { shared, mulberry32, canvasTex, T, R, scene, U, LOW, bakeGroup, camera } from './core.js';
 import { stdMat, MAT } from './people-skeleton.js';
 import { texSet } from './serpentine.js';
 import { makeGlowPoints } from './ragdoll.js';

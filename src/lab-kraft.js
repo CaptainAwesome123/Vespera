@@ -9,7 +9,7 @@
    ===================================================================== */
 import { T, scene, camera, renderer, U, $, mergeGeos } from './core.js';
 import { buildEnv, getMats, stdMat, MAT } from './people-skeleton.js';
-import { Crowd, COATS, DRESSES, GOWNS, turnHead, setAct } from './serpentine.js';
+import { Crowd, COATS, DRESSES, GOWNS, turnHead } from './serpentine.js';
 import { buildPlayerModel, PM } from './player-model.js';
 import { PL_U } from './people-skeleton.js';
 import { FURN, placeFurn, movOn, movOff, MOV } from './entrances.js';

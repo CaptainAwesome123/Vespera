@@ -1,5 +1,5 @@
 import { rand, R, $, TREE } from './core.js';
-import { inBelmont, BEL, BI } from './belmont.js';
+import { inBelmont, BI } from './belmont.js';
 import { PH } from './penthouse.js';
 import { citizenNear, citizenSay } from './ragdoll.js';
 import { player } from './player.js';

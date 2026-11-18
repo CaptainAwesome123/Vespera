@@ -128,12 +128,6 @@ export function lightBand(x0, z0, x1, z1, y, nx, nz, w, c, a = 0.3) {
   push(RL.li, [[x0, y, z0], [x1, y, z1], [x1 + nx * w, y, z1 + nz * w], [x0 + nx * w, y, z0 + nz * w]], [[C.u0, C.v0], [C.u1, C.v0], [C.u1, C.v1], [C.u0, C.v1]], a, null);
   RL.li[RL.li.length - 1].c = c;
 }
-// Gerader Lichtstreifen an einer Wand oder Decke (Vouten): wie wallWash, aber ohne Fächer (Verlauf von der Kante weg)
-export function lightEdge(x0, z0, x1, z1, y0, h, nx, nz, c, a = 0.3) {
-  const C = cellUV(1), o = 0.022, X0 = x0 + nx * o, Z0 = z0 + nz * o, X1 = x1 + nx * o, Z1 = z1 + nz * o;
-  push(RL.li, [[X0, y0, Z0], [X1, y0, Z1], [X1, y0 + h, Z1], [X0, y0 + h, Z0]], [[C.u0, C.v0], [C.u1, C.v0], [C.u1, C.v1], [C.u0, C.v1]], a, null);
-  RL.li[RL.li.length - 1].c = c;
-}
 
 // ---------- Kontaktschatten der Möbel (placeFurn in entrances.js ruft das, solange gesammelt wird) ----------
 const FS = {   // Feld, Stärke, Rand (m), nur am Boden

@@ -43,7 +43,7 @@
    und in der Konsole über window.vespera.zeitung (open, close, meldung,
    kasten, drucken, extrablatt, Z).
    ===================================================================== */
-import { $, renderer, shared } from './core.js';
+import { $, renderer } from './core.js';
 import { player } from './player.js';
 import { playing, paused, isTouch, tryLock } from './input.js';
 import { toast, districtAt } from './boat.js';

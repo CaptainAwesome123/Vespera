@@ -35,7 +35,7 @@ import { LIFE, lifeMesh, lifeSay, freeSpot, placeParts } from './life.js';
 import { INTERACT } from './music.js';
 import { openChoice } from './venues.js';
 import { KT, ktCash, EVENTS } from './kontor.js';
-import { RUF, rufGet, rufAdd } from './ruf.js';
+import { rufGet, rufAdd } from './ruf.js';
 import { attOf } from './awe.js';
 import { WORK } from './workers.js';
 import { KARTE } from './karte.js';

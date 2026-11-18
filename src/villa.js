@@ -4,7 +4,7 @@ import { stdMat, MAT } from './people-skeleton.js';
 import { NEON } from './facade-shader.js';
 import { VILLA } from './harbour.js';
 import { movOn, movOff, FURN, placeFurn, lathe, FAN_TEX } from './entrances.js';
-import { worldUV, wallpaperTex, texSet, roundBoxGeo } from './serpentine.js';
+import { worldUV, wallpaperTex, texSet } from './serpentine.js';
 import { addLight } from './performance.js';
 import { shadeBegin, shadeEnd, shadeEdge, shadeWall, addSheen } from './raumlicht.js';
 import { INTERACT } from './music.js';

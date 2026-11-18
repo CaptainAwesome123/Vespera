@@ -7,7 +7,7 @@ import { initDriveState } from './driving.js';
 import { R } from './core.js';
 import { buildEnv, getMats } from './people-skeleton.js';
 import { segs } from './facade-shader.js';
-import { buildCity, buildNetwork, NET, buildOuter, buildShoreV16, buildBridges } from './island.js';
+import { buildCity, buildNetwork, buildOuter, buildShoreV16, buildBridges } from './island.js';
 import { finishShops, buildIndustry } from './shops.js';
 import { buildTerraces, buildSigns } from './entrances.js';
 import { buildBelmont, buildBelmontInterior, buildBelmontDoor, BEL } from './belmont.js';

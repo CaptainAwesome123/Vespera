@@ -297,6 +297,19 @@ Außenhaut, Garten, Terrassen und das Fest.
   pro Sekunde (vorher 42). Bei knapper Bildrate entsteht das Spiegelbild nur jedes zweite Bild (`REFL.half`).
 - *Aufgeräumt:* Feuerwerk, Lichtsäulen aus den Kronen und Suchscheinwerfer des Belmont (seit V33/V42 aus) entfernt.
 
+**V114: Leistungsrunde und Aufräumen** (PC und Handy, gleiches Bild).
+- *Fassaden-Shader* (`facade-shader.js`): die Schatten der Bewohner auf Jalousien (V96) werden nur noch gerechnet, wo eine
+  Jalousie unten ist, Lampenschein und Umrisse der mittleren Entfernung nur, wo sie einblenden; Salzrand und Abrieb (V100)
+  nur am Sockel statt mit drei Rauschwerten für jeden Fassadenpunkt. Gleiches Ergebnis, weniger Arbeit je Bildpunkt.
+- *Villa aus der Ferne* (`serpentine.js`, `performance.js`): Garten- und Terrassennetze haben wieder eine Sichtprüfung
+  (vorher immer gezeichnet, auch mit dem Rücken zum Berg); Rosen, Orangenbäumchen, Polster, Teppiche und Eisen nur unter
+  650 m (Handy 450 m), wie die Statuen.
+- *Bewohner-Takt*: Reaktionen, Gespräche, Abläufe, Ereignisse, Gruppen und Plaudern rechneten alle im selben Bild (alle
+  0,5 s); jetzt versetzt, damit kein Bild alles auf einmal trägt.
+- *Lichtschatten* (`lichtschatten.js`): Zahl statt Zeichenkette als Rasterschlüssel (keine neuen Texte je Bild).
+- *Aufgeräumt*: acht nie benutzte Funktionen entfernt, rund 70 ungenutzte Importe gestrichen (Ladereihenfolge der Module
+  unverändert, `tools/check-modules.js` ohne Befund).
+
 **V78: Der Krater außerhalb der Stadt** (`src/krater.js`, Labor `?lab=krater`, Prüfung `tools/krater-test.js`). Am westlichen
 Kraterrand, hinter der Felswand über dem See:
 - *Das alte Expeditionslager* (Lager Nordstern, 1919): Zelte, Schlitten, Vorratsschuppen mit Kartentisch, Fahnenmast,

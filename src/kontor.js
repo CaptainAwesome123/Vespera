@@ -25,7 +25,7 @@
    Alles wird im Browser gespeichert (localStorage 'vespera.kontor').
    Keine 3D-Teile, keine Shader: nur HTML über dem Bild.
    ===================================================================== */
-import { $, shared } from './core.js';
+import { $ } from './core.js';
 import { player } from './player.js';
 import { playing, paused, isTouch, tryLock } from './input.js';
 import { toast } from './boat.js';
@@ -34,7 +34,7 @@ import { INTERACT } from './music.js';
 import { SHOPS, SHOP_KINDS, DEPOTS } from './shops.js';
 import { ORTE } from './orte.js';
 import { WORK } from './workers.js';
-import { AP } from './harbour.js';
+import './harbour.js';
 import { QUAY } from './island.js';
 import { lifeSay } from './life.js';
 
@@ -209,7 +209,6 @@ function ktLoad() {
 }
 export function ktSave() { try { localStorage.setItem(KT_SAVE, JSON.stringify(KT.s)); } catch (e) { /* privat oder voll */ } KT.dirty = false; }
 export function ktReset() { KT.s = ktFresh(); for (const f of KT.hooks) try { f('reset'); } catch (e) { console.warn(e); } ktSave(); ktRender(); ktHud(true); }
-export function ktDirty() { KT.dirty = true; }
 // Meldungen für andere Teile (Zeitung: 'vespera-news', sonst 'vespera-tat')
 export function ktEmit(art, titel, text) {
   try {

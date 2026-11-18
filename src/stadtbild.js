@@ -1,5 +1,5 @@
 import { T, mulberry32, canvasTex, scene, MOON_DIR } from './core.js';
-import { addSeg, addNeon, addGlow, spires, NEON } from './facade-shader.js';
+import { addSeg, addNeon, addGlow, spires } from './facade-shader.js';
 import { addCollider } from './people-skeleton.js';
 import { caps } from './entrances.js';
 

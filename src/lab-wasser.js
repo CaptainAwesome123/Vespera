@@ -7,7 +7,7 @@
    ===================================================================== */
 import { T, scene, camera, renderer, U, $, hemi, mergeGeos } from './core.js';
 import { buildEnv, getMats, stdMat } from './people-skeleton.js';
-import { AV, ST, PLAZA, KEEP, onIsland, blocks, buildNetwork, buildSidewalks, planCanal, CANAL, COAST, ISL, rectPath } from './island.js';
+import { AV, ST, PLAZA, KEEP, onIsland, blocks, buildNetwork, buildSidewalks, planCanal, CANAL, COAST, rectPath } from './island.js';
 import { planAccess, buildPort, PORT_PEDS, VESSELS } from './harbour.js';
 import { buildHarborWaterMat, waterGridGeo, updateWaves, bobVessel } from './water.js';
 import { WATER_Y } from './dance.js';

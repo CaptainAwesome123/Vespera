@@ -38,7 +38,7 @@ import { player } from './player.js';
 import { playing, paused, isTouch, tryLock } from './input.js';
 import { toast, districtAt } from './boat.js';
 import { DINE } from './venues.js';
-import { KT, ktRep, ktCash, ktChanged, ktRepDisc, EVENTS, POSTS, fmM, esc, clamp } from './kontor.js';
+import { KT, ktRep, ktCash, ktChanged, ktRepDisc, EVENTS, POSTS, esc, clamp } from './kontor.js';
 import { GEGNER } from './gegner.js';
 import { BOSS } from './anfuehrer.js';
 import { POWERS } from './powers.js';

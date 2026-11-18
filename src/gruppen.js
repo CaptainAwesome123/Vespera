@@ -21,7 +21,7 @@
    nur für Gruppen in Alexanders Nähe. Keine Shader. ?gruppen=aus = V110.
    ===================================================================== */
 import { T, MOBILE, camera } from './core.js';
-import { peds, turnHead, setAct } from './serpentine.js';
+import { peds, turnHead } from './serpentine.js';
 import { player } from './player.js';
 import { attOf } from './awe.js';
 import { RAG } from './ragdoll.js';
@@ -30,7 +30,7 @@ import { walk, stand, pos, begin, freePd } from './reaktionen.js';
 import { playing, paused } from './input.js';
 
 export const GRUPPEN = typeof location === 'undefined' || new URLSearchParams(location.search).get('gruppen') !== 'aus';
-export const GR = { ready: false, built: false, groups: [], talks: [], clock: 0, tickT: 0, n: { paar: 0, freunde: 0, familie: 0, talk: 0, stop: 0, catchup: 0, kid: 0, ruf: 0 } };
+export const GR = { ready: false, built: false, groups: [], talks: [], clock: 0, tickT: 0.37, n: { paar: 0, freunde: 0, familie: 0, talk: 0, stop: 0, catchup: 0, kid: 0, ruf: 0 } };
 const pick = a => a[Math.floor(Math.random() * a.length)];
 const cad = pd => { const g = pd.a.gait; g[1] = Math.abs(pd.v) * (pd.fem ? 5.4 : 4.6) / pd.sc; pd.a.gv = (pd.a.gv | 0) + 1; };
 const isKid = pd => (pd.kind || pd.a.kind) === 'kid';

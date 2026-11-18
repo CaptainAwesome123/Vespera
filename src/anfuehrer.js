@@ -23,7 +23,7 @@
    Keine neuen Shader, keine neuen Lichter: Figuren aus dem Gegner-Bestand,
    Dynamit und Geldsack als lose Körper mit dem Material der losen Dinge.
    ===================================================================== */
-import { T, MOBILE, $ } from './core.js';
+import { T, MOBILE } from './core.js';
 import { player } from './player.js';
 import { pedCrowd } from './serpentine.js';
 import { GEGNER, GEG, EV_EXTRA, EV_TYPES, gegnerSay, gegBlastAround, gegFireball } from './gegner.js';
@@ -83,7 +83,6 @@ function kinds() {
   K.geldsack = { name: 'Geldsack', kind: 'ball', he: [0.2, 0.22, 0.2], m: 9, stuff: 'leather', small: false };
 }
 export function dynamitGeo() { kinds(); return GEOS.dynamit(); }
-export function geldsackGeo() { kinds(); return GEOS.geldsack(); }
 
 // Dynamit von (x, y, z) zum Ziel (tx, ty, tz) werfen; Zündschnur fuse Sekunden
 export function throwDynamit(x, y, z, tx, ty, tz, fuse = 3.2) {

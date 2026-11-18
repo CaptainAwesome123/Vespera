@@ -6,7 +6,7 @@
    ===================================================================== */
 import { T, scene, camera, renderer, U, $, hemi, moonLight } from './core.js';
 import { buildEnv, getMats } from './people-skeleton.js';
-import { Crowd, COATS, WORKWEAR, turnHead } from './serpentine.js';
+import { Crowd, COATS, WORKWEAR } from './serpentine.js';
 import { loadManifest } from './assets.js';
 import { DEFS, buildRoom, buildEntry } from './verstecke.js';
 import { dynamitGeo } from './anfuehrer.js';

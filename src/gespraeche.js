@@ -24,7 +24,7 @@
 import { T, camera, MOBILE } from './core.js';
 import { peds, CHATS, setAct, turnHead } from './serpentine.js';
 import { player } from './player.js';
-import { attOf, AWE } from './awe.js';
+import { attOf } from './awe.js';
 import { rufGet, rufTitle } from './ruf.js';
 import { KT, EVENTS } from './kontor.js';
 import { MEM } from './gedaechtnis.js';
@@ -36,7 +36,7 @@ import { DRIVE } from './eating.js';
 import { playing, paused } from './input.js';
 
 export const GESPRAECHE = typeof location === 'undefined' || new URLSearchParams(location.search).get('gespraeche') !== 'aus';
-export const GS = { ready: false, on: [], tickT: 0, clock: 0, recent: [], n: 0, lines: 0, hush: 0, log: [], extra: [] };   // V113: extra = weitere Themen (plaudern.js)
+export const GS = { ready: false, on: [], tickT: 0.13, clock: 0, recent: [], n: 0, lines: 0, hush: 0, log: [], extra: [] };   // V113: extra = weitere Themen (plaudern.js)
 const pick = a => a[Math.floor(Math.random() * a.length)];
 const MAX = MOBILE ? 1 : 2;
 

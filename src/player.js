@@ -8,7 +8,7 @@ import { inVillaCellar } from './villa.js';
 import { DINE, standUp } from './venues.js';
 import { travel } from './music.js';
 import { LOOSE } from './physics.js';
-import { peds, turnHead } from './serpentine.js';
+import { turnHead } from './serpentine.js';
 import { knockDown, pedsNear } from './ragdoll.js';
 import { toast } from './boat.js';
 import { landed, flightBump, heroLock, takeoffHold } from './powers.js';

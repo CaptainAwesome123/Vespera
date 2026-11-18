@@ -4,7 +4,7 @@
    V65: die Hochstraßen mit ihren Rampen sind abgerissen. Zum Prüfen im Software-Renderer (tools/lab-shot.js).
    Blöcke sind nur dunkle Klötze als Maßstab.
    ===================================================================== */
-import { T, scene, camera, renderer, U, $, hemi, moonLight, mergeGeos } from './core.js';
+import { T, scene, camera, renderer, U, $, hemi, mergeGeos } from './core.js';
 import { buildEnv, getMats, stdMat } from './people-skeleton.js';
 import { AV, ST, PLAZA, KEEP, onIsland, blocks, buildNetwork, NET } from './island.js';
 import { planAccess, VIA, deckY } from './harbour.js';
