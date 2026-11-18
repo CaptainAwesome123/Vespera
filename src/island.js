@@ -1,7 +1,7 @@
 import { shared, pick, R, rand, mulberry32, MOBILE, T, U, mergeGeos, scene } from './core.js';
 import { decoOuterDoor } from './deco.js';
 import { addCollider, stdMat } from './people-skeleton.js';
-import { STONES, addSeg, lamps, trees, addNeon, NEON, curbs } from './facade-shader.js';
+import { STONES, addSeg, lamps, trees, addNeon, NEON, curbs, chimneys } from './facade-shader.js';
 import { BRICK, isFactoryZone, snapArrays, buildBlock, buildFactory } from './shops.js';
 import { pickW, DOORS } from './entrances.js';
 import { WATER_Y } from './dance.js';
@@ -264,7 +264,7 @@ export function rotHouse(o) {
   // Staffelgeschoss oder Mansarde
   if (!worker && H > 14 && R() < 0.55) { seg(0, 0, w * 0.82, d * 0.8, H + 0.3, H + 3.6, tint.map(v => v * 0.95), 1, 0.35, 0); seg(0, 0, w * 0.82 + 0.5, d * 0.8 + 0.5, H + 3.4, H + 3.8, cT, 3, 0, 0); }
   // Schornsteine, Wassertank auf Arbeiterhäusern
-  for (let k = 0; k < (worker ? 3 : 2); k++) { const u = rand(-w / 2 + 1.5, w / 2 - 1.5), v = rand(-d / 2 + 1.5, d / 2 - 1.5); seg(u, v, 0.9, 0.9, H, H + 2.2 + R() * 1.5, worker ? [0.36, 0.22, 0.17] : tint, 3, 0, 0); }
+  for (let k = 0; k < (worker ? 3 : 2); k++) { const u = rand(-w / 2 + 1.5, w / 2 - 1.5), v = rand(-d / 2 + 1.5, d / 2 - 1.5), top = H + 2.2 + R() * 1.5; seg(u, v, 0.9, 0.9, H, top, worker ? [0.36, 0.22, 0.17] : tint, 3, 0, 0); if (k === 0 || worker) { const [cx, cz] = L(u, v); chimneys.push({ x: cx, y: top, z: cz }); } }   // V121: aus dem ersten (bei Arbeitern jedem) steigt Rauch
   // Kollision: entlang der Länge in Streifen (achsenparallel)
   const nStrip = Math.max(1, Math.ceil(w / 4));
   for (let k = 0; k < nStrip; k++) {

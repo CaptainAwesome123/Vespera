@@ -6,6 +6,7 @@ import { FURN, placeFurn, roundBox, lathe, tube, movOn, movOff } from './entranc
 import { poolWaterMat } from './water.js';
 import { player } from './player.js';
 import { addLight } from './performance.js';
+import { clothWave } from './wind.js';
 import { shadeBegin, shadeEnd, shadeRoom, shadeQuad, shadeEdge, shadeWall, shadeColumn, lightPool, wallWash, lightBand, roughTex, addSheen, lichtKegel } from './raumlicht.js';
 import { boxW, marbleTex } from './belmont.js';
 import { inlayFloorTex, travertineTex, decoRugTex, damaskTex, veneerTex, onyxTex, cofferTex2, booksTex, tileTex, mosaicTex, glowRoomTex, paintingTex, RUNNER_TEX } from './deco-tex.js';
@@ -167,6 +168,9 @@ export function buildPenthouse() {
     far.position.set(0, (F1 + TOP) / 2, 0); far.renderOrder = 1; scene.add(far); PH.far = far; }
 
   for (const k of ['velvet', 'champ', 'cream', 'bordeaux']) addSheen(M[k], 0.5);   // V70: Samtschein für Polster und Vorhänge
+  // V121: Vorhänge an den Glaswänden bewegen sich leicht im Luftzug (eigene Stoffe, damit Sofas stillhalten); unten mehr, an der Stange fest
+  M.drape = clothWave(addSheen(stdMat({ color: 0x0f4a4c, roughness: 0.9, envI: 0.12 }), 0.5), 0.05, F1, TOP - 0.3, true);
+  M.drapeB = clothWave(addSheen(stdMat({ color: 0x5a1220, roughness: 0.85, envI: 0.12 }), 0.5), 0.05, F2, TOP - 0.3, true);
   /* ================= Böden, Decken, Galerie, Kern ================= */
   const st = PH.stair, HX = 2.75, hz0 = st.z - 2.75, hz1 = st.z + 2.75;
   put('floor1', rectXZ(-W, W, -W, W, F1 + 0.02, [-20, -20, 40, 40]));
@@ -578,7 +582,7 @@ export function buildPenthouse() {
   };
   // Schwerer Samtvorhang: fünf Bahnen vom Boden bis unter die Decke, goldene Raffhalter
   const curtain = (x, y, z, h, along = 'x', mat = 'velvet') => {
-    for (let k = 0; k < 5; k++) { const o = (k - 2) * 0.19, d = (k % 2) * 0.07; put(mat, CYL(0.11, 0.12, h, along === 'x' ? x + o : x + d, y + h / 2, along === 'x' ? z + d : z + o, 8)); }
+    for (let k = 0; k < 5; k++) { const o = (k - 2) * 0.19, d = (k % 2) * 0.07; put(mat === 'velvet' ? 'drape' : mat === 'bordeaux' ? 'drapeB' : mat, CYL(0.11, 0.12, h, along === 'x' ? x + o : x + d, y + h / 2, along === 'x' ? z + d : z + o, 8)); }
     put('gold', new T.TorusGeometry(0.5, 0.03, 6, 20).rotateX(Math.PI / 2).scale(1, 1, 0.45).rotateY(along === 'x' ? 0 : Math.PI / 2).translate(x, y + 1.1, z));
     put('gold', BOX(along === 'x' ? 1.1 : 0.2, 0.1, along === 'x' ? 0.2 : 1.1, x, y + h + 0.03, z));
     col(x - 0.5, y, z - 0.5, x + 0.5, y + h, z + 0.5);

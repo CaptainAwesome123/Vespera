@@ -728,6 +728,7 @@ export const glowPts = []; // Lichtpunkte {p,c,s,ph,bl}
 export const lamps = [];   // Laternen {x,z,h}
 export const trees = [];
 export const steamPts = []; // Dampfquellen in den Gassen {x,z}
+export const chimneys = [];   // V121: rauchende Schornsteine {x, y, z} (Oberkante)
 export const roofs = [];    // Dachflächen {x,z,w,d,H,worker,dist}
 export const curbs = [];    // Bordsteinkanten für parkende Autos {ax,az,bx,bz}
 

@@ -1,12 +1,13 @@
 import { registerLayer, chunkKey } from './chunks.js';
 import { decoPilaster } from './deco.js';
 import { shared, MOBILE, canvasTex, freeAfterUpload, T, mulberry32, scene, pick, camera, R, rand, mergeGeos, U } from './core.js';
-import { addCollider, paintMat, mergeColored } from './people-skeleton.js';
+import { addCollider, paintMat, mergeColored, stdMat } from './people-skeleton.js';
 import { KRONEN } from './stadtbild.js';
 import { FL, addSeg, addGlow, addNeon, NEON, curbs, lamps, trees, steamPts, segs, towers, shafts, neons, spires, glowPts, roofs } from './facade-shader.js';
 import { BR_SPOTS } from './island.js';
 import { bandC, pickW, DOORS, lathe, placeFurn, FURN, decoBuilding, caps, domes, signDefs } from './entrances.js';
 import { kit, Bx, wuv, benchGeo } from './harbour.js';
+import { clothWave } from './wind.js';
 import { DECO } from './building-forms.js';
 import { DRESSES, SHIRTS, setAct, _e } from './serpentine.js';
 import { _p, _q, _s, _m, _up } from './traffic.js';
@@ -83,7 +84,7 @@ export const SHOP_KITS = {};
 export let SK = null;
 export function shopKit(x = 0, z = 0) {
   const cx = Math.floor(x / SHOP_CELL), cz = Math.floor(z / SHOP_CELL), key = chunkKey(cx, cz);
-  return (SHOP_KITS[key] ||= { K: kit(), cx, cz, x: (cx + 0.5) * SHOP_CELL, z: (cz + 0.5) * SHOP_CELL, g: null }).K;
+  return (SHOP_KITS[key] ||= { K: kit(awningMats()), cx, cz, x: (cx + 0.5) * SHOP_CELL, z: (cz + 0.5) * SHOP_CELL, g: null }).K;
 }
 export const shopRR = mulberry32(19260);
 export function shopFloor(cx, cz, w, d, edges, tint, seed, rr) {
@@ -184,9 +185,9 @@ export function shopFloor(cx, cz, w, d, edges, tint, seed, rr) {
       const awg = new T.BoxGeometry(ax ? 1.28 : bayW + 0.2, 0.04, ax ? bayW + 0.2 : 1.28);
       if (ax) awg.rotateZ(o[0] * -0.32); else awg.rotateX(o[1] * 0.32);
       awg.translate(aw.x, HEAD - 0.2, aw.z);
-      K.add('cloth', wuv(awg, 1), accent.map(v => v * 1.6));
+      K.add('awning', wuv(awg, 1), accent.map(v => v * 1.6));
       const vf = W((u0 + u1) / 2, -1.29);
-      K.add('cloth', Bx(ax ? 0.03 : bayW + 0.2, 0.22, ax ? bayW + 0.2 : 0.03, vf.x, HEAD - 0.52, vf.z, 1), accent.map(v => v * 1.3));
+      K.add('awning', Bx(ax ? 0.03 : bayW + 0.2, 0.22, ax ? bayW + 0.2 : 0.03, vf.x, HEAD - 0.52, vf.z, 1), accent.map(v => v * 1.3));
       // Schaufensterbummler: stehen vor der Scheibe und schauen auf die Auslage
       if (rr() < (MOBILE ? 0.15 : 0.32)) {
         const n = rr() < 0.4 ? 2 : 1;
@@ -501,6 +502,9 @@ export function shopFillInit(K, rr) {
   SHOP_FILL.mode = { step: 0.5, fn: (x, y, z) => { K.add('cloth', Bx(0.26, 0.05, 0.3, x, y + 0.025, z, 1), pc(DRESSES)); K.add('cloth', Bx(0.22, 0.04, 0.26, x, y + 0.07, z, 1), pc(DRESSES)); } };
   SHOP_FILL.schneider = { step: 0.5, fn: (x, y, z, ax) => K.add('cloth', new T.CylinderGeometry(0.07, 0.07, 0.4, 10).rotateZ(ax ? 0 : Math.PI / 2).rotateX(ax ? Math.PI / 2 : 0).translate(x, y + 0.07, z), pc([[0.3, 0.3, 0.35], [0.5, 0.45, 0.4], [0.12, 0.14, 0.2], [0.4, 0.3, 0.2], [0.6, 0.6, 0.6]])) };
 }
+// V121: Markisen wehen: eigener Stoff mit Windbewegung, die vordere Kante und der Volant flattern, die Stange an der Wand bleibt fest
+let AWN = null;
+function awningMats() { return AWN ||= { awning: clothWave(stdMat({ vertexColors: true, roughness: 0.92, envI: 0.2, side: T.DoubleSide }), 0.07, 3.3, 3.88) }; }
 // Nach dem Stadtbau: alle Läden zu wenigen Meshes verschmelzen, Interaktion an den Theken
 export function finishShops() {
   // Die Läden einer Zelle werden erst zu Meshes verschmolzen, wenn der Spieler in die Nähe kommt (Welt-Chunks),
