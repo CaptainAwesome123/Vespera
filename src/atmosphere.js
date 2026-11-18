@@ -274,6 +274,8 @@ export function updateAtmosphere(dt) {
   // Polarlicht färbt das Himmelslicht leicht grün, Schnee hellt das Licht vom Boden auf
   hemi.color.copy(HEMI_SKY).add(_c.setRGB(0.012, 0.085, 0.045).multiplyScalar(c.aurora * (1 - c.cloud)));   // V54: etwas kräftiger
   hemi.groundColor.copy(HEMI_GROUND).lerp(_c.setRGB(0.3, 0.42, 0.5), sc.value * 0.5);
+  // V118: innen warmes Grundlicht statt Mondblau (Kerzen, Kronleuchter, vom Marmor und Holz zurückgeworfen)
+  if (U.uInside.value > 0.01) { hemi.color.lerp(_c.setRGB(0.36, 0.25, 0.14), U.uInside.value * 0.7); hemi.groundColor.lerp(_c.setRGB(0.3, 0.19, 0.1), U.uInside.value * 0.7); }
   updateShadow();
   // Nebelschichten, die man von der eigenen Höhe aus ohnehin nicht sieht, gar nicht erst zeichnen (spart auf dem Handy viel Füllrate)
   if (PRECIP.fogBanks) for (const m of PRECIP.fogBanks.children) m.visible = Math.abs(cp.y - m.position.y) > 2 && A.inside < 0.9;

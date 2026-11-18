@@ -18,7 +18,9 @@
    ===================================================================== */
 import { T, mulberry32 } from './core.js';
 
-export const RL = { on: false, sh: [], li: [], stats: { quads: 0, meshes: 0 } };
+export const RL = { on: false, sh: [], li: [], ke: [], stats: { quads: 0, meshes: 0, kegel: 0 } };
+// V118: Lichtkegel unter Kronleuchtern (?lichtkegel=aus)
+const KEGEL = new URLSearchParams(location.search).get('lichtkegel') !== 'aus';
 
 // ---------- Bildatlas 256 x 256 in vier Feldern ----------
 // 0 oben links: weiches Rechteck (Möbel), 1 oben rechts: Verlauf (Kanten, unten 1 -> oben 0),
@@ -61,7 +63,13 @@ function cellUV(cell) {
 }
 
 // ---------- Sammeln ----------
-export function shadeBegin() { RL.on = true; RL.sh = []; RL.li = []; }
+export function shadeBegin() { RL.on = true; RL.sh = []; RL.li = []; RL.ke = []; }
+// V118: weicher Lichtkegel von einem Kronleuchter (Spitze yTop, Radius rTop) bis zum Boden (yBot, Radius rBot), Farbe c, Stärke a.
+// Gesammelt wie die Flecken; P[0] = Fußpunkt, damit o.pick (Villa: Geschoss) und o.matrix gleich funktionieren.
+export function lichtKegel(x, yTop, yBot, z, rTop, rBot, c = [1, 0.72, 0.4], a = 0.1) {
+  if (!RL.on || !KEGEL || yTop - yBot < 1) return;
+  RL.ke.push({ P: [[x, yBot, z]], x, z, yTop, yBot, rTop, rBot, c, a });
+}
 // Eine Fläche: vier Ecken (je [x,y,z]), vier UV, Stärke a; mov = Stück (Kontaktschatten beweglicher Möbel)
 function push(list, P, UV, a, mov) { list.push({ P, UV, a, mov }); }
 // liegende Fläche um (cx, y, cz), Breite w (x), Tiefe d (z), gedreht um ry
@@ -178,17 +186,57 @@ function build(list, mat, light) {
 // o.matrix: Lage der gesammelten Koordinaten in der Welt (Villa: gedreht und verschoben)
 export function shadeEnd(parent, o = {}) {
   RL.on = false;
-  const sh = RL.sh, li = RL.li; RL.sh = []; RL.li = [];
+  const sh = RL.sh, li = RL.li, ke = RL.ke; RL.sh = []; RL.li = []; RL.ke = [];
   if (!parent && !o.pick) return;
   mats();
   const groups = new Map(), at = q => o.pick ? o.pick(q.P[0][1]) : parent;
-  for (const [list, light] of [[sh, false], [li, true]]) for (const q of list) { const g = at(q); if (!g) continue; const k = groups.get(g) || groups.set(g, [[], []]).get(g); k[light ? 1 : 0].push(q); }
+  for (const [list, light] of [[sh, 0], [li, 1], [ke, 2]]) for (const q of list) { const g = at(q); if (!g) continue; const k = groups.get(g) || groups.set(g, [[], [], []]).get(g); k[light].push(q); }
+  for (const [g, [, , kk]] of groups) if (kk.length) {
+    const m = buildKegel(kk);
+    if (o.matrix) { m.geometry.applyMatrix4(o.matrix); m.geometry.computeBoundingSphere(); }
+    g.add(m);
+  }
   for (const [g, [a, b]] of groups) for (const [list, light] of [[a, false], [b, true]]) {
     if (!list.length) continue;
     const m = build(list, light ? ML : MS, light);
     if (o.matrix) { m.geometry.applyMatrix4(o.matrix); m.geometry.computeBoundingSphere(); }
     g.add(m);
   }
+}
+
+// V118: Lichtkegel aller Kronleuchter einer Raumgruppe in einem Netz. Offene Kegelmäntel, beidseitig, addiert:
+// Helligkeit wie die Dicke des Lichts (mittig durchschaut voll, am Rand dünn), oben kräftig, zum Boden weich aus,
+// vor der Kamera ausgeblendet (man steht oft mitten im Kegel). Kein Licht, keine Schleife im Shader.
+let MK = null;
+function buildKegel(list) {
+  if (!MK) MK = new T.ShaderMaterial({
+    transparent: true, depthWrite: false, side: T.DoubleSide, blending: T.AdditiveBlending,
+    vertexShader: `attribute float aK; attribute vec3 aC; varying float vK; varying vec3 vC, vN, vV;
+      void main(){ vK = aK; vC = aC; vec4 mv = modelViewMatrix * vec4(position, 1.0); vV = -mv.xyz; vN = normalMatrix * normal; gl_Position = projectionMatrix * mv; }`,
+    fragmentShader: `varying float vK; varying vec3 vC, vN, vV;
+      void main(){
+        float d = max(length(vV), 1e-3), v = abs(dot(vN * inversesqrt(max(dot(vN, vN), 1e-6)), vV / d)), k = clamp(vK, 0.0, 1.0);
+        float a = v * v * (1.0 - k) * (1.0 - k) * smoothstep(0.0, 0.12, k) * smoothstep(0.6, 3.0, d);
+        gl_FragColor = vec4(vC * a, 1.0); }`,
+  });
+  const geos = [];
+  for (const q of list) {
+    const h = q.yTop - q.yBot, g = new T.CylinderGeometry(q.rTop, q.rBot, h, 18, 1, true).translate(q.x, (q.yTop + q.yBot) / 2, q.z);
+    const n = g.attributes.position.count, k = new Float32Array(n), c = new Float32Array(n * 3), P = g.attributes.position.array;
+    for (let i = 0; i < n; i++) { k[i] = (q.yTop - P[i * 3 + 1]) / h; c.set([q.c[0] * q.a, q.c[1] * q.a, q.c[2] * q.a], i * 3); }
+    g.setAttribute('aK', new T.BufferAttribute(k, 1)); g.setAttribute('aC', new T.BufferAttribute(c, 3)); g.deleteAttribute('uv');
+    geos.push(g);
+  }
+  // zusammenfügen (mergeGeos aus core.js kennt nur Lage, Normale und UV)
+  const geo = new T.BufferGeometry(), nm = ['position', 'normal', 'aK', 'aC'], arr = {}, idx = [];
+  for (const a of nm) arr[a] = [];
+  let o = 0;
+  for (const g of geos) { for (const a of nm) arr[a].push(...g.attributes[a].array); for (const i of g.index.array) idx.push(i + o); o += g.attributes.position.count; }
+  for (const a of nm) geo.setAttribute(a, new T.Float32BufferAttribute(arr[a], a === 'aK' ? 1 : 3));
+  geo.setIndex(idx); geo.computeBoundingSphere();
+  const m = new T.Mesh(geo, MK); m.renderOrder = 3; m.name = 'lichtkegel'; m.userData.noRefl = true;
+  RL.stats.kegel += list.length; RL.kegelMeshes = (RL.kegelMeshes || []).concat(m);
+  return m;
 }
 
 // ---------- Bodenglanz zähmen ----------
