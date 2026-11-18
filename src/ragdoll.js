@@ -15,7 +15,7 @@ import { nearBoxes } from './people-skeleton.js';
    jedes Körperteil ist ein eigenes Netz aus dem feinen Modell und folgt
    seinen zwei Punkten. Danach steht die Figur auf, schimpft und geht weiter.
    ===================================================================== */
-export const RAG = { pool: [], max: MOBILE ? 3 : 6, sub: {}, live: [] };
+export const RAG = { pool: [], max: MOBILE ? 3 : 6, sub: {}, live: [], onDown: [] };   // V109: onDown = jemand wurde umgerannt (ablaeufe.js: Hilfe)
 // Gelenke im Modell (Mann / Frau), passend zur Geometrie aus personBuild
 export function ragJoints(fem) {
   const R = HRIG[fem ? 'f' : 'm'];
@@ -172,6 +172,7 @@ export function knockDown(pd, vx, vz, fromX, fromZ) {
   const g = groundAt(e[12], e[14], e[13] + 0.3); pd.ragGy = g ? g.y : e[13];
   if (!ragStart(pd, B)) return false;
   pd.rag.gy = pd.ragGy; pd.rag.B = { x: fromX ?? e[12] - vx, z: fromZ ?? e[14] - vz };   // beim Aufstehen dorthin schauen, woher der Stoß kam
+  for (const f of RAG.onDown) try { f(pd); } catch (er) { console.warn('Ragdoll:', er); }
   return true;
 }
 // V35: Alexander hebt jemanden mit Telekinese hoch: die Figur wird zur Puppe, die er am Rumpf hält (aufrecht, Arme und Beine hängen

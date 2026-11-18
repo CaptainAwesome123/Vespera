@@ -45,12 +45,12 @@ const pick = a => a[Math.floor(Math.random() * a.length)];
 const TAU = Math.PI * 2;
 const wrapA = a => Math.atan2(Math.sin(a), Math.cos(a));
 // Gangart: Schrittlänge je Zyklus (people-skeleton.js) → Takt; Laufen ab Amplitude 0,74
-function gaitTo(pd, v) {
+export function gaitTo(pd, v) {
   const g = pd.a.gait, run = v > 2.4, L = run ? (pd.fem ? 2.0 : 2.3) : (pd.fem ? 1.164 : 1.366), c = v * TAU / L / (pd.sc || 1), amp = run ? 0.76 : (pd.fem ? 0.36 : 0.4);
   if (Math.abs(g[1] - c) > 0.02 || g[2] !== amp) { g[1] = c; g[2] = amp; pd.a.gv = (pd.a.gv | 0) + 1; }
 }
 // gehen bis zum Ziel; true = angekommen
-function walk(pd, A, tx, tz, v, dt) {
+export function walk(pd, A, tx, tz, v, dt) {
   const dx = tx - A.cx, dz = tz - A.cz, d = Math.hypot(dx, dz);
   if (d < 0.12) return true;
   const s = Math.min(d, v * dt); A.cx += dx / d * s; A.cz += dz / d * s;
@@ -58,12 +58,12 @@ function walk(pd, A, tx, tz, v, dt) {
   gaitTo(pd, v); pedCrowd.set(pd.a, A.cx, A.y, A.cz, A.yaw, pd.sc);
   return false;
 }
-function stand(pd, A, act, fx, fz, dt) {
+export function stand(pd, A, act, fx, fz, dt) {
   A.yaw += wrapA(Math.atan2(fx - A.cx, fz - A.cz) - A.yaw) * Math.min(1, dt * 5);
   setAct(pd, act); pedCrowd.set(pd.a, A.cx, A.y, A.cz, A.yaw, pd.sc, A.tilt || 0);
 }
 // frei? (Kollisionskästen der Häuser, Kioske, Laternen …)
-function clear(x0, z0, x1, z1, y) {
+export function clear(x0, z0, x1, z1, y) {
   const d = Math.hypot(x1 - x0, z1 - z0), n = Math.max(1, Math.ceil(d / 1.1));
   for (let i = 1; i <= n; i++) {
     const x = x0 + (x1 - x0) * i / n, z = z0 + (z1 - z0) * i / n;
@@ -71,9 +71,9 @@ function clear(x0, z0, x1, z1, y) {
   }
   return true;
 }
-const pos = pd => { const e = pd.a.m.elements; return [e[12], e[13], e[14], Math.atan2(e[8], e[10])]; };
+export const pos = pd => { const e = pd.a.m.elements; return [e[12], e[13], e[14], Math.atan2(e[8], e[10])]; };
 // ein Ablauf über awe.js: fn(pd, A, dt) liefert false, wenn er vorbei ist
-function begin(pd, fn, o = {}) {
+export function begin(pd, fn, o = {}) {
   if (pd.aw) { if (pd.aw.fn) return null; aweEnd(pd); }
   const A = startAwe(pd, { act: 1.3, dur: 999, keep: false });
   const [x, y, z, yaw] = pos(pd);
@@ -81,8 +81,8 @@ function begin(pd, fn, o = {}) {
   return A;
 }
 // zurück an den Ausgangspunkt, dann geht die Figur ihren alten Weg weiter
-function goHome(pd, A, dt) { if (walk(pd, A, A.ox, A.oz, A.homeV || 1.3, dt)) { pedCrowd.set(pd.a, A.ox, A.y, A.oz, A.yaw, pd.sc); return false; } return true; }
-const free = pd => pd.a && pd.a.on && !pd.rag && !pd.back && !pd.gg && !(pd.cit && pd.cit.nf) && !(pd.aw && pd.aw.fn) && mobility(pd) === 'walk';
+export function goHome(pd, A, dt) { if (walk(pd, A, A.ox, A.oz, A.homeV || 1.3, dt)) { pedCrowd.set(pd.a, A.ox, A.y, A.oz, A.yaw, pd.sc); return false; } return true; }
+export const freePd = pd => pd.a && pd.a.on && !pd.rag && !pd.back && !pd.gg && !(pd.cit && pd.cit.nf) && !(pd.aw && pd.aw.fn) && mobility(pd) === 'walk';
 const outdoor = () => {
   const p = player.p; if (p.y > 6 || DRIVE.on || BOAT.on) return false;
   let n = ''; try { n = districtAt(p.x, p.z, p.y)[0]; } catch (e) { n = ''; }
@@ -107,7 +107,7 @@ function flee(key) {
   let n = 0;
   const list = [];
   for (const pd of peds) {
-    if (!free(pd)) continue;
+    if (!freePd(pd)) continue;
     const e = pd.a.m.elements, d2 = (e[12] - p.x) ** 2 + (e[14] - p.z) ** 2; if (d2 > R2 || d2 < 1 || Math.abs(e[13] - p.y) > 6) continue;
     list.push([d2, pd]);
   }
@@ -156,7 +156,7 @@ function gather(dt) {
   const max = MOBILE ? 5 : 9; if (busy >= max) return;
   let n = 0;
   for (const pd of peds) {
-    if (!free(pd)) continue;
+    if (!freePd(pd)) continue;
     const e = pd.a.m.elements, dx = e[12] - p.x, dz = e[14] - p.z, d2 = dx * dx + dz * dz; if (d2 > 32 * 32 || d2 < 9 || p.y - e[13] > 40) continue;
     const att = attOf(pd); if (att === 'furcht' || att === 'dienst' && Math.random() < 0.7 || Math.random() < 0.35) continue;
     const [x, y, z, yaw] = pos(pd), fx = Math.sin(yaw), fz = Math.cos(yaw);
@@ -229,7 +229,7 @@ function photoTry(dt) {
 function candidate(r0, r1, ok) {
   const p = player.p; let best = null, bd = 1e9;
   for (const pd of peds) {
-    if (!free(pd) || (ok && !ok(pd))) continue;
+    if (!freePd(pd) || (ok && !ok(pd))) continue;
     const e = pd.a.m.elements, d2 = (e[12] - p.x) ** 2 + (e[14] - p.z) ** 2; if (d2 < r0 * r0 || d2 > r1 * r1 || Math.abs(e[13] - p.y) > 2.5) continue;
     const sc = d2 * (0.6 + Math.random() * 0.8); if (sc < bd && clear(e[12], e[14], p.x, p.z, e[13])) { bd = sc; best = pd; }
   }

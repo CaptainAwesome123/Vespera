@@ -67,6 +67,7 @@ import './gedaechtnis.js'; // V105: Gedächtnis: die Leute merken sich, was Alex
 import './reaktionen.js'; // V106: Reaktionen auf Alexander: Flucht, Schaulustige, Fotografen, Bittsteller, Buhrufe (?reaktionen=aus)
 import './gespraeche.js'; // V107: Gespräche untereinander: Sprechblasen über Runden und Begegnungen (?gespraeche=aus)
 import './unterhaltung.js'; // V108: Gespräche mit Alexander: Antworten zur Wahl, Stimmung, Beziehung (?unterhaltung=aus)
+import './ablaeufe.js'; // V109: Klügere Abläufe: unterstellen, Läden/Kneipen, Haltestellen, Hilfe bei Unfällen (?ablaeufe=aus)
 import './imperium.js';  // V76: Alexanders Imperium (Kontor · Reiter Imperium): Sparten, Löhne, Preise, Arbeitszeit, Streiks, Konjunktur, Kredit
 import './krater.js';    // V78: Der Krater außerhalb der Stadt: altes Expeditionslager, zwei Gletscherhöhlen, zwölf Fundstücke
 
