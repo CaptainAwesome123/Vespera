@@ -9,7 +9,7 @@ import { DRIVE } from './eating.js';
    Draw Calls: je ein InstancedMesh für Kegel und Bodenlicht, die Lage der Wagen (x, y, z, Kurs) kommt je Bild als Attribut.
    Die Shader sind klein (keine Schleifen, keine Texturen).
    ===================================================================== */
-export const CARL = { n: LOW ? 8 : 24, cones: null, pools: null, attr: null, t: 0, wetOn: new URLSearchParams(location.search).get('nassglanz') !== 'aus', wet: null };
+export const CARL = { n: LOW ? 8 : 24, v124: new URLSearchParams(location.search).get('autolicht') !== 'alt', halo: null, brk: null, cones: null, pools: null, attr: null, t: 0, wetOn: new URLSearchParams(location.search).get('nassglanz') !== 'aus', wet: null };
 const _d = new Float32Array(64), _c = [];
 export function buildCarLights() {
   const n = CARL.n, attr = CARL.attr = new T.InstancedBufferAttribute(new Float32Array(n * 4).fill(-1000), 4); attr.setUsage(T.DynamicDrawUsage);
@@ -21,7 +21,7 @@ export function buildCarLights() {
   cg.instanceCount = n * 2; cg.setAttribute('aCar', carAttr); cg.setAttribute('aSide', new T.InstancedBufferAttribute(side, 1));
   CARL.cones = new T.Mesh(cg, new T.ShaderMaterial({
     uniforms: U, transparent: true, depthWrite: false, blending: T.AdditiveBlending, side: T.DoubleSide,
-    vertexShader: `attribute vec4 aCar; attribute float aSide; uniform vec3 uCam; varying float vT; varying float vA; varying vec3 vN; varying vec3 vV;
+    vertexShader: `attribute vec4 aCar; attribute float aSide; uniform vec3 uCam; varying float vT; varying float vA; varying vec3 vN; varying vec3 vV; varying vec3 vW;
       void main(){
         float c = cos(aCar.w), s = sin(aCar.w);
         // Fahrtrichtung wie in traffic.js: (cos yaw, -sin yaw); Scheinwerfer 2,6 m vor der Mitte, 0,62 m seitlich, 1,07 m hoch
@@ -32,15 +32,16 @@ export function buildCarLights() {
         if (vA < 0.002) { gl_Position = vec4(2.0, 2.0, 2.0, 1.0); return; }
         float L = 16.0, r = 0.8 + position.z * L * 0.15;   // der Kegel öffnet sich nach vorn
         vec3 wp = lamp + fw * (position.z * L) + sd * (position.x * r) + vec3(0.0, position.y * r * 0.7 - position.z * L * 0.05, 0.0);
-        vT = position.z; vN = normalize(sd * normal.x + vec3(0.0, normal.y, 0.0) + fw * normal.z * 0.3); vV = normalize(uCam - wp);
+        vT = position.z; vW = wp; vN = normalize(sd * normal.x + vec3(0.0, normal.y, 0.0) + fw * normal.z * 0.3); vV = normalize(uCam - wp);
         gl_Position = projectionMatrix * viewMatrix * vec4(wp, 1.0);
       }`,
-    fragmentShader: `uniform float uMist; uniform float uRain; uniform float uSnow; uniform float uFrost; varying float vT; varying float vA; varying vec3 vN; varying vec3 vV;
+    fragmentShader: `uniform float uMist; uniform float uRain; uniform float uSnow; uniform float uFrost; uniform float uTime; varying float vT; varying float vA; varying vec3 vN; varying vec3 vV; varying vec3 vW;
       void main(){
         float e = pow(abs(dot(vN, vV)), 1.5);
         float a = e * pow(1.0 - vT, 1.8) * smoothstep(0.0, 0.08, vT) * vA;
+        ${CARL.v124 ? '// V124: Dunstschwaden ziehen durch den Kegel\n        a *= 0.72 + 0.28 * sin(vW.x * 0.7 + uTime * 0.6) * sin(vW.z * 0.6 - uTime * 0.45 + vW.y * 1.3);' : ''}
         float vol = 0.35 + 0.45 * min(uMist, 2.0) + 0.8 * uRain + 0.7 * uSnow + 0.3 * uFrost;
-        gl_FragColor = vec4(vec3(1.0, 0.86, 0.6) * a * 0.09 * vol, 1.0);
+        gl_FragColor = vec4(vec3(1.0, 0.86, 0.6) * a * ${CARL.v124 ? '0.11' : '0.09'} * vol, 1.0);
       }`,
   }));
   CARL.cones.frustumCulled = false; CARL.cones.renderOrder = 3; CARL.cones.userData.noRefl = true; scene.add(CARL.cones);
@@ -72,12 +73,13 @@ export function buildCarLights() {
       }`,
   }));
   CARL.pools.frustumCulled = false; CARL.pools.renderOrder = 2; CARL.pools.userData.noRefl = true; scene.add(CARL.pools);
+  if (CARL.v124) { CARL.brk = new T.InstancedBufferAttribute(new Float32Array(n * 2), 1); CARL.brk.setUsage(T.DynamicDrawUsage); buildHalos(carAttr, side, n); }
   if (CARL.wetOn) buildWetGlints(carAttr, n);
 }
 // je Bild: die n nächsten sichtbaren Wagen (traffic.js schreibt car._x/_y/_z/_yaw/_hid), dazu der eigene Wagen am Steuer
 export function updateCarLights() {
   if (!CARL.pools) return;
-  const cp = camera.position, N = CARL.n, A = CARL.attr.array, A2 = CARL.attr2.array, list = _c, dd = _d;
+  const cp = camera.position, N = CARL.n, A = CARL.attr.array, A2 = CARL.attr2.array, list = _c, dd = _d, B = CARL.brk ? CARL.brk.array : null;
   let n = 0;
   const off = cp.y > 90 || U.uInside.value > 0.5;
   if (!off) {
@@ -88,15 +90,67 @@ export function updateCarLights() {
       while (i > 0 && dd[i - 1] > d) { dd[i] = dd[i - 1]; list[i] = list[i - 1]; i--; }
       dd[i] = d; list[i] = car;
     }
-    if (DRIVE.on && DRIVE.body && n < N) { list[n++] = { _x: DRIVE.body.x, _y: (DRIVE.body.gy !== undefined && !DRIVE.body.air ? DRIVE.body.gy : DRIVE.body.y) + 0.22, _z: DRIVE.body.z, _yaw: DRIVE.body.h }; }
+    if (DRIVE.on && DRIVE.body && n < N) { list[n++] = { _me: 1, _x: DRIVE.body.x, _y: (DRIVE.body.gy !== undefined && !DRIVE.body.air ? DRIVE.body.gy : DRIVE.body.y) + 0.22, _z: DRIVE.body.z, _yaw: DRIVE.body.h }; }
   }
   for (let i = 0; i < N; i++) {
     const c = i < n ? list[i] : null, o = i * 4;
     if (c) { A[o] = c._x; A[o + 1] = c._y; A[o + 2] = c._z; A[o + 3] = c._yaw; } else { A[o] = 0; A[o + 1] = -1000; A[o + 2] = 0; A[o + 3] = 0; }
     for (let k = 0; k < 2; k++) { const p = (i * 2 + k) * 4; A2[p] = A[o]; A2[p + 1] = A[o + 1]; A2[p + 2] = A[o + 2]; A2[p + 3] = A[o + 3]; }
+    if (B) { const b = c ? brakeOf(c) : 0; B[i * 2] = B[i * 2 + 1] = b; }
   }
-  CARL.attr.needsUpdate = true; CARL.attr2.needsUpdate = true;
+  CARL.attr.needsUpdate = true; CARL.attr2.needsUpdate = true; if (B) CARL.brk.needsUpdate = true;
   CARL.list = list; CARL.cnt = n;   // V102: nächste Wagen für die Scheinwerferschatten (lichtschatten.js)
+}
+
+/* V124 · Bremslicht: Wagen im Straßennetz bremsen (car.acc aus traffic.js) oder stehen; eigener Wagen: Tempo fällt
+   oder Rückwärtsgang. Weich nachgeführt, damit es nicht flackert. */
+let _myV = 0, _myB = 0;
+function brakeOf(c) {
+  if (c._me) {
+    const b = DRIVE.body, v = b.v !== undefined ? b.v : Math.hypot(b.vx || 0, b.vz || 0);
+    const t = v < _myV - 0.02 || Math.abs(v) < 0.4 ? 1 : 0; _myV = v; _myB += (t - _myB) * 0.25; return _myB;
+  }
+  const t = c.graph ? ((c.acc || 0) < -1.2 || (c.v || 0) < 0.4 ? 1 : 0) : 0;
+  c._brk = (c._brk || 0) + (t - (c._brk || 0)) * 0.2; return c._brk;
+}
+
+/* V124 · Lichthöfe im Dunst
+   Um jeden Scheinwerfer und jedes Rücklicht ein weicher Lichthof, der zur Kamera gedreht ist: je dichter Nebel, Regen oder
+   Schnee, desto größer und heller; Scheinwerfer, die auf dich zeigen, blenden. Rücklichter glühen rot und leuchten beim
+   Bremsen auf. Ein Draw Call (2 Instanzen je Wagen, je zwei Vierecke), kleiner Shader ohne Schleifen. */
+function buildHalos(carAttr, side, n) {
+  const pos = [], pe = [], idx = [];
+  for (const e of [1, -1]) { const b = pos.length / 3; for (const [x, y] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) { pos.push(x, y, 0); pe.push(e); } idx.push(b, b + 1, b + 2, b + 2, b + 1, b + 3); }
+  const base = new T.BufferGeometry(); base.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); base.setAttribute('aEnd', new T.Float32BufferAttribute(pe, 1)); base.setIndex(idx);
+  const g = new T.InstancedBufferGeometry().copy(base);
+  g.instanceCount = n * 2; g.setAttribute('aCar', carAttr); g.setAttribute('aSide', new T.InstancedBufferAttribute(side, 1)); g.setAttribute('aBrk', CARL.brk);
+  CARL.halo = new T.Mesh(g, new T.ShaderMaterial({
+    uniforms: U, transparent: true, depthWrite: false, blending: T.AdditiveBlending,
+    vertexShader: `attribute vec4 aCar; attribute float aSide; attribute float aEnd; attribute float aBrk; uniform vec3 uCam; uniform float uMist; uniform float uRain; uniform float uSnow;
+      varying vec2 vUv; varying float vA; varying vec3 vC;
+      void main(){
+        float c = cos(aCar.w), s = sin(aCar.w); vec3 fw = vec3(c, 0.0, -s), sd = vec3(s, 0.0, c);
+        vec3 lamp = aCar.xyz + (aEnd > 0.0 ? fw * 2.72 + sd * (0.62 * aSide) + vec3(0.0, 0.85, 0.0) : fw * -2.42 + sd * (0.7 * aSide) + vec3(0.0, 0.72, 0.0));
+        vec3 toC = uCam - lamp; float d = length(toC); vec3 dir = toC / max(d, 0.01);
+        float face = max(dot(fw * aEnd, dir), 0.0);
+        float fog = 0.35 + 0.3 * min(uMist, 2.0) + 0.6 * uRain + 0.5 * uSnow;
+        vA = smoothstep(200.0, 20.0, d) * smoothstep(1.5, 5.0, d) * step(-500.0, aCar.y) * (0.15 + 0.85 * face * face) * fog;
+        if (vA < 0.003) { gl_Position = vec4(2.0, 2.0, 2.0, 1.0); return; }
+        vC = aEnd > 0.0 ? vec3(1.0, 0.85, 0.6) * (0.5 + 0.7 * face) : vec3(1.0, 0.12, 0.05) * (0.3 + 0.8 * aBrk);
+        float r = (aEnd > 0.0 ? 0.55 : 0.35) * (0.7 + 0.5 * fog) + d * 0.008;
+        vec3 R = vec3(viewMatrix[0][0], viewMatrix[1][0], viewMatrix[2][0]), Up = vec3(viewMatrix[0][1], viewMatrix[1][1], viewMatrix[2][1]);
+        vec3 wp = lamp + dir * 0.5 + (R * position.x + Up * position.y) * r;
+        vUv = position.xy;
+        gl_Position = projectionMatrix * viewMatrix * vec4(wp, 1.0);
+      }`,
+    fragmentShader: `varying vec2 vUv; varying float vA; varying vec3 vC;
+      void main(){
+        float q = dot(vUv, vUv); if (q > 1.0) discard;
+        float a = (exp(-q * 4.0) - 0.018) * 0.32 + exp(-q * 30.0) * 0.35;
+        gl_FragColor = vec4(vC * a * vA, 1.0);
+      }`,
+  }));
+  CARL.halo.frustumCulled = false; CARL.halo.renderOrder = 4; CARL.halo.userData.noRefl = true; scene.add(CARL.halo);
 }
 
 /* V92 · Scheinwerfer und Rücklichter spiegeln sich im nassen Pflaster
@@ -111,9 +165,11 @@ function buildWetGlints(carAttr, n) {
   const g = new T.InstancedBufferGeometry().copy(base);
   const side = new Float32Array(n * 2); for (let i = 0; i < n * 2; i++) side[i] = i % 2 ? 1 : -1;
   g.instanceCount = n * 2; g.setAttribute('aCar', carAttr); g.setAttribute('aSide', new T.InstancedBufferAttribute(side, 1));
+  if (CARL.brk) g.setAttribute('aBrk', CARL.brk);
+  const BRK = !!CARL.brk;
   CARL.wet = new T.Mesh(g, new T.ShaderMaterial({
     uniforms: U, transparent: true, depthWrite: false, blending: T.AdditiveBlending, side: T.DoubleSide,
-    vertexShader: `attribute vec4 aCar; attribute float aSide; attribute float aEnd; uniform vec3 uCam; uniform float uWet; uniform float uSnowCover; varying vec2 vUv; varying float vA; varying float vE;
+    vertexShader: `attribute vec4 aCar; attribute float aSide; attribute float aEnd; ${BRK ? 'attribute float aBrk;' : ''} uniform vec3 uCam; uniform float uWet; uniform float uSnowCover; varying vec2 vUv; varying float vA; varying float vE;
       void main(){
         float c = cos(aCar.w), s = sin(aCar.w); vec2 fw = vec2(c, -s), sd = vec2(s, c);
         vec2 g = aCar.xz + fw * (aEnd > 0.0 ? 2.5 : -2.45) + sd * (aSide * (aEnd > 0.0 ? 0.62 : 0.72));
@@ -124,14 +180,14 @@ function buildWetGlints(carAttr, n) {
         if (vA < 0.003) { gl_Position = vec4(2.0, 2.0, 2.0, 1.0); return; }
         float len = min(3.0 + d * 0.12, d * 0.8);
         vec2 xz = g + sx * position.x * (0.28 + d * 0.004) + dir * (position.y * len - 0.15);
-        vUv = vec2(position.x * 2.0, position.y); vE = aEnd;
+        vUv = vec2(position.x * 2.0, position.y); vE = aEnd${BRK ? ' * (1.0 + 1.6 * aBrk)' : ''};
         gl_Position = projectionMatrix * viewMatrix * vec4(xz.x, aCar.y - 0.2, xz.y, 1.0);
       }`,
     fragmentShader: `uniform float uTime; varying vec2 vUv; varying float vA; varying float vE;
       void main(){
         float a = exp(-vUv.x * vUv.x * 5.0) * pow(sin(3.14159 * clamp(vUv.y, 0.0, 1.0)), 0.7) * (1.0 - 0.55 * vUv.y);
         a *= 0.85 + 0.15 * sin(vUv.y * 34.0 + uTime * 0.9 + vUv.x * 3.0);
-        vec3 col = vE > 0.0 ? vec3(1.0, 0.8, 0.5) * 0.8 : vec3(0.85, 0.1, 0.05) * 0.5;
+        vec3 col = vE > 0.0 ? vec3(1.0, 0.8, 0.5) * 0.8 : vec3(0.85, 0.1, 0.05) * 0.5 * -vE;
         gl_FragColor = vec4(col * a * vA, 1.0);
       }`,
   }));
