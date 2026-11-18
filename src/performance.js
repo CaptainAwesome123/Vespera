@@ -1,3 +1,4 @@
+import { updateClutterHouses } from './clutter.js';
 import { updateChunks, layers } from './chunks.js';
 import { UNTER } from './unter-hook.js';
 import { shared, T, scene, camera, MOBILE, LOW, renderer, U, FOG_DENSITY, hemi, moonLight, $, FOGVIS, fogHideDist, REVZ, TREE, REGENGLAS, KINO } from './core.js';
@@ -362,6 +363,7 @@ export function frame(now) {
   updateLights(dt);
   updateDetails(dt);
   updateChunks(rdt);
+  updateClutterHouses(rdt, camera);   // V116: Dinge in Belmont, Penthouse, Villa, Lokalen
   updateFogCull(rdt);
   updateChunkView();   // V77: Zellen außerhalb des Blickfelds
   updateParked(dt);

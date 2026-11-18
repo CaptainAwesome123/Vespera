@@ -27,9 +27,12 @@ import { blocks, PLAZA, MEDIAN, QUAY, QX } from './island.js';
 import { QUAY_GAPS } from './harbour.js';
 import { GEOS, KINDS_OF, propMaterial } from './physics.js';
 import { BAHN } from './bahn-hook.js';
+import { scene } from './core.js';
+import { invalidateLayer } from './chunks.js';
+import { planKram116 } from './kram116.js';
 
-export const CLUT = { items: [], grid: new Map(), cell: 8, on: true, stats: { items: 0, kinds: 0 } };
-export const CLUT_CELL = 200;
+export const CLUT = { items: [], grid: new Map(), cell: 8, on: true, stats: { items: 0, kinds: 0, near: 0, houses: {} }, houses: [], relay: new Set() };
+export const CLUT_CELL = 200, CLUT_CELL_N = 100;   // V116: kleine Dinge in einer eigenen, nahen Schicht (100-m-Zellen)
 const _cm = new T.Matrix4(), _cq = new T.Quaternion(), _cp = new T.Vector3(), _cs = new T.Vector3(1, 1, 1), _cup = new T.Vector3(0, 1, 0);
 
 /* ---------- Raster zum Suchen (Dinge und Laternen) ---------- */
@@ -58,12 +61,13 @@ export function planClutter() {
   for (const d of DOORS) take(d.x + d.nx * 1.2, d.z + d.nz * 1.2, 1.3);
   for (const o of BAHN.keepOut) take(o.x, o.z, o.r);   // V63: Haltestellen und Hochbahntreppen frei halten
   // Ding hinstellen: Boden y0 (Unterkante), Gierwinkel, Farbe (für PAINT-Teile), tilt = Neigung um die eigene x-Achse (Anlehnen)
-  const put = (k, x, z, yaw, y0 = 0.22, c = null, tilt = 0, force = false) => {
-    const I = K[k]; if (!I) return null;
+  // V116: house = Innenraum (eigene Gruppe, nur in der Nähe sichtbar, belegt keine Plätze draußen); kleine Dinge draußen in die nahe Schicht
+  const put = (k, x, z, yaw, y0 = 0.22, c = null, tilt = 0, force = false, house = null) => {
+    const I = K[k]; if (!I || !GEOS[k]) return null;
     const r = Math.max(I.he[0], I.he[2]) * 0.8;
-    if (!force && !ok(x, z, r)) return null;
-    take(x, z, r);
+    if (!house) { if (!force && !ok(x, z, r)) return null; take(x, z, r); }
     const p = { k, x, y: y0 + I.he[1] * Math.cos(tilt) + (tilt ? Math.abs(Math.sin(tilt)) * I.he[2] : 0), z, yaw, tilt, c, taken: false };
+    if (house) { p.house = house; house.items.push(p); } else if (Math.max(I.he[0], I.he[1], I.he[2]) < 0.26) p.near = true;
     CLUT.items.push(p); p._e = { p, k: 'c:' + k }; clutGridAdd(p._e);
     if (I.solid) { const h = Math.max(I.he[0], I.he[2]); p.col = [x - h, z - h, x + h, z + h]; addCollider(x - h, y0, z - h, x + h, y0 + I.he[1] * 2, z + h); }
     return p;
@@ -173,7 +177,10 @@ export function planClutter() {
     put('deckchair', x0 + 2.4, z0 + 1.8, a + 0.3, y, col('deckchair')); put('deckchair', x0 - 2.4, z0 + 1.8, a - 0.3, y, col('deckchair'));
     for (let k = 0; k < 4; k++) put('flowerpot', x0 + (k - 1.5) * 1.1, z0 - 2.4, 0, y);
   }
-  CLUT.stats.items = CLUT.items.length; CLUT.stats.kinds = new Set(CLUT.items.map(p => p.k)).size;
+  // ---- V116: noch viel mehr Dinge, draußen und in den Häusern (src/kram116.js) ----
+  planKram116({ put, pick, col, ok, take, K, dens });
+  CLUT.stats.items = CLUT.items.length; CLUT.stats.kinds = new Set(CLUT.items.map(p => p.k)).size; CLUT.stats.near = CLUT.items.filter(p => p.near).length;
+  for (const H of CLUT.houses) CLUT.stats.houses[H.name] = H.items.length;
 }
 // Laternen ins Suchraster (werden in flushInstances geplant, deshalb erst hier)
 export function indexLamps() { for (const l of STREET.lamps) clutGridAdd({ p: l, k: 'lamp' }); }
@@ -184,35 +191,72 @@ export function clutterMatrix(p, m) {
   if (p.q) _cq.copy(p.q); else { _ce.set(p.tilt || 0, p.yaw, 0, 'YXZ'); _cq.setFromEuler(_ce); }
   return m.compose(_cp.set(p.x, p.y, p.z), _cq, _cs);
 }
+const cellKey = (p, size) => Math.floor(p.x / size) + ',' + Math.floor(p.z / size);
+const GEO_OF = new Map(), _cc = new T.Color();
+function kindGeo(k) { let geo = GEO_OF.get(k); if (!geo) { const f = GEOS[k]; if (!f) return null; geo = f(); GEO_OF.set(k, geo); } return geo; }
+// je Art ein InstancedMesh (gemeinsamer Stoff, Farbe je Instanz); list: Dinge, die noch an ihrem Platz stehen
+function instGroup(list) {
+  const by = new Map();
+  for (const p of list) if (!p.taken) (by.get(p.k) || by.set(p.k, []).get(p.k)).push(p);
+  if (!by.size) return null;
+  const g = new T.Group();
+  for (const [k, l] of by) {
+    const geo = kindGeo(k); if (!geo) continue;
+    const im = new T.InstancedMesh(geo, propMaterial(), l.length);
+    l.forEach((p, i) => { im.setMatrixAt(i, clutterMatrix(p, _cm)); im.setColorAt(i, p.c ? _cc.setRGB(p.c[0], p.c[1], p.c[2]) : _cc.setRGB(1, 1, 1)); p._im = im; p._i = i; });
+    im.instanceColor.needsUpdate = true; im.frustumCulled = false; im.userData.items = l;
+    g.add(im);
+  }
+  return g.children.length ? g : null;
+}
+function freeGroup(obj) { for (const im of obj.children) { for (const p of im.userData.items || []) if (p._im === im) p._im = null; } }
 export function setupClutterLayer() {
   if (!CLUT.on || !CLUT.items.length) return;
-  const byCell = new Map();
-  for (const p of CLUT.items) { const k = Math.floor(p.x / CLUT_CELL) + ',' + Math.floor(p.z / CLUT_CELL); (byCell.get(k) || byCell.set(k, []).get(k)).push(p); }
-  CLUT.byCell = byCell;
-  const geoOf = new Map(), cc = new T.Color();
-  registerLayer({
-    name: 'clutter', size: CLUT_CELL, radius: cam => Math.min(MOBILE ? 200 : 320, (MOBILE ? 120 : 170) + Math.max(0, cam.position.y) * 0.35),
-    build(cx, cz) {
-      const here = byCell.get(cx + ',' + cz); if (!here) return null;
-      const by = new Map();
-      for (const p of here) if (!p.taken && Math.floor(p.x / CLUT_CELL) === cx && Math.floor(p.z / CLUT_CELL) === cz) (by.get(p.k) || by.set(p.k, []).get(p.k)).push(p);
-      if (!by.size) return null;
-      const g = new T.Group();
-      for (const [k, list] of by) {
-        let geo = geoOf.get(k); if (!geo) { const f = GEOS[k]; if (!f) continue; geo = f(); geoOf.set(k, geo); }
-        const im = new T.InstancedMesh(geo, propMaterial(), list.length);
-        list.forEach((p, i) => { im.setMatrixAt(i, clutterMatrix(p, _cm)); im.setColorAt(i, p.c ? cc.setRGB(p.c[0], p.c[1], p.c[2]) : cc.setRGB(1, 1, 1)); p._im = im; p._i = i; });
-        im.instanceColor.needsUpdate = true; im.frustumCulled = false; im.userData.items = list;
-        g.add(im);
-      }
-      return g.children.length ? g : null;
-    },
-    dispose(obj) { for (const im of obj.children) for (const p of im.userData.items || []) if (p._im === im) p._im = null; },
+  const byCell = CLUT.byCell = new Map(), byCellN = CLUT.byCellN = new Map();
+  for (const p of CLUT.items) { if (p.house) continue; const M = p.near ? byCellN : byCell, k = cellKey(p, p.near ? CLUT_CELL_N : CLUT_CELL); (M.get(k) || M.set(k, []).get(k)).push(p); }
+  const layer = (name, size, M, radius) => registerLayer({
+    name, size, radius,
+    build(cx, cz) { const here = M.get(cx + ',' + cz); return here ? instGroup(here.filter(p => cellKey(p, size) === cx + ',' + cz)) : null; },
+    dispose: freeGroup,
   });
+  layer('clutter', CLUT_CELL, byCell, cam => Math.min(MOBILE ? 200 : 320, (MOBILE ? 120 : 170) + Math.max(0, cam.position.y) * 0.35));
+  // V116: kleine Dinge (Eimer, Pakete, Flaschen ...) erkennt man ohnehin nur aus der Nähe
+  layer('clutter-nah', CLUT_CELL_N, byCellN, cam => Math.min(MOBILE ? 110 : 170, (MOBILE ? 70 : 110) + Math.max(0, cam.position.y) * 0.2));
 }
-// Ding wandert in eine andere Zelle (bewegt abgelegt): Zellliste und Raster nachführen
+/* ---------- V116: Innenräume (Belmont, Penthouse, Villa, Lokale, Bank, Theater) ----------
+   Je Haus eine Gruppe, gebaut beim ersten Hinsehen, sichtbar nur, wenn die Kamera in der Nähe und auf der richtigen Höhe ist. */
+export function clutterHouse(name, x0, x1, z0, z1, y0, y1, margin = 30) { const H = { name, x0, x1, z0, z1, y0, y1, margin, items: [], g: null, dirty: false }; CLUT.houses.push(H); return H; }
+const houseHas = (H, x, y, z, m = 0) => x > H.x0 - m && x < H.x1 + m && z > H.z0 - m && z < H.z1 + m && y > H.y0 - Math.min(m, 6) - 2 && y < H.y1 + Math.min(m, 12) + 2;
+let houseT = 0;
+export function updateClutterHouses(dt, cam) {
+  if (!CLUT.houses.length || (houseT -= dt) > 0) return; houseT = 0.2;
+  const c = cam.position;
+  for (const H of CLUT.houses) {
+    const v = houseHas(H, c.x, c.y, c.z, H.margin);
+    if (v && (!H.g || H.dirty)) {
+      if (H.g) { scene.remove(H.g); freeGroup(H.g); H.g.traverse(o => { if (o.isInstancedMesh) o.dispose(); }); }
+      H.g = instGroup(H.items) || new T.Group(); H.dirty = false; scene.add(H.g);
+    }
+    if (H.g) H.g.visible = v;
+  }
+}
+// verschobene Dinge: betroffene Schichten und Häuser neu aufbauen (aus physics.cullBodies)
+export function clutterRelayout() {
+  for (const n of CLUT.relay) invalidateLayer(n);
+  CLUT.relay.clear();
+}
+// Ding wandert an einen anderen Platz (bewegt abgelegt): Zellliste, Haus und Raster nachführen
 export function clutterMoved(p) {
   if (p._e) clutGridMove(p._e);
-  for (const [k, a] of CLUT.byCell || []) { const i = a.indexOf(p); if (i >= 0) { a.splice(i, 1); break; } }
-  const k = Math.floor(p.x / CLUT_CELL) + ',' + Math.floor(p.z / CLUT_CELL); if (CLUT.byCell) (CLUT.byCell.get(k) || CLUT.byCell.set(k, []).get(k)).push(p);
+  if (p.house) {
+    const H = p.house;
+    if (houseHas(H, p.x, p.y, p.z, 0.5)) { H.dirty = true; return; }
+    H.items.splice(H.items.indexOf(p), 1); H.dirty = true; p.house = null;   // aus dem Haus hinausgetragen: gehört jetzt zur Stadt
+  } else {
+    const M = p.near ? CLUT.byCellN : CLUT.byCell;
+    for (const [, a] of M || []) { const i = a.indexOf(p); if (i >= 0) { a.splice(i, 1); break; } }
+  }
+  const M = p.near ? CLUT.byCellN : CLUT.byCell; if (!M) return;
+  const k = cellKey(p, p.near ? CLUT_CELL_N : CLUT_CELL); (M.get(k) || M.set(k, []).get(k)).push(p);
+  CLUT.relay.add(p.near ? 'clutter-nah' : 'clutter');
 }
