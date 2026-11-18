@@ -140,6 +140,18 @@ function writeU(dt) {
   U[5].set(TO ? Math.min(1, TO.t / 0.6) : 0, AN.brake, AN.boost, AN.brace);
   U[6].set(Math.max(0, Math.min(1, (-vy - 10) / 40)), BL ? BL.sx : 0, BL ? BL.tw : 0, BL ? BL.two : 0);
   if (BL) U[7].set(1, BL.hR, BL.hL, BL.ch); else U[7].set(0, 0, 0, 0);
+  // V112: Einsteigen und Gesten (uPl[8..11]); gilt nur für dieses Bild
+  U[8].set(BQ.r[0], BQ.r[1], BQ.r[2], TK || BL ? 0 : BQ.r[3]); U[9].set(BQ.l[0], BQ.l[1], BQ.l[2], TK || BL ? 0 : BQ.l[3]);
+  U[10].set(BQ.duck, BQ.sb, BQ.lift, BQ.lead); U[11].set(BQ.f[0], BQ.f[1], BQ.f[2], BQ.look);
+  BQ.r[3] = BQ.l[3] = BQ.duck = BQ.sb = BQ.lift = BQ.lead = BQ.look = 0;
+}
+// V112: Werte für uPl[8..11]: Hände (Körperraum + Gewicht), Ducken, Sitzen mit Füßen auf dem Trittbrett, Beine anheben, Schritt, Füße, Blick
+const BQ = { r: [0, 0, 0, 0], l: [0, 0, 0, 0], f: [0, 0, 0], duck: 0, sb: 0, lift: 0, lead: 0, look: 0 };
+const _bw = new T.Vector3(), _bi = new T.Quaternion();
+// Weltpunkt in den Körperraum der Figur (nach PM.place)
+function toBody(x, y, z, out) {
+  _bw.set(x, y, z).sub(PM.o).applyQuaternion(_bi.copy(PM.q).invert()).divideScalar(PM.sc);
+  out[0] = _bw.x; out[1] = _bw.y; out[2] = _bw.z; return out;
 }
 function heroWeight() { const H = POWERS.hero; return H ? (H.rise < 0 ? Math.min(1, H.t / 0.05) : 1 - sst(H.rise / 0.6)) : 0; }
 function sst(x) { x = Math.max(0, Math.min(1, x)); return x * x * (3 - 2 * x); }
@@ -226,7 +238,41 @@ export function updatePlayerModel(dt, on) {
   st.pitch = PM.tilt + AN.lean; st.roll = PM.roll + AN.roll; st.piv = Math.min(1, Math.abs(PM.tilt) * 3);
   if (st.amp > 0.01) { st.act = 1; }
   PM.place(player.p.x, player.p.y, player.p.z, PM.yawB, st);
+  idleGesture(dt, !inAir && !H && sp < 0.3 && st.act === 0 && !PM.dance && !POWERS.tk && !POWERS.reach && !LOOSE.held && BLAST.w < 0.01 && AN.brace < 0.02);
   writeU(dt);
+}
+// V112: ruhige Gesten im Stand. Alexander steht wie bisher mit den Händen auf dem Rücken; nach ein paar Sekunden ohne Bewegung
+// wechselt er dann und wann die Haltung: Hände in den Hosentaschen, eine Hand in der Tasche, Arme verschränkt, die Manschette
+// zurechtrücken, ein langer Blick über die Schulter auf die Stadt. Kein Zappeln (Wunsch V47), jede Geste kommt und geht langsam.
+// Ziele der Hände im Körperraum (Faustmitte), wie die Hände beim Einsteigen
+const GEST = [
+  { d: 9, r: [-0.17, 0.9, 0.075], l: [0.17, 0.9, 0.075] },
+  { d: 8, r: [-0.17, 0.9, 0.075] },
+  { d: 8, r: [0.17, 1.2, 0.16], l: [-0.16, 1.24, 0.2] },
+  { d: 3, r: [-0.04, 1.06, 0.3], l: [-0.075, 1.085, 0.27], tug: 1 },
+  { d: 5.5, look: 1 },
+];
+const IG = { t: 0, next: 6, g: null, gt: 0, w: 0, last: -1, dir: 1 };
+function idleGesture(dt, calm) {
+  if (!IG.g) {
+    IG.t = calm ? IG.t + dt : 0;
+    if (IG.t > IG.next) {
+      let k = Math.floor(Math.random() * GEST.length); if (k === IG.last) k = (k + 1) % GEST.length;
+      IG.last = k; IG.g = GEST[k]; IG.gt = 0; IG.dir = Math.random() < 0.5 ? -1 : 1;
+    }
+  }
+  const g = IG.g; if (!g) { IG.w = 0; return; }
+  IG.gt += dt;
+  const want = calm && IG.gt < g.d ? 1 : 0;
+  IG.w = ease(IG.w, want, want ? 2.2 : calm ? 2.2 : 7, dt);
+  if (!want && IG.w < 0.02) { IG.g = null; IG.w = 0; IG.t = 0; IG.next = 7 + Math.random() * 6; return; }
+  const w = IG.w * IG.w * (3 - 2 * IG.w);
+  if (g.r) { BQ.r[0] = g.r[0]; BQ.r[1] = g.r[1]; BQ.r[2] = g.r[2]; BQ.r[3] = w; }
+  if (g.l) {
+    const tg = g.tug ? 0.012 * Math.sin(IG.gt * 7) * Math.min(1, IG.gt) : 0;   // am Ärmel zupfen
+    BQ.l[0] = g.l[0] + tg; BQ.l[1] = g.l[1]; BQ.l[2] = g.l[2] - tg * 0.5; BQ.l[3] = w;
+  }
+  if (g.look) BQ.look = 0.85 * IG.dir * w * Math.min(1, 0.4 + IG.gt / 2.5);
 }
 
 // V33/V35: Flugpose. Schwebend aufrecht; je schneller, desto mehr legt er sich in die Flugrichtung (waagrecht im Geradeausflug,
@@ -261,18 +307,39 @@ function boardPose(A, B, dt) {
   AN.airW = AN.fallW = AN.prepW = AN.tkW = AN.brace = AN.brake = 0; PM.air = 0; PM.dance = 0;
   if (A.ph === 'walk') {
     if (A.walking) {
-      const cad = 1.45 / 1.366; PM.phase = (PM.phase + dt * cad * Math.PI * 2) % (Math.PI * 2 * 1000); PM.cad = cad;
+      const cad = (A.spd || 1.45) / 1.366; PM.phase = (PM.phase + dt * cad * Math.PI * 2) % (Math.PI * 2 * 1000); PM.cad = cad;
       let d = A.wyaw - PM.yawB; d = Math.atan2(Math.sin(d), Math.cos(d)); PM.yawB += d * Math.min(1, dt * 10);
-      baseState(1, 0.4, 'walk', dt);
-      PM.place(A.x, A.y, A.z, PM.yawB, { act: 1, amp: 0.4, phase: PM.phase, smile: 0.4 });
+      const amp = 0.3 + 0.1 * Math.min(1, (A.spd || 1.45) / 1.45);
+      baseState(1, amp, 'walk', dt);
+      PM.place(A.x, A.y, A.z, PM.yawB, { act: 1, amp, phase: PM.phase, smile: 0.4 });
     } else { baseState(0, 0, 'act0', dt); PM.place(A.x, A.y, A.z, PM.yawB, { act: 0, smile: 0.4 }); }
     writeU(dt); return;
   }
   const r = A.r, c = Math.cos(B.h), s = Math.sin(B.h);
+  if (r.pl) { boardPosePl(A, B, r, c, s, dt); return; }
   let d = B.h + r.phi - PM.yawB; d = Math.atan2(Math.sin(d), Math.cos(d)); PM.yawB += d * Math.min(1, dt * 14);
   const act = r.sit ? 7.2 : 0, top = A.My + r.y;
   baseState(act, 0, r.sit ? 'sit' : 'act0', dt);
   PM.place(B.x + c * r.x + s * r.z, r.sit ? top - 0.87 * PM.sc : top + (A.gy - top) * r.gk, B.z - s * r.x + c * r.z, PM.yawB, { act, smile: 0.4, pitch: r.tilt, piv: 0 });
+  writeU(dt);
+}
+// V112: Alexanders eigener Ablauf (einsteigen.js): Lage aus dem Ablauf, Hände, Ducken, Hinsetzen und Beine über uPl[8..11]
+const _hb = [0, 0, 0];
+function boardPosePl(A, B, r, c, s, dt) {
+  let d = B.h + r.phi - PM.yawB; d = Math.atan2(Math.sin(d), Math.cos(d)); PM.yawB += d * Math.min(1, dt * 18);
+  const act = r.sit ? 7.2 : 0, top = A.My + r.y;
+  baseState(act, 0, r.sit ? 'sit' : 'act0', dt);
+  PM.place(B.x + c * r.x + s * r.z, top + (A.gy - top) * r.gk, B.z - s * r.x + c * r.z, PM.yawB, { act, smile: 0.4 });
+  const W = (lx, ly, lz, out) => toBody(B.x + c * lx + s * lz, A.My + ly, B.z - s * lx + c * lz, out);
+  // jede Hand nimmt den Arm auf ihrer Seite (Körperraum x < 0 = rechts); die Wahl bleibt, solange die Hand greift
+  for (const [h, key] of [[r.hA, 'sA'], [r.hB, 'sB']]) {
+    if (!(h.w > 0.001)) { A[key] = 0; continue; }
+    W(h.x, h.y, h.z, _hb);
+    if (!A[key] || h.w < 0.08) A[key] = _hb[0] < 0 ? -1 : 1;
+    const o = A[key] < 0 ? BQ.r : BQ.l; o[0] = _hb[0]; o[1] = _hb[1]; o[2] = _hb[2]; o[3] = Math.max(o[3], h.w);
+  }
+  BQ.duck = r.duck; BQ.sb = r.sb; BQ.lift = r.lift; BQ.lead = r.lead;
+  if (r.sb > 0.001) W(r.F.x, r.F.y, r.F.z, BQ.f);
   writeU(dt);
 }
 // V63: Alexander sitzt (Bank in der Straßenbahn oder Hochbahn): Sitzhaltung wie die Fahrgäste, Lage und Blickrichtung von außen

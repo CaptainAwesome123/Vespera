@@ -245,18 +245,7 @@ function extraParts(K, kind, rig, keep) {
     P(new T.SphereGeometry(0.0085, 10, 8).scale(0.85, 1.05, 0.7).translate(0, y, z + 0.0035), black, 0, FAB.satin);
   }
   if (K.player) {
-    // V82: Nasenzwicker (wie Morpheus): zwei kleine ovale, fast schwarze Gläser ohne Bügel, auf die Nasenwurzel geklemmt;
-    // ein schmaler Bügel aus dunklem Metall federt über der Nase, zwei Klemmplättchen sitzen seitlich am Nasenrücken
-    {
-    const z = fc.noseZ - 0.014, y = fc.eyeY - 0.0005, R = 0.0128, cxl = fc.eyeX - 0.003, rim = [0.06, 0.06, 0.065], tint = [0.025, 0.022, 0.022];
-    for (const sx of [-1, 1]) {
-      P(new T.TorusGeometry(R, 0.0007, 5, 26).scale(1.05, 0.88, 1).translate(sx * cxl, y, z), rim, 0, FAB.metal);
-      P(new T.CylinderGeometry(R, R, 0.001, 26).rotateX(Math.PI / 2).scale(1.05, 0.88, 1).translate(sx * cxl, y, z + 0.0003), tint, 0, FAB.patent);
-      P(new T.BoxGeometry(0.0022, 0.006, 0.0012).rotateY(sx * 0.9).translate(sx * (cxl - R * 1.02), y - 0.001, z - 0.004), rim, 0, FAB.metal);
-    }
-    const gap = cxl - R * 1.05;
-    P(new T.TorusGeometry(gap, 0.0009, 5, 12, Math.PI).translate(0, y + 0.004, z - 0.002), rim, 0, FAB.metal);
-    }
+    // V112: kein Nasenzwicker mehr (Wunsch des Spielers): Alexander trägt keine Brille
     // weiße Rose am linken Revers: Blütenblätter in Lagen, Kelch und Stiel, ein Blatt
     const x = 0.098, y = rig.top - 0.075, z = suitFront(x, y) + 0.012, white = [0.96, 0.95, 0.9], green = [0.18, 0.32, 0.12];
     P(new T.SphereGeometry(0.008, 10, 8).scale(1, 1, 0.8).translate(x, y, z + 0.004), [0.93, 0.91, 0.82], 0, FAB.silk);
