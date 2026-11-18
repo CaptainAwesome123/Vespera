@@ -6,7 +6,7 @@
    ===================================================================== */
 import { T, scene, camera, renderer, U, $, hemi, mergeGeos } from './core.js';
 import { buildEnv, getMats, stdMat } from './people-skeleton.js';
-import { planAccess, VIA, deckY, terrainHeight } from './harbour.js';
+import { planAccess, deckY, terrainHeight } from './harbour.js';
 import { buildAccessRoad, buildMountains, planVillaSite, planSerpentine } from './serpentine.js';
 import { planLandscape, buildLandscape, LAND, landRay, shoreAt } from './landscape.js';
 import { buildHarborWaterMat, waterGridGeo, updateWaves } from './water.js';

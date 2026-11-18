@@ -28,7 +28,7 @@
    Leute werden nicht neu erzeugt: wer gerade in einem Laden sitzt (unsichtbar),
    wird für Menge, Händler und Aufgaben ausgeliehen und danach zurückgegeben.
    ===================================================================== */
-import { T, U, scene, camera, MOBILE, LOW, renderer, $, shared } from './core.js';
+import { T, U, scene, camera, MOBILE, LOW, $, shared } from './core.js';
 import { player } from './player.js';
 import { playing, paused } from './input.js';
 import { toast } from './boat.js';

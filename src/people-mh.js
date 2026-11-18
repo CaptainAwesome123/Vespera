@@ -21,7 +21,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { resolveAsset, assetStats } from './assets.js';
 import { HRIG } from './people-skeleton.js';
-import { PB, personBuild, personMerge, HATMASK, FAB, HL, faceUV } from './people-model.js';
+import { PB, personBuild, personMerge, HATMASK, FAB } from './people-model.js';
 
 export const MHP = { ready: false, late: false, src: {}, meta: null, err: null, ms: 0 };
 
@@ -156,17 +156,6 @@ function fitCover(parts, gk, K, bodySrc, extraSrc) {
   return { y0: ym(K.cover.from) + 0.02, y1: ym(K.cover.to) - 0.03 };
 }
 
-// V24: Gesichtskoordinaten für den gemalten Gesichteratlas: die Merkmale des MakeHuman-Kopfes (people.json, face) werden
-// stückweise linear auf die des gemalten Gesichts gelegt (HL), damit Lippen, Bart, Lidschatten und Falten genau sitzen
-const faceMapCache = {};
-function faceMapper(gk) {
-  if (faceMapCache[gk]) return faceMapCache[gk];
-  const r = HRIG[gk], fc = r && r.face; if (!fc) return null;
-  const hc = r.headC, kx = HL.eyeX / fc.eyeX;
-  const pts = [[fc.chinY - hc, HL.chinY], [fc.mouthY - hc, HL.mouthY], [fc.noseY - hc, HL.noseY], [fc.eyeY - hc, HL.eyeY], [fc.browY - hc, HL.browY]];
-  const my = y => { if (y <= pts[0][0]) return pts[0][1] + (y - pts[0][0]); for (let k = 1; k < pts.length; k++) if (y <= pts[k][0]) { const a = pts[k - 1], b = pts[k]; return a[1] + (b[1] - a[1]) * (y - a[0]) / (b[0] - a[0]); } const l = pts[pts.length - 1]; return l[1] + (y - l[0]); };
-  return (faceMapCache[gk] = (x, y, z) => faceUV(x * kx, my(y - hc), (z - r.headZ) / 0.09));
-}
 // Vorderseite des Sakkos (für Einstecktuch und Rose): vorderster Punkt nahe (x, y)
 function suitFront(x, y) {
   const s = MHP.src['suit-m']; let z = null;

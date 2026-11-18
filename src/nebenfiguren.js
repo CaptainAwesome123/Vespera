@@ -46,7 +46,7 @@ import { INV_SHOP } from './inventar.js';
 import { RUF, rufAdd, rufGet, rufWesen, rufTitle } from './ruf.js';
 import { KARTE } from './karte.js';
 import { AQ, addQuest, finishQuest, progress, placeOf } from './aufgaben.js';
-import { KT, BIZ, PROJECTS, ktCash, ktChanged, ktOwns, fmM, esc, titleCase, clamp } from './kontor.js';
+import { KT, BIZ, PROJECTS, ktCash, ktChanged, ktOwns, esc, titleCase, clamp } from './kontor.js';
 
 export const NF = { _v: new T.Vector3(), ready: false, open: false, cur: null, node: null, el: null, marks: [], tickT: 0, galaN: 0, helmT: 0, hint: false };
 const nfPick = a => a[Math.floor(Math.random() * a.length)];

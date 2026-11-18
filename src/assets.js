@@ -63,7 +63,6 @@ export function loadModel(name) {
   models.set(name, pr);
   return pr;
 }
-export const modelReady = name => models.has(name);
 // Kopie einer geladenen Vorlage (Geometrie und Material werden geteilt, nur die Knoten sind neu)
 let loadedModels = new Map();
 export async function prepareModels(names) {

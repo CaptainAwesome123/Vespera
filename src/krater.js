@@ -80,7 +80,6 @@ const GERITZT = 'Darunter, mit einem Messer ins Messing geritzt: „Und Brekke. 
 /* ---------- Speichern ---------- */
 function load() { try { const S = JSON.parse(localStorage.getItem(KEY) || 'null'); if (S) { KR.s.f = S.f || {}; KR.s.seen = S.seen || {}; KR.s.wahl = S.wahl || null; } } catch (e) { /* ohne Speicher */ } }
 function save() { try { localStorage.setItem(KEY, JSON.stringify(KR.s)); } catch (e) { /* ohne Speicher */ } }
-export const kraterFound = id => !!KR.s.f[id];
 export const kraterCount = () => FUNDE.filter(F => KR.s.f[F.id]).length;
 const day = () => (KT.s && KT.s.day) || 1;
 

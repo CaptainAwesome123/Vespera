@@ -7,7 +7,7 @@ import { buildGroundMask, groundGrass, COAST, ISL, buildSidewalks, blocks, inRec
 import { IB, FACTORY_LOOPS, FACTORY_IDLERS } from './shops.js';
 import { buildKronen } from './stadtbild.js';
 import { makeSignTex, FAN_TEX, lathe, crownFins, caps, domes, DOORS, TERRACE, CLOCKS } from './entrances.js';
-import { WATER_Y, setDance, placeCouple } from './dance.js';
+import { WATER_Y, placeCouple } from './dance.js';
 import { poolWaterMat, fountainJet } from './water.js';
 import { curtainMat, jetStreakMat } from './fountain.js';   // V41: Wasserschleier und Bogenstrahlen am Villenbrunnen
 import { VILLA, deckY, TER, terrainHeight, ROAD_Z0, VIA, ROAD_W, terrainHeightRaw, terrainInfo, VALLEY_W, PORT_LOOPS, PORT_PEDS, LAND_HOOK } from './harbour.js';
@@ -17,7 +17,7 @@ import { gegnerPeds } from './gegner.js';   // V60: Anarchisten, Räuber, Polize
 import { cars } from './airships.js';
 import { carDamageAttr, carCabin, carLoft, carSweep, fenderPath, carWheel, carTub } from './cars.js';
 import { CARM, CARM_PAINT, isModelCar, modelCarMeshes } from './carmodel.js';
-import { OBSTACLES, _m, _p, _q, _up, _s, TRUCK_N, deliveryMen, buildDrivers } from './traffic.js';
+import { OBSTACLES, _p, _q, _up, _s, TRUCK_N, deliveryMen, buildDrivers } from './traffic.js';
 import { dishModel, VENUE_PEDS } from './venues.js';
 import { carScenePeds } from './eating.js';
 import { fxEmit } from './particles.js';
@@ -1083,7 +1083,11 @@ export function buildVilla() {
   for (let lx = -48; lx <= 48; lx += 16) for (const lz of [-24.5, -55.5]) { put('iron', new T.CylinderGeometry(0.05, 0.07, 2.2, 6), lx, by + 1.1, lz); put('gold', new T.CylinderGeometry(0.16, 0.08, 0.3, 8), lx, by + 2.3, lz); G(lx, by + 2.65, lz, [1.6, 0.7, 0.2], 1.4); }
 
   const WUV = { hedge: 1.6, plaster: 4.2, parq: 4.0, marble: 4.2, panel: 2.0 };
-  for (const k in batch) { const g = mergeGeos(batch[k]); if (WUV[k]) worldUV(g, WUV[k]); const m = new T.Mesh(g, M[k]); m.frustumCulled = false; scene.add(m); if (k === 'statue') VILLA.statues = m; }   // V75: Statuen (110 000 Dreiecke) nur aus der Nähe, performance.js
+  // V114: Sichtprüfung an (die Netze liegen in Weltkoordinaten, die Hüllkugel stimmt); vorher gingen alle Garten- und Terrassennetze
+  // der Villa in jedem Bild an die Grafikkarte, auch aus der Stadt mit dem Rücken zum Berg. Kleinteile (Rosen, Orangenbäumchen,
+  // Polster, Teppiche, Eisen) nur aus der Nähe, wie die Statuen (performance.js)
+  const SMALL = new Set(['roseW', 'roseR', 'orange', 'trunk', 'velvet', 'carpet', 'iron']); VILLA.small = [];
+  for (const k in batch) { const g = mergeGeos(batch[k]); if (WUV[k]) worldUV(g, WUV[k]); g.computeBoundingSphere(); const m = new T.Mesh(g, M[k]); scene.add(m); if (k === 'statue') VILLA.statues = m; else if (SMALL.has(k)) VILLA.small.push(m); }   // V75: Statuen (110 000 Dreiecke) nur aus der Nähe, performance.js
   { const [x, z] = W(0, 20); addLight(0xffc27a, 0.95, 140, 1.4, x, by + 12, z); }
   { const [x, z] = W(0, -12); addLight(0xffd29a, 0.7, 30, 1.6, x, by + 6.5, z); }
 }

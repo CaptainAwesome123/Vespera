@@ -7,7 +7,7 @@
    Alles in Schiffskoordinaten: Figuren, Wege und Plätze fahren mit dem Schiff, auch während es
    fliegt oder Alexander selbst steuert. Keine neuen Shader, vorhandene Figuren und Gangarten.
    ===================================================================== */
-import { MOBILE } from './core.js';
+import './core.js';
 import { Crowd, turnHead } from './serpentine.js';
 import { IMP, impLocal } from './imperial.js';
 import { player } from './player.js';

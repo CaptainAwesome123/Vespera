@@ -27,12 +27,12 @@
 import { T, scene, mulberry32, canvasTex, shared, MOBILE, camera, $ } from './core.js';
 import { stdMat, addCollider } from './people-skeleton.js';
 import { addGlow, addNeon, NEON, lamps, trees, glowPts, addSeg } from './facade-shader.js';
-import { kit, Bx, wallRun, nameplate, benchGeo } from './harbour.js';
+import { kit, Bx, wallRun, benchGeo } from './harbour.js';
 import { lathe, roundBox, placeFurn, FURN, DOORS, makeSignTex } from './entrances.js';
 import { blocks } from './island.js';
-import { COL, GOWNS, DRESSES, FLAPPERS, COATS, SHIRTS, setAct, turnHead } from './serpentine.js';
+import { COL, GOWNS, DRESSES, FLAPPERS, COATS, setAct, turnHead } from './serpentine.js';
 import { addLight } from './performance.js';
-import { venue, VENUES, VENUE_PEDS, signBoard, walkGait, DINE } from './venues.js';
+import { venue, VENUES, VENUE_PEDS, signBoard } from './venues.js';
 import { tearWrap } from './tear.js';
 import { wantTexture } from './assets.js';
 import { player } from './player.js';

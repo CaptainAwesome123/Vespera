@@ -164,10 +164,13 @@ void main(){
     tex = mix(tex, vec3(0.62, 0.7, 0.78) * dot(vTint, vec3(0.4)) + vec3(0.12, 0.15, 0.2), frJ * 0.7);
   }
   // Sockel: Salzrand (weißlich, wellig) und dunkler Spritz- und Abriebstreifen; schon aus mittlerer Entfernung sichtbar
-  float salt = step(baseY, 0.6) * midFade * (1.0 - smoothstep(0.03, 0.09, abs(hy - 0.42 - 0.12 * vnoise(vec2(uW * 1.3, seed)))) ) * smoothstep(0.3, 0.6, vnoise(vec2(uW * 3.1, hy * 6.0) + seed));
-  float scuff = step(baseY, 0.6) * (1.0 - smoothstep(0.1, 0.38, hy)) * (0.6 + 0.4 * vnoise(vec2(uW * 2.0, seed)));
-  tex = mix(tex, tex * 0.72, scuff * 0.6);
-  tex = mix(tex, vec3(0.72, 0.72, 0.68) * dot(vTint, vec3(0.45)) + 0.05, salt * 0.55);
+  // V114: nur am Sockel rechnen (Salz reicht bis 0,63 m, Abrieb bis 0,38 m); vorher drei Rauschwerte für jeden Fassadenpunkt
+  if (baseY <= 0.6 && hy < 0.7) {
+    float salt = step(baseY, 0.6) * midFade * (1.0 - smoothstep(0.03, 0.09, abs(hy - 0.42 - 0.12 * vnoise(vec2(uW * 1.3, seed)))) ) * smoothstep(0.3, 0.6, vnoise(vec2(uW * 3.1, hy * 6.0) + seed));
+    float scuff = step(baseY, 0.6) * (1.0 - smoothstep(0.1, 0.38, hy)) * (0.6 + 0.4 * vnoise(vec2(uW * 2.0, seed)));
+    tex = mix(tex, tex * 0.72, scuff * 0.6);
+    tex = mix(tex, vec3(0.72, 0.72, 0.68) * dot(vTint, vec3(0.45)) + 0.05, salt * 0.55);
+  }
 #endif
   gloss *= 1.0 - brick;
   // Verwitterung: Regenspuren nach unten, Ruß am Boden, große Farbflecken
@@ -298,17 +301,20 @@ void main(){
     float midF = 1.0 - smoothstep(0.28, 0.5, px);
     // Schatten der Leute auf heruntergelassenen Jalousien (Lampe hinter ihnen, Schatten groß und weich)
     vec2 sp = vec2((g.x - 0.5)*cellWm, g.y*ch*0.85 - 0.2);
-    for (int k = 0; k < 2; k++) { if (float(k) < nP) shd = max(shd, silh((sp - vec2(k == 0 ? pX.x : pX.y, 0.0))/1.25, 0.0, k == 0 ? pSk.x : pSk.y, 0.07 + px*1.5)); }
+    // V114: Schatten zählen nur auf heruntergelassenen Jalousien (bl), sonst nichts rechnen
+    if (bl > 0.0) for (int k = 0; k < 2; k++) { if (float(k) < nP) shd = max(shd, silh((sp - vec2(k == 0 ? pX.x : pX.y, 0.0))/1.25, 0.0, k == 0 ? pSk.x : pSk.y, 0.07 + px*1.5)); }
     bright *= 1.0 - 0.5*shd*bl*midF;
     // Mittlere Entfernung: Lampenschein, dunklere Möbelzone unten, Umrisse vor dem Licht (weich, damit nichts flimmert)
     float mF = midF * smoothstep(0.06, 0.12, px) * (1.0 - bl);
     vec2 lp = vec2(0.2 + 0.6*fract(roomH*3.7), 0.78);
-    float glow = exp(-dot((g - lp)*vec2(2.2, 3.0), (g - lp)*vec2(2.2, 3.0))*2.5);
-    float furn = 1.0 - smoothstep(0.3, 0.42, g.y);
-    vec2 mp = vec2((g.x - 0.5)*cellWm, g.y*ch);
-    float ms = 0.0;
-    for (int k = 0; k < 2; k++) { if (float(k) < nP) ms = max(ms, silh(mp - vec2(k == 0 ? pX.x : pX.y, 0.0), 0.0, k == 0 ? pSk.x : pSk.y, 0.04 + px*cellWm*1.2)); }
-    bright *= mix(1.0, (0.78 + 0.75*glow - 0.25*furn) * (1.0 - 0.6*ms), mF);
+    if (mF > 0.0) {   // V114: nur wenn die mittlere Entfernung überhaupt einblendet
+      float glow = exp(-dot((g - lp)*vec2(2.2, 3.0), (g - lp)*vec2(2.2, 3.0))*2.5);
+      float furn = 1.0 - smoothstep(0.3, 0.42, g.y);
+      vec2 mp = vec2((g.x - 0.5)*cellWm, g.y*ch);
+      float ms = 0.0;
+      for (int k = 0; k < 2; k++) { if (float(k) < nP) ms = max(ms, silh(mp - vec2(k == 0 ? pX.x : pX.y, 0.0), 0.0, k == 0 ? pSk.x : pSk.y, 0.04 + px*cellWm*1.2)); }
+      bright *= mix(1.0, (0.78 + 0.75*glow - 0.25*furn) * (1.0 - 0.6*ms), mF);
+    }
   }
 #endif
   float fres = pow(1.0 - abs(dot(n, -vdir)), 4.0);

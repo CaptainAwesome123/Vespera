@@ -30,7 +30,7 @@ import { player } from './player.js';
 import { peds } from './serpentine.js';
 import { citizens, CIT_SAY } from './ragdoll.js';
 import { AWE, attOf } from './awe.js';
-import { RUF, rufGet } from './ruf.js';
+import { RUF } from './ruf.js';
 import { KT, esc } from './kontor.js';
 import { POWERS } from './powers.js';
 import { BLAST } from './energy.js';

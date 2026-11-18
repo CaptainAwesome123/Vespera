@@ -9,7 +9,7 @@
    Der Meteoritenkristall bleibt im Penthouse (Kanon), hier draußen gibt es ihn nicht.
    ===================================================================== */
 import { T, scene, U, MOBILE, LOW, mergeGeos, mulberry32, snowy, FOG_GLSL } from './core.js';
-import { TER, terrainInfo, terrainHeight, terrainHeightRaw, VILLA, LAND_HOOK, VIA } from './harbour.js';
+import { TER, terrainInfo, terrainHeight, terrainHeightRaw, VILLA, LAND_HOOK } from './harbour.js';
 import { WATER_Y } from './dance.js';
 import { SERP, serpSink, MOUNT, sstep } from './serpentine.js';
 import { stdMat } from './people-skeleton.js';

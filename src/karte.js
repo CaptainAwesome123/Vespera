@@ -813,7 +813,6 @@ export function kaClose() {
   KARTE.open = false; DINE.menuOpen = false; KARTE.el.hidden = true; kaHideCard();
   if (!isTouch && playing && !paused) tryLock();
 }
-export function kaToggle() { if (KARTE.open) kaClose(); else kaOpen(); }
 
 /* =====================================================================
    4) WEGPUNKT, KOMPASSRING, MARKE IN DER WELT

@@ -27,7 +27,7 @@ import { player } from './player.js';
 import { attOf } from './awe.js';
 import { CLOCK } from './ragdoll.js';
 import { KT } from './kontor.js';
-import { MEM } from './gedaechtnis.js';
+import './gedaechtnis.js';
 import { GS, ALEX, STREIK, ARBEIT, WETTER, STADT, WITZ } from './gespraeche.js';
 import { GR, PAAR, FREUNDE, FAMILIE, UEBER } from './gruppen.js';
 import { UH, OPTS, fillC } from './unterhaltung.js';
@@ -40,12 +40,12 @@ import { playing, paused } from './input.js';
 import { DRIVE } from './eating.js';
 import { STR } from './strasse.js';
 import { LIFE } from './life.js';
-import { walk, stand, pos, begin, goHome, freePd, clear } from './reaktionen.js';
+import { walk, stand, pos, begin, goHome, clear } from './reaktionen.js';
 import { ZEITUNG } from './zeitung.js';
 import { canHelp } from './ablaeufe.js';
 
 export const PLAUDERN = typeof location === 'undefined' || new URLSearchParams(location.search).get('plaudern') !== 'aus';
-export const PL = { ready: false, talks: [], seen: [], clock: 0, tickT: 0, inT: 0, seenT: 0, folT: 0, fol: null, folS: 0, n: { inside: 0, venue: 0, ctx: 0, follow: 0, frage: 0, kauf: 0, zeitung: 0 }, errT: 6, added: 0 };
+export const PL = { ready: false, talks: [], seen: [], clock: 0, tickT: 0.45, inT: 0, seenT: 0, folT: 0, fol: null, folS: 0, n: { inside: 0, venue: 0, ctx: 0, follow: 0, frage: 0, kauf: 0, zeitung: 0 }, errT: 6, added: 0 };
 const pick = a => a[Math.floor(Math.random() * a.length)];
 
 /* =====================================================================

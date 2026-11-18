@@ -6,8 +6,8 @@ import { FURN, placeFurn, roundBox, lathe, tube, movOn, movOff } from './entranc
 import { poolWaterMat } from './water.js';
 import { player } from './player.js';
 import { addLight } from './performance.js';
-import { shadeBegin, shadeEnd, shadeRoom, shadeQuad, shadeEdge, shadeWall, shadeColumn, shadeDisc, lightPool, wallWash, lightBand, roughTex, addSheen } from './raumlicht.js';
-import { BEL, boxW, marbleTex } from './belmont.js';
+import { shadeBegin, shadeEnd, shadeRoom, shadeQuad, shadeEdge, shadeWall, shadeColumn, lightPool, wallWash, lightBand, roughTex, addSheen } from './raumlicht.js';
+import { boxW, marbleTex } from './belmont.js';
 import { inlayFloorTex, travertineTex, decoRugTex, damaskTex, veneerTex, onyxTex, cofferTex2, booksTex, tileTex, mosaicTex, glowRoomTex, paintingTex, RUNNER_TEX } from './deco-tex.js';
 import { SPAWNS } from './physics.js';
 import { buildCrystal } from './crystal.js';

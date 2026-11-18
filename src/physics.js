@@ -47,8 +47,8 @@ import { CLUT, clutterNear, clutterMatrix, clutterMoved } from './clutter.js';
 import { decoLampGeo, decoLampMats } from './decolamp.js';
 import { lampFx } from './serpentine.js';
 import { invalidateLayer } from './chunks.js';
-import { TEAR, tearInfo, tearNear } from './tear.js';
-import { TREE_SETS, treeNear, treeDirty } from './serpentine.js';
+import { tearInfo, tearNear } from './tear.js';
+import { TREE_SETS, treeDirty } from './serpentine.js';
 
 export const LOOSE = { bodies: [], batches: new Map(), held: null, tk: null, tkTarget: null, aim: null, rot: 0, spawned: new Set(), mat: null, goodsIdx: null, stats: { awake: 0, bodies: 0, ms: 0 } };
 const G = 9.81, SUB = MOBILE ? 5 : 8, MAX_BODIES = MOBILE ? 56 : 128, REACH = 2.6;   // V52: mehr Platz (Möbel, Straßenmöbel, neue Gruppen); ferne Gruppen räumt cullBodies wieder ab

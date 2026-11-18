@@ -9,7 +9,7 @@
 import { T, canvasTex, mergeGeos, MOBILE } from './core.js';
 import { stdMat } from './people-skeleton.js';
 import { decoRugTex, paintingTex } from './deco-tex.js';
-import { FURN, placeFurn, lathe, tube } from './entrances.js';
+import { FURN, placeFurn, lathe } from './entrances.js';
 import { addLight } from './performance.js';
 
 // Lichtfächer an der Wand: hell an der Leuchte, nach oben und unten weich auslaufend

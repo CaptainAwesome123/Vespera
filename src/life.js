@@ -13,7 +13,7 @@
    Alles nur aus vorhandenen Figuren und Handlungen (kein neuer Shader-Code);
    die Instrumente sind ein einziges Netz (ein Zeichenaufruf).
    ===================================================================== */
-import { T, MOBILE, mulberry32, scene, mergeGeos, shared, camera, $ } from './core.js';
+import { T, MOBILE, mulberry32, scene, shared, camera, $ } from './core.js';
 import { blocks, PLAZA, inRect } from './island.js';
 import { DOORS } from './entrances.js';
 import { curbs, trees, lamps } from './facade-shader.js';

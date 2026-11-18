@@ -356,6 +356,7 @@ export function frame(now) {
   const villaD = Math.hypot(camera.position.x - VILLA.x, camera.position.z - VILLA.z), nearVilla = villaD < 650;
   if (VILLA.buffet) VILLA.buffet.visible = villaD < 220;   // V64: Teller und Gläser auf dem Büfett nur aus der Nähe
   if (VILLA.statues) VILLA.statues.visible = villaD < 600;   // V75: die Marmorstatuen (110 000 Dreiecke) wurden bis in die Stadt gezeichnet
+  if (VILLA.small) { const v = villaD < (MOBILE ? 450 : 650); if (VILLA.small.length && VILLA.small[0].visible !== v) for (const m of VILLA.small) m.visible = v; }   // V114: Rosen, Polster, Eisen
   if (VILLA.crowd) VILLA.crowd.show(nearVilla);
   if (nearVilla) updateVilla(t); else updateVillaZones(false);
   updateLights(dt);

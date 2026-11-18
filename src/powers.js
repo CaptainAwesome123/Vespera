@@ -29,7 +29,7 @@ import { player } from './player.js';
 import { LOOSE, bumpSound, movNear, movWorld, furnInfo, furnBody, streetNear, streetBody, streetCenter, tearBody, treeBody, treeCenter } from './physics.js';
 import { tearNear, tearInfo } from './tear.js';
 import { treeNear } from './serpentine.js';
-import { aweBurst, AWE } from './awe.js';
+import { aweBurst } from './awe.js';
 import { BODIES, looseFromTraffic, looseFromParked, impulse, crashDamage } from './driving.js';
 import { TRF } from './traffic.js';
 import { parked, peds } from './serpentine.js';

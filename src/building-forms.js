@@ -1,5 +1,5 @@
-import { T, mergeGeos, scene } from './core.js';
-import { stdMat, MAT } from './people-skeleton.js';
+import { T } from './core.js';
+import './people-skeleton.js';
 import { addSeg, addGlow, lamps } from './facade-shader.js';
 import { DOORS } from './entrances.js';
 import { decoHouseDoor } from './deco.js';

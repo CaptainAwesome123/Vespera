@@ -1,10 +1,10 @@
 import { shared, rand, MOBILE, T, pick, scene, camera, U, mergeGeos, R, FOGVIS, TREE } from './core.js';
-import { MAT, mergeColored, paintMat, addCollider, PAINT, stdMat } from './people-skeleton.js';
-import { addSeg, addNeon, NEON, addGlow, steamPts } from './facade-shader.js';
-import { offsetPoly, resample, NET, bez, AV, ST, blockAt, inRect, PLAZA } from './island.js';
+import { MAT, mergeColored, paintMat, addCollider, PAINT } from './people-skeleton.js';
+import { steamPts } from './facade-shader.js';
+import { offsetPoly, resample, NET, bez, AV, ST, blockAt } from './island.js';
 import { IB, DEPOTS } from './shops.js';
-import { DOORS, makeSignTex } from './entrances.js';
-import { ROAD_Z0, VIA, deckY } from './harbour.js';
+import { DOORS } from './entrances.js';
+import { deckY } from './harbour.js';
 import { carGeo, carGeoHi, lodCompactor, LOD_CAR2, Crowd, COATS, serpCarStep, COL, compactor, pedCrowd, viewPlanes, outOfView } from './serpentine.js';
 import { makeGlowPoints } from './ragdoll.js';
 import { cars } from './airships.js';
@@ -13,7 +13,7 @@ import { DRIVE } from './eating.js';
 import { buildFX } from './particles.js';
 import { buildFlags, buildLeaves } from './wind.js';
 import { paused } from './input.js';
-import { tearInst } from './tear.js';
+import './tear.js';
 import { CARM, CARM_PAINT, isModelCar, modelCarMeshes } from './carmodel.js';
 
 /* =====================================================================

@@ -1,7 +1,7 @@
 import { shared, pick, R, rand, mulberry32, MOBILE, T, U, mergeGeos, scene } from './core.js';
 import { decoOuterDoor } from './deco.js';
 import { addCollider, stdMat } from './people-skeleton.js';
-import { STONES, addSeg, lamps, trees, addNeon, addGlow, NEON, curbs } from './facade-shader.js';
+import { STONES, addSeg, lamps, trees, addNeon, NEON, curbs } from './facade-shader.js';
 import { BRICK, isFactoryZone, snapArrays, buildBlock, buildFactory } from './shops.js';
 import { pickW, DOORS } from './entrances.js';
 import { WATER_Y } from './dance.js';

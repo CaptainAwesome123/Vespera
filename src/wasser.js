@@ -12,10 +12,10 @@
    Alles mit eigenem Zufall (mulberry32): die übrige Stadt bleibt, wie sie war. Keine neuen Shader außer dem Eis
    (Standardmaterial mit gemalter Textur); Menschen in einer eigenen kleinen Menge (Crowd) mit den bekannten Posen.
    ===================================================================== */
-import { T, scene, camera, U, mulberry32, MOBILE, canvasTex, FOGVIS, shared } from './core.js';
+import { T, scene, camera, U, mulberry32, MOBILE, canvasTex, shared } from './core.js';
 import { stdMat, addCollider } from './people-skeleton.js';
 import { addGlow, addSeg, lamps, trees, roofs } from './facade-shader.js';
-import { kit, Bx, wuv, benchGeo, hullShape, rubRail, deckBoxes, railing, nameplate, PLATFORMS, VESSELS, addPlatform, PORT_PEDS, bx6, PIER_Y, FERRY, pfLocal, terrainHeight } from './harbour.js';
+import { kit, Bx, wuv, benchGeo, hullShape, rubRail, deckBoxes, nameplate, VESSELS, addPlatform, PORT_PEDS, bx6, PIER_Y, FERRY, terrainHeight } from './harbour.js';
 import { CANAL, QUAY, onIsland } from './island.js';
 import { roundBox, lathe } from './entrances.js';
 import { WATER_Y } from './dance.js';

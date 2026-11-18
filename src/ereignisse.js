@@ -37,7 +37,7 @@ import { canHelp } from './ablaeufe.js';
 import { playing, paused } from './input.js';
 
 export const EREIGNISSE = typeof location === 'undefined' || new URLSearchParams(location.search).get('ereignisse') !== 'aus';
-export const EV = { ready: false, list: [], gaff: [], cops: [], watch: [], q: [], clock: 0, tickT: 0, galaTok: 0, n: { ev: 0, gaff: 0, cop: 0, demo: 0, streit: 0, welle: 0 }, demoT: 4, streitT: 20 };
+export const EV = { ready: false, list: [], gaff: [], cops: [], watch: [], q: [], clock: 0, tickT: 0.29, galaTok: 0, n: { ev: 0, gaff: 0, cop: 0, demo: 0, streit: 0, welle: 0 }, demoT: 4, streitT: 20 };
 const pick = a => a[Math.floor(Math.random() * a.length)];
 const near2 = (pd, x, z) => { const e = pd.a.m.elements; return (e[12] - x) ** 2 + (e[14] - z) ** 2; };
 const isCop = pd => (pd.kind || (pd.a && pd.a.kind)) === 'police';

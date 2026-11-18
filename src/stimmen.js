@@ -19,7 +19,7 @@
    Alles in dieser Datei; die anderen Dateien geben nur ihre Satzlisten frei
    (export). Läuft viermal pro Sekunde, nur mit Leuten in der Nähe.
    ===================================================================== */
-import { shared, $ } from './core.js';
+import { shared } from './core.js';
 import { SAY, SAY_NEAR, SAY_POW, TALK, attOf, whoOf, AWE } from './awe.js';
 import { HEAD, HEAD_HIM, MUSIC_HIM, lifeSay } from './life.js';
 import { HS, R_GREET, R_ROOM, R_BYE, R_TK, K_GREET, K_SAYS, PIANO_HIM } from './haushalt.js';

@@ -40,15 +40,17 @@ function build() {
 // Laternen in ein Raster (neu, wenn sich die Liste ändert: gebaut, zerbrochen)
 function lampGrid() {
   const L = STREET.lamps; if (LS.gridN === L.length && LS.grid) return LS.grid;
-  const G = new Map(); for (const l of L) { const k = Math.floor(l.x / CELL) + ',' + Math.floor(l.z / CELL); let a = G.get(k); if (!a) G.set(k, a = []); a.push(l); }
+  const G = new Map(); for (const l of L) { const k = cellKey(Math.floor(l.x / CELL), Math.floor(l.z / CELL)); let a = G.get(k); if (!a) G.set(k, a = []); a.push(l); }
   LS.grid = G; LS.gridN = L.length; return G;
 }
+// V114: Zahl statt Text als Schlüssel (vorher neun neue Zeichenketten je Werfer und Bild)
+const cellKey = (cx, cz) => (cx + 32768) * 65536 + (cz + 32768);
 const near = [null, null], nd = [0, 0];
 function nearestLamps(G, x, z) {
   near[0] = near[1] = null; nd[0] = nd[1] = R2;
   const cx = Math.floor(x / CELL), cz = Math.floor(z / CELL);
   for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) {
-    const a = G.get((cx + i) + ',' + (cz + j)); if (!a) continue;
+    const a = G.get(cellKey(cx + i, cz + j)); if (!a) continue;
     for (const l of a) { const d = (l.x - x) ** 2 + (l.z - z) ** 2; if (d < 0.04) continue; if (d < nd[0]) { nd[1] = nd[0]; near[1] = near[0]; nd[0] = d; near[0] = l; } else if (d < nd[1]) { nd[1] = d; near[1] = l; } }
   }
 }

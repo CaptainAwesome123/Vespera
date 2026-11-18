@@ -1,11 +1,11 @@
 import { T, mergeGeos, scene, pick, R, rand, mulberry32, canvasTex, freeAfterUpload, snowyNeu } from './core.js';
-import { stdMat, MAT, addCollider } from './people-skeleton.js';
+import { stdMat, addCollider } from './people-skeleton.js';
 import { addGlow, addSeg, addNeon, NEON, STONES, RIBS, spires, towers, roofs, neonPool, shafts, steamPts, segs, neons } from './facade-shader.js';
 import { plan76, lightBand, towerPiers, setbackPylons, sunCrown, lanternCrown, mastCrown, stepCrown, FORCE76, KRONEN } from './stadtbild.js';
 import { BR_SPOTS } from './island.js';
 import { addArcade, addOriels, addBalconies, houseDoor } from './building-forms.js';
 import { BRICK, wantShop, shopFloor, tier, facadeRelief } from './shops.js';
-import { _m, _p, _q, _up, _s } from './traffic.js';
+import './traffic.js';
 import { decoPortal, decoCornice } from './deco.js';
 import { furnShadow } from './raumlicht.js';
 

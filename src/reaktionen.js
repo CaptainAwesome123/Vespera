@@ -39,7 +39,7 @@ import { nearBoxes } from './people-skeleton.js';
 import { playing, paused } from './input.js';
 
 export const REAKTIONEN = typeof location === 'undefined' || new URLSearchParams(location.search).get('reaktionen') !== 'aus';
-export const RK = { ready: false, tickT: 0, flee: 0, gather: [], hoverT: 0, photo: null, bitte: null, photoT: 50 + Math.random() * 40, bitteT: 70 + Math.random() * 60, booT: 25, ball: null, n: { flee: 0, gather: 0, photo: 0, bitte: 0, boo: 0, ball: 0 } };
+export const RK = { ready: false, tickT: 0.07, flee: 0, gather: [], hoverT: 0, photo: null, bitte: null, photoT: 50 + Math.random() * 40, bitteT: 70 + Math.random() * 60, booT: 25, ball: null, n: { flee: 0, gather: 0, photo: 0, bitte: 0, boo: 0, ball: 0 } };
 
 const pick = a => a[Math.floor(Math.random() * a.length)];
 const TAU = Math.PI * 2;
