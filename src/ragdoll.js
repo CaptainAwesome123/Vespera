@@ -15,6 +15,8 @@ import { nearBoxes } from './people-skeleton.js';
    jedes Körperteil ist ein eigenes Netz aus dem feinen Modell und folgt
    seinen zwei Punkten. Danach steht die Figur auf, schimpft und geht weiter.
    ===================================================================== */
+// V120: Figuren-Physik: leichte Stöße lassen stolpern statt fallen, wer fällt, fängt sich mit den Händen ab und steht über das Knie auf (?figurphysik=aus)
+export const FIGPHYS = new URLSearchParams(location.search).get('figurphysik') !== 'aus';
 export const RAG = { pool: [], max: MOBILE ? 3 : 6, sub: {}, live: [], onDown: [] };   // V109: onDown = jemand wurde umgerannt (ablaeufe.js: Hilfe)
 // Gelenke im Modell (Mann / Frau), passend zur Geometrie aus personBuild
 export function ragJoints(fem) {
@@ -90,7 +92,7 @@ export function ragStart(pd, B) {
     geo.boundingSphere = sub.g.boundingSphere;
     im.setColorAt(0, _cc.setRGB(a.color[0], a.color[1], a.color[2])); im.instanceColor.needsUpdate = true;
   }
-  s.busy = true; s.soft = false; s.pd = pd; s.p = p; s.q = q; s.L = L; s.rest = rest; s.S = _gS.clone(); s.t = 0; s.ph = 'fly'; s.B = B; s.fem = fem;
+  s.busy = true; s.soft = false; s.mid = null; s.pd = pd; s.p = p; s.q = q; s.L = L; s.rest = rest; s.S = _gS.clone(); s.t = 0; s.ph = 'fly'; s.B = B; s.fem = fem;
   pd.rag = s; a.on = false; RAG.live.push(s);
   B.vx *= 0.93; B.vz *= 0.93;
   return true;
@@ -168,12 +170,42 @@ export function ragPose(s) {
 export function knockDown(pd, vx, vz, fromX, fromZ) {
   if (pd.rag || pd.sit || !pd.a || !pd.a.on) return false;
   const e = pd.a.m.elements, sp = Math.hypot(vx, vz) || 1;
+  if (FIGPHYS && sp < 3.4 && !pd.gg && !pd.back) return stumble(pd, vx, vz, fromX ?? e[12] - vx, fromZ ?? e[14] - vz);
   const B = { x: e[12], z: e[14], y: e[13], vx, vz, h: Math.atan2(-vz / sp, vx / sp), hl: 0.3, hw: 0.3 };
   const g = groundAt(e[12], e[14], e[13] + 0.3); pd.ragGy = g ? g.y : e[13];
   if (!ragStart(pd, B)) return false;
   pd.rag.gy = pd.ragGy; pd.rag.B = { x: fromX ?? e[12] - vx, z: fromZ ?? e[14] - vz };   // beim Aufstehen dorthin schauen, woher der Stoß kam
   for (const f of RAG.onDown) try { f(pd); } catch (er) { console.warn('Ragdoll:', er); }
   return true;
+}
+// V120: Stolpern: ein leichter Stoß (Telekinese, Druckwelle am Rand, ein geworfenes Ding) wirft nicht um. Die Figur taumelt in Stoßrichtung
+// ein paar schnelle Schritte, wird langsamer, knickt dabei leicht ein, fängt sich und schaut dann dorthin, woher der Stoß kam.
+function stumble(pd, vx, vz, fromX, fromZ) {
+  const a = pd.a, e = a.m.elements;
+  if (pd.st === 7) { const P = pd.mp; endMeet(pd); if (P) endMeet(P); }
+  if (pd.aw) aweEnd(pd);
+  const sp = Math.hypot(vx, vz), k = Math.max(2.2, Math.min(3.4, sp * 1.2)) / (sp || 1);
+  pd.back = { x: e[12], y: e[13], z: e[14], yaw: Math.atan2(vx, vz), t: 0, st: { vx: vx * k, vz: vz * k, t: 0, fx: fromX, fz: fromZ, y0: e[13] } };
+  const g = a.gait; g[1] = 5; g[2] = 0.62; a.gv = (a.gv | 0) + 1;   // schnelle, kurze Schritte
+  return true;
+}
+function stumbleStep(pd, bk, dt) {
+  const S = bk.st; S.t += dt;
+  const f = Math.exp(-2.2 * S.t), vx = S.vx * f, vz = S.vz * f;
+  let nx = bk.x + vx * dt, nz = bk.z + vz * dt;
+  // gegen Wände und Bänke: dort hält man sich fest
+  for (const b of nearBoxes(nx, nz, 0.4)) if (b.y1 > S.y0 + 0.3 && b.y0 < S.y0 + 1.6 && nx > b.x0 - 0.25 && nx < b.x1 + 0.25 && nz > b.z0 - 0.25 && nz < b.z1 + 0.25) { nx = bk.x; nz = bk.z; S.vx = S.vz = 0; break; }
+  const g = groundAt(nx, nz, S.y0 + 0.4); bk.x = nx; bk.z = nz; if (g && Math.abs(g.y - S.y0) < 0.5) S.y0 = g.y;
+  // einknicken: in den ersten Schritten tiefer, mit jedem Tritt ein kleiner Wipp
+  const dip = (0.09 * f + 0.02) * (0.6 + 0.4 * Math.abs(Math.sin(S.t * 11)));
+  bk.y = S.y0 - dip; bk.yaw += (Math.atan2(S.vx, S.vz) + Math.sin(S.t * 7) * 0.25 * f - bk.yaw) * Math.min(1, dt * 8);
+  pedCrowd.set(pd.a, bk.x, bk.y, bk.z, bk.yaw, pd.sc);
+  if (S.t > 1.1 || (S.vx === 0 && S.vz === 0)) {
+    // gefangen: stehen bleiben, umdrehen, schimpfen (wie nach dem Aufstehen), danach zurück auf den Weg
+    bk.st = null; bk.t = 0.8; bk.y = S.y0; bk.yaw = Math.atan2(S.fx - bk.x, S.fz - bk.z);
+    setAct(pd, 13);
+    pedCrowd.set(pd.a, bk.x, bk.y, bk.z, bk.yaw, pd.sc);
+  }
 }
 // V35: Alexander hebt jemanden mit Telekinese hoch: die Figur wird zur Puppe, die er am Rumpf hält (aufrecht, Arme und Beine hängen
 // und zappeln ein wenig). Losgelassen sinkt sie gebremst wie an einem Fallschirm und kommt auf die Füße
@@ -204,6 +236,29 @@ function ragTkStep(s, dt) {
   for (const [i, f] of [[7, 9.0], [8, 8.1], [13, 6.3], [14, 7.2]]) { const a = 0.9 * dt; q[i][0] -= Math.sin(s.t * f + i) * a; q[i][1] -= Math.cos(s.t * f * 0.8 + i) * a * 0.6; q[i][2] -= Math.sin(s.t * f * 1.1 + i * 2) * a; }
 }
 export function ragFree(s) { s.busy = false; for (const im of s.parts) im.visible = false; RAG.live.splice(RAG.live.indexOf(s), 1); s.pd.rag = null; }
+// V120: im Fallen fängt man sich ab: die Hände gehen nach vorn unten (in Fallrichtung), solange der Körper noch nicht liegt
+function ragBrace(s, dt) {
+  const p = s.p, q = s.q, P0 = p[0], Q0 = q[0], C = p[1];
+  if (C[1] - s.gy < 0.25) return;
+  let vx = P0[0] - Q0[0], vz = P0[2] - Q0[2]; const l = Math.hypot(vx, vz); if (l < 1e-4) return; vx /= l; vz /= l;
+  const k = Math.min(1, dt * 7) * 0.5;
+  for (const [w, sd] of [[7, -1], [8, 1]]) {
+    const W = p[w], tx = C[0] + vx * 0.45 - vz * 0.18 * sd, tz = C[2] + vz * 0.45 + vx * 0.18 * sd, ty = Math.max(s.gy + 0.05, C[1] - 0.7);
+    W[0] += (tx - W[0]) * k; W[1] += (ty - W[1]) * k; W[2] += (tz - W[2]) * k;
+  }
+}
+// V120: Zwischenhaltung beim Aufstehen: linkes Knie am Boden, rechter Fuß vorn aufgesetzt, Oberkörper leicht vorgebeugt, rechte Hand auf dem Knie
+function kneelPose(s, c, cs, sn) {
+  const R = s.rest, S = s.S, hip = R[0][1] * S.y, drop = hip * 0.42;
+  return R.map((r, i) => {
+    let x = r[0] * S.x, y = r[1] * S.y, z = r[2] * S.z;
+    if (i <= 10) { y -= drop; z += i === 0 || i >= 9 ? 0.0 : 0.14; }
+    if (i === 11) { y = 0.08; z = 0.02; } else if (i === 13) { y = 0.06; z = -0.42; }
+    else if (i === 12) { y = hip - drop - 0.04; z = 0.44; } else if (i === 14) { y = 0.06; z = 0.46; }
+    else if (i === 8) { y = hip - drop + 0.02; z = 0.4; }
+    return [c[0] + x * cs + z * sn, s.gy + y, c[2] - x * sn + z * cs];
+  });
+}
 // Anfahrten erkennen (nur schnelle Wagen in der Nähe), Puppen rechnen, Aufstehen und Weitergehen
 export function updateRagdolls(dt) {
   dt = Math.min(dt, 1 / 30);
@@ -222,6 +277,7 @@ export function updateRagdolls(dt) {
     if (s.ph === 'fly') {
       { const c = s.p[0]; s.boxes = []; for (const b of nearBoxes(c[0], c[2], 3)) if (b.y1 > c[1] - 2.5 && b.y0 < c[1] + 2.5 && b.x1 > c[0] - 3 && b.x0 < c[0] + 3 && b.z1 > c[2] - 3 && b.z0 < c[2] + 3) s.boxes.push(b); }
       ragStep(s, dt);
+      if (FIGPHYS && s.t < 1.6) ragBrace(s, dt);
       const c = s.p[0], g = groundAt(c[0], c[2], c[1] + 0.5); if (g && Math.abs(g.y - s.gy) < 0.6) s.gy += (g.y - s.gy) * Math.min(1, dt * 8);
       let mv = 0; for (let i = 0; i < s.p.length; i++) mv += Math.abs(s.p[i][0] - s.q[i][0]) + Math.abs(s.p[i][1] - s.q[i][1]) + Math.abs(s.p[i][2] - s.q[i][2]);
       if ((s.t > 3.2 && mv < 0.02) || s.t > 7) { s.ph = 'lie'; s.t = 0; }
@@ -250,17 +306,19 @@ export function updateRagdolls(dt) {
         const c = s.p[0], B = s.B, yaw = B ? Math.atan2(B.x - c[0], B.z - c[2]) : 0, cs = Math.cos(yaw), sn = Math.sin(yaw);
         s.from = s.p.map(P => P.slice()); s.to = s.rest.map(R => { const x = R[0] * s.S.x, z = R[2] * s.S.z; return [c[0] + x * cs + z * sn, s.gy + R[1] * s.S.y, c[2] - x * sn + z * cs]; });
         s.yaw = yaw; s.ph = 'up'; s.t = 0;
+        if (FIGPHYS) s.mid = kneelPose(s, c, cs, sn);   // V120: erst auf ein Knie, dann ganz hoch
       }
     } else if (s.ph === 'up') {
-      const k = Math.min(1, s.t / 1.3);
+      const tgt = s.mid || s.to, dur = s.mid ? 1.05 : 1.3, k = Math.max(0, Math.min(1, s.t / dur));
       for (let i = 0; i < s.p.length; i++) {
         // erst der Rumpf hoch, dann die Beine darunter
         const kk = i >= 9 ? Math.min(1, Math.max(0, (k - 0.15) / 0.85)) : Math.min(1, k / 0.8), e = kk * kk * (3 - 2 * kk);
-        for (let j = 0; j < 3; j++) s.p[i][j] = s.from[i][j] + (s.to[i][j] - s.from[i][j]) * e;
-        s.p[i][1] += Math.sin(Math.PI * kk) * (i >= 11 ? 0.05 : 0.15);
+        for (let j = 0; j < 3; j++) s.p[i][j] = s.from[i][j] + (tgt[i][j] - s.from[i][j]) * e;
+        s.p[i][1] += Math.sin(Math.PI * kk) * (i >= 11 ? 0.05 : s.mid ? 0.08 : 0.15);
       }
       ragPose(s);
-      if (k >= 1) {
+      if (k >= 1 && s.mid) { s.from = s.mid.map(P => P.slice()); s.mid = null; s.t = -0.25; }   // kurz auf dem Knie verschnaufen
+      else if (k >= 1) {
         // als Figur weiter: kurz schimpfen, dann zurück auf den Weg
         const c = s.to[0], a = pd.a; ragFree(s);
         pd.back = { x: c[0], y: s.gy, z: c[2], yaw: s.yaw, t: 0 }; a.on = true; setAct(pd, s.soft ? 2 : 13);   // V35: nach dem Schweben lacht man, nach dem Umfallen schimpft man
@@ -270,6 +328,7 @@ export function updateRagdolls(dt) {
   // zurück zum Weg oder Platz
   for (const pd of peds) {
     const bk = pd.back; if (!bk) continue;
+    if (bk.st) { stumbleStep(pd, bk, dt); continue; }
     bk.t += dt;
     if (bk.t < 2.6) { pedCrowd.set(pd.a, bk.x, bk.y, bk.z, bk.yaw, pd.sc); continue; }
     let tx, tz, ty;
