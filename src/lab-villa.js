@@ -22,6 +22,8 @@ export async function startVillaLab(params) {
   buildEnv(); getMats();
   scene.fog.density = 0.00025;
   buildVilla(); hookVilla();
+  // V115: Fototexturen und Verwitterung wie im Spiel (vorher zeigte das Labor nur die gezeichneten Flächen)
+  try { const A = await import('./assets.js'); await A.loadManifest(); await A.applyTextures(); } catch (e) { /* ohne Fotos */ }
   // V58: &schiff=1 legt die Aurora Imperial an den neuen Ankermast der Villa (zum Prüfen von Mast, Lage und Rufsäule)
   if (params.get('schiff')) { const IM = await import('./imperial.js'); const HB = await import('./harbour.js'); IM.buildImperial(); IM.IMP.st = 'moorV'; IM.impApply(IM.impPose('moorV', 0, IM.IMP._p)); IM.IMP.g.updateMatrixWorld(true); HB.pfRead(IM.IMP.pf); HB.pfSave(IM.IMP.pf); IM.IMP.inner.visible = false; IM.IMP.farGlow.visible = true; }
   scene.add(labFacadeMesh(FS));

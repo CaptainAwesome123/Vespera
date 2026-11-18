@@ -12,6 +12,7 @@ import { decoBuilding } from './entrances.js';
 import { FORCE76, KRONEN } from './stadtbild.js';
 import { labFacadeMesh } from './deco.js';
 import { buildTowerTops } from './serpentine.js';
+import { domes, caps } from './entrances.js';
 import { makeGlowPoints } from './ragdoll.js';
 import { loadManifest, applyTextures } from './assets.js';
 
@@ -45,8 +46,11 @@ export async function startTurmLab(params) {
   scene.add(labFacadeMesh(FS));
   { const box = new T.BoxGeometry(1, 1, 1), nm = new T.InstancedMesh(box, new T.MeshBasicMaterial({ color: 0xd2d2d2 }), Math.max(1, neons.length)), m = new T.Matrix4(), c = new T.Color(), q = new T.Quaternion(), e = new T.Euler(), p = new T.Vector3(), s = new T.Vector3();
     neons.forEach((n, i) => { m.compose(p.set(n.x, n.y, n.z), q.setFromEuler(e.set(0, n.ry || 0, n.rz || 0)), s.set(n.sx, n.sy, n.sz)); nm.setMatrixAt(i, m); nm.setColorAt(i, c.setRGB(...n.c)); }); nm.count = neons.length; nm.frustumCulled = false; scene.add(nm); }
+  // V115: Kupferkuppel und Kupferdach mit Grünspan aus der Nähe (Ansicht kuppel)
+  domes.push({ x: 0, z: 200, y: 0, r: 10 }); caps.push({ x: -32, z: 200, y: 0, w: 14, d: 14, h: 16, gold: false });
   buildTowerTops();
   if (glowPts.length) scene.add(makeGlowPoints(glowPts));
+  V.kuppel = [[-12, 9, 232], [-14, 7, 200]];
   Object.assign(V, { alle: [[20, 70, 330], [0, 95, 0]], links: [[-120, 120, 190], [-95, 110, 0]], rechts: [[120, 120, 190], [95, 110, 0]], fern: [[60, 40, 720], [0, 110, 0]], flug: [[-40, 230, 210], [0, 120, -10]] });
   window.labView = name => { const v = V[name] || V.alle; camera.position.set(...v[0]); camera.lookAt(...v[1]); };
   const LABT = { t: params.get('t') != null ? +params.get('t') : null };

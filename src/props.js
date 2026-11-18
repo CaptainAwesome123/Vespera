@@ -15,6 +15,7 @@ import { registerLayer, invalidateLayer } from './chunks.js';
 import { manifest, loadManifest, prepareModels, instanceModel, bakeModel, applyTextures, loadTexture, GOODS_AT } from './assets.js';
 import { STREET } from './serpentine.js';
 import { paintMat, ENV } from './people-skeleton.js';
+import { verwittert } from './texturen.js';
 import { decoLampGeo, decoLampMats } from './decolamp.js';
 import { REFL } from './water.js';
 
@@ -30,7 +31,7 @@ export const MODEL_USE = {
   bin: { model: 'kenney-trashcan', height: 0.95, center: true, colors: { metal: [0.07, 0.07, 0.075], metalDark: [0.5, 0.38, 0.18] } },
 };
 
-export function propsMat() { return props.mat || (props.mat = snowyNeu(paintMat({ color: 0xffffff, metalness: 0.35, roughness: 0.55, envI: 0.5, emissive: 0x080604 }), 0.8)); }
+export function propsMat() { return props.mat || (props.mat = verwittert(snowyNeu(paintMat({ color: 0xffffff, metalness: 0.35, roughness: 0.55, envI: 0.5, emissive: 0x080604 }), 0.8), 'eisen')); }   // V115: Abnutzung
 
 /* ---------- Laternen ---------- */
 const _pm = new T.Matrix4(), _pq = new T.Quaternion(), _pp = new T.Vector3(), _ps = new T.Vector3(1, 1, 1), _pup = new T.Vector3(0, 1, 0);
@@ -105,7 +106,7 @@ export function setupStreetLayers() {
         const list = F.out[k].filter(p => !p.taken && inCell(p, cx, cz, STREET_CELL)); if (!list.length) continue;
         for (const p of list) p._ims = [];
         const bk = props.baked[k];
-        if (bk) { g.add(instanced(bk.geo, bk.material || propsMat(), list, colored, true)); continue; }
+        if (bk) { g.add(instanced(bk.geo, bk.material ? verwittert(bk.material, k === 'bench' ? 'holz' : 'eisen') : propsMat(), list, colored, true)); continue; }   // V115
         if (k === 'column') { g.add(instanced(F.colGeo, F.posterMat, list, plain)); g.add(instanced(F.colParts, F.mat, list, colored, true)); continue; }
         g.add(instanced(F.TYPES[k], F.mat, list, colored, true));
         if (k === 'clock') g.add(instanced(F.faces, F.faceMat, list, plain));

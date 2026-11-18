@@ -1,3 +1,4 @@
+import { verwittert } from './texturen.js';
 /* =====================================================================
    V39 · ECHTES 1920er-AUTO: „1920'S Pierce Arrow“ von Dkerr (Sketchfab), CC BY 4.0
    https://sketchfab.com/3d-models/1920s-pierce-arrow-ab9e5dfffd474d3b9d8c76f46da1a499
@@ -40,7 +41,7 @@ export function carModelMat(map, mr, nrm) {
       diffuseColor.a = 1.0;`);
   };
   m.customProgramCacheKey = () => 'carmodel';
-  return snowy(m, 0.75, false);
+  return verwittert(snowy(m, 0.75, false), 'eisen', { rust: 0.35, grime: 0.35, foot: 0.7, bump: 0.4 });   // V115: Staub, Spritzschmutz, etwas Rost
 }
 
 let loading = null;

@@ -11,7 +11,8 @@
    ===================================================================== */
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { KTX2Loader } from 'three/addons/loaders/KTX2Loader.js';
-import { T, renderer, ANISO, mergeGeos } from './core.js';
+import { T, renderer, ANISO, mergeGeos, MOBILE, LOW } from './core.js';
+import { ladeVerwitterung } from './texturen.js';
 
 export const ASSET_BASE = new URL('../assets/', import.meta.url).href;
 export const THREE_CDN = 'https://cdn.jsdelivr.net/npm/three@0.147.0/';
@@ -78,7 +79,8 @@ export function loadTexture(name) {
   if (textures.has(name)) return textures.get(name);
   const def = manifest.textures[name];
   if (!def) return Promise.reject(new Error('Textur nicht im Manifest: ' + name));
-  const url = resolveAsset(def.url);
+  // V115: auf dem PC die größere Fassung (hd), auf Handy und in der niedrigen Qualitätsstufe die kleine
+  const url = resolveAsset(def.hd && !MOBILE && !LOW ? def.hd : def.url);
   const pr = new Promise((resolve, reject) => {
     const done = t => { if (def.srgb !== false) t.encoding = T.sRGBEncoding; t.anisotropy = ANISO; if (def.repeat) { t.wrapS = t.wrapT = T.RepeatWrapping; t.repeat.set(def.repeat[0], def.repeat[1]); } assetStats.textures++; resolve(t); };
     const fail = err => { assetStats.errors.push(name + ': ' + (err.message || err)); textures.delete(name); reject(err); };
@@ -141,6 +143,7 @@ export const goodsAt = (m, x, y, z, yaw = 0, h = 0.2) => { GOODS_AT.push({ m, x,
 export const textureWishes = [];
 export function wantTexture(mat, wish) { textureWishes.push({ mat, wish }); return mat; }
 export async function applyTextures() {
+  ladeVerwitterung(loadTexture);   // V115: Risse, Schmutz, Feinstruktur (U.uWear) für texturen.js und den Fassaden-Shader
   const slots = ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'bumpMap', 'emissiveMap', 'aoMap'];
   await Promise.all(textureWishes.map(async ({ mat, wish }) => {
     const got = {};

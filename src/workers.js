@@ -4,6 +4,7 @@ import { registerLayer } from './chunks.js';
 import { addGlow, addSeg, lamps, trees, glowPts, steamPts, segs, roofs } from './facade-shader.js';
 import { kit, Bx, benchGeo } from './harbour.js';
 import { wantTexture } from './assets.js';
+import { verwittert } from './texturen.js';
 import { lathe, roundBox } from './entrances.js';
 import { blocks } from './island.js';
 import { WORKWEAR, SHIRTS, COATS, STREET } from './serpentine.js';
@@ -46,7 +47,7 @@ export function planWorkerAlley(x, z0, z1, Hc, b) {
 /* ---------- Materialien: Backstein mit Fotozeichnung (three.js-Beispiel, MIT), Rest aus dem Bausatz (harbour.js) ---------- */
 export function workMats() {
   if (WORK.mats) return WORK.mats;
-  const brick = wantTexture(snowyNeu(stdMat({ vertexColors: true, color: 0x8a5040, roughness: 0.92, envI: 0.25 }), 0.85), { map: 'brick-color', bumpMap: 'brick-bump', bumpScale: 0.04, repeat: [1.6, 1.6], color: 0xe2d6cc });
+  const brick = verwittert(wantTexture(snowyNeu(stdMat({ vertexColors: true, color: 0x8a5040, roughness: 0.92, envI: 0.25 }), 0.85), { map: 'brick-color', bumpMap: 'brick-bump', bumpScale: 0.04, repeat: [1.6, 1.6], color: 0xe2d6cc }), 'stein', { sc: 1.8, crack: 0.45 });   // V115: Risse, Ruß, Schmutz
   return WORK.mats = { brick };
 }
 

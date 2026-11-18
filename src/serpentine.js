@@ -26,6 +26,7 @@ import { windPatch } from './wind.js';
 import { addLight } from './performance.js';
 import { buildVillaRooms, updateVillaRooms } from './villa.js';
 import { wantTexture } from './assets.js';
+import { verwittert, patina, TEXTUREN } from './texturen.js';
 
 /* =====================================================================
    V16 · SERPENTINE ZUR VILLA: vom Viadukt zweigt eine gepflasterte Bergstraße ab
@@ -280,7 +281,7 @@ export function buildSerpentine() {
   const sett = settTex(); sett.repeat.set(1, 1);
   const roadM = stdMat({ map: sett, color: 0xa4a29e, roughness: 0.78, metalness: 0.02, envI: 0.35, side: T.DoubleSide });
   const st = stoneTex(); st.wrapS = st.wrapT = T.RepeatWrapping;
-  const wallM = stdMat({ map: st, color: 0xb0a898, roughness: 0.9, envI: 0.2, side: T.DoubleSide });
+  const wallM = verwittert(stdMat({ map: st, color: 0xb0a898, roughness: 0.9, envI: 0.2, side: T.DoubleSide }), 'stein');   // V115: Risse und Schmutz
   const capM = stdMat({ color: 0xa89a80, roughness: 0.65, envI: 0.2, emissive: 0x0d0904, side: T.DoubleSide });
   const curbM = stdMat({ color: 0x8e8c88, roughness: 0.7, envI: 0.3, side: T.DoubleSide });
   const road = [], walls = [], caps = [], curbsG = [];
@@ -559,7 +560,7 @@ export function buildAccessRoad() {
   const z0 = ROAD_Z0, pz = VIA.portalZ;
   const groundAt = z => z > -1040 ? 0 : terrainHeight(0, z);
   const st = stoneTex(); st.wrapS = st.wrapT = T.RepeatWrapping; st.repeat.set(1 / 7, 1 / 3.5);
-  const stoneM = snowy(stdMat({ map: st, color: 0x8f949a, roughness: 0.85, metalness: 0.02, envI: 0.25 }), 0.75);   // V44: Schnee auf Brüstung, Gesims und Pfeilerköpfen
+  const stoneM = verwittert(snowy(stdMat({ map: st, color: 0x8f949a, roughness: 0.85, metalness: 0.02, envI: 0.25 }), 0.75), 'stein', { sc: 3.2 });   // V115: Risse, Laufspuren   // V44: Schnee auf Brüstung, Gesims und Pfeilerköpfen
   const parts = [], piers = [];
   // Pfeilerstellungen: kurze Bögen an der Rampe, weite Bögen über dem Tal
   const cuts = [z0];
@@ -876,6 +877,8 @@ export function buildVilla() {
     roseW: stdMat({ color: 0xf4f0ea, roughness: 0.7, emissive: 0x3a3634 }), roseR: stdMat({ color: 0x8a0e1a, roughness: 0.6, emissive: 0x2a0306 }),
     orange: stdMat({ color: 0xe0861c, roughness: 0.55, envI: 0.3, emissive: 0x3a1c04 }),   // V41
   };
+  // V115: Stein der Villa (Balustraden, Säulen, Kübel, Brunnen) mit Rissen, Poren und Schmutz, Statuen aus Marmor
+  verwittert(M.stone, 'stein', { grime: 0.5 }); verwittert(M.statue, 'marmor', { grime: 0.2 });
   const basin = (lx, lz, r, y) => {
     put('stone', new T.CylinderGeometry(r + 0.5, r + 0.7, 0.9, 40), lx, y + 0.45, lz);
     put('water', new T.CylinderGeometry(r, r, 0.1, 40), lx, y + 0.86, lz);
@@ -1926,7 +1929,7 @@ export function buildTowerTops() {
   // V23: dritte Sorte Dach: Schiefer auf den Arbeiter- und Reihenhäusern (ohne Warnlicht)
   for (const kind of ['copper', 'gold', 'slate']) {
     const list = caps.filter(c => (c.slate ? 'slate' : c.gold ? 'gold' : 'copper') === kind); if (!list.length) continue;
-    const cm = new T.InstancedMesh(roofCapGeo, kind === 'gold' ? (MAT.goldInst || (MAT.goldInst = MAT.gold.clone())) : kind === 'slate' ? stdMat({ color: 0x3a3d44, metalness: 0.15, roughness: 0.6, envI: 0.45 }) : stdMat({ color: 0x3e8a7c, metalness: 0.35, roughness: 0.45, envI: 0.6 }), list.length);
+    const cm = new T.InstancedMesh(roofCapGeo, kind === 'gold' ? (MAT.goldInst || (MAT.goldInst = MAT.gold.clone())) : kind === 'slate' ? stdMat({ color: 0x3a3d44, metalness: 0.15, roughness: 0.6, envI: 0.45 }) : patina(stdMat({ color: 0x3e8a7c, metalness: 0.35, roughness: 0.45, envI: 0.6 })), list.length);   // V115: Grünspan
     list.forEach((c, i) => { cm.setMatrixAt(i, m.makeScale(c.w, c.h, c.d).setPosition(c.x, c.y, c.z)); if (c.v76) { if (c.v76 === 1) addGlow(c.x, c.y + c.h + 0.6, c.z, [1.4, 0.15, 0.1], 1.4, 0.37, 1); } else if (!c.slate) addGlow(c.x, c.y + c.h + 0.6, c.z, [1.4, 0.15, 0.1], 1.4, R(), 1); });
     cm.frustumCulled = false; scene.add(cm);
   }
@@ -1945,10 +1948,11 @@ export function buildTowerTops() {
   }
   if (domes.length) {
     const dg = mergeGeos([new T.SphereGeometry(1, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2), new T.CylinderGeometry(0.12, 0.16, 0.35, 10).translate(0, 1.12, 0), new T.ConeGeometry(0.1, 0.4, 8).translate(0, 1.48, 0)]);
-    const dm = new T.InstancedMesh(dg, stdMat({ color: 0x3e8a7c, metalness: 0.4, roughness: 0.4, envI: 0.7 }), domes.length);
-    const ribs = new T.InstancedMesh(new T.SphereGeometry(1.012, 12, 12, 0, Math.PI * 2, 0, Math.PI / 2), new T.MeshBasicMaterial({ color: new T.Color(0.9, 0.66, 0.3), wireframe: true }), domes.length);
-    domes.forEach((d, i) => { m.makeScale(d.r, d.r * 1.1, d.r).setPosition(d.x, d.y, d.z); dm.setMatrixAt(i, m); ribs.setMatrixAt(i, m); addGlow(d.x, d.y + d.r * 1.75, d.z, [1.3, 0.95, 0.5], 2.5); });
-    dm.frustumCulled = ribs.frustumCulled = false; scene.add(dm, ribs);
+    // V115: Kuppeln aus Kupfer mit Grünspan, Laufspuren, Stehfalzen und goldenen Rippen im Shader (vorher Drahtgitter-Rippen als zweites Netz)
+    const dm = new T.InstancedMesh(dg, TEXTUREN ? patina(stdMat({ color: 0x3e8a7c, metalness: 0.4, roughness: 0.4, envI: 0.7 }), { ribs: true }) : stdMat({ color: 0x3e8a7c, metalness: 0.4, roughness: 0.4, envI: 0.7 }), domes.length);
+    const ribs = TEXTUREN ? null : new T.InstancedMesh(new T.SphereGeometry(1.012, 12, 12, 0, Math.PI * 2, 0, Math.PI / 2), new T.MeshBasicMaterial({ color: new T.Color(0.9, 0.66, 0.3), wireframe: true }), domes.length);
+    domes.forEach((d, i) => { m.makeScale(d.r, d.r * 1.1, d.r).setPosition(d.x, d.y, d.z); dm.setMatrixAt(i, m); if (ribs) ribs.setMatrixAt(i, m); addGlow(d.x, d.y + d.r * 1.75, d.z, [1.3, 0.95, 0.5], 2.5); });
+    dm.frustumCulled = false; scene.add(dm); if (ribs) { ribs.frustumCulled = false; scene.add(ribs); }
   }
   buildKronen();
 }
@@ -2094,7 +2098,8 @@ export const CLOCK_TEX = canvasTex(256, 256, (g, W) => {
   g.lineWidth = 4; g.beginPath(); g.moveTo(128, 128); g.lineTo(128 - 20, 128 - 85); g.stroke();
 });
 export function buildStreetFurniture() {
-  const rr = mulberry32(31337), mat = snowyNeu(paintMat({ color: 0xffffff, metalness: 0.35, roughness: 0.55, envI: 0.5, emissive: 0x080604 }), 0.8);   // V97: Schnee auf Bänken, Kiosken, Uhren
+  const rr = mulberry32(31337), mat = verwittert(snowyNeu(paintMat({ color: 0xffffff, metalness: 0.35, roughness: 0.55, envI: 0.5, emissive: 0x080604 }), 0.8), 'eisen');   // V97: Schnee auf Bänken, Kiosken, Uhren
+  // V115: Kioske, Litfaßsäulen, Uhren, Hydranten mit Rost, Straßenschmutz und dunklem Fuß (texturen.js)
   const W = (geos) => mergeColored(geos);
   const C = (rt, rb, h, seg, x, y, z) => new T.CylinderGeometry(rt, rb, h, seg).translate(x, y + h / 2, z);
   const B = IB;
