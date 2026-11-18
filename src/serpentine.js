@@ -27,6 +27,7 @@ import { addLight } from './performance.js';
 import { buildVillaRooms, updateVillaRooms } from './villa.js';
 import { wantTexture } from './assets.js';
 import { verwittert, patina, TEXTUREN } from './texturen.js';
+import { buildGroundAO } from './verdeckung.js';   // V117: dunkler Saum am Wandfuß auf dem Pflaster
 
 /* =====================================================================
    V16 · SERPENTINE ZUR VILLA: vom Viadukt zweigt eine gepflasterte Bergstraße ab
@@ -1836,6 +1837,7 @@ export function flushInstances() {
   geo.setAttribute('aRib', new T.InstancedBufferAttribute(rib, 3));
   geo.setAttribute('aParams', new T.InstancedBufferAttribute(par, 4));
   im.frustumCulled = false; scene.add(im);
+  buildGroundAO(segs);   // V117: Umgebungsverdeckung am Fuß der Gebäude (verdeckung.js)
 
   // Leuchtleisten
   // V33: Leuchtleisten liegen oft nur 5 bis 30 cm vor der Fassade; aus der Ferne reicht die Tiefengenauigkeit dafür nicht,

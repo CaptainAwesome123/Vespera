@@ -10,6 +10,8 @@ import { addCollider } from './people-skeleton.js';
 // Kaminfeuer flackert, hohe Bogenfenster zeigen Säle mit Kronleuchter und Tanzpaaren; auch aus mittlerer Entfernung
 // sieht man Lampe, Möbelzone und Umrisse statt einer flachen Lichtfläche. ?innen=aus = Stand V95.
 const INNEN = new URLSearchParams(location.search).get('innen') !== 'aus';
+// V117: Umgebungsverdeckung am Wandfuß und an der Dachbrüstung (?verdeckung=aus)
+const VERDECKUNG = new URLSearchParams(location.search).get('verdeckung') !== 'aus';
 export const facadeVS = `
 attribute vec3 aTint; attribute vec4 aParams; attribute vec3 aRib; attribute float aFlag;
 varying vec3 vWorld; varying vec4 vEdge; varying vec3 vN; varying vec3 vLN; varying vec3 vT; varying vec3 vTint; varying vec4 vParams; varying vec3 vRib; varying vec3 vLocal; varying vec3 vScale; varying float vFogDepth;
@@ -33,6 +35,7 @@ export const facadeFS = `
 ${SCHNEE ? '#define SCHNEE 1' : ''}
 ${REGENGLAS ? '#define REGENGLAS 1' : ''}
 ${NAH ? '#define NAH 1' : ''}
+${VERDECKUNG ? '#define VERDECKUNG 1' : ''}
 ${GLASSPIEGEL ? `#define GLASSPIEGEL 1
 uniform float uAurora; uniform float uAuroraT; uniform float uMoonLit;` : ''}
 uniform float uRain;
@@ -680,6 +683,9 @@ void main(){
     roofC = mix(roofC, uFogColor * 1.5 + vec3(0.02), pud * 0.6);
     float edgeR = min(min((vLocal.x + 0.5) * vScale.x + vEdge.x, (0.5 - vLocal.x) * vScale.x + vEdge.y), min((vLocal.z + 0.5) * vScale.z + vEdge.z, (0.5 - vLocal.z) * vScale.z + vEdge.w));
     roofC = mix(roofC, vTint * 0.35, step(edgeR, 0.6));
+#ifdef VERDECKUNG
+    roofC *= mix(0.68, 1.0, smoothstep(0.6, 2.2, edgeR));   // V117: im Winkel hinter der Brüstung weniger Himmelslicht
+#endif
     col = roofC * (0.35 + 0.6 * moon) + vec3(0.012, 0.009, 0.022) + flood * vec3(0.08, 0.05, 0.02);
     // V25: Schnee auf den Dächern, an der Brüstung vom Wind freigeweht
     float sn = uSnowCover * smoothstep(0.25, 0.6, vnoise(rq * 0.3 + seed) * 0.6 + 0.4 - step(edgeR, 0.6) * 0.5);
@@ -687,6 +693,10 @@ void main(){
   }
   if (ln.y < -0.5) { float low = 1.0 - smoothstep(4.0, 12.0, vWorld.y); col = vTint * mix(0.03, 0.3, low) + vec3(0.14, 0.09, 0.04) * low * (0.5 + 0.5*flood); }
 
+#ifdef VERDECKUNG
+  // V117: Wandfuß am Pflaster dunkler (dort fällt weniger Himmels- und Straßenlicht hin); Schaufenster leuchten weiter
+  col *= 1.0 - 0.36 * (1.0 - smoothstep(0.0, 1.4, hy)) * step(baseY, 0.7) * step(abs(ln.y), 0.5) * (1.0 - 0.75 * inWin);
+#endif
   // V25: nasse Wände dunkeln unten nach (Spritzwasser), Schnee legt sich auf Gesimse
   col *= 1.0 - 0.18 * uWet * smoothstep(5.0, 0.4, vWorld.y) * step(ln.y, 0.5);
 #ifdef SCHNEE
