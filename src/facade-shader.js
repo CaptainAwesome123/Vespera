@@ -38,7 +38,7 @@ uniform float uAurora; uniform float uAuroraT; uniform float uMoonLit;` : ''}
 uniform float uRain;
 uniform vec4 uWind;
 #define BRICK_MEAN vec3(0.519, 0.287, 0.184)
-uniform float uTime; uniform vec3 uFogColor; uniform float uFogDensity; uniform vec3 uMoonDir; uniform vec3 uTeal; uniform vec3 uCam; uniform sampler2D uBrick; uniform float uBrickOn; uniform sampler2D uStone; uniform float uStoneOn; uniform float uWet; uniform float uSnowCover; uniform float uIce;
+uniform float uTime; uniform vec3 uFogColor; uniform float uFogDensity; uniform vec3 uMoonDir; uniform vec3 uTeal; uniform vec3 uCam; uniform sampler2D uBrick; uniform float uBrickOn; uniform sampler2D uStone; uniform float uStoneOn; uniform sampler2D uWear; uniform float uWearOn; uniform float uWet; uniform float uSnowCover; uniform float uIce;
 varying vec3 vWorld; varying vec3 vN; varying vec3 vLN; varying vec3 vT; varying vec3 vTint; varying vec4 vParams; varying vec3 vRib; varying vec3 vLocal; varying vec3 vScale; varying float vFogDepth; varying vec4 vEdge;
 ${FOG_GLSL}
 float hash(vec2 p){ p = fract(p*vec2(123.34, 456.21)); p += dot(p, p+45.32); return fract(p.x*p.y); }
@@ -162,6 +162,15 @@ void main(){
     tex = mix(tex, tex * vec3(0.62, 0.6, 0.58) + vec3(0.02) * g1, chip * 0.85);
     float frJ = max(jm, brick * brMortar) * nf * clamp(uIce * 1.6, 0.0, 1.0) * smoothstep(0.35, 0.7, g1 + 0.2 * g2);
     tex = mix(tex, vec3(0.62, 0.7, 0.78) * dot(vTint, vec3(0.4)) + vec3(0.12, 0.15, 0.2), frJ * 0.7);
+  }
+  // V115: Risse, Haarrisse und Flecken aus der Verwitterungstextur (eine Abfrage, nur bis etwa 4 cm je Bildpunkt);
+  // je Haus versetzt, Ziegel und Fliesen kaum, an manchen Stellen gar nicht (großes Rauschen)
+  float vwF = (1.0 - smoothstep(0.02, 0.07, wpx)) * uWearOn;
+  if (vwF > 0.01) {
+    vec3 vw = texture2D(uWear, wq / 6.5 + vec2(seed * 0.173, seed * 0.091)).rgb;
+    float vwK = vwF * (1.0 - 0.7 * brick) * (1.0 - 0.75 * step(2.5, matT) * step(matT, 4.5)) * smoothstep(0.25, 0.55, vnoise(wq * 0.11 + seed));
+    tex *= 1.0 - 0.7 * (1.0 - vw.r) * vwK;
+    tex *= 1.0 + vwF * (0.22 * (vw.b - 0.5) - 0.2 * max(vw.g - 0.55, 0.0));
   }
   // Sockel: Salzrand (weißlich, wellig) und dunkler Spritz- und Abriebstreifen; schon aus mittlerer Entfernung sichtbar
   // V114: nur am Sockel rechnen (Salz reicht bis 0,63 m, Abrieb bis 0,38 m); vorher drei Rauschwerte für jeden Fassadenpunkt

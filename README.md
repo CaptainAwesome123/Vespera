@@ -310,6 +310,21 @@ Außenhaut, Garten, Terrassen und das Fest.
 - *Aufgeräumt*: acht nie benutzte Funktionen entfernt, rund 70 ungenutzte Importe gestrichen (Ladereihenfolge der Module
   unverändert, `tools/check-modules.js` ohne Befund).
 
+**V115: Texturen-Update** (`src/texturen.js`, aus mit `?texturen=aus`).
+- *Verwitterungstextur* (`assets/textures/verwitterung.jpg`, gerechnet von `tools/make-verwitterung.py`, frei von Rechten):
+  Risse und Haarrisse (Rot), Schmutz und Laufspuren (Grün), Feinstruktur mit Abplatzern (Blau); am PC 2048 px, am Handy 1024 px.
+  Sie hängt als `U.uWear` an allen Shadern, die sie brauchen, kommt nach dem Start nach und wird ohne Neuübersetzen eingehängt.
+- *verwittert(mat, art)*: Putz, Stein, Marmor, Eisen und Holz bekommen ohne UV-Koordinaten Risse, Relief (nur aus der Nähe),
+  Schmutz, Rost an Metall und einen dunklen Fuß, wo sie auf dem Boden stehen. Benutzt von der Villa (Wände, Decken, Marmor,
+  Fliesen, Steinböden, Holz, Balustraden, Säulen, Brunnen, Statuen), Stützmauern und Viadukt, Arbeiterhäusern, Laternen,
+  Kiosken, Litfaßsäulen, Uhren, Bänken, Papierkörben und dem Pierce Arrow.
+- *Fassaden* (`facade-shader.js`): aus der Nähe Risse, Haarrisse und Flecken, je Haus versetzt und nicht überall.
+- *Kuppeln und Kupferdächer*: Grünspan mit Laufspuren, blanken Kupferstellen, Stehfalzen und goldenen Rippen (`patina()`);
+  das Drahtgitter über den Kuppeln fällt weg. Labor `?lab=turm&view=kuppel`.
+- *Wagen*: Straßenstaub, Spritzschmutz unten, Rostblüten an Schwellern, staubige Reifen, fleckiger Chrom.
+- *Höhere Auflösung*: Marmor, Gold, Fliesen und Parkett am PC in 1024 px (`assets/textures/hd/`, Manifest-Feld `hd`);
+  Handy und Qualitätsstufe niedrig laden weiter die kleinen Dateien.
+
 **V78: Der Krater außerhalb der Stadt** (`src/krater.js`, Labor `?lab=krater`, Prüfung `tools/krater-test.js`). Am westlichen
 Kraterrand, hinter der Felswand über dem See:
 - *Das alte Expeditionslager* (Lager Nordstern, 1919): Zelte, Schlitten, Vorratsschuppen mit Kartentisch, Fahnenmast,

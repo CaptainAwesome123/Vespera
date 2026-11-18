@@ -82,3 +82,7 @@ Für 1920er-Automobile, Hydranten, Litfaßsäulen und Pflasterstein-Fotos wurde 
 gefunden, die aus der Build-Umgebung erreichbar war (Poly Haven, Sketchfab, kenney.nl, ambientcg.com, Quaternius
 sind dort gesperrt). Diese Dinge bleiben vorerst aus handgebauten Formen. Ein eigenes Modell kommt so hinein:
 Datei nach `assets/models/`, Eintrag in `assets/manifest.json`, Verwendung in `MODEL_USE` (`src/props.js`).
+
+V115: `textures/verwitterung.jpg` und `textures/hd/verwitterung.jpg` sind eigene Rechnungen (`tools/make-verwitterung.py`),
+frei von Rechten. `textures/hd/marble-*`, `gold-*`, `tiles-*`, `parquet-*` sind die 1K-Originale von ambientCG Marble006,
+Metal007, Tiles036 und WoodFloor043 (CC0, über pmndrs/market-assets), neu als JPEG gespeichert.

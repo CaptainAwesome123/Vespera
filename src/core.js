@@ -133,6 +133,8 @@ export const U = {
   uBrickOn: { value: 0 },
   uStone: { value: new T.DataTexture(new Uint8Array([128, 128, 128, 255]), 1, 1) }, // V23: Foto-Gestein (ambientCG Rock020) als Feinstruktur für Quader, Kalk- und Sandstein, Granit
   uStoneOn: { value: 0 },
+  // V115: Verwitterung (R Risse, G Schmutz, B Feinstruktur) für texturen.js und den Fassaden-Shader; Platzhalter = heil, mittlerer Schmutz
+  uWear: { value: new T.DataTexture(new Uint8Array([255, 128, 128, 255]), 1, 1) }, uWearOn: { value: 0 },
   // V25 · Polarnacht und Wetter (atmosphere.js): Regen, Schnee, Eisglitzern, Nässe und Schneedecke am Boden, Polarlicht, Bewölkung, Mondphase
   uRain: { value: 0 }, uSnow: { value: 0 }, uFrost: { value: 0 }, uWet: { value: 0.3 }, uSnowCover: { value: 0.4 },
   uAurora: { value: 0.4 }, uCloud: { value: 0.3 }, uMoonPhase: { value: 0.5 }, uMoonLit: { value: 1 }, uMist: { value: 1 },
@@ -147,7 +149,7 @@ export const U = {
   uRoofMap: { value: new T.DataTexture(new Uint8Array([0, 0, 0, 255]), 1, 1) }, uRoofBox: { value: new T.Vector4(-1200, -1200, 2400, 255) },
 };
 U.uRoofMap.value.needsUpdate = true;
-U.uBrick.value.needsUpdate = true; U.uStone.value.needsUpdate = true;
+U.uBrick.value.needsUpdate = true; U.uStone.value.needsUpdate = true; U.uWear.value.needsUpdate = true;
 
 /* ---------- V25: Bodennebel ----------
    Zum gewohnten Dunst (FogExp2) kommt ein Nebel, der am Boden dicht ist und nach oben ausdünnt (Skalenhöhe 16 m):

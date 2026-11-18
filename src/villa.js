@@ -1,5 +1,6 @@
 import { T, MOBILE, R, pick, rand, scene, mergeGeos, geoView, canvasTex, mulberry32 } from './core.js';
 import { wantTexture } from './assets.js';
+import { verwittert } from './texturen.js';
 import { stdMat, MAT } from './people-skeleton.js';
 import { NEON } from './facade-shader.js';
 import { VILLA } from './harbour.js';
@@ -262,6 +263,13 @@ export function villaMats(M) {
     lampSoft: new T.MeshBasicMaterial({ color: new T.Color(0.62, 0.47, 0.28), side: T.DoubleSide }),   // V41: mattes Lichtglas
   };
   for (const k in R) if (R[k] && R[k].isMaterial && !R[k].name) R[k].name = 'villa.' + k;   // V41: Namen fürs Labor (labPick)
+  // V115: Wandstruktur, Haarrisse und Abnutzung (texturen.js): Putz und Tapeten, Marmor und Fliesen, Steinboden, Holz
+  for (const k of ['cream', 'ceil', 'bluewall', 'greenwall']) verwittert(R[k], 'putz');
+  for (const k of ['plaster', 'silk']) verwittert(R[k], 'putz', { crack: 0.3, grime: 0.12 });
+  for (const k of ['white', 'marble', 'black', 'tile']) verwittert(R[k], 'marmor');
+  verwittert(R.stoneF, 'stein');
+  verwittert(R.brick, 'stein', { sc: 1.6 });
+  for (const k of ['panel', 'wood']) if (R[k] && R[k].isMaterial) verwittert(R[k], 'holz', { local: false, foot: 0, crack: 0.12, grime: 0.15 });
   return R;
 }
 

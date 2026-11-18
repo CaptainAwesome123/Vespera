@@ -1,6 +1,7 @@
 import { shared, U, canvasTex, T, renderer, mergeGeos, geoView, snowy, STOFFE } from './core.js';
 import { HL, FACE_ATLAS, FACE_MAT } from './people-model.js';
 import { mocapGLSL, MOCAP } from './mocap.js';
+import { TEXTUREN } from './texturen.js';
 
 /* =====================================================================
    V18 · SKELETT IM SHADER: weiche Gelenke (Schulter, Ellbogen, Handgelenk,
@@ -1537,6 +1538,7 @@ export function carPaintMat(opts = {}) {
   if (opts.cut) m.defines = { CAR_CUT: '' };
   m.onBeforeCompile = sh => {
     sh.uniforms.uPlate = { value: plateTex() };
+    sh.uniforms.uWear = U.uWear; sh.uniforms.uWearOn = U.uWearOn;   // V115
     sh.vertexShader = 'attribute float aOpt; attribute vec4 aDmg; varying vec3 vObjP, vObjN, vSrc; varying float vCarVar, vDent, vPlate;\nfloat dnH(vec3 p){ return fract(sin(dot(floor(p), vec3(12.9898, 78.233, 37.719))) * 43758.5453); }\n' + sh.vertexShader.replace('#include <beginnormal_vertex>', `#include <beginnormal_vertex>
       vDent = 0.0;
       #ifdef USE_INSTANCING
@@ -1581,7 +1583,7 @@ export function carPaintMat(opts = {}) {
           transformed.z += lf * (0.1 + 0.22 * n2) - rt * (0.1 + 0.22 * n2);
         }
         #endif`);
-    sh.fragmentShader = 'uniform sampler2D uPlate; varying vec3 vObjP, vObjN, vSrc; varying float vCarVar, vDent, vPlate;\n' + sh.fragmentShader
+    sh.fragmentShader = 'uniform sampler2D uPlate; uniform sampler2D uWear; uniform float uWearOn; varying vec3 vObjP, vObjN, vSrc; varying float vCarVar, vDent, vPlate;\n' + (TEXTUREN ? '#define V115W 1\n' : '') + sh.fragmentShader
       .replace('#include <color_fragment>', `#include <color_fragment>
         float isPaint = step(2.97, vSrc.r + vSrc.g + vSrc.b);
         float isChrome = (1.0 - isPaint) * step(0.6, dot(vSrc, vec3(0.333))) * step(vSrc.r, vSrc.b);
@@ -1608,6 +1610,18 @@ export function carPaintMat(opts = {}) {
         float scr = step(0.55, fract(sin(dot(floor(vObjP.xy * vec2(60.0, 9.0)), vec2(12.9898, 78.233))) * 43758.5453)) * smoothstep(0.15, 0.6, vDent);
         diffuseColor.rgb = mix(diffuseColor.rgb, mix(vec3(0.42, 0.42, 0.44), vec3(0.3, 0.22, 0.18), step(0.5, fract(vObjP.y * 13.0))), isPaint * scr * 0.85);
         diffuseColor.rgb *= 1.0 - 0.35 * smoothstep(0.3, 0.9, vDent) * isPaint;
+        #ifdef V115W
+        // V115: Straßenstaub und Spritzschmutz (unten dichter), Rostblüten an Schwellern und Kotflügeln, staubige Reifen, fleckiger Chrom
+        vec3 cwA = abs(vObjN);
+        vec3 cw = texture2D(uWear, (cwA.y > max(cwA.x, cwA.z) ? vObjP.xz : cwA.x > cwA.z ? vObjP.zy : vObjP.xy) * 0.42 + vCarVar * 0.31 + vPlate * 0.17).rgb;
+        float cGr = clamp(smoothstep(0.95, 0.3, vObjP.y) * (0.4 + 0.9 * cw.g) * 0.6 + clamp((cw.g - 0.52) * 2.0, 0.0, 1.0) * 0.3 * step(cwA.y, 0.7), 0.0, 1.0) * uWearOn;
+        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.15, 0.135, 0.12), isPaint * cGr * 0.55);
+        dirt = max(dirt, isPaint * cGr * 0.45);
+        float cRu = smoothstep(0.86, 0.94, cw.b) * smoothstep(0.75, 0.35, vObjP.y) * uWearOn;
+        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.28, 0.12, 0.05) * (0.7 + 0.6 * cw.g), isPaint * cRu * 0.7);
+        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.13, 0.12, 0.11), isRubber * smoothstep(0.4, 0.75, cw.g) * 0.6 * uWearOn);
+        diffuseColor.rgb *= 1.0 - isChrome * 0.3 * clamp((cw.g - 0.5) * 2.0, 0.0, 1.0) * uWearOn;
+        #endif
         // V74: Stoffe und Flächen: Nummernschild (Leinwand), Lederpolster mit Pfeifen, Wurzelholz, geriffelte Gummimatten, Teppich
         float isPlate = step(abs(vSrc.r - 0.85) + abs(vSrc.g - 0.82) + abs(vSrc.b - 0.7), 0.02) * step(2.4, abs(vObjP.x));
         vec2 puv = clamp(vec2(0.5 - sign(vObjP.x) * vObjP.z / 0.34, (vObjP.y - mix(0.82, 0.78, step(0.0, vObjP.x))) / 0.12 + 0.5), 0.02, 0.98);
