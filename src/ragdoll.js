@@ -346,7 +346,7 @@ export function updatePedestrians(dt, t) {
     }
     if (pd.st === 9) { aweStep(pd, dt); continue; }   // V52: steht und staunt über Alexander
     if (pd.st === 10) { lifeStep(pd, dt); continue; }   // V55: Kellner auf der Terrasse
-    if (pd.st === 4) { pedCrowd.set(pd.a, pd.x, pd.y - (pd.yo || 0), pd.z, pd.yaw, pd.sc, pd.tilt || 0); continue; }
+    if (pd.st === 4) { if (pd.aw) aweStep(pd, dt); pedCrowd.set(pd.a, pd.x, pd.y - (pd.yo || 0), pd.z, pd.yaw, pd.sc, pd.tilt || 0); continue; }   // V111: Staunen in der Runde (keep) läuft jetzt auch ab
     if (!lp || !lp.segs) { if (pd.x !== undefined) pedCrowd.set(pd.a, pd.x, pd.y - (pd.yo || 0), pd.z, pd.yaw, pd.sc, pd.tilt || 0); continue; }   // V65: Schutz wie oben
     if (pd.st === 7) {
       // Begegnung: Hand geben, reden und zuhören im Wechsel, lachen, zum Abschied winken
