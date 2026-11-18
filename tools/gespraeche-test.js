@@ -59,7 +59,7 @@ let fails = 0; const ok = (c, m) => { console.log((c ? 'OK   ' : 'FEHLER ') + m)
       out.bub = !!document.querySelector('.gsBub') && !!G.txt;
       out.acts = c.m.map(pd => +pd.a.gait[1].toFixed(1));
       out.ct = c.t;
-      for (let i = 0; i < 30 && GS.on.includes(G); i++) await wait(500);
+      for (let i = 0; i < 70 && GS.on.includes(G); i++) await wait(500);   // V113: längere Gespräche
       out.lines = GS.lines - l0 + 1; out.total = G.lines.length; out.text = GS.log.slice(0, 4);
     }
     // Verstummen: Gespräch über Alexander erzwingen, dann ganz nah heran

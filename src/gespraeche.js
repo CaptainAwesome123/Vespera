@@ -36,7 +36,7 @@ import { DRIVE } from './eating.js';
 import { playing, paused } from './input.js';
 
 export const GESPRAECHE = typeof location === 'undefined' || new URLSearchParams(location.search).get('gespraeche') !== 'aus';
-export const GS = { ready: false, on: [], tickT: 0, clock: 0, recent: [], n: 0, lines: 0, hush: 0, log: [] };
+export const GS = { ready: false, on: [], tickT: 0, clock: 0, recent: [], n: 0, lines: 0, hush: 0, log: [], extra: [] };   // V113: extra = weitere Themen (plaudern.js)
 const pick = a => a[Math.floor(Math.random() * a.length)];
 const MAX = MOBILE ? 1 : 2;
 
@@ -182,6 +182,7 @@ function topics(m, reg, st) {
   const S = STADT[reg].filter(L => !/Kasimir/.test(L[0]) || rufGet('unter') > 40);
   S.forEach((L, i) => add(1.8 / S.length, 'st:' + reg + i, L));
   WITZ.forEach((L, i) => add(1 / WITZ.length, 'wz:' + i, L));
+  for (const f of GS.extra) try { f(add, m, reg, st); } catch (e) { console.warn('Gespräch:', e); }   // V113: Themen aus der Lage (plaudern.js)
   let sum = 0; for (const t of T) sum += t.w; let r = Math.random() * sum;
   for (const t of T) if ((r -= t.w) <= 0) return t;
   return T[0] || null;
@@ -291,3 +292,5 @@ KT.hooks.push((why, dt) => {
   GS.tickT = 0.5;
   if (run) scan();
 });
+// V113: Vorlagen für plaudern.js (mehr Gespräche)
+export { ALEX, GOSSIP, STREIK, ARBEIT, WETTER, KURIER, STADT, WITZ, topics, stanceOf };

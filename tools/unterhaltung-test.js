@@ -30,7 +30,7 @@ let fails = 0; const ok = (c, m) => { console.log((c ? 'OK   ' : 'FEHLER ') + m)
     // Vorlagen: jede Stimmung hat Antworten, Platzhalter lösbar
     const atts = ['bew', 'resp', 'neid', 'skep', 'furcht', 'hass', 'dienst'], miss = [];
     for (const [n, T] of Object.entries({ BEFINDEN: X.BEFINDEN, MEINUNG: X.MEINUNG, HERAB: X.HERAB, ABSCHIED: X.ABSCHIED })) for (const a of atts) if (!T[a] || !T[a].length) miss.push(n + '.' + a);
-    out.miss = miss;
+    out.miss = miss; out.nopt = X.OPTS.length;
     // ein Bewohner in der Nähe
     const c0 = RD.citizens.find(c => !c.nf && c.at && c.at.work);
     pl.fly = false; pl.p.set(c0.at.work.x + 1.5, 0.3, c0.at.work.z + 1.5); await wait(3000);
@@ -74,10 +74,10 @@ let fails = 0; const ok = (c, m) => { console.log((c ? 'OK   ' : 'FEHLER ') + m)
   });
   console.log(JSON.stringify(r, null, 1));
   ok(!r.miss.length, 'jede Stimmung hat Antworten ' + r.miss.join(','));
-  ok(r.cit && r.c1.open && /Stimmung: /.test(r.c1.h) && r.c1.n === 6, 'Karte: ' + r.c1.h + ' · ' + r.c1.n + ' Antworten');
+  ok(r.cit && r.c1.open && /Stimmung: /.test(r.c1.h) && r.c1.n === r.nopt, 'Karte: ' + r.c1.h + ' · ' + r.c1.n + ' Antworten');
   ok(r.held, 'Person bleibt stehen');
   ok(r.ans1.length > 20 && !/\{/.test(r.ans1), 'Antwort: ' + r.ans1);
-  ok(r.c2.open && r.c2.n === 5, 'zweite Runde ohne die schon gestellte Frage (' + r.c2.n + ')');
+  ok(r.c2.open && r.c2.n === r.nopt - 1, 'zweite Runde ohne die schon gestellte Frage (' + r.c2.n + ')');
   ok(r.gabe.cash === 20 && r.gabe.dr > 0 && r.gabe.mem === 'gabe', 'Geschenk: 20 Lm, Beziehung +' + r.gabe.dr + ', gemerkt · ' + r.gabe.say);
   ok(r.closed && r.released, 'Verabschieden schließt und gibt die Person frei');
   ok(r.shift.up === 'resp' && r.shift.down === 'neid', 'Stimmung kippt: neidisch → ' + r.shift.up + ', bewundernd → ' + r.shift.down + ' · ' + r.shift.title);
