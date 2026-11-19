@@ -11,6 +11,7 @@ import { VILLA } from './harbour.js';
 import { pedCrowd, STREET } from './serpentine.js';
 import { fxEmit } from './particles.js';
 import { WIND } from './wind.js';
+import { updateFallSpray } from './landscape.js';
 
 /* =====================================================================
    V16 · WASSER: echte Wellen (Gerstner) statt nur gemalter Normalen. Die Wellen
@@ -32,6 +33,7 @@ export function updateWaves(dt) {
     GW.list.push([Math.cos(a), Math.sin(a), A, k, Math.sqrt(9.81 * k), i * 1.7]);
   }
   shoreSpray(dt);
+  updateFallSpray(dt);   // V123: Gischt an den Wasserfällen
 }
 // V27: Wellen schlagen an Kai und Ufermauern hoch: in Kameranähe Gischt, wo ein Wellenkamm die Mauer trifft
 export const SPRAY = { t: 0 };
