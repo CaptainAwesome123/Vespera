@@ -8,6 +8,7 @@ import { FACTORIES, FACTORY_NAMES, FACTORY_LOOPS } from './shops.js';
 import { endMeet, _cc, peds, setAct, pedCrowd, loopPos, pedSocial, STAY, loopRound, SHIRTS, DRESSES, COATS } from './serpentine.js';
 import { BODIES, groundAt } from './driving.js';
 import { nearBoxes } from './people-skeleton.js';
+import { sayAt } from './sprechblase.js';   // V125
 
 /* =====================================================================
    V17 · RAGDOLL: wer vom Wagen erfasst wird, fliegt als Gliederpuppe.
@@ -698,7 +699,7 @@ export function citizenSay(c) {
   // V55: meist spricht man Alexander direkt an, je nach Haltung (bewundernd, neidisch, skeptisch, ängstlich, respektvoll); sonst Alltag
   let own = null; for (const f of CIT_SAY) { try { own = f(c); } catch (e) { own = null; } if (own) break; }   // V76: Tagesablauf (alltag.js)
   const lines = c.trait.say, s = own || (Math.random() < 0.6 ? talkLine(c.ped) : lines[Math.floor(Math.random() * lines.length)].replace('{bar}', c.at.bar.name).replace('{work}', c.at.work.name));
-  greetNow(c.ped);
+  greetNow(c.ped); sayAt(c.ped);
   const el = $('say'); el.innerHTML = '<b></b><span></span>'; el.querySelector('b').textContent = c.name; el.querySelector('span').textContent = '„' + s + '“';
   el.style.opacity = 1; shared.sayTimer = 5;
   if (CIT_TALK.fn) try { CIT_TALK.fn(c, s); } catch (e) { console.warn('Gespräch:', e); }
