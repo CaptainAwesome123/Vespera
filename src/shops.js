@@ -8,6 +8,7 @@ import { BR_SPOTS } from './island.js';
 import { bandC, pickW, DOORS, lathe, placeFurn, FURN, decoBuilding, caps, domes, signDefs } from './entrances.js';
 import { kit, Bx, wuv, benchGeo } from './harbour.js';
 import { clothWave } from './wind.js';
+import { regGlass } from './scherben.js';
 import { DECO } from './building-forms.js';
 import { DRESSES, SHIRTS, setAct, _e } from './serpentine.js';
 import { _p, _q, _s, _m, _up } from './traffic.js';
@@ -172,7 +173,7 @@ export function shopFloor(cx, cz, w, d, edges, tint, seed, rr) {
       const SILL = 0.95, HEAD = 3.9;
       piece(u0, u1, y0, SILL); piece(u0, u1, HEAD, TOP);
       const gl = W((u0 + u1) / 2, 0.25);
-      K.add('glass', new T.PlaneGeometry(bayW, HEAD - SILL).rotateY(ax ? Math.PI / 2 : 0).translate(gl.x, (SILL + HEAD) / 2, gl.z));
+      regGlass(K.add('glass', new T.PlaneGeometry(bayW, HEAD - SILL).rotateY(ax ? Math.PI / 2 : 0).translate(gl.x, (SILL + HEAD) / 2, gl.z)), gl.x, gl.z, SILL, HEAD, bayW, ax, o[0], o[1]);   // V122: kann zerspringen
       for (const [uu, ww] of [[u0 + 0.03, 0.06], [u1 - 0.03, 0.06], [(u0 + u1) / 2, 0.05]]) { const f = box(uu - ww / 2, uu + ww / 2, 0.2, 0.3, SILL, HEAD); K.add('gold', Bx(f.w, HEAD - SILL, f.d, f.x, (SILL + HEAD) / 2, f.z, 1)); }
       for (const yy of [SILL + 0.03, HEAD - 0.03, 3.25]) { const f = box(u0, u1, 0.2, 0.3, yy - 0.03, yy + 0.03); K.add('gold', Bx(f.w, 0.06, f.d, f.x, yy, f.z, 1)); }
       // Laibungen innen (Seiten und Sturz der Öffnung) aus hellem Stein

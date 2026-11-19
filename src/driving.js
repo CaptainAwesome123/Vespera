@@ -21,6 +21,7 @@ import { windAt, updateLeaves, updateWindAudio } from './wind.js';
 import { toast, BOAT } from './boat.js';
 import { isTouch, paused } from './input.js';
 import { audioCtx, audioBus } from './audio.js';
+import { glassHit } from './scherben.js';
 
 /* =====================================================================
    V16 · FAHRPHYSIK: Einspurmodell mit Reifenkräften (Schräglauf, Kammscher Kreis),
@@ -242,6 +243,7 @@ export function updateDrive(dt) {
 }
 // ein Teilschritt für den Spielerwagen
 export function stepPlayerCar(B, dt, inp) {
+  if (B.vx * B.vx + B.vz * B.vz > 16) { const hf = Math.cos(B.h) * 2.4, hz = -Math.sin(B.h) * 2.4; glassHit(B.x + hf, (B.y || 0) + 1.0, B.z + hz, B.vx, 0, B.vz, 1.1); }   // V122: mit dem Wagen ins Schaufenster
   const D = DRIVE, fx = Math.cos(B.h), fz = -Math.sin(B.h), lx = -Math.sin(B.h), lz = -Math.cos(B.h);
   let u = B.vx * fx + B.vz * fz, v = B.vx * lx + B.vz * lz, r = B.w;
   const dm = B.dmg, dAvg = (dm[0] + dm[1] + dm[2] + dm[3]) / 4;

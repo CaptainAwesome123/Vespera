@@ -30,6 +30,7 @@ import { DINE } from './venues.js';
 import { PM } from './player-model.js';
 import { knockDown } from './ragdoll.js';
 import { aweBurst } from './awe.js';
+import { glassWave } from './scherben.js';
 import { POWERS, superLanding } from './powers.js';
 import { IMP } from './imperial.js';
 
@@ -231,6 +232,7 @@ function krBlast(k) {
     const f = 3 + 5 * (1 - d / (R * 0.45));
     if (knockDown(pd, dx / (d || 1) * f, dz / (d || 1) * f, p.x, p.z)) down++;
   }
+  glassWave(p.x, p.y, p.z, R * 0.55);   // V122: Schaufenster und Laternen in der Nähe zerspringen
   aweBurst('land', R * 2.2 + 10);
 }
 function updateShock(dt) {
